@@ -205,27 +205,93 @@ const KnowledgeWorkshop = {
     }).join('');
   },
 
-  /** 点击"关系链" → 查询法规关系图API */
+  /** 点击"关系链" → 详情弹窗 */
   showRegulationGraph: function(lawId) {
     if (!lawId || lawId.length < 5) { AuditWorkbench.toast('暂无关系链数据','info'); return; }
     var self = this;
     fetch('/api/audit/knowledge/regulation/' + lawId + '/graph').then(function(r){return r.json();}).then(function(d){
-      if(!d.success){ AuditWorkbench.toast('暂无关系链数据','info'); return; }
+      if(!d.success || !d.graph){ AuditWorkbench.toast('暂无关系链数据','info'); return; }
       var g = d.graph;
-      var lines = ['中心法规: ' + g.center.title];
-      if(g.superior_chain && g.superior_chain.length) lines.push('上位法: '+g.superior_chain.length+'部');
-      if(g.inferior && g.inferior.length) lines.push('下位法: '+g.inferior.length+'部');
-      if(g.related && g.related.length) lines.push('相关法: '+g.related.length+'部');
-      AuditWorkbench.toast(lines.join(' / '), 'info');
+      // 上位法链
+      var superiorHtml = '';
+      if (g.superior_chain && g.superior_chain.length) {
+        superiorHtml = '<div style="margin-bottom:8px;"><strong>🔼 上位法链 ('+g.superior_chain.length+'部)</strong></div>' +
+          g.superior_chain.slice(0,10).map(function(l){
+            return '<div style="padding:4px 8px;font-size:13px;border-left:2px solid var(--color-primary);margin:2px 0;">'+
+              '<span style="color:var(--color-text-muted);">L'+l.depth+'</span> '+l.title.substring(0,50)+
+              ' <span class="badge badge-muted">'+ (l.potency_level||'') +'</span></div>';
+          }).join('');
+      }
+      // 下位法
+      var inferiorHtml = '';
+      if (g.inferior && g.inferior.length) {
+        inferiorHtml = '<div style="margin:12px 0 8px;"><strong>🔽 下位法 ('+g.inferior.length+'部)</strong></div>' +
+          g.inferior.slice(0,10).map(function(l){
+            return '<div style="padding:4px 8px;font-size:13px;border-left:2px solid var(--color-success);margin:2px 0;">'+
+              l.title.substring(0,50)+' <span class="badge badge-muted">'+ (l.potency_level||'') +'</span></div>';
+          }).join('');
+      }
+      // 相关法
+      var relatedHtml = '';
+      if (g.related && g.related.length) {
+        relatedHtml = '<div style="margin:12px 0 8px;"><strong>🔗 相关法 ('+g.related.length+'部)</strong></div>' +
+          g.related.slice(0,10).map(function(l){
+            return '<div style="padding:4px 8px;font-size:13px;border-left:2px solid var(--color-warning);margin:2px 0;">'+
+              l.title.substring(0,50)+' <span class="badge badge-muted">'+ (l.potency_level||'') +'</span></div>';
+          }).join('');
+      }
+
+      var modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+      modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:650px;width:95%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
+        '<div style="padding:20px 24px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;">'+
+        '<div><h3 style="margin:0;">法规关系链</h3><div style="font-size:14px;color:var(--color-text-muted);margin-top:4px;">'+
+        '中心法规: '+g.center.title+' <span class="badge badge-primary">'+ (g.center.potency_level||'') +'</span> '+
+        (g.center.timeliness||'') +' · 共'+g.total_relations+'条关系</div></div>'+
+        '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div>'+
+        '<div style="padding:16px 24px;">'+superiorHtml+inferiorHtml+relatedHtml+
+        (g.history_versions && g.history_versions.length ? '<div style="margin:12px 0 8px;"><strong>🕐 历史版本 ('+g.history_versions.length+'部)</strong></div>' : '')+
+        '</div></div>';
+      modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
+      document.body.appendChild(modal);
     }).catch(function(){ AuditWorkbench.toast('关系链加载失败','error'); });
   },
 
-  /** 点击"查看条款" → 查询条款分析API */
+  /** 点击"查看条款" → 详情弹窗 */
   showClauses: function(lawId) {
     if (!lawId || lawId.length < 5) { AuditWorkbench.toast('暂无条款数据','info'); return; }
     fetch('/api/audit/knowledge/clauses/' + lawId).then(function(r){return r.json();}).then(function(d){
       if(!d.success || !d.total){ AuditWorkbench.toast('暂无条款数据','info'); return; }
-      AuditWorkbench.toast('共'+d.total+'条条款（7类: 约束性/禁止性/程序性/...）', 'info');
+      var clauses = (d.clauses||[]).slice(0,50);
+      // 按条款类型分组
+      var groups = {};
+      clauses.forEach(function(c){
+        var t = c.clause_type || '其他';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(c);
+      });
+      var groupHtml = '';
+      for (var type in groups) {
+        groupHtml += '<div style="margin-bottom:8px;"><strong style="color:var(--color-primary);">'+type+'类 ('+groups[type].length+'条)</strong></div>';
+        groups[type].slice(0,8).forEach(function(c){
+          groupHtml += '<div style="padding:4px 8px;font-size:13px;border-left:2px solid var(--color-border);margin:2px 0;">'+
+            (c.clause_number ? '<span style="color:var(--color-accent);font-weight:600;">'+c.clause_number+'</span> ' : '')+
+            (c.clause_summary||'').substring(0,80)+
+            (c.audit_scenario ? '<span style="display:block;font-size:11px;color:var(--color-text-muted);">'+c.audit_scenario.substring(0,60)+'</span>' : '')+
+            '</div>';
+        });
+      }
+
+      var modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+      modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:700px;width:95%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
+        '<div style="padding:20px 24px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;">'+
+        '<div><h3 style="margin:0;">条款分析</h3><div style="font-size:14px;color:var(--color-text-muted);margin-top:4px;">共'+d.total+'条条款 · '+
+        Object.keys(groups).length+'种类型</div></div>'+
+        '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div>'+
+        '<div style="padding:16px 24px;">'+groupHtml+'</div></div>';
+      modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
+      document.body.appendChild(modal);
     }).catch(function(){ AuditWorkbench.toast('条款加载失败','error'); });
   },
 
