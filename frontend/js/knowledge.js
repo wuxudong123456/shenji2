@@ -27,13 +27,17 @@ const KnowledgeWorkshop = {
       // 违规行为 → 映射: violation_title→name, description→desc, expression_text→expr
       fetch('/api/audit/knowledge/violations?per_page=200').then(function(r){return r.json();}).then(function(d){
         self.violations = (d.violations || []).map(function(v){
+          // 从描述文本中提取法规引用（如 《招标投标法》）
+          var desc = v.description || '';
+          var lawMatch = desc.match(/《[^》]+》/g);
+          var lawText = lawMatch ? lawMatch.slice(0,2).join(' ') : '待关联法规';
           return {
             id: 'v' + (v.id),
             name: v.violation_title || '',
             domain: (v.category_path || '').split('/')[0] || '综合审计',
-            desc: v.description || '',
+            desc: desc,
             expr: v.expression_text || '',
-            law: '',
+            law: lawText,
             cases: 0,
             materials: []
           };
@@ -45,7 +49,7 @@ const KnowledgeWorkshop = {
       fetch('/api/audit/knowledge/regulations?per_page=100').then(function(r){return r.json();}).then(function(d){
         self.regulations = (d.regulations || []).map(function(l){
           return {
-            title: (l.title||'') ? '《' + (l.title||'') + '"' : '',
+            title: (l.title||'') ? '《' + (l.title||'') + '》' : '',
             no: l.issue_no || '', unit: l.issue_unit || '',
             level: l.potency_level || '', date: l.issue_date || '',
             status: l.timeliness || '', related: (l.id||'')
@@ -60,7 +64,7 @@ const KnowledgeWorkshop = {
             title: c.title || '',
             domain: c.domain || '',
             violation: '', law: '',
-            amount: c.involved_amount ? ('《' + (c.involved_amount||0).toLocaleString()) : '',
+            amount: c.involved_amount ? ('¥' + Number(c.involved_amount||0).toLocaleString()) : '',
             method: c.case_summary || ''
           };
         });

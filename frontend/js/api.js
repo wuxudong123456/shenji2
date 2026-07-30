@@ -222,23 +222,30 @@ var AuditAPI = {
   }
 };
 
-// 兼容旧代码
+// 兼容旧代码 — Phase 7 修复: 对接真实 MinIO + MySQL 项目
 var MinioAPI = {
   base: window.location.origin,
   listFiles: function(project) {
-    return AuditAPI.files.list(project);
+    // project 可能是 MySQL UUID 或 MinIO 文件夹名
+    return fetch(this.base + '/api/audit/workspace/files?project=' + encodeURIComponent(project))
+      .then(function(r) { return r.json(); });
   },
   upload: function(project, file) {
-    return AuditAPI.files.upload(project, file);
+    var form = new FormData();
+    form.append('file', file);
+    return fetch(this.base + '/api/audit/projects/' + encodeURIComponent(project) + '/upload', {
+      method: 'POST', body: form
+    }).then(function(r) { return r.json(); });
   },
   getDownloadUrl: function(project, filename) {
-    // 通过 MinIO 直接 URL
-    return Promise.resolve({url: window.location.origin + '/api/audit/documents/download?project=' + project + '&file=' + encodeURIComponent(filename)});
+    return fetch(this.base + '/api/audit/workspace/download?project=' + encodeURIComponent(project) + '&file=' + encodeURIComponent(filename))
+      .then(function(r) { return r.json(); });
   },
   deleteFile: function(project, filename) {
-    return Promise.resolve({ok: true}); // 暂不实现删除
+    return fetch(this.base + '/api/audit/workspace/delete?project=' + encodeURIComponent(project) + '&file=' + encodeURIComponent(filename), { method: 'DELETE' })
+      .then(function(r) { return r.json(); });
   },
   listProjects: function() {
-    return AuditAPI.projects.list();
+    return fetch(this.base + '/api/audit/workspace/projects').then(function(r) { return r.json(); });
   }
 };

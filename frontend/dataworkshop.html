@@ -95,28 +95,81 @@
   <script src="js/app.js"></script>
   <script>
     const DataWorkshop = {
-      nlToExpression() {
-        const q = document.getElementById('nl-query').value.trim();
-        if (!q) return AuditWorkbench.toast('请输入查询需求','warning');
-        document.getElementById('expression-result').innerHTML = `
-          <div class="card" style="margin-top:8px;animation:fadeIn 0.3s ease;">
-            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;"><i class="bi bi-magic"></i> LLM已理解您的需求，生成比对逻辑：</div>
-            <div style="background:var(--color-bg);padding:10px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:13px;">
-              签订日期 BETWEEN '2026-03-01' AND '2026-03-31'<br>
-              AND 采购方式 = '询价'<br>
-              AND 金额 >= 1000000<br>
-              ORDER BY 金额 DESC
-            </div>
-            <div class="alert alert-info" style="margin-top:8px;margin-bottom:0;">
-              <strong>预计扫描:</strong> 2条记录 · <strong>预计命中:</strong> 1条 · <strong>数据来源:</strong> 采购合同_结构化表
-            </div>
-            <div style="margin-top:8px;display:flex;gap:8px;">
-              <button class="btn btn-accent btn-sm" onclick="DataWorkshop.executeQuery()"><i class="bi bi-check-lg"></i> 确认并执行</button>
-              <button class="btn btn-outline btn-sm"><i class="bi bi-pencil"></i> 修改</button>
-              <button class="btn btn-outline btn-sm" onclick="this.closest('.card').remove()"><i class="bi bi-x-lg"></i> 取消</button>
-            </div>
-          </div>`;
+      currentTable: 'data_contracts',
+      currentProject: '',
+
+      init() {
+        // 加载当前项目
+        try { var pm = JSON.parse(localStorage.getItem('aw_project_memory')||'{}'); this.currentProject = pm.id || '00917be56d5d'; } catch(e) {}
+        this.loadTables();
       },
+
+      loadTables() {
+        var self = this;
+        fetch('/api/audit/projects/' + this.currentProject + '/data')
+          .then(function(r){return r.json();}).then(function(d){
+            if (d.success && d.tables && d.tables.length) {
+              var html = d.tables.map(function(t){
+                return '<div class="card" style="cursor:pointer;" onclick="DataWorkshop.selectTable(\''+t.table+'\')">'+
+                  '<div style="font-size:20px;margin-bottom:4px;"><i class="bi bi-table" style="color:var(--color-primary);"></i> '+t.label+'</div>'+
+                  '<div style="font-size:12px;color:var(--color-text-muted);">'+t.rows+' 条记录</div></div>';
+              }).join('');
+              document.querySelector('div[style*=\"grid-template-columns\"]').innerHTML = html;
+            }
+          }).catch(function(){});
+      },
+
+      nlToExpression() {
+        var q = document.getElementById('nl-query').value.trim();
+        if (!q) return AuditWorkbench.toast('请输入查询需求','warning');
+        var self = this;
+        document.getElementById('expression-result').innerHTML = '<div style=\"padding:12px;color:var(--color-text-muted);\"><span class=\"pulse\">●</span> AI正在理解您的需求...</div>';
+        fetch('/api/audit/data/query', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question: q, project_id: self.currentProject})
+        }).then(function(r){return r.json();}).then(function(d){
+          if (d.success && d.pseudo_sql) {
+            document.getElementById('expression-result').innerHTML =
+              '<div class="card" style="margin-top:8px;animation:fadeIn 0.3s ease;">'+
+              '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;"><i class="bi bi-magic"></i> AI生成比对逻辑：</div>'+
+              '<div style="background:var(--color-bg);padding:10px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:13px;">'+d.pseudo_sql+'</div>'+
+              '<div style="margin-top:8px;display:flex;gap:8px;">'+
+              '<button class="btn btn-accent btn-sm" onclick=\"DataWorkshop.executeExpression(\''+d.pseudo_sql.replace(/'/g,\"\\\\'\")+'\')\"><i class=\"bi bi-check-lg\"></i> 确认并执行</button>'+
+              '<button class="btn btn-outline btn-sm" onclick=\"document.getElementById(\'expression-result\').innerHTML=\'\'\"><i class=\"bi bi-x-lg\"></i> 取消</button></div></div>';
+          } else {
+            AuditWorkbench.toast('AI未能理解您的需求，请重新描述','warning');
+          }
+        }).catch(function(){
+          AuditWorkbench.toast('AI服务暂时不可用','error');
+        });
+      },
+
+      executeExpression(expr) {
+        var self = this;
+        document.getElementById('query-result').innerHTML = '<div style=\"padding:16px;text-align:center;\"><span class=\"pulse\">●</span> 执行中...</div>';
+        fetch('/api/audit/expression/execute', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({expression: expr, table: self.currentTable, project_id: self.currentProject})
+        }).then(function(r){return r.json();}).then(function(d){
+          if (d.success) {
+            var rows = (d.rows||[]).slice(0, 20);
+            var th = rows.length ? Object.keys(rows[0].fields||{}).slice(0,6).map(function(k){return '<th>'+k+'</th>';}).join('') : '';
+            var tr = rows.map(function(r){ return '<tr>'+Object.values(r.fields||{}).slice(0,6).map(function(v){return '<td>'+String(v||'').substring(0,50)+'</td>';}).join('')+'</tr>'; }).join('');
+            document.getElementById('query-result').innerHTML =
+              '<div class="card"><div class="card-header"><h3>查询结果</h3>'+
+              '<span class=\"badge badge-accent\">命中 '+d.hits+' 条 / 扫描 '+d.total+' 条 (命中率 '+(d.hit_rate*100).toFixed(1)+'%)</span></div>'+
+              '<div class=\"table-wrap\"><table class=\"table\"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>'+
+              '<div style=\"margin-top:8px;font-size:12px;color:var(--color-text-muted);\"><i class=\"bi bi-check-circle\"></i> AI Agent生成表达式 · 数据来源: '+self.currentTable+'</div></div>';
+          }
+        }).catch(function(){ AuditWorkbench.toast('执行失败','error'); });
+      },
+      selectTable(table) {
+        this.currentTable = table;
+        AuditWorkbench.toast('已选择: ' + table.replace('data_',''), 'info');
+      },
+
       executeQuery() {
         document.getElementById('query-result').innerHTML = `
           <div class="card">
@@ -142,6 +195,7 @@
           </div>`;
       }
     };
+    document.addEventListener('DOMContentLoaded', function() { DataWorkshop.init(); });
   </script>
 </body>
 </html>

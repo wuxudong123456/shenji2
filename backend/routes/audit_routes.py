@@ -674,6 +674,79 @@ def register_audit_routes(app):
         return jsonify(_graph_state_to_response(task_id, state, new_snapshot))
 
     # ═══════════════════════════════════════════════════════════
+    #  工作区（资料工坊兼容）
+    # ═══════════════════════════════════════════════════════════
+
+    @app.route("/api/audit/workspace/projects", methods=["GET"])
+    def audit_workspace_projects():
+        """GET /api/audit/workspace/projects — 合并 MySQL + MinIO 项目列表"""
+        # MySQL 项目
+        db_projects = query(
+            "SELECT id, name, description, status, create_time FROM audit_projects WHERE deleted = 0 ORDER BY create_time DESC",
+            database="tt",
+        )
+        result = []
+        for p in db_projects:
+            result.append({"id": p["id"], "name": p["name"], "type": "db", "status": p.get("status", "")})
+        # MinIO 项目
+        try:
+            from services.minio_client import list_folders, get_client
+            folders = list_folders()
+            for f in folders:
+                has_id = any(p["name"] == f for p in result)
+                if not has_id:
+                    result.append({"id": f, "name": f, "type": "minio", "status": "active"})
+        except Exception:
+            pass
+        return jsonify({"success": True, "projects": result})
+
+    @app.route("/api/audit/workspace/files", methods=["GET"])
+    def audit_workspace_files():
+        """GET /api/audit/workspace/files?project=<name> — 列出 MinIO 中的文件"""
+        project = request.args.get("project", "")
+        if not project:
+            return jsonify({"success": False, "error": "请提供 project 参数"}), 400
+        try:
+            from services.minio_client import list_objects
+            prefix = project + "/"
+            objects = list_objects(prefix)
+            files = []
+            for obj in objects:
+                name = obj["name"].replace(prefix, "", 1)
+                if "/" in name:
+                    continue
+                files.append({"name": name, "size": obj["size"], "last_modified": obj["last_modified"]})
+            return jsonify({"success": True, "project": project, "files": files})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/api/audit/workspace/download", methods=["GET"])
+    def audit_workspace_download():
+        """GET /api/audit/workspace/download?project=<name>&file=<filename> — MinIO 预签名下载"""
+        project = request.args.get("project", "")
+        filename = request.args.get("file", "")
+        if not project or not filename:
+            return jsonify({"success": False, "error": "缺少参数"}), 400
+        try:
+            from services.minio_client import get_presigned_url
+            url = get_presigned_url(f"{project}/{filename}", expires=3600)
+            return jsonify({"success": True, "url": url})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/api/audit/workspace/delete", methods=["DELETE"])
+    def audit_workspace_delete():
+        """DELETE /api/audit/workspace/delete?project=<name>&file=<filename>"""
+        project = request.args.get("project", "")
+        filename = request.args.get("file", "")
+        try:
+            from services.minio_client import delete_object
+            delete_object(f"{project}/{filename}")
+            return jsonify({"success": True, "message": f"{filename} 已删除"})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    # ═══════════════════════════════════════════════════════════
     #  AI 对话
     # ═══════════════════════════════════════════════════════════
 
