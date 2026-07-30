@@ -185,6 +185,8 @@ agents:
     max_tokens: 8192
     mcp_tools:
       - knowledge-mcp.search_violations
+      - knowledge-mcp.get_violation_detail
+      - knowledge-mcp.get_law_detail
       - expression-mcp.execute_expression
     system_prompt: |
       你是一名资深审计分析师，擅长从大量结构化数据中发现异常模式并形成审计判断。

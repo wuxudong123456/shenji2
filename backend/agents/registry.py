@@ -24,7 +24,12 @@ from agents.base import AgentDefinition, BaseAgent
 # 键: agent_id（与 agents.yaml 中的 key 一致）
 # 值: "module.ClassName" 的导入路径
 _SUBCLASS_MAP: dict[str, str] = {
+    "intent_analyzer": "agents.intent_analyzer.IntentAnalyzerAgent",
+    "violation_matcher": "agents.violation_matcher.ViolationMatcherAgent",
+    "data_advisor": "agents.data_advisor.DataAdvisorAgent",
+    "regulation_advisor": "agents.regulation_advisor.RegulationAdvisorAgent",
     "audit_analyzer": "agents.audit_analyzer.AuditAnalyzerAgent",
+    "suspicion_generator": "agents.suspicion_generator.SuspicionGeneratorAgent",
 }
 
 
@@ -77,6 +82,7 @@ class AgentRegistry:
                     system_prompt=system_prompt,
                     output_schema=cfg.get("output_schema", {}),
                     mcp_tools=cfg.get("mcp_tools", []),
+                    knowledge_base_ids=cfg.get("knowledge_base_ids", []),
                 )
 
         # 2. 从 DB 加载（覆盖 YAML 中的同名字段）

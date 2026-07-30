@@ -62,9 +62,9 @@ def _node_violation_matcher(state: AnalysisState) -> dict:
 
     out = result["output"]
     violations = out.get("matches", [])
+    # 资料推荐由 DataAdvisor 负责，此处不写 recommended_materials（避免并行写冲突+数据类型混乱）
     return {
         "matches": violations,
-        "recommended_materials": out.get("recommended_materials", []),
         "current_step": 2,
     }
 
@@ -226,8 +226,10 @@ def build_analysis_graph():
     workflow.add_edge("step_5_analysis", "step_6_suspicion")
     workflow.add_edge("step_6_suspicion", END)
 
-    # 编译: 在Step③前暂停，等待人工确认
+    # 编译: 两个人工断点
+    #   ① step_3_confirm 前 — 等待用户确认违规模型+法规依据
+    #   ② step_5_analysis 前 — 等待用户上传审计资料（取证后再分析）
     return workflow.compile(
         checkpointer=MemorySaver(),
-        interrupt_before=["step_3_confirm"],
+        interrupt_before=["step_3_confirm", "step_5_analysis"],
     )

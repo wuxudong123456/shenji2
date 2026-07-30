@@ -303,3 +303,56 @@ CREATE TABLE tt.audit_agents (
     updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_name (name)
 ) COMMENT 'Agent配置';
+
+-- 方案B补充字段: knowledge_base_ids — Agent 绑定的知识库标识（与 tools 分离）
+-- 幂等：仅在列不存在时添加
+-- 注: MySQL 8 无 ADD COLUMN IF NOT EXISTS，用存储过程做幂等
+DROP PROCEDURE IF EXISTS tt._add_kb_ids_col;
+DELIMITER $$
+CREATE PROCEDURE tt._add_kb_ids_col()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = 'tt' AND TABLE_NAME = 'audit_agents'
+          AND COLUMN_NAME = 'knowledge_base_ids'
+    ) THEN
+        ALTER TABLE tt.audit_agents
+            ADD COLUMN knowledge_base_ids JSON NULL
+            COMMENT '绑定的知识库标识列表（如 ["law_db","violation_db"]）' AFTER datasets;
+    END IF;
+END$$
+DELIMITER ;
+CALL tt._add_kb_ids_col();
+DROP PROCEDURE IF EXISTS tt._add_kb_ids_col;
+
+-- =============================================================================
+-- 附加表: audit_agent_traces — 智能体执行溯源链（方案B §2）
+-- 记录每次 Agent 执行的完整链路: 输入/输出/工具调用/知识来源/耗时/状态/上下游关联
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS tt.audit_agent_traces (
+    id                  INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    trace_id            VARCHAR(64)   NOT NULL                COMMENT '溯源唯一标识(trace-xxxx)',
+    task_id             VARCHAR(64)                           COMMENT '关联分析任务(audit_analysis_tasks.id)',
+    project_id          VARCHAR(32)                           COMMENT '关联审计项目',
+    agent_id            VARCHAR(100)  NOT NULL                COMMENT '执行的Agent标识',
+    agent_name          VARCHAR(200)                          COMMENT 'Agent显示名称',
+    step                TINYINT                               COMMENT '执行步骤(1-6)',
+    node_name           VARCHAR(100)                          COMMENT '工作流节点名',
+    upstream_trace_ids  JSON                                  COMMENT '上游Agent的trace_id列表',
+    input_summary       JSON                                  COMMENT '输入摘要(脱敏/截断)',
+    output_summary      JSON                                  COMMENT '输出摘要(脱敏/截断)',
+    knowledge_sources   JSON                                  COMMENT '引用的知识来源(法规/违规ID等)',
+    tool_call_records   JSON                                  COMMENT '工具调用记录(工具名/参数/结果/状态/耗时)',
+    llm_raw_response    JSON                                  COMMENT 'LLM原始响应(用于推理溯源)',
+    validation_errors   JSON                                  COMMENT '输出校验错误',
+    duration_ms         INT                                   COMMENT '总执行耗时(毫秒)',
+    status              VARCHAR(20)   DEFAULT 'success'       COMMENT 'success/failed',
+    error_message       TEXT                                  COMMENT '失败原因',
+    model               VARCHAR(100)                          COMMENT '使用的模型',
+    created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '执行时间',
+    INDEX idx_trace (trace_id),
+    INDEX idx_task (task_id),
+    INDEX idx_project (project_id),
+    INDEX idx_agent (agent_id),
+    INDEX idx_created (created_at)
+) COMMENT '智能体执行溯源链';

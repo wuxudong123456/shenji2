@@ -7,6 +7,12 @@ from typing import TypedDict, Optional, Annotated
 from operator import add
 
 
+def _last(prev, new):
+    """后写覆盖 reducer — 用于并行节点同写同一键（如 current_step）。
+    并行批中各节点写相同值，取最后一个即可；None 保留前值。"""
+    return new if new is not None else prev
+
+
 class AnalysisState(TypedDict, total=False):
     """审计分析工作流共享状态
 
@@ -37,7 +43,7 @@ class AnalysisState(TypedDict, total=False):
     # ── Step②: Agent并行推荐 ──
     # 违规匹配
     matches: Annotated[list[dict], add]   # ViolationMatcher 匹配的违规模型列表
-    recommended_materials: list[dict]     # DataAdvisor 推荐的资料清单
+    recommended_materials: Annotated[list[dict], add]  # DataAdvisor 推荐的资料清单（并行合并）
     # 法规推荐
     primary_laws: Annotated[list[dict], add]  # RegulationAdvisor 推荐的主法列表
     layer_advice: str                     # 法规层级适用建议
@@ -61,6 +67,6 @@ class AnalysisState(TypedDict, total=False):
     suspicion_report: dict                # SuspicionGenerator 生成的疑点报告
 
     # ── 元数据 ──
-    current_step: int                     # 当前步骤 (1-6)
+    current_step: Annotated[int, _last]   # 当前步骤 (1-6) — 并行节点用_last合并
     errors: Annotated[list[str], add]     # 累积错误信息
     completed_at: str                     # 完成时间

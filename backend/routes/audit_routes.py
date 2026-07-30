@@ -431,6 +431,8 @@ def register_audit_routes(app):
             "domain": data.get("domain", ""),
             "audit_item": data.get("item", ""),
             "project_id": data.get("project_id", ""),
+            "primary_laws": data.get("primary_laws", []),
+            "selected_laws": data.get("selected_laws", []),
         })
 
         return jsonify(result)
@@ -469,14 +471,22 @@ def register_audit_routes(app):
         next_nodes = list(snapshot.next) if snapshot.next else []
         current_step = state.get("current_step", 1)
 
-        # 判断是否在确认断点处暂停
-        is_awaiting_confirmation = "step_3_confirm" in next_nodes
+        # 判断暂停位置（两个断点）
+        if "step_3_confirm" in next_nodes:
+            status = "awaiting_confirmation"          # 断点①：确认依据
+        elif "step_5_analysis" in next_nodes:
+            status = "awaiting_upload"                 # 断点②：等待上传资料
+            current_step = 4                           # 前端展示为 Step4
+        elif not next_nodes:
+            status = "completed"                       # 工作流跑完
+        else:
+            status = "in_progress"
 
         return {
             "success": True,
             "task_id": task_id,
             "step": current_step,
-            "status": "awaiting_confirmation" if is_awaiting_confirmation else "in_progress",
+            "status": status,
             "intent_result": state.get("intent_result", {}),
             "domain": state.get("domain", ""),
             "audit_item": state.get("audit_item", ""),
@@ -519,9 +529,9 @@ def register_audit_routes(app):
         # 持久化到 MySQL
         insert(
             "INSERT INTO audit_analysis_tasks "
-            "(project_id, title, step, step_data, agent_results, status, created_at) "
-            "VALUES (%s,%s,%s,%s,%s,'in_progress',NOW())",
-            (project_id, user_intent[:500],
+            "(task_code, project_id, title, step, step_data, agent_results, status, created_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,'in_progress',NOW())",
+            (task_id, project_id, user_intent[:500],
              state.get("current_step", 2),
              json.dumps({"intent_result": state.get("intent_result", {})}, ensure_ascii=False),
              json.dumps({
@@ -553,7 +563,7 @@ def register_audit_routes(app):
 
         # 回退：查 MySQL
         row = query_one(
-            "SELECT * FROM audit_analysis_tasks WHERE id = %s",
+            "SELECT * FROM audit_analysis_tasks WHERE task_code = %s",
             (task_id,), database="tt",
         )
         if not row:
@@ -583,7 +593,7 @@ def register_audit_routes(app):
             _analysis_graph.update_state(config, {
                 "uploaded_files": uploaded_files,
                 "current_step": 4,
-            })
+            }, as_node="step_4_upload")
 
             # 继续执行 Step⑤ + Step⑥
             final_state = _analysis_graph.invoke(None, config)
@@ -593,7 +603,7 @@ def register_audit_routes(app):
                 "UPDATE audit_analysis_tasks SET step = 6, status = 'completed', "
                 "step_data = JSON_MERGE_PATCH(COALESCE(step_data,'{}'), %s), "
                 "agent_results = JSON_MERGE_PATCH(COALESCE(agent_results,'{}'), %s), "
-                "result = %s WHERE id = %s",
+                "result = %s WHERE task_code = %s",
                 (json.dumps({"uploaded_files": uploaded_files}, ensure_ascii=False),
                  json.dumps({
                      "audit_analyzer": final_state.get("analysis_results", []),
@@ -638,19 +648,19 @@ def register_audit_routes(app):
         custom_regulations = data.get("custom_regulations", [])
         action = data.get("action", "confirm")  # confirm / reject
 
-        # 注入用户确认数据
+        # 注入用户确认数据（as_node 指向确认节点，消除并行后的歧义更新）
         _analysis_graph.update_state(config, {
             "selected_violations": selected_violations,
             "selected_laws": selected_laws,
             "custom_regulations": custom_regulations,
             "confirmation_status": "confirmed" if action == "confirm" else "rejected",
             "current_step": 3,
-        })
+        }, as_node="step_3_confirm")
 
         # 持久化确认记录
         execute(
             "UPDATE audit_analysis_tasks SET step = 3, step_data = JSON_MERGE_PATCH("
-            "COALESCE(step_data,'{}'), %s) WHERE id = %s",
+            "COALESCE(step_data,'{}'), %s) WHERE task_code = %s",
             (json.dumps({
                 "selected_violations": selected_violations,
                 "selected_laws": selected_laws,

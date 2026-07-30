@@ -336,19 +336,55 @@ const AnalysisWizard = {
     AuditWorkbench.toast('已添加自定义法规依据', 'success');
   },
 
-  /** Step 4: Show materials - from 资料工坊 or new upload */
+  /** Step 4: Show materials - 从后端加载真实已上传文件 */
   populateStep4() {
+    var self = this;
     var list = document.getElementById('file-list');
     if (!list) return;
-    list.innerHTML =
+
+    // 解析当前项目ID（来自 localStorage 或任务上下文）
+    if (!this._projectId) {
+      var mem = localStorage.getItem('aw_project_memory');
+      try { this._projectId = (mem && JSON.parse(mem).projectId) || ''; } catch(e) {}
+    }
+
+    var header =
       '<div class="card" style="margin-bottom:8px;border:2px solid var(--color-primary);">' +
       '<div style="font-weight:600;margin-bottom:8px;"><i class="bi bi-folder-check"></i> 从资料工坊选择已处理资料</div>' +
-      '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:12px;">以下为资料工坊中已解析的资料，可直接关联到本次分析</div>' +
-      '<div class="rec-item" style="cursor:pointer;"><input type="checkbox" class="rec-check" checked onchange="AnalysisWizard.updateMaterialStatus()"><i class="bi bi-file-earmark-pdf" style="color:var(--color-accent);font-size:20px;"></i><div style="flex:1;"><strong>采购合同汇总.pdf</strong><div style="font-size:12px;color:var(--color-text-muted);">3.4MB · 8字段 · 5条 · 已解析</div></div><span class="badge badge-success">已解析</span><a class="trace-link" href="docworkshop.html">📍溯源</a></div>' +
-      '<div class="rec-item" style="cursor:pointer;"><input type="checkbox" class="rec-check" checked onchange="AnalysisWizard.updateMaterialStatus()"><i class="bi bi-file-earmark-spreadsheet" style="color:var(--color-success);font-size:20px;"></i><div style="flex:1;"><strong>银行流水2026Q1.csv</strong><div style="font-size:12px;color:var(--color-text-muted);">856KB · 已解析</div></div><span class="badge badge-success">已解析</span><a class="trace-link" href="docworkshop.html">📍溯源</a></div>' +
-      '<div class="rec-item" style="cursor:pointer;"><input type="checkbox" class="rec-check" onchange="AnalysisWizard.updateMaterialStatus()"><i class="bi bi-file-earmark-pdf" style="color:var(--color-accent);font-size:20px;"></i><div style="flex:1;"><strong>补贴发放明细.pdf</strong><div style="font-size:12px;color:var(--color-text-muted);">1.2MB · 15字段 · 1248条</div></div><span class="badge badge-success">已解析</span><a class="trace-link" href="docworkshop.html">📍溯源</a></div>' +
+      '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:12px;">以下为本项目已上传并解析的资料，可直接关联到本次分析</div>' +
+      '<div id="step4-file-container"><div style="text-align:center;padding:12px;color:var(--color-text-muted);"><i class="bi bi-hourglass-split pulse"></i> 正在加载已上传资料...</div></div>' +
       '<a href="docworkshop.html" style="font-size:13px;"><i class="bi bi-box-arrow-up-right"></i> 前往资料工坊查看更多</a></div>' +
       '<div style="font-size:13px;color:var(--color-text-muted);text-align:center;margin:8px 0;">— 或上传新资料 —</div>';
+    list.innerHTML = header;
+
+    // 从后端拉取真实文件列表
+    var pid = this._projectId || 'default';
+    AuditAPI.files.list(pid).then(function(resp) {
+      var container = document.getElementById('step4-file-container');
+      if (!resp.success || !resp.files || resp.files.length === 0) {
+        container.innerHTML = '<div class="alert alert-info" style="margin:0;">本项目暂无已上传资料，请在下方上传新资料</div>';
+        return;
+      }
+      container.innerHTML = resp.files.map(function(f) {
+        var ext = (f.file_name || '').split('.').pop().toLowerCase();
+        var icon = ext === 'pdf' ? 'bi-file-earmark-pdf' :
+                   (ext === 'csv' ? 'bi-file-earmark-spreadsheet' : 'bi-file-earmark-text');
+        var iconColor = ext === 'pdf' ? 'var(--color-accent)' : 'var(--color-success)';
+        var ocrBadge = f.ocr_done ?
+          '<span class="badge badge-success">已解析</span>' :
+          '<span class="badge badge-warning">解析中</span>';
+        var traceLink = f.id ? '<a class="trace-link" href="docworkshop.html">📍溯源</a>' : '';
+        return '<div class="rec-item" style="cursor:pointer;">' +
+          '<input type="checkbox" class="rec-check" checked data-fname="' + (f.file_name || '') + '" onchange="AnalysisWizard.updateMaterialStatus()">' +
+          '<i class="bi ' + icon + '" style="color:' + iconColor + ';font-size:20px;"></i>' +
+          '<div style="flex:1;"><strong>' + (f.file_name || '未知文件') + '</strong>' +
+          '<div style="font-size:12px;color:var(--color-text-muted);">' + (f.ocr_done ? '已解析' : 'OCR解析中') + '</div></div>' +
+          ocrBadge + traceLink + '</div>';
+      }).join('');
+    }).catch(function() {
+      var container = document.getElementById('step4-file-container');
+      if (container) container.innerHTML = '<div class="alert alert-warning" style="margin:0;">无法加载资料列表，请确认后端服务已启动。可直接在下方上传新资料。</div>';
+    });
   },
 
   updateMaterialStatus: function() {
