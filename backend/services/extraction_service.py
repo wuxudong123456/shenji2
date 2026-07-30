@@ -21,27 +21,32 @@ def _build_extraction_prompt(template: dict, markdown: str) -> tuple[str, str]:
     fields = template.get("output", {}).get("fields", [])
     guideline = template.get("guideline", "")
 
-    # System prompt — 借鉴 prompt_builder.py 的反幻觉规则
-    system_parts = [
-        "【严格要求——禁止虚构】",
-        "你必须只提取原文中精确出现的文字，不得虚构、推测、归纳或概括任何内容。",
-        "如果原文中没有某个字段的值，必须返回「未提供」，绝对不能编造。",
-        "你提取的每一个值，必须能在原文中找到对应的文字片段。",
-    ]
-
-    if guideline:
-        system_parts.append(f"\n提取规则：\n{guideline}")
-
-    # 字段定义
+    # System prompt — 从 prompts/extraction/extract_fields.txt 加载模板
+    # 模板含 {guideline} 和 {fields_json} 占位符
     field_lines = []
     for f in fields:
         req = "必填" if f.get("required", True) else "可选"
         ftype = f.get("type", "string")
         desc = f.get("description", f["name"])
         field_lines.append(f'    "{f["name"]}": "{desc} ({ftype}, {req})"')
+    fields_json = "{\n" + ",\n".join(field_lines) + "\n}"
 
-    system_parts.append(f'\n输出格式（以json格式输出）：\n{{\n{",\n".join(field_lines)}\n}}')
-    system_prompt = "\n\n".join(system_parts)
+    try:
+        from prompts import load_prompt
+        tmpl = load_prompt("extraction/extract_fields")
+        system_prompt = tmpl.format(guideline=guideline, fields_json=fields_json)
+    except FileNotFoundError:
+        # 回退: 原内联逻辑（与 prompts/extraction/extract_fields.txt 等价）
+        system_parts = [
+            "【严格要求——禁止虚构】",
+            "你必须只提取原文中精确出现的文字，不得虚构、推测、归纳或概括任何内容。",
+            "如果原文中没有某个字段的值，必须返回「未提供」，绝对不能编造。",
+            "你提取的每一个值，必须能在原文中找到对应的文字片段。",
+        ]
+        if guideline:
+            system_parts.append(f"\n提取规则：\n{guideline}")
+        system_parts.append(f'\n输出格式（以json格式输出）：\n{fields_json}')
+        system_prompt = "\n\n".join(system_parts)
 
     # User prompt
     user_prompt = f"请从以下文档中逐字提取信息，不得虚构：\n\n{markdown[:12000]}"
@@ -120,7 +125,12 @@ def classify_document(markdown: str) -> dict:
     from services.llm_client import call_llm
     import json as _json
 
-    classify_prompt = f"""请判断以下文档的类型。严格返回 JSON 格式（不要加任何额外文字）：
+    classify_prompt = ""
+    try:
+        from prompts import load_prompt
+        classify_prompt = load_prompt("extraction/classify").format(markdown=markdown[:3000])
+    except FileNotFoundError:
+        classify_prompt = f"""请判断以下文档的类型。严格返回 JSON 格式（不要加任何额外文字）：
 
 类别必须是以下之一：合同协议类、业务单据类、财务凭证类、财务票据类、财务账簿类、数据表格类、数据信息类、政策文件类、法律文书类、审查报告类、登记台账类、规章制度类、影像图件类、清单名册类、资料材料类、记录留痕类、资质证照类、历史档案类、其他杂项类
 
@@ -234,8 +244,13 @@ def auto_classify_and_extract(markdown: str) -> dict:
 
     先用 LLM 分类文档类型，再匹配模板进行提取。
     """
-    # Step 1: 用轻量 prompt 分类
-    classify_prompt = f"""请判断以下文档的类型。返回 JSON 格式：
+    # Step 1: 用轻量 prompt 分类（从 prompts/extraction/classify_light.txt 加载）
+    classify_prompt = ""
+    try:
+        from prompts import load_prompt
+        classify_prompt = load_prompt("extraction/classify_light").format(markdown=markdown[:3000])
+    except FileNotFoundError:
+        classify_prompt = f"""请判断以下文档的类型。返回 JSON 格式：
 {{"domain": "审计领域（如 audit）", "category": "文档类别（如 合同协议类、业务单据类、财务凭证类）", "doc_type": "具体文档类型（如 采购合同、发票、入库单）", "reasoning": "判断依据"}}
 
 文档内容：

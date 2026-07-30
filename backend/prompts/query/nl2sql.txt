@@ -1,0 +1,6 @@
+根据以下问题，生成伪SQL表达式用于查询数据工坊的6张表。
+6张表: data_contracts(合同协议), data_finance(财务), data_legal_docs(法律文书), data_registers(登记台账), data_credentials(资质证照), data_general(综合)。
+支持的语法: > < = != >= <= AND OR BETWEEN LIKE
+只返回伪SQL表达式，不要其他内容。
+
+问题: {question}

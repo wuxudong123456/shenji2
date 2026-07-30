@@ -51,13 +51,22 @@ class AgentRegistry:
         if self._loaded:
             return
 
-        # 1. 先从 YAML 加载
+        # 1. 先从 YAML 加载（system_prompt 优先从 prompts/ 文件读取）
         yaml_path = Path(__file__).parent / "agents.yaml"
         if yaml_path.exists():
             with open(yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             agents_data = data.get("agents", {})
             for agent_id, cfg in agents_data.items():
+                # 优先从 prompts/agents/<agent_id>.txt 加载提示词
+                # 文件不存在则回退到 YAML 内的 system_prompt 字段
+                system_prompt = ""
+                try:
+                    from prompts import load_prompt
+                    system_prompt = load_prompt(f"agents/{agent_id}")
+                except FileNotFoundError:
+                    system_prompt = cfg.get("system_prompt", "")
+
                 self._definitions[agent_id] = AgentDefinition(
                     agent_id=agent_id,
                     name=cfg.get("name", agent_id),
@@ -65,7 +74,7 @@ class AgentRegistry:
                     model=cfg.get("model", "deepseek-v4-flash"),
                     temperature=cfg.get("temperature", 0.1),
                     max_tokens=cfg.get("max_tokens", 4096),
-                    system_prompt=cfg.get("system_prompt", ""),
+                    system_prompt=system_prompt,
                     output_schema=cfg.get("output_schema", {}),
                     mcp_tools=cfg.get("mcp_tools", []),
                 )

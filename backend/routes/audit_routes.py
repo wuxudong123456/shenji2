@@ -311,16 +311,21 @@ def register_audit_routes(app):
         if not question:
             return jsonify({"success": False, "error": "请输入查询问题"}), 400
 
-        # 使用 LLM 生成伪SQL
+        # 使用 LLM 生成伪SQL（从 prompts/query/nl2sql.txt 加载）
         from services.llm_client import call_llm
-        prompt = (
-            f"根据以下问题，生成伪SQL表达式用于查询数据工坊的6张表。\n"
-            f"6张表: data_contracts(合同协议), data_finance(财务), data_legal_docs(法律文书), "
-            f"data_registers(登记台账), data_credentials(资质证照), data_general(综合)。\n"
-            f"支持的语法: > < = != >= <= AND OR BETWEEN LIKE\n"
-            f"只返回伪SQL表达式，不要其他内容。\n\n"
-            f"问题: {question}"
-        )
+        prompt = ""
+        try:
+            from prompts import load_prompt
+            prompt = load_prompt("query/nl2sql").format(question=question)
+        except FileNotFoundError:
+            prompt = (
+                f"根据以下问题，生成伪SQL表达式用于查询数据工坊的6张表。\n"
+                f"6张表: data_contracts(合同协议), data_finance(财务), data_legal_docs(法律文书), "
+                f"data_registers(登记台账), data_credentials(资质证照), data_general(综合)。\n"
+                f"支持的语法: > < = != >= <= AND OR BETWEEN LIKE\n"
+                f"只返回伪SQL表达式，不要其他内容。\n\n"
+                f"问题: {question}"
+            )
         try:
             pseudo_sql = call_llm(prompt, max_tokens=512, temperature=0)
             pseudo_sql = pseudo_sql.strip().strip("`").strip("'").strip('"')
