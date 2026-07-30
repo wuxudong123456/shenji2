@@ -1,0 +1,95 @@
+name: audit/规章制度类/行程计划
+type: model
+description: 从规章制度类类文档（行程计划）中提取结构化元数据。涵盖字段如：停留天数、公务活动事项、批准行程城市、每日安排、计划行程城市。文档范围包括：行程计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 行程计划
+  member_count: 1
+  member_details:
+  - 行程计划
+output:
+  fields:
+  - name: 停留天数
+    type: number
+    description: 提取 停留天数 的数值（含单位，如万元、吨等）
+  - name: 公务活动事项
+    type: string
+    description: 提取 公务活动事项 的文本值
+  - name: 批准行程城市
+    type: string
+    description: 提取 批准行程城市 的文本值
+  - name: 每日安排
+    type: string
+    description: 提取 每日安排 的文本值
+  - name: 计划行程城市
+    type: string
+    description: 提取 计划行程城市 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false

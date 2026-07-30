@@ -1,0 +1,138 @@
+name: audit/合同协议类/分红协议
+type: model
+description: 从合同协议类类文档（分红协议）中提取结构化元数据。涵盖字段如：保底收益条款、分红年限、分红方式、带动脱贫户数目标、是否绑定经营效益。文档范围包括：帮扶产业项目分红协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 分红协议
+  member_count: 1
+  member_details:
+  - 帮扶产业项目分红协议
+output:
+  fields:
+  - name: 保底收益条款
+    type: number
+    description: 提取 保底收益条款 的数值（含单位，如万元、吨等）
+  - name: 分红年限
+    type: string
+    description: 提取 分红年限 的文本值
+  - name: 分红方式
+    type: string
+    description: 提取 分红方式 的文本值
+  - name: 带动脱贫户数目标
+    type: number
+    description: 提取 带动脱贫户数目标 的数值（含单位，如万元、吨等）
+  - name: 是否绑定经营效益
+    type: boolean
+    description: 提取 是否绑定经营效益 的布尔值（是/否）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (分红协议.分红方式 == '固定利息' || 分红协议.是否绑定经营效益 == '否') && (分红协议.分红年限 < 5 || 分析表.项目年度净利润 < 0 || (明细表.分红金额 / 分析表.项目年度净利润)
+    > 0.6 || 监测报告.亏损记录 != '无')
+  description: 分红方式为固定利息且未与经营效益挂钩，属于简单分红模式；分红年限不足5年、项目出现亏损、分红占比超过净利润60%或存在亏损记录，均表明可持续性不足。以上任一条件满足即视为违规疑点。
+  audit_item: 帮扶产业项目联农带农机制不够持续稳固
+  suspicion: 简单利息分红方式导致帮扶项目不可持续
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政衔接推进乡村振兴补助资金管理办法\",\n    \"法规文号\": \"财农〔2021〕19号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第十三条\",\n    \"内容概述\": \"衔接资金不得用于简单发钱发物、帮扶产业项目收益分配应当与脱贫户参与生产经营、劳动务工等挂钩，建立联农带农利益联结机制，避免“一股了之”“一分了之”。\"\n\
+    \  },\n  {\n    \"法规名称\": \"关于建立健全帮扶项目联农带农机制的实施意见\",\n    \"法规文号\": \"国乡振发〔2022〕19号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号"
+- expression: (收益分配表.实际签约人数 / 收益分配表.应覆盖人数) < 0.7 || (合同或协议.技能培训条款 == '无' && 合同或协议.就业岗位约定 == '无' && 合同或协议.股权配置 == '无') || ABS(合同或协议.分配比例
+    - 收益分配表.分配比例) > 0.05
+  description: 实际签约带动率低于70%表明覆盖面不足；合同缺乏技能培训、就业岗位、股权配置等实质性联结条款，属于简单分红式联结；合同约定分配比例与实际执行偏差超过5%，反映利益分配不规范。上述条件满足任一即视为利益联结机制不健全。
+  audit_item: 帮扶产业项目联农带农机制不够持续稳固
+  suspicion: 帮扶项目未与脱贫群众建立有效利益联结
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政衔接推进乡村振兴补助资金管理办法\",\n    \"法规文号\": \"财农〔2021〕19号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第十三条\",\n    \"内容概述\": \"严禁简单发钱发物，帮扶项目应通过订单收购、吸纳就业、入股分红等方式，带动脱贫人口直接参与产业发展并稳定增收。\"\n  },\n  {\n    \"法规名称\"\
+    : \"关于建立健全帮扶项目联农带农机制的实施意见\",\n    \"法规文号\": \"国乡振发〔2022〕19号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三条、第五条\",\n \
+    \   \"内"

@@ -1,0 +1,96 @@
+name: audit/审查报告类/监督报告
+type: model
+description: 从审查报告类类文档（监督报告）中提取结构化元数据。涵盖字段如：材料进场检验记录、设计交底记录、重大设计问题报告、隐蔽工程旁站记录、隐蔽工程验收记录。文档范围包括：监理单位质量监督报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 工程
+- 验收
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 监督报告
+  member_count: 1
+  member_details:
+  - 监理单位质量监督报告
+output:
+  fields:
+  - name: 材料进场检验记录
+    type: string
+    description: 提取 材料进场检验记录 的文本值
+  - name: 设计交底记录
+    type: string
+    description: 提取 设计交底记录 的文本值
+  - name: 重大设计问题报告
+    type: string
+    description: 提取 重大设计问题报告 的文本值
+  - name: 隐蔽工程旁站记录
+    type: string
+    description: 提取 隐蔽工程旁站记录 的文本值
+  - name: 隐蔽工程验收记录
+    type: string
+    description: 提取 隐蔽工程验收记录 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (预期年度效益.规划作物种植结构 != 评估报告.实际种植结构) && (预期年度效益.节水设施投资占比 < 10%)
+  description: 当规划设计所依据的作物种植结构、水资源条件与项目建成后实际运行的作物种植结构、水源状况发生重大偏差，且设计中未配置充分的节水设施（如节水设施投资占总投资的比重低于10%），导致水资源浪费或设施闲置，即判定为设计不合理。
+  audit_item: 大中型灌区规划、建设不符合相关规定
+  suspicion: 规划设计与实际需求严重不符
+  regulation: "[\n  {\n    \"法规名称\": \"水利工程设计管理规定\",\n    \"法规文号\": \"水利部水建〔1995〕127号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第五条\",\n    \"内容概述\": \"水利工程设计必须遵循因地制宜、讲求实效的原则，设计方案应当技术先进、经济合理。\"\n  }\n]"
+- expression: ABS(实际检测数值（如混凝土厚度强度）.实际检测数值（如混凝土厚度强度） - 投标文件.合同技术条款要求的设计指标) / 投标文件.合同技术条款要求的设计指标 > 15%
+  description: 对于影响结构安全或功能实现的关键质量指标，如混凝土厚度、强度、渠道防渗系数等，将第三方或审计现场抽检的实际数值与施工合同中规定的技术指标进行比对，偏差率绝对值超过15%即判定为质量不达标，属于严重偷工减料。
+  audit_item: 大中型灌区规划、建设不符合相关规定
+  suspicion: 工程建设关键指标偷工减料
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第二十八条\",\n    \"内容概述\": \"施工单位必须按照工程设计图纸和施工技术标准施工，不得擅自修改工程设计，不得偷工减料。\"\n  }\n]"
+- expression: ABS(研究报告.衔接点坐标 - 规划文件.田间末级渠系设计高程) > 0.5
+  description: 对衔接点进行高程一致性检查。将灌区骨干渠道设计图上标明的与高标准农田田间渠道的交界点高程，与高标准农田田间工程设计图上对应点位高程比对，二者差的绝对值大于0.5米，即判定为不衔接。0.5米以内的偏差可由局部水工建筑物调节，但超过该值则无法自流灌溉。
+  audit_item: 大中型灌区规划、建设不符合相关规定
+  suspicion: 灌区骨干工程与田间工程高程不衔接
+  regulation: "[\n  {\n    \"法规名称\": \"国家农业综合开发资金和项目管理办法\",\n    \"法规文号\": \"财政部令第84号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第四十条\",\n    \"内容概述\": \"农业综合开发项目应当科学规划设计，注重与相关规划的衔接，确保项目建设发挥整体效益。\"\n  }\n]"

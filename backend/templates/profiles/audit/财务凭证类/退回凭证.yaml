@@ -1,0 +1,65 @@
+name: audit/财务凭证类/退回凭证
+type: model
+description: 从财务凭证类类文档（退回凭证）中提取结构化元数据。涵盖字段如：失败原因、对应农户、退回日期、退回金额。文档范围包括：未成功发放资金退回凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 退回凭证
+  member_count: 1
+  member_details:
+  - 未成功发放资金退回凭证
+output:
+  fields:
+  - name: 失败原因
+    type: string
+    description: 提取 失败原因 的文本值
+  - name: 对应农户
+    type: string
+    description: 提取 对应农户 的文本值
+  - name: 退回日期
+    type: date
+    description: 提取 退回日期 的日期值，格式 YYYY-MM-DD
+  - name: 退回金额
+    type: number
+    description: 提取 退回金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (明细表.失败原因代码=="账号错误|户名不符|账户不存在") && (当前日期-退回凭证.退回日期>30) && (监测表.资金性质=="未重发")
+  description: 银行转账失败后，资金退回至财政或部门账户，若30天内主管部门未启动信息核实与重新发放程序，即形成闲置。30天为发现问题至启动处理的合理期限，各地制度可能有更严要求。退回后超过90天未处置为高风险，金额累计超10万元需重点预警。
+  audit_item: 惠农财政补贴资金滞留、闲置
+  suspicion: 农户账户信息错误导致补贴资金退回长期闲置
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五十七条\"\
+    ,\n    \"内容概述\": \"及时、足额拨付预算支出资金，因发放失败导致的资金退回，仍负有及时足额发放的义务，不得无故使资金闲置。\"\n  },\n  {\n    \"法规名称\": \"惠农财政补贴资金管理办法及实施细则\"\
+    ,\n    \"法规文号\": \"无\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第XXX条（假设）\",\n    \"内容概述\": \"明确规定因账户信息错误导致发放失败的，应在10个工作日内通知农户"

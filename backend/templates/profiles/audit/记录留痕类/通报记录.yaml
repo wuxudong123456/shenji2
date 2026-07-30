@@ -1,0 +1,61 @@
+name: audit/记录留痕类/通报记录
+type: model
+description: 从记录留痕类类文档（通报记录）中提取结构化元数据。涵盖字段如：事故接报时间、信息来源。文档范围包括：卫健部门事故通报记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 通报记录
+  member_count: 1
+  member_details:
+  - 卫健部门事故通报记录
+output:
+  fields:
+  - name: 事故接报时间
+    type: date
+    description: 提取 事故接报时间 的日期值，格式 YYYY-MM-DD
+  - name: 信息来源
+    type: string
+    description: 提取 信息来源 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (预案.发布日期 == '无') || (演练记录.演练日期 < 当前日期 - 365天) || (报告表.上报时间 - 事故发现时间 > 2小时)
+  description: 未制定书面应急预案、一年内未组织开展应急演练，或发生疑似食品安全事故后超过2小时才向相关部门报告，均属重大管理缺陷。
+  audit_item: 营养餐食品安全与膳食营养不符合要求
+  suspicion: 食品安全应急预案缺失或事故处理延迟
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国食品安全法\",\n    \"法规文号\": \"主席令第二十一号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第一百零二条、第一百零三条\",\n    \"内容概述\": \"学校等集中用餐单位应当制定食品安全事故应急预案；发生食品安全事故的单位应当在2小时内向事故发生地县级人民政府食品安全监督管理部门和卫生行政部门报告。\"\n  }\n]"

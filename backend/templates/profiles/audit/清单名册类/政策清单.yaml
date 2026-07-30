@@ -1,0 +1,101 @@
+name: audit/清单名册类/政策清单
+type: model
+description: 从清单名册类类文档（政策清单）中提取结构化元数据。涵盖字段如：应纳入一卡通发放的补贴项目列表、政策生效日期、清单内容、补贴项目。文档范围包括：惠农财政补贴政策清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 补贴
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 政策清单
+  member_count: 1
+  member_details:
+  - 惠农财政补贴政策清单
+output:
+  fields:
+  - name: 应纳入一卡通发放的补贴项目列表
+    type: string
+    description: 提取 应纳入一卡通发放的补贴项目列表 的文本值
+  - name: 政策生效日期
+    type: date
+    description: 提取 政策生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 清单内容
+    type: string
+    description: 提取 清单内容 的文本值
+  - name: 补贴项目
+    type: string
+    description: 提取 补贴项目 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 明细表.补贴项目 IN (应纳入一卡通发放的补贴项目列表.应纳入一卡通发放的补贴项目列表) && 明细表.银行卡号 NOT IN (信息表.关联银行卡号)
+  description: 惠农补贴政策清单明确要求直接兑付到人到户的补贴全部纳入“一卡通”发放。若发放明细中该类补贴的资金打入非农户关联的一卡通卡号（如施工方、村干部卡），或与农户登记卡号不符，即属违规。
+  audit_item: 惠农财政补贴“一卡通”管理不规范
+  suspicion: 到户补贴未全部纳入一卡通发放
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步加强惠民惠农财政补贴资金“一卡通”管理的指导意见\",\n    \"法规文号\": \"财农〔2020〕17号\",\n    \"效力级别\": \"\
+    部门规范性文件\",\n    \"条款号\": \"二（五）\",\n    \"内容概述\": \"直接兑付到人到户的补贴资金，原则上应全部纳入社会保障卡‘一卡通’发放范围，严禁通过其他渠道发放。\"\n  }\n]"
+- expression: 公示记录 缺失 || (公示记录.公示日期 < 政策清单.政策生效日期)
+  description: 政策清单应在补贴申报前主动向社会公开，若未公开公示记录，或公开时间晚于政策生效日期，导致农民未能及时知晓补贴政策，影响其申报权的实现，属于未履行公开公示义务。
+  audit_item: 惠农财政补贴“一卡通”管理不规范
+  suspicion: 未向社会公布惠农补贴政策清单
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步加强惠民惠农财政补贴资金“一卡通”管理的指导意见\",\n    \"法规文号\": \"财农〔2020〕17号\",\n    \"效力级别\": \"\
+    部门规范性文件\",\n    \"条款号\": \"二（八）\",\n    \"内容概述\": \"各级财政部门要会同业务主管部门及时向社会公布本地区惠农财政补贴政策清单，明确补贴项目、标准、对象和程序等。\"\n  }\n]"
+- expression: 明细表.实发金额 < 应纳入一卡通发放的补贴项目列表、政策生效日期、清单内容、补贴项目.标准单价 × 明细表.计发面积/数量 * 0.99
+  description: 按照政策标准计算农户应发金额，与一卡通实际到账金额比对，若实发金额低于应发金额且偏差率超过1%（考虑可能的零头处理），在没有合法扣减文件（如代扣保险费等）的情况下，即涉嫌克扣。偏差率越大，违规可能性越高。
+  audit_item: 惠农财政补贴“一卡通”管理不规范
+  suspicion: 克扣农民应得补贴资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员有截留、挪用、克扣财政资金的，责令改正，调整有关会计账目，追回有关财政资金，限期退还违法所得。\"\n  }\n]"

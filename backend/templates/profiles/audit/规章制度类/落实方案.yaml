@@ -1,0 +1,99 @@
+name: audit/规章制度类/落实方案
+type: model
+description: 从规章制度类类文档（落实方案）中提取结构化元数据。涵盖字段如：任务名称、分解层级、节点目标、责任人、量化指标。文档范围包括：各专项规划重大工程任务分解落实方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 落实方案
+  member_count: 1
+  member_details:
+  - 各专项规划重大工程任务分解落实方案
+output:
+  fields:
+  - name: 任务名称
+    type: string
+    description: 提取 任务名称 的文本值
+  - name: 分解层级
+    type: string
+    description: 提取 分解层级 的文本值
+  - name: 节点目标
+    type: string
+    description: 提取 节点目标 的文本值
+  - name: 责任人
+    type: string
+    description: 提取 责任人 的文本值
+  - name: 量化指标
+    type: string
+    description: 提取 量化指标 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (落实方案.节点目标（季度/月度） != '月度' && 落实方案.节点目标（季度/月度） != '季度') && 跟踪表.进度偏差率 > 20%
+  description: 专项规划中的重大工程任务分解方案未将任务细化到至少季度或者月度工作节点（即缺少可衡量的里程碑），且对应的项目总体进度偏差率超过20%，表明管理粗放，缺乏有效的进度监控抓手，导致落实不力。
+  audit_item: 违反建设管理相关政策规定-重大工程项目推进缓慢
+  suspicion: 专项规划任务未细化分解导致项目推进缓慢
+  regulation: "[\n  {\n    \"法规名称\": \"政府投资条例\",\n    \"法规文号\": \"国务院令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十四条\"\
+    ,\n    \"内容概述\": \"政府投资项目应当按照国家有关规定合理确定并严格执行建设工期，不得无故拖延。任何单位和个人不得非法干预建设工期的确定。项目单位应当加强项目进度控制，确保项目按期建成投入使用。\"\n  },\n  {\n\
+    \    \"法规名称\": \"关于完善固定资产投资项目代码制度的若干意见\",\n    \"法规文号\": \"国办发〔2020〕47号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \""

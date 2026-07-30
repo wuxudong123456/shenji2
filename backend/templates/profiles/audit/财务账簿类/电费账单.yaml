@@ -1,0 +1,48 @@
+name: audit/财务账簿类/电费账单
+type: model
+description: 从财务账簿类类文档（电费账单）中提取结构化元数据。涵盖字段如：应缴电费、电价、计费电量。文档范围包括：电费账单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务账簿类
+- 审计
+- 元数据提取
+template_class:
+  category: 财务账簿类
+  member_types:
+  - 电费账单
+  member_count: 1
+  member_details:
+  - 电费账单
+output:
+  fields:
+  - name: 应缴电费
+    type: number
+    description: 提取 应缴电费 的数值（含单位，如万元、吨等）
+  - name: 电价
+    type: string
+    description: 提取 电价 的文本值
+  - name: 计费电量
+    type: number
+    description: 提取 计费电量 的数值（含单位，如万元、吨等）
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+violations:
+- expression: (分类清单.用电类别 != '农业生产用电' && (分类清单.用户名称 LIKE '%农业%' || 信息.经营范围 CONTAINS '种植' || '养殖')) && 分类清单.目录电价 > 执行文件.优惠电价标准
+  description: 根据用户名称或经营范围可判断为农业主体的，用电类别却划分为商业或工业，实际结算电价高于农业优惠电价，即存在电价执行错误。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 农业用户电价未执行优惠类别
+  regulation: "[\n  {\n    \"法规名称\": \"国家发展改革委关于调整销售电价分类结构有关问题的通知\",\n    \"法规文号\": \"发改价格〔2013〕973号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"农业生产用电是指用于农业、林业、牧业、渔业生产的用电，应执行相应电价类别，任何单位不得擅自改变用电类别。\"\n  }\n]"

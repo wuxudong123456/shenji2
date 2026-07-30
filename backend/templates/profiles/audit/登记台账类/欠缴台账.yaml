@@ -1,0 +1,154 @@
+name: audit/登记台账类/欠缴台账
+type: model
+description: 从登记台账类类文档（欠缴台账）中提取结构化元数据。涵盖字段如：合同期满后各月应收/实收记录、实收月金额、实收金额、应收月金额、应收金额、房屋编号、承租人ID、欠费月数。文档范围包括：租金应收/实收/欠缴台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 欠缴台账
+  member_count: 1
+  member_details:
+  - 租金应收/实收/欠缴台账
+output:
+  fields:
+  - name: 合同期满后各月应收-实收记录
+    type: string
+    description: 提取 合同期满后各月应收-实收记录 的文本值
+  - name: 实收月金额
+    type: number
+    description: 提取 实收月金额 的数值（含单位，如万元、吨等）
+  - name: 实收金额
+    type: number
+    description: 提取 实收金额 的数值（含单位，如万元、吨等）
+  - name: 应收月金额
+    type: number
+    description: 提取 应收月金额 的数值（含单位，如万元、吨等）
+  - name: 应收金额
+    type: number
+    description: 提取 应收金额 的数值（含单位，如万元、吨等）
+  - name: 房屋编号
+    type: string
+    description: 提取 房屋编号 的文本值
+  - name: 承租人ID
+    type: string
+    description: 提取 承租人ID 的文本值
+  - name: 欠费月数
+    type: number
+    description: 提取 欠费月数 的数值（含单位，如万元、吨等）
+  - name: 欠费期间
+    type: number
+    description: 提取 欠费期间 的数值（含单位，如万元、吨等）
+  - name: 欠费金额
+    type: number
+    description: 提取 欠费金额 的数值（含单位，如万元、吨等）
+  - name: 累计差额
+    type: string
+    description: 提取 累计差额 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: （欠缴台账.欠费月数 >= 6） && （凭证表.收款金额 != 欠缴台账.应收金额 或 缴费记录缺失）
+  description: 承租人连续欠费达6个月及以上，且银行实际到账金额与应收金额不符或无缴费记录，符合严重违规。本表达式以《公共租赁住房管理办法》规定的无正当理由连续6个月未缴纳租金为阈值，需结合银行流水排除台账错漏。
+  audit_item: 承租人未按照规定缴纳公共租赁住房租金
+  suspicion: 承租人长期拖欠公共租赁住房租金
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十九条、第三十一条\",\n    \"内容概述\": \"承租人应当根据合同约定按时交纳租金；无正当理由连续6个月以上未缴纳租金的，应当腾退公共租赁住房，并记入管理档案。\"\n  }\n]"
+- expression: SUM(欠缴台账.实收月金额) < SUM(欠缴台账.应收月金额) && (SUM(欠缴台账.应收月金额)-SUM(欠缴台账.实收月金额))/SUM(欠缴台账.应收月金额) > 0.2
+  description: 按月汇总对比，若承租人实际缴纳总额小于应收总额，且差额比例超过20%（即不足额缴纳达显著程度），判定为违规。20%阈值可根据当地欠费容忍度调整，连续数月差额稳定存在则疑点升级。
+  audit_item: 承租人未按照规定缴纳公共租赁住房租金
+  suspicion: 承租人部分缴纳或不足额缴纳租金
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十九条\",\n    \"内容概述\": \"承租人应当根据合同约定按时交纳租金，不得少缴或拖欠。承租人未按规定缴纳租金的，住房保障主管部门可责令其限期缴纳。\"\n  }\n]"
+- expression: 租赁合同.合同截止日期 < 当前系统日期 AND 登记表.退租状态 != '已退租' AND (欠缴台账.合同期满后各月应收/实收记录 == 0 或 无缴纳记录) AND 房屋使用状态记录.当前状态 == '占用'
+  description: 合同到期但未办退租且仍占用房屋，同时没有为占用期间缴纳租金，构成非法占用公共租赁住房。表达式需结合房屋使用状态确认实际占用，防止系统未更新退租状态导致误判。
+  audit_item: 承租人未按照规定缴纳公共租赁住房租金
+  suspicion: 租赁合同到期后拒不搬离且未缴纳租金
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第三十一条\",\n    \"内容概述\": \"承租人有下列情形之一的，应当腾退公共租赁住房：……无正当理由连续6个月以上未缴纳租金，经催告后仍不支付的；……不再符合保障条件，应当腾退。租赁期满未续租且不符合续租条件的，应及时腾退。\"\
+    \n  }\n]"
+- expression: 同一承租人信息登记表.房屋编号下，承租人变更记录 >= 2 && (同户户籍关系 == '无' 或 变更记录 < 6个月 ) && 欠缴台账.欠费金额 > 0
+  description: 同一房源短期内多次变更承租人姓名，且前后承租人无亲属关系或变更间隔极短，同时该房屋存在累计欠费未清，疑似通过“换人签约”方式规避欠费追缴和黑名单管理。无亲属关系及短间隔为强化特征。
+  audit_item: 承租人未按照规定缴纳公共租赁住房租金
+  suspicion: 通过频繁变更承租人规避欠费追缴
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十七条\",\n    \"内容概述\": \"承租人不得擅自调换所承租公共租赁住房；承租人之间互换租赁住房的，应向产权单位提出书面申请，经同意后方可互换。利用虚假信息变更承租人以逃避租金义务属于违规行为。\"\n  }\n\
+    ]"

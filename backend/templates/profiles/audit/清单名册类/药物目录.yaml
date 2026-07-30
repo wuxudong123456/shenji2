@@ -1,0 +1,87 @@
+name: audit/清单名册类/药物目录
+type: model
+description: 从清单名册类类文档（药物目录）中提取结构化元数据。涵盖字段如：基本药品目录清单、基本药物名称。文档范围包括：国家基本药物目录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 药物目录
+  member_count: 1
+  member_details:
+  - 国家基本药物目录
+output:
+  fields:
+  - name: 基本药品目录清单
+    type: string
+    description: 提取 基本药品目录清单 的文本值
+  - name: 基本药物名称
+    type: string
+    description: 提取 基本药物名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: COUNT(其他.处方编号 WHERE 其他.药品名称 NOT IN (基本药品目录清单.基本药品目录清单)) > 10
+  description: 统计处方笺中药品名称不在国家基本药物目录内的处方数量，若超过10张，则疑为超出基本用药目录范围用药。重点关注抗生素、注射液等高风险品类。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不合规
+  suspicion: 乡村医生超出基本用药目录用药
+  regulation: "[\n  {\n    \"法规名称\": \"关于完善国家基本药物制度的意见\",\n    \"法规文号\": \"国办发〔2018〕88号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"二（四）\",\n    \"内容概述\": \"医疗卫生机构应全面配备、优先使用基本药物，临床用药应首选基本药物，无充分理由不得开具基本药物目录外药品。\"\n  }\n]"
+- expression: 销售台账.药品名称 not in 基本药品目录清单、基本药物名称.基本药物名称 && 报销药品名称、报销金额、报销机构名称、药品明细、总费用、患者身份证号、就诊时间、诊断.报销药品名称 = 销售台账.药品名称
+  description: 将村卫生室实际销售并开具处方的药品与国家发布的基本药物目录进行比对，标记目录外药品。若此类目录外药品同时出现在医保结算中，表明存在违规报销。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不符合相关规定
+  suspicion: 乡村医生超出基药目录用药
+  regulation: "[\n  {\n    \"法规名称\": \"国家基本药物目录管理办法\",\n    \"法规文号\": \"国卫药政发〔2015〕52号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第三条、第十三条\",\n    \"内容概述\": \"政府举办的基层医疗卫生机构全部配备和使用基本药物，其他各类医疗机构也都必须按规定使用基本药物。\"\n  }\n]"

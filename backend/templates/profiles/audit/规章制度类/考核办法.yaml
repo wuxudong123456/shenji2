@@ -1,0 +1,83 @@
+name: audit/规章制度类/考核办法
+type: model
+description: 从规章制度类类文档（考核办法）中提取结构化元数据。涵盖字段如：保洁频次要求、制度存在标识、承诺故障响应时间、数据采集要求、未达标责任条款、目标完成率考核指标、考核周期、考核指标。文档范围包括：供电服务承诺考核办法、农村公厕管护考核办法、市级就业见习工作考核办法、省级就业见习工作考核办法、绩效管理考核办法等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 考核办法
+  member_count: 1
+  member_details:
+  - 供电服务承诺考核办法
+  - 农村公厕管护考核办法
+  - 市级就业见习工作考核办法
+  - 省级就业见习工作考核办法
+  - 绩效管理考核办法
+output:
+  fields:
+  - name: 保洁频次要求
+    type: string
+    description: 提取 保洁频次要求 的文本值
+  - name: 制度存在标识
+    type: string
+    description: 提取 制度存在标识 的文本值
+  - name: 承诺故障响应时间
+    type: date
+    description: 提取 承诺故障响应时间 的日期值，格式 YYYY-MM-DD
+  - name: 数据采集要求
+    type: string
+    description: 提取 数据采集要求 的文本值
+  - name: 未达标责任条款
+    type: number
+    description: 提取 未达标责任条款 的数值（含单位，如万元、吨等）
+  - name: 目标完成率考核指标
+    type: string
+    description: 提取 目标完成率考核指标 的文本值
+  - name: 考核周期
+    type: string
+    description: 提取 考核周期 的文本值
+  - name: 考核指标
+    type: string
+    description: 提取 考核指标 的文本值
+  - name: 计划停电提前通知率标准
+    type: string
+    description: 提取 计划停电提前通知率标准 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ABS(情况表.实际完成人数 - 情况表.目标人数) / 情况表.目标人数 > 0.1
+  description: 该表达式用于判定任务缺口率超过10%的单位。当某地区或基地的实际完成人数与目标人数的偏差率（缺口率）高于10%时，视为严重未完成目标任务；缺口率在0~10%之间的为一般性未达标。同时可结合资金使用率进一步分析，若资金使用率明显偏低，则印证岗位开发不足、执行不力。
+  audit_item: 百万青年就业见习计划执行不到位
+  suspicion: 未按规定完成就业见习年度目标任务
+  regulation: "[\n  {\n    \"法规名称\": \"关于实施三年百万青年见习计划的通知\",\n    \"法规文号\": \"人社部函〔2018〕186号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第二条、第三条\",\n    \"内容概述\": \"各地要根据本通知要求，结合本地实际，制定具体实施方案，分解落实年度目标任务，确保见习计划顺利实施。要加强工作督导，对见习计划完成情况定期通报，对组织不力、任务完成不好的单位予以督促整改。\"\
+    \n  }\n]"

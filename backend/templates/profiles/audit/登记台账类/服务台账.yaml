@@ -1,0 +1,152 @@
+name: audit/登记台账类/服务台账
+type: model
+description: 从登记台账类类文档（服务台账）中提取结构化元数据。涵盖字段如：入住日期、实际提供服务项及月服务次数、开放日期、护理等级、服务农户数、服务日期、服务类型、服务记录。文档范围包括：农资供应、配方施肥等服务台账、服务台账、服务组织上报的服务台账、特困人员集中供养服务台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 人员
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 服务台账
+  member_count: 1
+  member_details:
+  - 农资供应、配方施肥等服务台账
+  - 服务台账
+  - 服务组织上报的服务台账
+  - 特困人员集中供养服务台账
+output:
+  fields:
+  - name: 入住日期
+    type: date
+    description: 提取 入住日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际提供服务项及月服务次数
+    type: string
+    description: 提取 实际提供服务项及月服务次数 的文本值
+  - name: 开放日期
+    type: date
+    description: 提取 开放日期 的日期值，格式 YYYY-MM-DD
+  - name: 护理等级
+    type: string
+    description: 提取 护理等级 的文本值
+  - name: 服务农户数
+    type: string
+    description: 提取 服务农户数 的文本值
+  - name: 服务日期
+    type: date
+    description: 提取 服务日期 的日期值，格式 YYYY-MM-DD
+  - name: 服务类型
+    type: string
+    description: 提取 服务类型 的文本值
+  - name: 服务记录
+    type: string
+    description: 提取 服务记录 的文本值
+  - name: 服务记录数量
+    type: number
+    description: 提取 服务记录数量 的数值（含单位，如万元、吨等）
+  - name: 服务面积
+    type: string
+    description: 提取 服务面积 的文本值
+  - name: 特困人员总数
+    type: string
+    description: 提取 特困人员总数 的文本值
+  - name: 站点ID
+    type: string
+    description: 提取 站点ID 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (为农服务专项资金使用明细表.服务创新支出金额 / 为农服务专项资金使用明细表.服务创新预算金额 < 0.2) && (为农服务创新举措实施统计表.受益农户数 = 0)
+  description: 当年度服务创新专项预算资金实际支出比例低于20%，且服务创新举措实施统计表中无任何创新服务类型记录时，判定为未有效创新农业生产服务方式。阈值20%反映资金执行严重滞后，配合无业务记录双重锁定‘零创新’。
+  audit_item: 为农服务职责履行不到位
+  suspicion: 未创新农业生产服务方式和手段
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于深化供销合作社综合改革的决定\",\n    \"法规文号\": \"中发〔2015〕11号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"（四）\",\n    \"内容概述\": \"创新农业生产服务方式和手段，推动供销合作社由流通服务向全程农业社会化服务延伸，开展测土配方施肥、农机作业、统防统治等。\"\n  }\n]"
+- expression: (服务台账.服务面积 > 当地耕地总面积) || (抽查不符率 > 0.2) || (评分表.核查方式说明 != '实地抽查')
+  description: 若同一地区服务组织上报的服务总面积超过当地耕地总面积，或对台账数据电话/实地抽查的不符合比例超过20%，或考核评分表未载明任何实地核查记录，均视为考核流于形式。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效考核仅依据台账未开展实地核查
+  regulation: "[\n  {\n    \"法规名称\": \"农业生产发展资金管理办法\",\n    \"法规文号\": \"财农〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十九条\",\n    \"内容概述\": \"绩效评价应当采取资料审核、实地核查、满意度测评等多种方式，确保评价结果的真实性和准确性。\"\n  }\n]"
+- expression: (SUM(在岗护理员姓名.在岗护理员姓名) / COUNT(特困人员总数、护理等级（自理、半失能、失能）、入住日期.特困人员总数)) < 0.1
+  description: 当在岗护理员总人数与入住特困人员总数的比例低于1:10（即0.1）时，判定为护理人员配备不足。若地方政策对失能、半失能老人有单独配比要求（如失能1:3），则需分类计算各自配比，已任意一类未达标即整体违规。
+  audit_item: 农村养老服务政策实施不规范、建设质量不达标
+  suspicion: 养老机构护理人员配备比例未达政策标准
+  regulation: "[\n  {\n    \"法规名称\": \"农村五保供养服务机构管理办法\",\n    \"法规文号\": \"民政部令第37号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十条\",\n    \"内容概述\": \"供养服务机构应当根据服务对象人数和照料护理需求，配备相应比例的工作人员，其中护理工作人员与服务对象的比例不应低于1:10；对失能、半失能服务对象，应当适当提高护理人员比例。\"\n\
+    \  }\n]"

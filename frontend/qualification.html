@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审计定性 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.qual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+@media (max-width:992px) { .qual-grid { grid-template-columns: 1fr; } }
+.qual-result-card { border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-sm); }
+.qual-result-card.primary { border-left-color: var(--color-accent); }
+.qual-chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px; background: var(--color-bg); border-radius: var(--radius-sm); font-size: 13px; }
+.qual-chain .chain-arrow { color: var(--color-text-muted); }
+</style>
+</head>
+<body data-page="qualification">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content">
+
+<div class="page-header"><div><h1><i class="bi bi-crosshair"></i> 审计定性</h1>
+<div class="breadcrumb">违规行为法律定性辅助 · 自动匹配法规依据链 · 同类案例推荐</div></div></div>
+
+<div class="qual-grid">
+  <!-- Left: Input -->
+  <div class="card"><div class="card-header"><h3>问题描述</h3></div>
+    <div class="form-group"><label class="form-label">审计领域</label><select class="form-select"><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option><option>社会保障审计</option></select></div>
+    <div class="form-group"><label class="form-label">违规事实描述 <span class="text-danger">*</span></label>
+      <textarea class="form-textarea" id="qual-desc" rows="6" placeholder="描述发现的违规事实，越详细越好。&#10;例如：某市教育局将应公开招标的500万元教学设备采购项目拆分为5个99万元的子项目，分别以询价方式采购，5个项目实际均由同一供应商中标。"></textarea></div>
+    <div class="form-group"><label class="form-label">涉及金额</label><input type="text" class="form-input" value="¥4,850,000"></div>
+    <button class="btn btn-accent btn-lg w-100" onclick="Qualification.analyze()"><i class="bi bi-search"></i> 智能定性分析</button>
+  </div>
+
+  <!-- Right: Results -->
+  <div id="qual-results">
+    <div class="card" style="text-align:center;padding:60px 20px;">
+      <div style="font-size:48px;color:var(--color-border);margin-bottom:12px;"><i class="bi bi-lightbulb"></i></div>
+      <p style="color:var(--color-text-muted);">输入违规事实后，AI将自动匹配违规模型、构建法规依据链、推荐同类案例</p>
+    </div>
+  </div>
+</div>
+
+</main></div>
+<script src="js/app.js"></script>
+<script>
+var Qualification = {
+  analyze: function() {
+    var desc = document.getElementById('qual-desc').value.trim();
+    if (!desc) return AuditWorkbench.toast('请输入违规事实描述','warning');
+
+    document.getElementById('qual-results').innerHTML =
+      '<div class="card" style="animation:fadeIn 0.3s ease;">' +
+      '<div class="card-header"><h3>📊 定性分析结果</h3><span class="badge badge-accent">AI分析</span></div>' +
+
+      '<div class="qual-result-card primary"><div style="display:flex;justify-content:space-between;align-items:start;">' +
+      '<div><span class="badge badge-accent">违规性质</span> <strong style="font-size:16px;">化整为零规避公开招标</strong></div>' +
+      '<span class="badge badge-success">匹配度 97%</span></div>' +
+      '<div style="margin-top:8px;font-size:14px;">将应公开招标的采购项目拆分为多个小额项目，以规避公开招标程序。</div></div>' +
+
+      '<h4 style="margin-top:var(--space-md);">法规依据链</h4>' +
+      '<div class="qual-chain"><strong>主依据</strong> <span class="chain-arrow">→</span> ' +
+      '<span class="badge badge-accent">《招标投标法》第4条</span> <span class="chain-arrow">→</span> 禁止化整为零规避招标</div>' +
+      '<div class="qual-chain" style="margin-top:4px;"><strong>量化依据</strong> <span class="chain-arrow">→</span> ' +
+      '<span class="badge badge-primary">《必须招标的工程项目规定》第5条</span> <span class="chain-arrow">→</span> 货物≥200万须公开招标 · 500万>200万</div>' +
+      '<div class="qual-chain" style="margin-top:4px;"><strong>追责依据</strong> <span class="chain-arrow">→</span> ' +
+      '<span class="badge badge-warning">《招标投标法》第49条</span> <span class="chain-arrow">→</span> 处合同金额5‰-10‰罚款</div>' +
+
+      '<h4 style="margin-top:var(--space-md);">同类案例参考</h4>' +
+      '<div class="rec-item"><i class="bi bi-file-earmark-text"></i><div style="flex:1;"><strong>某市卫健委医疗设备采购拆分案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为4个80万子项目 · ¥3,200,000</div></div><a href="knowledge.html">查看</a></div>' +
+      '<div class="rec-item"><i class="bi bi-file-earmark-text"></i><div style="flex:1;"><strong>某县交通局道路工程规避招标案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为6个工程段 · ¥8,500,000</div></div><a href="knowledge.html">查看</a></div>' +
+
+      '<div class="alert alert-info" style="margin-top:var(--space-md);"><strong>LLM智能伴随：</strong>该定性基于审计对象为市教育局(市级)，处罚幅度建议取中位值7.5‰。如需更精准建议请补充审计对象的具体层级信息。</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;">' +
+      '<button class="btn btn-primary" onclick="AuditWorkbench.toast(\'定性意见已保存\',\'success\')"><i class="bi bi-check-lg"></i> 确认定性</button>' +
+      '<button class="btn btn-outline"><i class="bi bi-pencil"></i> 补充说明</button>' +
+      '<button class="btn btn-outline"><i class="bi bi-download"></i> 导出定性意见书</button></div></div>';
+  }
+};
+</script>
+</body>
+</html>

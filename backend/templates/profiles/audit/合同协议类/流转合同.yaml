@@ -1,0 +1,154 @@
+name: audit/合同协议类/流转合同
+type: model
+description: 从合同协议类类文档（流转合同）中提取结构化元数据。涵盖字段如：交付日期、合同签订日期、合同约定面积、实际流转面积、流转价格、流转期限、流转面积、租金调整条款。文档范围包括：土地流转合同、土地经营权流转合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 流转合同
+  member_count: 1
+  member_details:
+  - 土地流转合同
+  - 土地经营权流转合同
+output:
+  fields:
+  - name: 交付日期
+    type: date
+    description: 提取 交付日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同签订日期
+    type: date
+    description: 提取 合同签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同约定面积
+    type: string
+    description: 提取 合同约定面积 的文本值
+  - name: 实际流转面积
+    type: string
+    description: 提取 实际流转面积 的文本值
+  - name: 流转价格
+    type: number
+    description: 提取 流转价格 的数值（含单位，如万元、吨等）
+  - name: 流转期限
+    type: string
+    description: 提取 流转期限 的文本值
+  - name: 流转面积
+    type: string
+    description: 提取 流转面积 的文本值
+  - name: 租金调整条款
+    type: number
+    description: 提取 租金调整条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (合同签订日期、流转期限、租金调整条款.合同签订日期 为空) || (合同签订日期、流转期限、租金调整条款.流转期限>20年) || (合同签订日期、流转期限、租金调整条款.租金调整条款 缺失) || (备案状态、合同编号、流转面积.备案状态=="未备案"
+    的占比>15%)
+  description: 存在口头协议未签书面合同、流转期限超过法定20年上限、租金固定无调整机制，或未备案合同占比超15%任一情形，均构成不规范流转。
+  audit_item: 农村集体经济发展壮大不到位
+  suspicion: 土地经营权流转未签订书面合同或合同条款违法
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国农村土地承包法\",\n    \"法规文号\": \"2018年修订\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第四十条、第四十一条\",\n    \"内容概述\": \"土地经营权流转应当签订书面合同；流转期限不得超过承包期的剩余期限，最长不得超过20年；合同应载明租金及调整方式等内容。\"\n  }\n]"
+- expression: (ABS(审批文件.批准面积-分析表.实际供应面积)/审批文件.批准面积 > 0.2) || (流转合同.流转价格 < 相关文件.流转价格标准*0.8) || (情况表.未开发面积/情况表.批准总面积 > 0.1)
+    || (审批日期 > 审批文件.法定审批时限*1.5)
+  description: 实际供应面积与批准面积偏差率超过20%，或土地流转均价低于政府指导价的80%，或闲置土地面积占比超过批准总面积的10%，或审批周期超过法定时限的1.5倍，以上任一条件触发即判定为土地政策支持不到位，属于涉嫌违规。
+  audit_item: 现代农业产业园（集群、强镇）政策扶持不到位
+  suspicion: 现代农业产业园土地政策支持不到位
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国土地管理法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第三十八条\"\
+    ,\n    \"内容概述\": \"禁止任何单位和个人闲置、荒芜耕地。已经办理审批手续的非农业建设占用耕地，一年内不用而又可以耕种并收获的，应当由原耕种该幅耕地的集体或者个人恢复耕种，也可以由用地单位组织耕种；一年以上未动工建设的，应当按照省、自治区、直辖市的规定缴纳闲置费；连续二年未使用的，经原批准机关批准，由县级以上人民政府无偿收回用地单位的土地使用权。\"\
+    \n  },\n  {\n    \"法规名称\": \"自然资源部 农业农村部关"
+- expression: (申报面积、申报数量、申报人.申报面积 - 实际使用面积、建设前后影像对比图斑、不同时期影像对比.实际使用面积) / 实际使用面积、建设前后影像对比图斑、不同时期影像对比.实际使用面积 > 20% || (实际流转面积、流转价格、交付日期、合同约定面积、流转面积.流转面积
+    != 实际流转面积、流转价格、交付日期、合同约定面积、流转面积.对应面积) || (申报面积、申报数量、申报人.申报人 与 现场暗访记录.实际经营者 不符)
+  description: 通过外部数据、第三方数据与申报资料比对，识别弄虚作假。申报面积与遥感影像实测面积偏差超过20%，土地流转合同与租金支付凭证面积不符，或申报主体与实际经营者不符，均视为骗取疑点。
+  audit_item: 资金管理使用不符合相关规定
+  suspicion: 虚报资料骗取套取涉农资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"单位和个人有下列违反国家有关投资建设项目规定行为之一的，责令改正，调整有关会计账目，追回被截留、挪用、骗取的国家建设资金，给予相应处罚。包括编制虚假材料骗取国家资金的。\"\n \
+    \ }\n]"

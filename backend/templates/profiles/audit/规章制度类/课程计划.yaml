@@ -1,0 +1,93 @@
+name: audit/规章制度类/课程计划
+type: model
+description: 从规章制度类类文档（课程计划）中提取结构化元数据。涵盖字段如：各模块计划课时、规定总课时。文档范围包括：职业培训课程计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 课程计划
+  member_count: 1
+  member_details:
+  - 职业培训课程计划
+output:
+  fields:
+  - name: 各模块计划课时
+    type: string
+    description: 提取 各模块计划课时 的文本值
+  - name: 规定总课时
+    type: string
+    description: 提取 规定总课时 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 实际上课总时长 < 规定总课时 * 0.85 || 参训台账.实际出勤课时 < 规定总课时 * 0.8 || ABS(参训台账.签到记录时间戳 - 监控记录.监控录像覆盖时段) > 15%
+  description: 政策规定某职业培训最低课时（如120课时），实际完成不足85%或平均出勤低于80%属严重缩水；考勤与监控记录偏差超过15%涉嫌伪造考勤，可据此追回补贴。
+  audit_item: 职业培训政策执行不到位
+  suspicion: 职业培训实际时长未达规定标准
+  regulation: "[\n  {\n    \"法规名称\": \"就业补助资金管理办法\",\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\": \"部门规范性文件\",\n    \"\
+    条款号\": \"第十条、第十六条\",\n    \"内容概述\": \"享受培训补贴的机构须按规定的课程和课时完成培训，对弄虚作假、虚报冒领行为将追回资金并追究责任。\"\n  }\n]"

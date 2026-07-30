@@ -1,0 +1,125 @@
+name: audit/登记台账类/用地台账
+type: model
+description: 从登记台账类类文档（用地台账）中提取结构化元数据。涵盖字段如：实际用途、生产设施面积、用地主体、用地面积、设施类型、附属设施面积。文档范围包括：农业设施用地台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 用地台账
+  member_count: 1
+  member_details:
+  - 农业设施用地台账
+output:
+  fields:
+  - name: 实际用途
+    type: string
+    description: 提取 实际用途 的文本值
+  - name: 生产设施面积
+    type: string
+    description: 提取 生产设施面积 的文本值
+  - name: 用地主体
+    type: string
+    description: 提取 用地主体 的文本值
+  - name: 用地面积
+    type: string
+    description: 提取 用地面积 的文本值
+  - name: 设施类型
+    type: string
+    description: 提取 设施类型 的文本值
+  - name: 附属设施面积
+    type: string
+    description: 提取 附属设施面积 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (用地台账.实际用途 != 批复文件.申报建设用途) || (用地台账.实际用途 不属于 设施用地允许用途范围、禁止性规定、附属设施用地规模控制比例上限.设施用地允许用途范围)
+  description: 将台账记录的实际用途与申报批复用途、政策允许的设施用地用途范围进行比对。若实际用途与批复不符，或实际用途超出政策允许范围（如将温室大棚用于非农加工、仓储），则判定为违规。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 生产设施实际用于非农违规建设
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国土地管理法\",\n    \"法规文号\": \"中华人民共和国主席令第三十二号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第三十七条、第四十四条\",\n    \"内容概述\": \"禁止占用耕地建窑、建坟或者擅自在耕地上建房、挖砂、采石、采矿、取土等；建设占用土地，涉及农用地转为建设用地的，应当办理农用地转用审批手续。设施农用地不得改变用途用于非农建设。\"\
+    \n  },\n  {\n    \"法规名称\": \"自然资源部 农业农村部关于设施农业用地管理有关问题的通知\",\n    \"法规文号\": \"自然资规〔2019〕4号\",\n    \"效力级"
+- expression: (用地台账.附属设施面积 / 用地台账.生产设施面积) > 设施用地允许用途范围、禁止性规定、附属设施用地规模控制比例上限.附属设施用地规模控制比例上限
+  description: 计算同一用地主体项目内附属设施用地面积占生产设施用地面积的比例。若该比例超过政策文件规定的上限（如规模化粮食生产附属设施用地原则上控制在项目用地规模1%以内、最多不超过10亩等），则存在以附属设施名义扩大非农用地的嫌疑，触发疑点。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 附属设施用地面积超政策许可比例
+  regulation: "[\n  {\n    \"法规名称\": \"自然资源部 农业农村部关于设施农业用地管理有关问题的通知\",\n    \"法规文号\": \"自然资规〔2019〕4号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第二条第（一）款\",\n    \"内容概述\": \"作物种植设施用地中，生产设施用地面积根据生产需要确定，辅助设施（看护房、检验检疫监测、病虫害防控、农资农机具存放场所等）规模应合理控制。北方地区单体看护房控制在30平方米以内；规模化粮食生产附属设施用地规模控制在项目用地规模的1%以内、最多不超过10亩。\"\
+    \n  }\n]"

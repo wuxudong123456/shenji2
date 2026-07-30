@@ -1,0 +1,126 @@
+name: audit/登记台账类/更正台账
+type: model
+description: 从登记台账类类文档（更正台账）中提取结构化元数据。涵盖字段如：发生期间、变更时间、变更项目、变更频率、差错归类、涉及金额。文档范围包括：会计估计变更与差错更正台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 更正台账
+  member_count: 1
+  member_details:
+  - 会计估计变更与差错更正台账
+output:
+  fields:
+  - name: 发生期间
+    type: string
+    description: 提取 发生期间 的文本值
+  - name: 变更时间
+    type: date
+    description: 提取 变更时间 的日期值，格式 YYYY-MM-DD
+  - name: 变更项目
+    type: string
+    description: 提取 变更项目 的文本值
+  - name: 变更频率
+    type: string
+    description: 提取 变更频率 的文本值
+  - name: 差错归类
+    type: string
+    description: 提取 差错归类 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (制度文件.变更条件 == '' || 审批记录.变更理由 不包含 '法律法规要求' && 审批记录.变更理由 不包含 '更可靠计量') && (审批记录 IS NULL || 审批记录.审批日期 > 实际执行日期)
+    && (台账.同性质变更年度次数 > 1 || ABS(测算表.对当期利润影响数 / 上一会计年度净利润) > 0.05)
+  description: 同时满足以下条件视为可疑：1.无准则允许的正当理由（如法律强制要求或能提供更可靠信息）；2.审批程序缺失或先执行后补批；3.变更频繁（一年内同一政策多次变更）或影响利润超过上年净利润5%。
+  audit_item: 随意变更或未按规定变更会计政策、会计处理方法
+  suspicion: 随意变更会计政策且无合理理由
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第28号——会计政策、会计估计变更和差错更正\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第四条、第六条\",\n    \"内容概述\": \"企业采用的会计政策，前后各期应当保持一致，不得随意变更；确需变更的，应当在变更原因符合准则规定（法律、行政法规或国家统一会计制度等要求，或变更能提供更可靠、更相关的会计信息）时方可变更，并履行相应审批程序。\"\
+    \n  }\n]"
+- expression: (更正明细表.更正方法 == '直接计入当期损益' && 更正明细表.差错金额 / 近三年平均净利润 > 0.05 && 更正专项说明.差错性质 == '重大前期差错') || (台账.差错归类 == '重大差错'
+    && 附注.追溯重述披露 IS NULL && 更正明细表.更正科目 无 '以前年度损益调整')
+  description: 两项条件满足其一即触发：1.差错金额超过近三年平均净利润5%的重大前期差错，却未通过以前年度损益调整追溯重述，直接计入当期；2.台账归类为重大差错，但附注无追溯重述说明，且更正分录未涉及‘以前年度损益调整’科目。
+  audit_item: 随意变更或未按规定变更会计政策、会计处理方法
+  suspicion: 重大会计差错未追溯重述而直接计入当期损益
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第28号——会计政策、会计估计变更和差错更正\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第十一条、第十二条\",\n    \"内容概述\": \"企业应当区分会计估计变更和会计差错更正；对于前期差错，应当采用追溯重述法进行更正，视同该差错从未发生，调整列报前期最早期初财务报表相关项目及其金额；重要的前期差错应当在其发现当期的财务报表附注中披露其性质和更正金额。\"\
+    \n  }\n]"

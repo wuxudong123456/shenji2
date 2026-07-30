@@ -1,0 +1,167 @@
+name: audit/资料材料类/申请资料
+type: model
+description: 从资料材料类类文档（申请资料）中提取结构化元数据。涵盖字段如：劳动合同编号、存量资产核查结论、就业状态声明、拟采购资产名称、数量、毕业院校、申请人姓名、贫困证明文件号。文档范围包括：新增资产申请资料、求职创业补贴申请资料、社会保险补贴申请资料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 合同
+- 资产
+- 采购
+- 金额
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 申请资料
+  member_count: 1
+  member_details:
+  - 新增资产申请资料
+  - 求职创业补贴申请资料
+  - 社会保险补贴申请资料
+output:
+  fields:
+  - name: 劳动合同编号
+    type: string
+    description: 提取 劳动合同编号 的文本值
+  - name: 存量资产核查结论
+    type: string
+    description: 提取 存量资产核查结论 的文本值
+  - name: 就业状态声明
+    type: boolean
+    description: 提取 就业状态声明 的布尔值（是/否）
+  - name: 拟采购资产名称
+    type: string
+    description: 提取 拟采购资产名称 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 毕业院校
+    type: string
+    description: 提取 毕业院校 的文本值
+  - name: 申请人姓名
+    type: string
+    description: 提取 申请人姓名 的文本值
+  - name: 贫困证明文件号
+    type: string
+    description: 提取 贫困证明文件号 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 闲置资产不可用说明
+    type: string
+    description: 提取 闲置资产不可用说明 的文本值
+  - name: 预算金额
+    type: number
+    description: 提取 预算金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 申请日期
+    type: date
+    description: 申请日期，格式 YYYY-MM-DD
+    required: false
+  - name: 申请单位
+    type: string
+    description: 申请单位全称
+    required: false
+  - name: 申请人
+    type: string
+    description: 申请人姓名
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 审批意见
+    type: string
+    description: 审批意见/结果
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 申请资料.存量资产核查结论 != '已核查' || (闲置资产名称.数量 > 0 && 申请资料.数量 > 0 && 申请资料.闲置资产不可用说明缺失)
+  description: 新增资产购置前必须核查本单位存量资产，若存在同类可调剂的闲置资产，且未提供合理的不可用说明或无调剂记录，即认定新增资产未考虑存量、造成闲置浪费。
+  audit_item: 违反规定配置国有资产
+  suspicion: 新增资产未考虑存量资产
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十二条\",\n    \"内容概述\": \"各部门及其所属单位应当加强资产使用管理，对于长期闲置、低效运转或者超标准配置的资产，应当进行调剂。\"\n  }\n]"
+- expression: (申请资料.就业状态 == '未就业' && 社保缴纳记录.缴费状态 == '在职') || (贫困证明文件号 NOT IN (民政部门.有效文件号)) || (同一身份证号 + 同一年度 在求职创业补贴发放记录中
+    出现次数 > 1)
+  description: 就业状态声明与社保缴费记录冲突；贫困证明文件在民政系统中不存在或已失效；同一人同一年度跨地区重复申领求职创业补贴，均构成虚假资料骗补。严重情形：单次审查发现批量虚假贫困证明，且涉及多校。
+  audit_item: 骗取、套取资金或补贴
+  suspicion: 提供虚假资料骗取社会保险补贴或求职创业补贴
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国社会保险法\",\n    \"法规文号\": \"主席令第三十五号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第八十八条\",\n    \"内容概述\": \"以欺诈、伪造证明材料或者其他手段骗取社会保险待遇的，由社会保险行政部门责令退回骗取的社会保险金，处骗取金额二倍以上五倍以下的罚款。\"\n  },\n  {\n    \"法规名称\"\
+    : \"就业补助资金管理办法\",\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十五条\",\n    \"内容概述\": \"\
+    求职创业补贴对象"

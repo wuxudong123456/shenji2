@@ -1,0 +1,166 @@
+name: audit/登记台账类/数据台账
+type: model
+description: 从登记台账类类文档（数据台账）中提取结构化元数据。涵盖字段如：必填字段完整性、拆解状态、数据完整性比例、数据更新时间、月交易笔数、渔船状态、渔船编号、系统录入日期。文档范围包括：灌区信息化管理数据台账、电商交易数据台账、草原资源管理基础数据台账、退捕渔船管理信息系统数据台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 数据台账
+  member_count: 1
+  member_details:
+  - 灌区信息化管理数据台账
+  - 电商交易数据台账
+  - 草原资源管理基础数据台账
+  - 退捕渔船管理信息系统数据台账
+output:
+  fields:
+  - name: 必填字段完整性
+    type: string
+    description: 提取 必填字段完整性 的文本值
+  - name: 拆解状态
+    type: boolean
+    description: 提取 拆解状态 的布尔值（是/否）
+  - name: 数据完整性比例
+    type: number
+    description: 提取 数据完整性比例 的数值（含单位，如万元、吨等）
+  - name: 数据更新时间
+    type: date
+    description: 提取 数据更新时间 的日期值，格式 YYYY-MM-DD
+  - name: 月交易笔数
+    type: string
+    description: 提取 月交易笔数 的文本值
+  - name: 渔船状态
+    type: boolean
+    description: 提取 渔船状态 的布尔值（是/否）
+  - name: 渔船编号
+    type: string
+    description: 提取 渔船编号 的文本值
+  - name: 系统录入日期
+    type: date
+    description: 提取 系统录入日期 的日期值，格式 YYYY-MM-DD
+  - name: 船主身份证号
+    type: string
+    description: 提取 船主身份证号 的文本值
+  - name: 草原总面积
+    type: string
+    description: 提取 草原总面积 的文本值
+  - name: 退捕日期
+    type: date
+    description: 提取 退捕日期 的日期值，格式 YYYY-MM-DD
+  - name: 高火险区分布
+    type: string
+    description: 提取 高火险区分布 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (电商交易数据台账.月交易笔数 = 0 FOR 连续3个月) OR (设施设备闲置率统计表.总闲置率 > 0.4) OR (运营日志.交易记录 > 15) OR (电费缴费凭证.月用电量 = 0 FOR 连续3个月)
+  description: 连续多个月无交易记录、闲置资产原值占比超过40%、重大故障长期未修复、连续数月无电费消耗，任一条件触发均说明站点处于实质性停运或严重闲置状态。
+  audit_item: 信息进村入户、电子商务进农村等村级服务站使用效果不佳
+  suspicion: 村级服务站长期停止运营或设施设备闲置废弃
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第三十六条\",\n    \"内容概述\": \"各部门及其所属单位应当及时盘活存量资产，对长期闲置、低效运转的资产，应当采取有效措施进行盘活或处置。\"\n  }\n]"
+- expression: (投标文件.信息化建设合同签订及完工日期 IS NULL) || (数据台账.数据更新时间 > 审计日期 - 365天) || (系统验收报告.功能清单 < 规划要求功能数)
+  description: 判定依据分为三类且为“或”关系：1. 根本未签订信息化建设合同；2. 虽有系统但数据长期不更新（如更新时间已超过1年，表明系统处于瘫痪或未使用状态）；3. 建成的系统功能模块数量少于项目实施方案或上级规划中要求的功能数量。满足任一条件即判定为未有效开展“一张图”管理。
+  audit_item: 大中型灌区规划、建设不符合相关规定
+  suspicion: 未开展灌区“一张图”信息化管理
+  regulation: "[\n  {\n    \"法规名称\": \"关于大力推进智慧水利建设的指导意见\",\n    \"法规文号\": \"水信息〔2022〕18号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第三条\",\n    \"内容概述\": \"全面推进水利工程智能化改造，加强水利一张图建设与应用，提升水利数字化、网络化、智能化水平。\"\n  }\n]"
+- expression: COUNT(DISTINCT 登记表.身份证号) < COUNT(登记表) || 登记表.身份证号 NOT IN (SELECT 身份证号 FROM 公安户籍系统 WHERE 状态='有效') || 登记表.渔船编号
+    NOT IN (SELECT 渔船编号 FROM 渔船管理系统)
+  description: 当建档立卡原始登记表中身份证号出现重复、登记的身份证号在公安户籍系统中不存在或已注销、登记的渔船编号未在渔船管理信息系统备案时，判定为数据不精准。任意条件成立即视为违规（阈值>0）。
+  audit_item: 补偿制度落实不到位
+  suspicion: 退捕渔民建档立卡数据不精准
+  regulation: "[\n  {\n    \"法规名称\": \"农业农村部 财政部 人力资源社会保障部关于印发《长江流域重点水域禁捕和建立补偿制度实施方案》的通知\",\n    \"法规文号\": \"农办长渔〔2019〕1号\"\
+    ,\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三条第（二）款\",\n    \"内容概述\": \"要求精准识别退捕渔民，逐户逐船建档立卡，做到户数清、人数清、船数清，确保信息真实准确，杜绝虚报冒领。\"\
+    \n  }\n]"
+- expression: 数据台账.系统录入日期 - 数据台账.退捕日期 > 5 || 数据台账.必填字段完整性（如照片、发动机号） >0% || ABS(数据台账.总长/吨位 - 明细表.总长/吨位)/明细表.总长/吨位 > 0.1
+  description: 系统录入日期晚于实际退捕日期超过5个工作日即视为不及时；系统中必填字段（如渔船照片、发动机编号）出现空值即视为不完整；系统记录的渔船吨位与明细表吨位偏差超过10%视为不准确。任意条件满足即触发疑点。
+  audit_item: 补偿制度落实不到位
+  suspicion: 渔船管理系统数据录入不及时、不完整、不准确
+  regulation: "[\n  {\n    \"法规名称\": \"农业农村部 财政部 人力资源社会保障部关于印发《长江流域重点水域禁捕和建立补偿制度实施方案》的通知\",\n    \"法规文号\": \"农办长渔〔2019〕1号\"\
+    ,\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第四条第（三）款\",\n    \"内容概述\": \"要求建立健全退捕渔船管理信息系统，实现动态管理，确保数据及时、完整、准确录入，为补偿发放提供可靠依据。\"\
+    \n  }\n]"
+- expression: (核定编制数.职能描述存在交叉或缺失) OR (数据台账.高火险区分布/数据台账.草原总面积 < 0.8) OR (整改台账.问题描述 > 0) OR (资质证书.人员姓名/资质证书.人员姓名 < 0.5) OR (资质证书.最近培训日期
+    < 当前日期-730天) OR (近3年草原违法案件结案率 < 0.7)
+  description: 监管机构职责不清、巡查覆盖率低于80%、整改未全部闭环、专业人员比例不足50%、近2年无任何培训、三年违法案件结案率低于70%，均反映监管机构及队伍建设严重滞后。
+  audit_item: 草原风险防控落实不到位
+  suspicion: 草原监管机构及队伍建设不到位
+  regulation: "[\n  {\n    \"法规名称\": \"《中华人民共和国草原法》\",\n    \"法规文号\": \"中华人民共和国主席令第八十二号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第五十六条\",\n    \"内容概述\": \"草原行政主管部门和草原监督管理机构应当加强草原监督管理，依法查处违反草原法律法规的行为，保护草原资源。\"\n  }\n]"

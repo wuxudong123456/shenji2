@@ -1,0 +1,163 @@
+name: audit/登记台账类/验收台账
+type: model
+description: 从登记台账类类文档（验收台账）中提取结构化元数据。涵盖字段如：上报验收合格面积、享受补贴农户清单、各项改良措施的实施记录、材料名称、检测数据、登记面积、耕作方式、规格型号。文档范围包括：保护性耕作任务验收台账、地力提升工程验收台账、材料进场验收台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 登记
+- 补贴
+- 验收
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 验收台账
+  member_count: 1
+  member_details:
+  - 保护性耕作任务验收台账
+  - 地力提升工程验收台账
+  - 材料进场验收台账
+output:
+  fields:
+  - name: 上报验收合格面积
+    type: string
+    description: 提取 上报验收合格面积 的文本值
+  - name: 享受补贴农户清单
+    type: string
+    description: 提取 享受补贴农户清单 的文本值
+  - name: 各项改良措施的实施记录
+    type: string
+    description: 提取 各项改良措施的实施记录 的文本值
+  - name: 材料名称
+    type: string
+    description: 提取 材料名称 的文本值
+  - name: 检测数据
+    type: string
+    description: 提取 检测数据 的文本值
+  - name: 登记面积
+    type: string
+    description: 提取 登记面积 的文本值
+  - name: 耕作方式
+    type: string
+    description: 提取 耕作方式 的文本值
+  - name: 规格型号
+    type: string
+    description: 提取 规格型号 的文本值
+  - name: 进场日期
+    type: date
+    description: 提取 进场日期 的日期值，格式 YYYY-MM-DD
+  - name: 验收人
+    type: string
+    description: 提取 验收人 的文本值
+  - name: 验收合格证
+    type: string
+    description: 提取 验收合格证 的文本值
+  - name: 验收合格面积
+    type: string
+    description: 提取 验收合格面积 的文本值
+  - name: 验收数量
+    type: number
+    description: 提取 验收数量 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: （安全防护设施验收记录.实测数据 < 安全专项施工方案.防护等级要求） || （安全专项施工方案.材料规格 != 材料进场验收台账.规格型号） || （监理安全巡视记录.发现问题描述 包含 '防护缺失'/'未按方案设置'/'材质不符'
+    且 复查情况 == '未整改'） || （现场影像资料.防护设施实际情况 明显与 安全专项施工方案.防护措施清单 不一致）
+  description: 判定规则：1）防护设施验收实测数据低于方案设计标准，安全冗余不足；2）进场材料规格与方案要求型号不符，降低防护强度；3）监理发现防护问题且未整改闭环，表明隐患持续存在；4）影像资料直观反映现场与方案描述不一致。任一条件成立即列为疑点。
+  audit_item: 重大工程项目风险预警
+  suspicion: 施工现场安全防护措施与方案严重不符
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程安全生产管理条例\",\n    \"法规文号\": \"国务院令第393号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十八条\",\n    \"内容概述\": \"施工单位必须在施工现场采取维护安全、防范危险、预防火灾等措施；应当根据建设工程的施工特点、范围，对施工现场易发生重大事故的部位、环节进行监控，制定施工现场生产安全事故应急救援预案。防护设施必须按方案搭设并经验收合格方可使用。\"\
+    \n  }\n]"
+- expression: (台账上报完成面积 - 遥感或现场核查认定面积) > 0 && ((台账上报完成面积 - 遥感或现场核查认定面积) / 台账上报完成面积) > 0.1
+  description: 当台账上报的保护性耕作完成面积与运用遥感影像或现场抽查核实的认定面积之间存在正差异，且差异率超过10%时，判定为任务落实不到位或虚报面积；若差异率超过30%，视为严重夸大。
+  audit_item: 黑土地保护治理相关任务未完成或完成质量不高
+  suspicion: 保护性耕作任务推广面积未落实
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"主席令第一一三号\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第二十六条\",\n    \"内容概述\": \"国家鼓励因地制宜实行保护性耕作，推广免耕少耕、秸秆覆盖还田等措施，任何单位和个人不得虚报实施面积骗取补贴。\"\n  }\n]"
+- expression: (台账上报合格率 - 监理或审计复验合格率) > 0.15
+  description: 当验收台账记录的上报合格率与第三方监理报告或审计组现场复验得出的合格率之差大于15个百分点时，即表明验收流于形式或数据造假。若复验合格率低于60%，则存在严重质量隐患。
+  audit_item: 黑土地保护治理相关任务未完成或完成质量不高
+  suspicion: 保护性耕作验收合格率虚高
+  regulation: "[\n  {\n    \"法规名称\": \"农田建设项目管理办法\",\n    \"法规文号\": \"农业农村部令2019年第4号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十九条\",\n    \"内容概述\": \"项目竣工验收应对照入库的面积和建设标准，严格核查工程质量，对不合格工程不得通过验收，并追究相关责任。\"\n  }\n]"
+- expression: (申报面积 - 核验面积) > 0 && (申报面积 - 核验面积) / 申报面积 > 0.05
+  description: 当保护性耕作实施面积的申报数据大于实地核验或遥感认定数据，且虚报比例超过5%时，认定为蓄意虚报。若虚报面积绝对值超过500亩或虚报率大于20%，则属严重违规，极大概率存在骗补。
+  audit_item: 黑土地保护治理相关任务未完成或完成质量不高
+  suspicion: 虚报保护性耕作实施面积骗取补贴
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员以虚报、冒领等手段骗取财政资金，或违反规定扩大开支范围、提高开支标准的，应给予处罚处分。\"\n  }\n]"

@@ -1,0 +1,129 @@
+name: audit/登记台账类/核查台账
+type: model
+description: 从登记台账类类文档（核查台账）中提取结构化元数据。涵盖字段如：卫生间及淋浴间数量、学校ID、实数床位数、实有床位数、宿舍房间面积、宿舍编号、建筑面积、额定住宿人数。文档范围包括：寄宿制学校生活设施核查台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 核查台账
+  member_count: 1
+  member_details:
+  - 寄宿制学校生活设施核查台账
+output:
+  fields:
+  - name: 卫生间及淋浴间数量
+    type: number
+    description: 提取 卫生间及淋浴间数量 的数值（含单位，如万元、吨等）
+  - name: 学校ID
+    type: string
+    description: 提取 学校ID 的文本值
+  - name: 实数床位数
+    type: string
+    description: 提取 实数床位数 的文本值
+  - name: 实有床位数
+    type: string
+    description: 提取 实有床位数 的文本值
+  - name: 宿舍房间面积
+    type: string
+    description: 提取 宿舍房间面积 的文本值
+  - name: 宿舍编号
+    type: string
+    description: 提取 宿舍编号 的文本值
+  - name: 建筑面积
+    type: string
+    description: 提取 建筑面积 的文本值
+  - name: 额定住宿人数
+    type: number
+    description: 提取 额定住宿人数 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 核查表.生均面积计算值 < 3.0 || (核查台账.实数床位数 > 核查台账.额定住宿人数 * 1.1) || (分配记录中存在同一分配床位号分配多名学生且无轮换制度)
+  description: 生均宿舍面积低于3平方米（《农村普通中小学校建设标准》强制要求）即判定为生活设施不达标；实住人数超过核定床位数的10%以上，或明显存在多人共用一张床且无正规轮宿安排，即为“大通铺”违规形态。
+  audit_item: 工作开展不到位
+  suspicion: 寄宿制学校生活设施不达标存在“大通铺”现象
+  regulation: "[\n  {\n    \"法规名称\": \"农村普通中小学校建设标准\",\n    \"法规文号\": \"建标109-2008\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"第三十五条第三款\",\n    \"内容概述\": \"学生宿舍的生均使用面积不宜小于3.0㎡，并应配备必要的洗浴、厕所等生活设施，杜绝“大通铺”。\"\n  }\n]"
+- expression: (核查表.计算所得人均面积 < 3) || (分配记录.实住学生姓名 > 核查台账.实有床位数) || (核查台账.卫生间及淋浴间数量 / 核查表.寄宿生总人数 > 15)
+  description: 判定逻辑：1）根据国家基础标准，寄宿制学校生均宿舍面积不得低于3平方米，小于该阈值即违规；2）对比床位分配记录中的实际住宿学生数与台账登记的实有床位数，若学生数大于床位数，说明存在超标住宿；3）公共卫生设施服务人数比超过15人/个，视为生活设施不达标。
+  audit_item: 工作开展不到位
+  suspicion: 寄宿制学校存在大通铺且生活设施不达标
+  regulation: "[\n  {\n    \"法规名称\": \"农村普通中小学校建设标准\",\n    \"法规文号\": \"建标109-2008\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"相关学生宿舍条款\",\n    \"内容概述\": \"规定学生宿舍的居室，每室居住人数不宜超过规定人数，并应保证生均居住面积。\"\n  }\n]"

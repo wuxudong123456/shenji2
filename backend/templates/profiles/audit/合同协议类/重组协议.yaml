@@ -1,0 +1,125 @@
+name: audit/合同协议类/重组协议
+type: model
+description: 从合同协议类类文档（重组协议）中提取结构化元数据。涵盖字段如：债权人名称、原债务金额、重组后债务公允价值、重组生效日。文档范围包括：债务重组协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 重组协议
+  member_count: 1
+  member_details:
+  - 债务重组协议
+output:
+  fields:
+  - name: 债权人名称
+    type: string
+    description: 提取 债权人名称 的文本值
+  - name: 原债务金额
+    type: number
+    description: 提取 原债务金额 的数值（含单位，如万元、吨等）
+  - name: 重组后债务公允价值
+    type: string
+    description: 提取 重组后债务公允价值 的文本值
+  - name: 重组生效日
+    type: string
+    description: 提取 重组生效日 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: 明细表.债权人是否为关联方 == '关联方' && 重组协议.重组后债务公允价值 < 重组协议.原债务金额 && 样本.营业外收入金额 > 0
+  description: 根据会计准则，与关联方发生的债务豁免，若交易不具有商业实质，其产生的利得应视为权益性交易，计入资本公积而非营业外收入。该表达式用于筛查将关联方债务豁免不当确认为利润的违规行为。若上述“且”条件同时满足，即触发疑点。
+  audit_item: 未按规定核算收益及营业外收支
+  suspicion: 虚构或不当确认债务重组收益
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第12号——债务重组\",\n    \"法规文号\": \"财会〔2019〕9号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十一条\",\n    \"内容概述\": \"将债务转为权益工具方式进行债务重组的，债务人应当在所清偿债务符合终止确认条件时予以终止确认。债务人初始确认权益工具时应当按照权益工具的公允价值计量。所清偿债务账面价值与权益工具确认金额之间的差额，应当计入当期损益。\"\
+    \n  },\n  {\n    \"法规名称\": \"关于做好执行企业会计准则的企业2012年年报工作的通知\",\n    \"法规文号\": \"财会〔2012〕25"

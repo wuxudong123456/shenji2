@@ -1,0 +1,170 @@
+name: audit/合同协议类/工程合同
+type: model
+description: 从合同协议类类文档（工程合同）中提取结构化元数据。涵盖字段如：保证金条款、保证金条款中约定收取的保证金类型及金额、保证金返还条款、单价、合同乙方名称、合同工程量、合同条款中的底泥处置规范、合同签订日期。文档范围包括：安防工程合同、工程合同、治理工程合同、被审计单位与施工单位签订的工程合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 付款
+- 合同
+- 工程
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 工程合同
+  member_count: 1
+  member_details:
+  - 安防工程合同
+  - 工程合同
+  - 治理工程合同
+  - 被审计单位与施工单位签订的工程合同
+output:
+  fields:
+  - name: 保证金条款
+    type: number
+    description: 提取 保证金条款 的数值（含单位，如万元、吨等）
+  - name: 保证金条款中约定收取的保证金类型及金额
+    type: number
+    description: 提取 保证金条款中约定收取的保证金类型及金额 的数值（含单位，如万元、吨等）
+  - name: 保证金返还条款
+    type: number
+    description: 提取 保证金返还条款 的数值（含单位，如万元、吨等）
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 合同乙方名称
+    type: string
+    description: 提取 合同乙方名称 的文本值
+  - name: 合同工程量
+    type: string
+    description: 提取 合同工程量 的文本值
+  - name: 合同条款中的底泥处置规范
+    type: number
+    description: 提取 合同条款中的底泥处置规范 的数值（含单位，如万元、吨等）
+  - name: 合同签订日期
+    type: date
+    description: 提取 合同签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同约定工期
+    type: string
+    description: 提取 合同约定工期 的文本值
+  - name: 合同设计标准
+    type: string
+    description: 提取 合同设计标准 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 总价
+    type: string
+    description: 提取 总价 的文本值
+  - name: 收款账户
+    type: number
+    description: 提取 收款账户 的数值（含单位，如万元、吨等）
+  - name: 约定付款节点及期限
+    type: number
+    description: 提取 约定付款节点及期限 的数值（含单位，如万元、吨等）
+  - name: 缺陷责任期约定
+    type: string
+    description: 提取 缺陷责任期约定 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (台账记录.实际退还日期 IS NULL AND 台账记录.约定返还日期 IS NOT NULL AND DATEDIFF(NOW(), 台账记录.约定返还日期) > 0) OR (台账记录.实际退还日期 > 台账记录.约定返还日期)
+    OR (台账记录.保证金类型 = '工程质量保证金' AND 台账记录.实际退还日期 IS NULL AND 验收报告.竣工日期 IS NOT NULL AND DATEDIFF(NOW(), 验收报告.竣工日期) > 730)
+  description: 保证金返还时间超过合同约定或法定最后期限，即构成未及时返还。对于工程质量保证金，法定最长缺陷责任期为24个月（2年），若竣工后超过2年仍未退还，直接判定违规。对于投标保证金、履约保证金，以合同约定时间为准，凡超过一天均违规。退款日期为空且当前日期已超过约定日，也视为逾期。
+  audit_item: 违规收费-工程建设领域保证金清理规范不到位
+  suspicion: 未及时返还保证金
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量保证金管理办法\",\n    \"法规文号\": \"建质〔2017〕138号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十条\",\n    \"内容概述\": \"缺陷责任期届满，承包人向发包人申请返还保证金。发包人接到申请后，应在14天内进行核实，无异议并同意支付的，应将保证金连同利息在核实后14天内返还，逾期未返还的，应承担违约责任。缺陷责任期一般不超过2年。\"\
+    \n  },\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\",\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规"
+- expression: (实际支出金额、支出事由.实际支出金额 < 资金用途说明.预算金额×0.8 && 实际支出金额、支出事由.支出事由 IN ('行政开支','其他非养护类')) OR (合同设计标准（厚度/强度）.验收实测数据 < 合同设计标准（厚度/强度）.合同设计标准（厚度/强度）×0.9
+    OR 各项工程实测值（如道路厚度、混凝土强度、灌溉保证率）、抗压强度、吸水率等指标、检测指标名称、设计标准值、实测值、判定结论、检测机构CMA认证编号、防腐/抗压检测值、试验日期、检测结论.检测结论='不合格' AND 各项工程实测值（如道路厚度、混凝土强度、灌溉保证率）、抗压强度、吸水率等指标、检测指标名称、设计标准值
+  description: 资金落实：实际支出低于预算80%且存在非养护类支出，判定资金挪用或闲置；工程质量：验收实测厚度低于设计厚度90%即视为严重偷工减料，或质量检测报告不合格项未闭环整改即视为工程质量缺陷。
+  audit_item: 安全隐患排查整治不到位
+  suspicion: 管护资金挪用致公路及安防工程质量缺陷
+  regulation: "[\n  {\n    \"法规名称\": \"农村公路养护管理办法\",\n    \"法规文号\": \"交通运输部令2015年第22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十七条、第二十条\",\n    \"内容概述\": \"农村公路养护资金应当实行专款专用，任何单位和个人不得截留、挤占和挪用；县级交通运输主管部门应建立健全资金管理制度，加强监管。\"\n  },\n  {\n \
+    \   \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十八条\",\n    \"\
+    内容概述\": \"施工单"

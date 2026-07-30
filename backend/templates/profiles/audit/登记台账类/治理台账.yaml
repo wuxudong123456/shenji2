@@ -1,0 +1,141 @@
+name: audit/登记台账类/治理台账
+type: model
+description: 从登记台账类类文档（治理台账）中提取结构化元数据。涵盖字段如：主要污染源类型、台账建立要求、水体名称、水体编码、污染源描述、治理措施、治理状态、责任单位。文档范围包括：黑臭水体治理台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 台账
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 治理台账
+  member_count: 1
+  member_details:
+  - 黑臭水体治理台账
+output:
+  fields:
+  - name: 主要污染源类型
+    type: string
+    description: 提取 主要污染源类型 的文本值
+  - name: 台账建立要求
+    type: string
+    description: 提取 台账建立要求 的文本值
+  - name: 水体名称
+    type: string
+    description: 提取 水体名称 的文本值
+  - name: 水体编码
+    type: string
+    description: 提取 水体编码 的文本值
+  - name: 污染源描述
+    type: string
+    description: 提取 污染源描述 的文本值
+  - name: 治理措施
+    type: string
+    description: 提取 治理措施 的文本值
+  - name: 治理状态
+    type: boolean
+    description: 提取 治理状态 的布尔值（是/否）
+  - name: 责任单位
+    type: string
+    description: 提取 责任单位 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: COUNT(治理台账.水体编码) == 0 || (治理台账.水体编码 != NULL && (治理台账.问题描述 == NULL || 治理台账.责任单位 == NULL))
+  description: 若台账表体量为零或虽有清单但关键字段缺失，则高度怀疑未建立或未规范建立治理台账与监管清单，触发合规性疑点。
+  audit_item: 农村生活污水治理不符合相关规定
+  suspicion: 未建立黑臭水体治理台账和监管清单
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国水污染防治法\",\n    \"法规文号\": \"主席令第七十号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十九条、第三十三条\",\n    \"内容概述\": \"县级以上地方人民政府应当根据流域生态环境功能需要，组织编制并实施黑臭水体治理方案，建立长效管理机制。\"\n  },\n  {\n    \"法规名称\": \"关于推进农村黑臭水体治理工作的指导意见\"\
+    ,\n    \"法规文号\": \"环办土壤〔2019〕586号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三条\",\n    \"内容概述\": \"各地要建立农村黑"
+- expression: (治理台账.销号状态 == '已销号' && (监测报告.氨氮浓度 == 治理前氨氮浓度 || ABS(监测报告.氨氮浓度-治理前氨氮浓度) < 检出限*2)) || (明细表.支出摘要 LIKE '%填埋%' &&
+    其他.工程量清单 NOT LIKE '%截污纳管%' && 其他.工程量清单 NOT LIKE '%清淤%')
+  description: 已销号水体在销号后短期内水质指标无实质改善甚至反弹（偏差值极小），或项目资金仅用于土方填埋无任何截污清淤手段，高度疑似冲污稀释或一填了之的虚假治理。
+  audit_item: 农村生活污水治理不符合相关规定
+  suspicion: 对冲污稀释、一填了之搞表面及虚假治理
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国水污染防治法\",\n    \"法规文号\": \"主席令第七十号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四十九条\",\n    \"内容概述\": \"禁止采取冲污稀释、一填了之等方式，搞表面治理和虚假治理，确保水质改善成效。\"\n  },\n  {\n    \"法规名称\": \"农村黑臭水体治理工作指南（试行）\",\n  \
+    \  \"法规文号\": \"无\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第六条\",\n    \"内容概述\": \"严禁搞形式主义，明确消除黑臭必须采取控源截污、内源治理等实质性工程措施。\"\
+    \n  }\n]"
+- expression: (治理台账.主要污染源类型 == '农业面源' || 治理台账.主要污染源类型 == '畜禽养殖') && (协同治理责任部门.衔接措施 == NULL || 对接表.落实情况 != '已落实')
+  description: 治理台账已锁定污染源为农业畜禽类，但未制定专项衔接方案或跨部门协同治理未落实，表明黑臭水治理与面源污染治理严重脱节，形成“治水不治源”的无效治理局面。
+  audit_item: 农村生活污水治理不符合相关规定
+  suspicion: 黑臭水体治理与面源污染治理工作脱节
+  regulation: "[\n  {\n    \"法规名称\": \"农业农村污染治理攻坚战行动方案（2021—2025年）\",\n    \"法规文号\": \"环土壤〔2022〕11号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"加强种植业、养殖业等农业面源污染防治，与农村黑臭水体治理统筹推进，实现系统治理。\"\n  },\n  {\n    \"法规名称\": \"畜禽规模养殖污染防治条例\"\
+    ,\n    \"法规文号\": \"国务院令第643号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十一条\",\n    \"内容概述\": \"畜禽养殖须配套建设废弃物综合利用"

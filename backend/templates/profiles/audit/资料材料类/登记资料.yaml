@@ -1,0 +1,146 @@
+name: audit/资料材料类/登记资料
+type: model
+description: 从资料材料类类文档（登记资料）中提取结构化元数据。涵盖字段如：备案日期、成员出资额、成员名册、服务类型、组织名称、经营场所、统一社会信用代码。文档范围包括：农业社会化服务组织的备案或注册登记资料、农民专业合作社注册登记资料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 登记资料
+  member_count: 1
+  member_details:
+  - 农业社会化服务组织的备案或注册登记资料
+  - 农民专业合作社注册登记资料
+output:
+  fields:
+  - name: 备案日期
+    type: date
+    description: 提取 备案日期 的日期值，格式 YYYY-MM-DD
+  - name: 成员出资额
+    type: string
+    description: 提取 成员出资额 的文本值
+  - name: 成员名册
+    type: string
+    description: 提取 成员名册 的文本值
+  - name: 服务类型
+    type: string
+    description: 提取 服务类型 的文本值
+  - name: 组织名称
+    type: string
+    description: 提取 组织名称 的文本值
+  - name: 经营场所
+    type: string
+    description: 提取 经营场所 的文本值
+  - name: 统一社会信用代码
+    type: string
+    description: 提取 统一社会信用代码 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (农业社会化服务组织的备案或注册登记资料.统一社会信用代码 NOT IN (农业社会化服务组织基础信息表.统一社会信用代码)) || (农业社会化服务组织基础信息表.统一社会信用代码 NOT IN (农业社会化服务组织的备案或注册登记资料.统一社会信用代码))
+    || (农业社会化服务组织的备案或注册登记资料.统一社会信用代码 = 农业社会化服务组织基础信息表.统一社会信用代码 AND 农业社会化服务组织的备案或注册登记资料.服务类型 != 农业社会化服务组织基础信息表.服务类型) || (ABS(COUNT(农业社会化服务组织的备案或注册登记资料.统一社会信用代码)
+    - COUNT(农业社会化
+  description: 出现以下任一情况判定为底数不清：基础信息表中组织在备案资料中缺失；备案资料中组织在基础信息表中缺失；同一组织在两个台账中的关键字段（如服务类型）不一致；组织数量差异率超过10%。若引入市场监管部门数据，还应比对是否存在未在农业部门备案但从事相关服务的组织。
+  audit_item: 农业社会化服务管理不到位
+  suspicion: 农业社会化服务组织备案底数不实、多头登记
+  regulation: "[\n  {\n    \"法规名称\": \"关于加快发展农业社会化服务的指导意见\",\n    \"法规文号\": \"农经发〔2021〕2号\",\n    \"效力级别\": \"部门规范性文件\",\n\
+    \    \"条款号\": \"第三条（十）\",\n    \"内容概述\": \"全面掌握服务组织数量、能力、业绩等情况，建立服务组织名录库并实施动态管理，确保信息真实、准确、完整。\"\n  }\n]"
+- expression: (成员名单.有效成员数 < 申报成员数 * 0.8) || (分红记录.分红总额 = 0 && 申报明细表.申报金额 > 10) || (现场检查登记表.核查结论 = '项目不存在' && 拨付台账.补贴资金已拨付)
+    || (银行流水明细.补贴收款账户在到账后10日内向个人关联账户转出资金比例 > 0.9)
+  description: 当合作社可核实真实成员不足申报的80%，或合作社无任何分红记录且申报补贴金额超过10万元，或现场检查发现申报项目不存在但补贴款已下达，或补贴资金到账后短期内几乎全部转入个人关联账户，即触发疑点。成员核实可通过电话抽查或比对分红银行流水。
+  audit_item: 骗取套取涉农财政专项资金
+  suspicion: 合作社编造虚假资料骗取涉农专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员有下列违反规定使用、骗取财政资金的行为之一的，……（一）以虚报、冒领等手段骗取财政资金……；企业和个人有类似行为的，依照本条规定处理。\"\n  }\n]"

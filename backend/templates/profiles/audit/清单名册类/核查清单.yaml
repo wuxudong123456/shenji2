@@ -1,0 +1,81 @@
+name: audit/清单名册类/核查清单
+type: model
+description: 从清单名册类类文档（核查清单）中提取结构化元数据。涵盖字段如：实际在岗人数、申报安置职工人数。文档范围包括：奖补资金发放对象资质核查清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 核查清单
+  member_count: 1
+  member_details:
+  - 奖补资金发放对象资质核查清单
+output:
+  fields:
+  - name: 实际在岗人数
+    type: number
+    description: 提取 实际在岗人数 的数值（含单位，如万元、吨等）
+  - name: 申报安置职工人数
+    type: number
+    description: 提取 申报安置职工人数 的数值（含单位，如万元、吨等）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 核查清单.申报安置职工人数 > 缴纳记录.累计缴纳月数 || (流水.奖补资金入账金额 > 0 && 流水.后续支付摘要)
+  description: 若申报安置的下岗职工人数大于同期企业实际社保参保人数，即可认定为虚报冒领；奖补资金按规定应用于职工分流安置，若在发放后半年内大量资金被转至非安置支出（如偿还借款、转入关联方），则判定违规使用。
+  audit_item: 财政资金申报、使用等方面存在的问题
+  suspicion: 虚报冒领结构调整专项奖补资金
+  regulation: "[\n  {\n    \"法规名称\": \"工业企业结构调整专项奖补资金管理办法\",\n    \"法规文号\": \"财建〔2016〕253号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第十四条\",\n    \"内容概述\": \"对弄虚作假、骗取、套取奖补资金的，一经发现，追回资金，并依法追究责任。奖补资金主要用于职工分流安置，不得用于其他支出。\"\n  }\n]"

@@ -1,0 +1,145 @@
+name: audit/合同协议类/经济合同
+type: model
+description: 从合同协议类类文档（经济合同）中提取结构化元数据。涵盖字段如：乙方信息、合同事项、合同金额、合同金额及收款条款、租赁合同、采购合同。文档范围包括：重大经济合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 采购
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 经济合同
+  member_count: 1
+  member_details:
+  - 重大经济合同
+output:
+  fields:
+  - name: 乙方信息
+    type: string
+    description: 提取 乙方信息 的文本值
+  - name: 合同事项
+    type: string
+    description: 提取 合同事项 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 合同金额及收款条款
+    type: number
+    description: 提取 合同金额及收款条款 的数值（含单位，如万元、吨等）
+  - name: 租赁合同
+    type: string
+    description: 提取 租赁合同 的文本值
+  - name: 采购合同
+    type: string
+    description: 提取 采购合同 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (SUM(票据存根.金额) - SUM(明细表.金额) > 0) || (银行对账单.借贷方金额 WHERE 摘要为货款/服务费等 - SUM(银行对账单.借贷方金额) > 0 && 差异 > 5000) || (经济合同.合同金额及收款条款
+    - 经济合同.合同金额 > 0 && 对应票据已开但未入账)
+  description: 票据存根、银行流水、合同等外部证据显示的应入账收入大于账面实际确认的收入，说明收入被截留。阈值5千元筛选实质性差异。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 收入不入账形成账外资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第二十四号（2017年修正）\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第二十六条\",\n    \"内容概述\": \"公司、企业进行会计核算不得有下列行为：虚列或者隐瞒收入，推迟或者提前确认收入。\"\n  }\n]"
+- expression: 现金支取凭证及审批单.发票 > 0 && (经济合同.合同事项 IS NULL || 现金支取凭证及审批单.验收单) && 明细表.金额 > 20000) || (经济合同.乙方信息 != 行对账单.收款人名称 &&
+    经济合同.合同事项) || (现金支取凭证及审批单.发票 && 存货台账.资产名称) || (明细台账.其他应收款挂账及核销 && 行对账单.收入流水)
+  description: 缺少合同/验收的大额支出、资金收款方与合同方不一致，或资本支出后无实物资产，均提示虚假支出套取资金。往来款异常核销可能意味着资金已私下转出。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 虚报支出套取资金账外存放
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第二十四号（2017年修正）\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第四十三条\",\n    \"内容概述\": \"伪造、变造会计凭证、会计账簿，编制虚假财务会计报告，构成犯罪的，依法追究刑事责任。尚不构成犯罪的，由县级以上人民政府财政部门予以通报，可以对单位并处五千元以上十万元以下的罚款……\"\
+    \n  }\n]"
+- expression: (盘点记录.实盘数量 - 存货台账.入账原值 > 0) || (经济合同.合同金额 > 10000 && 存货台账.资产编码 IS NULL) || (盘点记录.处置审批及处置收入 > 0 && 分类账.发生额及余额)
+  description: 实物盘点超出台账数量，或依据采购合同、付款记录证实有资产购入但台账未登记，均为账外资产。处置资产收益未入账，可能形成新的账外资金或私分。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 存在账外资产未纳入统一核算
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第三十条\",\n    \"内容概述\": \"各部门及其所属单位应当对下列资产及时予以报废、报损：……资产的处置收入、收益等，应当按照政府非税收入和国库集中收缴制度的有关规定上缴……\"\n  },\n  {\n    \"\
+    法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第二十四号（2017年修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第十七条\",\n    \"内容概述\"\
+    : \""

@@ -1,0 +1,46 @@
+name: audit/数据表格类/价目表
+type: model
+description: 从数据表格类类文档（价目表）中提取结构化元数据。涵盖字段如：各类用水基准费率。文档范围包括：省级水资源费价目表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 价目表
+  member_count: 1
+  member_details:
+  - 省级水资源费价目表
+output:
+  fields:
+  - name: 各类用水基准费率
+    type: number
+    description: 提取 各类用水基准费率 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (农业用水实际征收标准 > 工业用水征收标准) || (在农业用水免征政策期间仍进行收取) || (各类用水基准费率.各类用水基准费率超出省级价格主管部门核定上限)
+  description: 根据国家政策，农业用水水资源费应低于工业用水，特定条件可免征。若实际执行标准高于工业标准、违规收取或超出核定上限，均属违规。
+  audit_item: 大中型灌区运行管护和取水用水不符合相关规定
+  suspicion: 农业用水水资源费征收标准违规偏高
+  regulation: "[\n  {\n    \"法规名称\": \"水资源费征收标准管理办法\",\n    \"法规文号\": \"发改价格〔2013〕29号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第八条\",\n    \"内容概述\": \"农业用水水资源费标准应低于工业、生活用水，并可根据情况免征，不得高于工业。\"\n  }\n]"

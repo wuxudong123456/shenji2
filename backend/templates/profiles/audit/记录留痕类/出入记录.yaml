@@ -1,0 +1,65 @@
+name: audit/记录留痕类/出入记录
+type: model
+description: 从记录留痕类类文档（出入记录）中提取结构化元数据。涵盖字段如：出入时间、房屋编号、频繁度。文档范围包括：门禁系统出入记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 出入记录
+  member_count: 1
+  member_details:
+  - 门禁系统出入记录
+output:
+  fields:
+  - name: 出入时间
+    type: date
+    description: 提取 出入时间 的日期值，格式 YYYY-MM-DD
+  - name: 房屋编号
+    type: string
+    description: 提取 房屋编号 的文本值
+  - name: 频繁度
+    type: string
+    description: 提取 频繁度 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (水电燃气用量统计表.月用量 = 0 连续月份 >= 6 && 租金缴纳明细表.缴纳状态 = ‘已缴’) || (房屋空置情况统计表.核实状态 >= 6 个月 && 无正当理由备案) || (检查记录.检查情况 =
+    ‘长期无人居住’ && 连续检查次数 >= 3)
+  description: 连续6个月及以上水电燃气零用量且租金正常缴纳，说明承租人未实际居住但仍占用房屋且未退租；空置统计记录显示连续空置6个月以上且无合理备案，直接违反连续闲置期限上限。物业入户检查多次记录长期无人居住进一步佐证，触发任一条件即判定为闲置违规。6个月为《公共租赁住房管理办法》明确规定的退租触发界限。
+  audit_item: 未按规定使用公共租赁住房
+  suspicion: 承租人公共租赁住房长期闲置
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十七条\",\n    \"内容概述\": \"无正当理由连续6个月以上闲置公共租赁住房的，承租人应当退回公共租赁住房。\"\n  }\n]"

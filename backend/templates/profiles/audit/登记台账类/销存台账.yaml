@@ -1,0 +1,122 @@
+name: audit/登记台账类/销存台账
+type: model
+description: 从登记台账类类文档（销存台账）中提取结构化元数据。涵盖字段如：存货名称、账面结存数量、销售单价、销售对象、销售数量。文档范围包括：存货进销存台账、应税消费品产销存台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 销存台账
+  member_count: 1
+  member_details:
+  - 存货进销存台账
+  - 应税消费品产销存台账
+output:
+  fields:
+  - name: 存货名称
+    type: string
+    description: 提取 存货名称 的文本值
+  - name: 账面结存数量
+    type: number
+    description: 提取 账面结存数量 的数值（含单位，如万元、吨等）
+  - name: 销售单价
+    type: number
+    description: 提取 销售单价 的数值（含单位，如万元、吨等）
+  - name: 销售对象
+    type: string
+    description: 提取 销售对象 的文本值
+  - name: 销售数量
+    type: number
+    description: 提取 销售数量 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ABS(存货名称、账面结存数量.账面结存数量 - 盘点日期.实盘数量) > 0
+  description: 当台账记录的账面结存数量与盘点报告中的实盘数量不一致时，排除经审批的合理处置或自然损耗后，差异即为疑点。差异额不为零即触发。
+  audit_item: 账实不符、账证不符、账账不符、账表不符
+  suspicion: 存货账面数量与实际盘点数量不符
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号（2017修正）\",\n    \"效力级别\": \"法律\",\n \
+    \   \"条款号\": \"第十七条\",\n    \"内容概述\": \"各单位应当定期将会计账簿记录与实物、款项及有关资料相互核对，保证会计账簿记录与实物及款项的实有数额相符。\"\n  }\n]"
+- expression: (明细表.交易价格 < 明细表.非关联方价格 * 0.8) && (实际缴纳消费税额.应税销售额 < 明细表.非关联方价格)
+  description: 关联交易销售应税消费品价格明显低于同期非关联方销售价格20%以上的，税务机关有权核定计税价格。比值低于80%即为价格明显偏低，消费税计税依据不实。
+  audit_item: 违反税收征管规定的行为
+  suspicion: 通过关联交易低价销售应税消费品少缴消费税
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国消费税暂行条例\",\n    \"法规文号\": \"国务院令第539号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十条\",\n    \"内容概述\": \"纳税人应税消费品的计税价格明显偏低并无正当理由的，由主管税务机关核定其计税价格。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国消费税暂行条例实施细则\"\
+    ,\n    \"法规文号\": \"财政部 国家税务总局令第51号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十一条\",\n    \"内容概述\": \"条例第十条所称计税价格明显偏低并无正当"

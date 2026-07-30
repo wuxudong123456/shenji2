@@ -1,0 +1,147 @@
+name: audit/登记台账类/问题台账
+type: model
+description: 从登记台账类类文档（问题台账）中提取结构化元数据。涵盖字段如：反映时间、投诉内容、整改措施、整改状态、涉及项目、问题描述、防护设施状态、隐患类型。文档范围包括：农村公路问题台账、安防工程问题台账、用地政策投诉举报问题台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 整改
+- 项目
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 问题台账
+  member_count: 1
+  member_details:
+  - 农村公路问题台账
+  - 安防工程问题台账
+  - 用地政策投诉举报问题台账
+output:
+  fields:
+  - name: 反映时间
+    type: date
+    description: 提取 反映时间 的日期值，格式 YYYY-MM-DD
+  - name: 投诉内容
+    type: string
+    description: 提取 投诉内容 的文本值
+  - name: 整改措施
+    type: string
+    description: 提取 整改措施 的文本值
+  - name: 整改状态
+    type: boolean
+    description: 提取 整改状态 的布尔值（是/否）
+  - name: 涉及项目
+    type: string
+    description: 提取 涉及项目 的文本值
+  - name: 问题描述
+    type: string
+    description: 提取 问题描述 的文本值
+  - name: 防护设施状态
+    type: boolean
+    description: 提取 防护设施状态 的布尔值（是/否）
+  - name: 隐患类型
+    type: string
+    description: 提取 隐患类型 的文本值
+  - name: 隐患路段桩号
+    type: string
+    description: 提取 隐患路段桩号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (实际支出金额、支出事由.实际支出金额 < 资金用途说明.预算金额×0.8 && 实际支出金额、支出事由.支出事由 IN ('行政开支','其他非养护类')) OR (合同设计标准（厚度/强度）.验收实测数据 < 合同设计标准（厚度/强度）.合同设计标准（厚度/强度）×0.9
+    OR 各项工程实测值（如道路厚度、混凝土强度、灌溉保证率）、抗压强度、吸水率等指标、检测指标名称、设计标准值、实测值、判定结论、检测机构CMA认证编号、防腐/抗压检测值、试验日期、检测结论.检测结论='不合格' AND 各项工程实测值（如道路厚度、混凝土强度、灌溉保证率）、抗压强度、吸水率等指标、检测指标名称、设计标准值
+  description: 资金落实：实际支出低于预算80%且存在非养护类支出，判定资金挪用或闲置；工程质量：验收实测厚度低于设计厚度90%即视为严重偷工减料，或质量检测报告不合格项未闭环整改即视为工程质量缺陷。
+  audit_item: 安全隐患排查整治不到位
+  suspicion: 管护资金挪用致公路及安防工程质量缺陷
+  regulation: "[\n  {\n    \"法规名称\": \"农村公路养护管理办法\",\n    \"法规文号\": \"交通运输部令2015年第22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十七条、第二十条\",\n    \"内容概述\": \"农村公路养护资金应当实行专款专用，任何单位和个人不得截留、挤占和挪用；县级交通运输主管部门应建立健全资金管理制度，加强监管。\"\n  },\n  {\n \
+    \   \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十八条\",\n    \"\
+    内容概述\": \"施工单"
+- expression: (运营车辆类型表.途经路段桩号 IN (问题台账.隐患路段桩号 WHERE 问题台账.防护设施状态='缺失' OR 问题台账.隐患类型 IN ('急弯视距不足','临崖无护栏'))) AND (审批文件.审批状态='有效')
+    OR (分析表.事故原因 LIKE '%隐患未整改%' AND 分析表.事故地点桩号 IN 运营车辆类型表.途经路段桩号)
+  description: 客运或校车审批路线途经的桩号与隐患台账中防护设施缺失或急弯视距不足的隐患路段重合，且审批有效，即构成违规运营；已发生事故且事故原因与未整改隐患直接相关，进一步证实隐患未排除即允许运营的问题。
+  audit_item: 安全隐患排查整治不到位
+  suspicion: 存在隐患路段违规运营客运班线或校车
+  regulation: "[\n  {\n    \"法规名称\": \"农村道路客运旅客运输班线安全通行条件审核规则\",\n    \"法规文号\": \"交运发〔2014〕258号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"农村道路客运班线途经的急弯、陡坡、临崖、临水等危险路段，应当设置必要的安全防护设施和警示标志。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"校车安全管理条例\",\n    \"法规文号\": \"国务院令第617号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十八条\",\n    \"内容概述\": \"校车行驶线路应当尽量避开急弯、陡"
+- expression: 申请单位历史档案.审批状态='未批复' && (当前日期-申请单位历史档案.申请日期) > 政策文件政策文件.审批时限要求  ||  (申请单位历史档案.批复日期-统计表.受理日期) > 政策文件政策文件.审批时限要求*1.5
+  description: 以政策文件或地方效能规定明确的审批时限（如30个工作日）为基准，超期未批复或办结周期超过规定1.5倍视为审批滞后，重点关注错过种植/养殖周期的申请。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 设施农业用地审批超期致错过农时
+  regulation: "[\n  {\n    \"法规名称\": \"自然资源部 农业农村部关于设施农业用地管理有关问题的通知\",\n    \"法规文号\": \"自然资规〔2019〕4号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"各地要合理保障设施农业用地需求，简化审批程序，提高审批效率，不得无故拖延审批。\"\n  }\n]"

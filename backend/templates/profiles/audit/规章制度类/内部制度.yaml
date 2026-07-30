@@ -1,0 +1,76 @@
+name: audit/规章制度类/内部制度
+type: model
+description: 从规章制度类类文档（内部制度）中提取结构化元数据。涵盖字段如：分配时限要求、审批权限、抵押物类型、抵押率上限、材料清单要求。文档范围包括：军人抚恤待遇审批内部制度、单位内部制度、银行涉农贷款审批内部制度等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 审批
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 内部制度
+  member_count: 1
+  member_details:
+  - 军人抚恤待遇审批内部制度
+  - 单位内部制度
+  - 银行涉农贷款审批内部制度
+output:
+  fields:
+  - name: 分配时限要求
+    type: string
+    description: 提取 分配时限要求 的文本值
+  - name: 审批权限
+    type: string
+    description: 提取 审批权限 的文本值
+  - name: 抵押物类型
+    type: string
+    description: 提取 抵押物类型 的文本值
+  - name: 抵押率上限
+    type: string
+    description: 提取 抵押率上限 的文本值
+  - name: 材料清单要求
+    type: string
+    description: 提取 材料清单要求 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 发放台账.抵押率 > 政策文件.涉农贷款抵押率规定上限 || (发放台账.抵押物评估价值 / 发放台账.贷款金额) < 政策文件.监管规定最低覆盖倍数
+  description: 银行实际执行的抵押率超过监管部门设定的上限（如要求贷款额不超过抵押物价值的70%，但银行内控要求50%即贷款额/抵押价值 <0.5），或要求抵押物价值达到贷款额2倍以上（即贷款额/抵押物价值<0.5），均属违规提高门槛。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 涉农贷款抵押率超监管要求抬高门槛
+  regulation: "[\n  {\n    \"法规名称\": \"中国人民银行关于做好2022年金融支持全面推进乡村振兴重点工作的意见\",\n    \"法规文号\": \"银发〔2022〕74号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"（十）\",\n    \"内容概述\": \"鼓励金融机构扩大农村资产抵质押范围，合理降低涉农贷款抵押率要求，提高新型农业经营主体融资可获得性。\"\n  }\n]"
+- expression: 记录表.伤残证明编号 NOT IN (军队伤残鉴定系统.有效编号) OR (证明材料.入伍登记表 = NULL AND 无补充说明文件)
+  description: 通过跨部门数据验证，发现审批所附关键证明无有效档案支撑，或缺乏法定必备材料，即构成虚假证明或材料不实。
+  audit_item: 管理单位违反军人抚恤优待政策
+  suspicion: 违规出具虚假证明办理抚恤待遇
+  regulation: "[\n  {\n    \"法规名称\": \"《军人抚恤优待条例》\",\n    \"法规文号\": \"国务院、中央军事委员会令第709号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第四十二条\",\n    \"内容概述\": \"军人抚恤优待管理单位及其工作人员在军人抚恤待遇审批工作中弄虚作假的，由上级主管部门责令改正；情节严重的，对直接负责的主管人员和其他直接责任人员依法给予处分。\"\n\
+    \  }\n]"

@@ -1,0 +1,131 @@
+name: audit/合同协议类/租车合同
+type: model
+description: 从合同协议类类文档（租车合同）中提取结构化元数据。涵盖字段如：合同期限、审批人、派车单：用车日期、约定用途、车辆型号。文档范围包括：租车合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 审批
+- 车辆
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 租车合同
+  member_count: 1
+  member_details:
+  - 租车合同
+output:
+  fields:
+  - name: 合同期限
+    type: string
+    description: 提取 合同期限 的文本值
+  - name: 审批人
+    type: string
+    description: 提取 审批人 的文本值
+  - name: 派车单：用车日期
+    type: date
+    description: 提取 派车单：用车日期 的日期值，格式 YYYY-MM-DD
+  - name: 约定用途
+    type: string
+    description: 提取 约定用途 的文本值
+  - name: 车辆型号
+    type: string
+    description: 提取 车辆型号 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (车辆GPS轨迹记录表.时间 < 0.5) || (租车合同.事由 NOT IN 标准公务事由列表) || (租车合同.用车人 = 领导人员 && 车辆GPS轨迹记录表.停留点 与 领导家庭地址 高度重合) || (费用报销凭证.支付对象
+    为个人或无资质公司)
+  description: 分析GPS轨迹数据，计算车辆在公务活动（标准工作时间、公务地点间移动）的时间或里程占比，若低于50%，或派车单事由无法对应正常公务，同时轨迹点长期在领导住所附近，则高度怀疑公车私用。支付给个人等不规范付款进一步证实。
+  audit_item: 其他违反中央八项规定及其实施细则精神问题
+  suspicion: 虚假公务租车用于领导私人活动
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"（2017年中共中央办公厅、国务院办公厅印发）\",\n    \"效力级别\": \"党内法规\"\
+    ,\n    \"条款号\": \"第二十七条\",\n    \"内容概述\": \"不得以特殊用途等理由变相超编制、超标准配备公务用车，不得以任何方式换用、借用、占用下属单位或者其他单位和个人的车辆，不得接受企事业单位和个人赠送的车辆，不得以任何理由违反用途使用或固定给个人使用执法执勤、机要通信等公务用车。\"\
+    \n  }\n]"

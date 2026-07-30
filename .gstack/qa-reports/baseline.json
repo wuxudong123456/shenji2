@@ -1,0 +1,21 @@
+{
+  "date": "2026-07-29",
+  "url": "http://127.0.0.1:5000",
+  "healthScore": 26,
+  "issues": [
+    {"id":"AW-001","title":"前端 AuditAPI 基础地址绑定错误","severity":"critical","category":"functional"},
+    {"id":"AW-002","title":"MySQL 不可达导致核心 API 失败","severity":"critical","category":"functional"},
+    {"id":"AW-003","title":"Debug 调试器和堆栈对外暴露","severity":"critical","category":"security"},
+    {"id":"AW-004","title":"无鉴权授权且 CORS 任意放行","severity":"critical","category":"security"},
+    {"id":"AW-005","title":"上传校验与超时控制缺失","severity":"high","category":"functional"},
+    {"id":"AW-006","title":"分析任务 ID 持久化不一致","severity":"high","category":"data"},
+    {"id":"AW-007","title":"项目记录与 bucket 状态非原子","severity":"high","category":"data"},
+    {"id":"AW-008","title":"OCR 同步执行且失败无可靠续跑","severity":"high","category":"stability"},
+    {"id":"AW-009","title":"正式主路径存在 Mock 和假成功","severity":"high","category":"functional"},
+    {"id":"AW-010","title":"健康检查误报整体正常","severity":"medium","category":"stability"},
+    {"id":"AW-011","title":"未知页面错误返回首页 200","severity":"medium","category":"links"},
+    {"id":"AW-012","title":"Debug 重载触发内存分配失败","severity":"high","category":"performance"}
+  ],
+  "categoryScores": {"console":40,"links":85,"visual":100,"functional":5,"ux":45,"performance":45,"content":60,"accessibility":50},
+  "limitations": ["Browser automation unavailable", "MySQL/MinIO/OCR/LLM unreachable"]
+}

@@ -1,0 +1,81 @@
+name: audit/清单名册类/单位名单
+type: model
+description: 从清单名册类类文档（单位名单）中提取结构化元数据。涵盖字段如：单位名称、是否独立核算。文档范围包括：下属单位名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 单位名单
+  member_count: 1
+  member_details:
+  - 下属单位名单
+output:
+  fields:
+  - name: 单位名称
+    type: string
+    description: 提取 单位名称 的文本值
+  - name: 是否独立核算
+    type: boolean
+    description: 提取 是否独立核算 的布尔值（是/否）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 下属单位名单中(是否独立核算='否' 或 预算合并标记='应合并') && 单位名称 NOT IN 预算报告中的预算单位名称
+  description: 筛查下属单位清单中应纳入部门预算合并范围（非独立核算或制度规定应合并），但未在预算报告中出现的单位，触发即为漏编。
+  audit_item: 预算编制不完整
+  suspicion: 所属单位未纳入部门预算
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第22号（2018年修正）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第六条\",\n    \"内容概述\": \"各部门预算由本部门及其所属单位预算组成。\"\n  }\n]"

@@ -1,0 +1,58 @@
+name: audit/法律文书类/规范书
+type: model
+description: 从法律文书类类文档（规范书）中提取结构化元数据。涵盖字段如：技术参数要求。文档范围包括：招投标技术规范书等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 法律文书类
+- 审计
+- 元数据提取
+template_class:
+  category: 法律文书类
+  member_types:
+  - 规范书
+  member_count: 1
+  member_details:
+  - 招投标技术规范书
+output:
+  fields:
+  - name: 技术参数要求
+    type: string
+    description: 提取 技术参数要求 的文本值
+  - name: 文书类型
+    type: string
+    description: 法律文书类型（判决书/裁定书/起诉状等）
+    required: false
+  - name: 文书编号
+    type: string
+    description: 文书案号/编号
+    required: false
+  - name: 当事人
+    type: string
+    description: 当事人/原告/被告名称
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 发文机关
+    type: string
+    description: 制作或发布该法律文书的机关或单位
+    required: false
+violations:
+- expression: ( ( 进度表.各类智能终端实际安装数量 / 研究报告.终端设备安装数量目标 ) < 0.9 ) || ( 进度表.功能投运率 < 1 ) && ( 计划投运日期 <= 当前日期 )
+  description: 以可研报告批准的数量和时间为基准，若实际安装完成率低于计划的90%，或已到投运日期但关键功能（如馈线自动化、远程抄表）未全部投运，均视为进度缓慢。偏差10%考虑了正常的实施弹性。
+  audit_item: 农村电网巩固提升工程存在短板
+  suspicion: 智能配电网建设项目进度严重滞后
+  regulation: "[\n  {\n    \"法规名称\": \"国家能源局关于加快推进配电自动化和智能用电信息采集系统建设的通知\",\n    \"法规文号\": \"国能电力〔2016〕290号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"要求按规划稳步推进配电自动化和智能用电信息采集系统建设，确保智能配电网建设任务按期完成。\"\n  }\n]"

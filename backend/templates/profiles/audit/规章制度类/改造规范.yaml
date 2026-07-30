@@ -1,0 +1,57 @@
+name: audit/规章制度类/改造规范
+type: model
+description: 从规章制度类类文档（改造规范）中提取结构化元数据。涵盖字段如：最长允许使用年限、淘汰设备型号清单。文档范围包括：电网设备技术标准与更新改造规范等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 改造规范
+  member_count: 1
+  member_details:
+  - 电网设备技术标准与更新改造规范
+output:
+  fields:
+  - name: 最长允许使用年限
+    type: string
+    description: 提取 最长允许使用年限 的文本值
+  - name: 淘汰设备型号清单
+    type: string
+    description: 提取 淘汰设备型号清单 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ( ＜投运年限.实际更新状态＞ = '未更新' ) && ( ＜投运年限.投运年限＞ > ＜最长允许使用年限.最长允许使用年限＞ ) && ( ＜投运年限.计划更新日期＞ <= 当前日期 )
+  description: 设备投运年限已超过技术标准规定的淘汰年限，且原计划更新日期已经逾期仍未实施更新的，即判定为更新缓慢。同时也可辅助计算更新完成率，若年度更新完成率低于计划的80%亦为严重滞后。
+  audit_item: 农村电网巩固提升工程存在短板
+  suspicion: 老旧电网设备更新改造滞后
+  regulation: "[\n  {\n    \"法规名称\": \"农村电网改造升级项目管理办法\",\n    \"法规文号\": \"发改办能源〔2013〕1553号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第二十条\",\n    \"内容概述\": \"要求优先改造高损耗、超期运行的老旧设备，提升电网设备健康水平和能效。\"\n  }\n]"

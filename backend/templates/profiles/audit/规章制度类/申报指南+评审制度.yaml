@@ -1,0 +1,63 @@
+name: audit/规章制度类/申报指南+评审制度
+type: model
+description: 从规章制度类类文档（申报指南、评审制度）中提取结构化元数据。涵盖字段如：建设内容要求、申报主体资格条件、资金使用范围。文档范围包括：涉农专项资金申报指南、涉农专项资金评审制度等。本模板合并了 2 个相似子类型。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 申报指南
+  - 评审制度
+  member_count: 2
+  member_details:
+  - 涉农专项资金申报指南
+  - 涉农专项资金评审制度
+output:
+  fields:
+  - name: 建设内容要求
+    type: string
+    description: 提取 建设内容要求 的文本值
+  - name: 申报主体资格条件
+    type: string
+    description: 提取 申报主体资格条件 的文本值
+  - name: 资金使用范围
+    type: string
+    description: 提取 资金使用范围 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (成员名单.有效成员数 < 申报成员数 * 0.8) || (分红记录.分红总额 = 0 && 申报明细表.申报金额 > 10) || (现场检查登记表.核查结论 = '项目不存在' && 拨付台账.补贴资金已拨付)
+    || (银行流水明细.补贴收款账户在到账后10日内向个人关联账户转出资金比例 > 0.9)
+  description: 当合作社可核实真实成员不足申报的80%，或合作社无任何分红记录且申报补贴金额超过10万元，或现场检查发现申报项目不存在但补贴款已下达，或补贴资金到账后短期内几乎全部转入个人关联账户，即触发疑点。成员核实可通过电话抽查或比对分红银行流水。
+  audit_item: 骗取套取涉农财政专项资金
+  suspicion: 合作社编造虚假资料骗取涉农专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员有下列违反规定使用、骗取财政资金的行为之一的，……（一）以虚报、冒领等手段骗取财政资金……；企业和个人有类似行为的，依照本条规定处理。\"\n  }\n]"

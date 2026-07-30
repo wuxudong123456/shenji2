@@ -1,0 +1,129 @@
+name: audit/登记台账类/付款台账
+type: model
+description: 从登记台账类类文档（付款台账）中提取结构化元数据。涵盖字段如：付款对象、付款金额、合同编号、核销日期、预付款金额。文档范围包括：合同付款台账、预付款台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 付款
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 付款台账
+  member_count: 1
+  member_details:
+  - 合同付款台账
+  - 预付款台账
+output:
+  fields:
+  - name: 付款对象
+    type: number
+    description: 提取 付款对象 的数值（含单位，如万元、吨等）
+  - name: 付款金额
+    type: number
+    description: 提取 付款金额 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 提取 合同编号 的文本值
+  - name: 核销日期
+    type: date
+    description: 提取 核销日期 的日期值，格式 YYYY-MM-DD
+  - name: 预付款金额
+    type: number
+    description: 提取 预付款金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (SUM(招标文件.合同估算价) >= 项目清单.限额标准) && (招标文件.招标方式 全部为 '邀请招标' 或 '竞争性谈判') && (招标文件.建设内容 存在功能关联或地理相邻) && (招标文件.立项时间
+    相近)
+  description: 将同一工程或存在功能关联的整体项目，拆分为多个低于强制公开招标限额的子项目，各子项目均采用非公开方式采购，且立项时间集中、最终由同一承包商或关联企业中标。金额标准依据现行法规，关联性根据建设规划、选址、设计文件综合判断。
+  audit_item: 未经批准，擅自改变工程建设项目招标方式
+  suspicion: 拆分项目化整为零规避公开招标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四条\",\n    \"内容概述\": \"任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。\"\n  },\n  {\n    \"法规名称\": \"必须招标的工程项目规定\",\n    \"法规文号\"\
+    : \"国家发展和改革委员会令第16号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二条、第五条\",\n    \"内容概述\": \"明确必须招标的项目范围及规模标准，禁止通过拆分方式规避。\"\
+    \n "
+- expression: （付款凭证.付款金额累计 > 0 && 入库验收单 IS NULL）&& (当前日期 - 采购合同台账.约定交货日期) > 30 天
+  description: 以合同为单位，统计付款总金额大于零，但未匹配到任何入库验收单，且当前日期超过合同约定交货日期30天以上，即视为已付款未收货。30天为常规容忍期，可结合行业与具体物资调货周期调整。
+  audit_item: 销售与采购合同审计
+  suspicion: 已付款但长期未收到采购货物
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国民法典\",\n    \"法规文号\": \"主席令第四十五号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第五百七十九条、第六百零四条\",\n    \"内容概述\": \"出卖人应当按照约定的期限交付标的物。未按期交付的，买受人可以解除合同并要求赔偿。已付款未收到货物构成出卖人违约。\"\n  },\n  {\n    \"法规名称\"\
+    : \"企业内部控制应用指引第7号——采购业务\",\n    \"法规文号\": \"财会〔2010〕11号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第八条\",\n    \"内容概述\"\
+    : \"企业应当"

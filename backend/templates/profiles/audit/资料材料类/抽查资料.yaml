@@ -1,0 +1,58 @@
+name: audit/资料材料类/抽查资料
+type: model
+description: 从资料材料类类文档（抽查资料）中提取结构化元数据。涵盖字段如：实际建设内容、支付凭证。文档范围包括：项目抽查资料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 凭证
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 抽查资料
+  member_count: 1
+  member_details:
+  - 项目抽查资料
+output:
+  fields:
+  - name: 实际建设内容
+    type: string
+    description: 提取 实际建设内容 的文本值
+  - name: 支付凭证
+    type: string
+    description: 提取 支付凭证 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (下达文件.指定用途描述 NOT IN 管理办法.资金允许列支范围) || (抽查资料.实际建设内容 != 保障房建设或租赁补贴)
+  description: 中央管理办法明确资金限于棚改、公租房、租赁补贴等；省级文件或实际支出若出现‘城市绿化’‘道路建设’‘偿还债务’等字眼即触发；未经财政部备案的调剂均属擅自调整。
+  audit_item: 财政部门未按规定分配下达保障性安居工程专项资金
+  suspicion: 省级财政部门擅自调整专项资金用途
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政城镇保障性安居工程补助资金管理办法\",\n    \"法规文号\": \"财综〔2022〕1号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第十四条\",\n    \"内容概述\": \"补助资金主要用于保障性住房建设、棚户区改造、租赁补贴发放等，不得用于非保障性安居工程支出。\"\n  }\n]"

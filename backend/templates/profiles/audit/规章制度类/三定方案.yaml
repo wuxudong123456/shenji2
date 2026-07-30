@@ -1,0 +1,138 @@
+name: audit/规章制度类/三定方案
+type: model
+description: 从规章制度类类文档（三定方案）中提取结构化元数据。涵盖字段如：主要职能描述、名称、性质、数量、核定内设机构数量、核定机构名称、级别、职责描述。文档范围包括：三定方案、单位三定方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 三定方案
+  member_count: 1
+  member_details:
+  - 三定方案
+  - 单位三定方案
+output:
+  fields:
+  - name: 主要职能描述
+    type: string
+    description: 提取 主要职能描述 的文本值
+  - name: 名称
+    type: string
+    description: 提取 名称 的文本值
+  - name: 性质
+    type: string
+    description: 提取 性质 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 核定内设机构数量
+    type: number
+    description: 提取 核定内设机构数量 的数值（含单位，如万元、吨等）
+  - name: 核定机构名称
+    type: string
+    description: 提取 核定机构名称 的文本值
+  - name: 级别
+    type: string
+    description: 提取 级别 的文本值
+  - name: 职责描述
+    type: string
+    description: 提取 职责描述 的文本值
+  - name: 规格
+    type: string
+    description: 提取 规格 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 公务接待明细台账.活动项目 = '马拉松' && 单位三定方案.主要职能描述 NOT LIKE '%体育%' && 单位三定方案.主要职能描述 NOT LIKE '%文旅%' && 赛事活动通知.主办单位 != 上级体育主管部门
+  description: 排除体育、文旅等直接相关职能单位，其余单位以公务名义参与马拉松，且主办方非上级业务指导部门，即认定为活动与职能无关，属于违规列支。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 以公务名义参加与职能无关的体育赛事
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"不得组织与公务活动无关的参观和活动，不得以任何名义发放纪念品或变相福利。\"\n  }\n]"
+- expression: (设置清单.处置类型 IN ('设立','撤销','合并')) AND (设置清单.批准文号 IS NULL OR 设置清单.批准文号 = '' OR 设置清单.成立日期 < (SELECT 批准日期 FROM 审批文件
+    WHERE 批准文号 = 设置清单.批准文号))
+  description: 机构设置清单中记录为设立、撤销或合并的机构，若无法与有效的审批文件文号关联，或其实际执行日期早于批准日期，则判定为擅自行为。成立日期早于批准日期表明存在“先建后批”或“未批先建”。
+  audit_item: 违规设置或变更机构
+  suspicion: 擅自设立、撤销、合并机构
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第九条\",\n    \"内容概述\": \"地方各级人民政府行政机构的设立、撤销、合并或者变更规格、名称，由本级人民政府提出方案，经上一级人民政府机构编制管理机关审核后，报上一级人民政府批准；县级以上地方各级人民政府行政机构的设立、撤销或者合并，还应当依法报本级人民代表大会常务委员会备案。\"\
+    \n  }\n]"
+- expression: 明细表.在职人数 > 核定机构名称数量级别核定内设机构数量名称规格性质职责描述.核定机构数量 OR (明细表.机构名称 NOT IN (批复文件.批准机构名称) AND 明细表.成立日期 IS NOT NULL AND
+    DATEDIFF(NOW(),明细表.成立日期) > 365)
+  description: 内设机构明细表中处于有效状态的机构总数超过三定方案规定的限额，或存在以“临时机构”、“领导小组”等名义设立的机构且存续超过一年，虽未计入正式限额但实际承担常设职能，均属违规。
+  audit_item: 违规设置或变更机构
+  suspicion: 在核定的机构限额之外设置机构
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第六条、第十三条\",\n    \"内容概述\": \"地方各级人民政府行政机构应当在上级核定的限额内设置、调整机构，不得在限额外设置机构。临时机构应当在其任务完成后及时撤销。\"\n  }\n]"
+- expression: (明细表.机构名称 != 三定方案.核定机构名称 OR 明细表.规格 != 三定方案.规格 OR 对照表.实际履行的职责 != 划分文件.正式赋予的职责) AND NOT EXISTS (SELECT 1 FROM
+    批复文件 WHERE 批准变更内容='变更' AND 批准内容 AND 规格='已生效')
+  description: 当机构的名称、规格、职责等任何要素与三定方案或最新批复文件不一致，且无有效变更批复文件时，即构成违规。职责差异可通过关键词匹配度低于70%或新增超出原职能范围的业务事项进行判定。
+  audit_item: 违规设置或变更机构
+  suspicion: 擅自变更机构名称、规格、性质、职责或权限
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第九条\",\n    \"内容概述\": \"地方各级人民政府行政机构的设立、撤销、合并或者变更规格、名称，由本级人民政府提出方案，经上一级人民政府机构编制管理机关审核后，报上一级人民政府批准。\"\n  }\n\
+    ]"

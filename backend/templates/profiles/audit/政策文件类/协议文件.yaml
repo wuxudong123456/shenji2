@@ -1,0 +1,214 @@
+name: audit/政策文件类/协议文件
+type: model
+description: 从政策文件类类文档（协议文件）中提取结构化元数据。涵盖字段如：协议有效期、协议签订日期、受托方、受益期限或条件、合同履约状态、合同约定收款账号、委托方、委托范围。文档范围包括：合作单位授权使用供销社名义的协议文件、往来款项合同/协议文件、承包协议文件、招标或合同协议文件、政府补助协议文件、租赁协议文件、聘用协议文件、跨部门协作征收协议文件等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 政策文件类
+- 审计
+- 协议
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 政策文件类
+  member_types:
+  - 协议文件
+  member_count: 1
+  member_details:
+  - 合作单位授权使用供销社名义的协议文件
+  - 往来款项合同/协议文件
+  - 承包协议文件
+  - 招标或合同协议文件
+  - 政府补助协议文件
+  - 租赁协议文件
+  - 聘用协议文件
+  - 跨部门协作征收协议文件
+output:
+  fields:
+  - name: 协议有效期
+    type: string
+    description: 提取 协议有效期 的文本值
+  - name: 协议签订日期
+    type: date
+    description: 提取 协议签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 受托方
+    type: string
+    description: 提取 受托方 的文本值
+  - name: 受益期限或条件
+    type: string
+    description: 提取 受益期限或条件 的文本值
+  - name: 合同履约状态
+    type: boolean
+    description: 提取 合同履约状态 的布尔值（是/否）
+  - name: 合同约定收款账号
+    type: number
+    description: 提取 合同约定收款账号 的数值（含单位，如万元、吨等）
+  - name: 委托方
+    type: string
+    description: 提取 委托方 的文本值
+  - name: 委托范围
+    type: string
+    description: 提取 委托范围 的文本值
+  - name: 承包-租赁-受聘内容
+    type: string
+    description: 提取 承包-租赁-受聘内容 的文本值
+  - name: 授权单位名称列表
+    type: string
+    description: 提取 授权单位名称列表 的文本值
+  - name: 授权期限
+    type: string
+    description: 提取 授权期限 的文本值
+  - name: 施工单位名称
+    type: string
+    description: 提取 施工单位名称 的文本值
+  - name: 甲乙双方名称及签章
+    type: string
+    description: 提取 甲乙双方名称及签章 的文本值
+  - name: 约定结算日期
+    type: date
+    description: 提取 约定结算日期 的日期值，格式 YYYY-MM-DD
+  - name: 补助条件
+    type: string
+    description: 提取 补助条件 的文本值
+  - name: 补助用途
+    type: string
+    description: 提取 补助用途 的文本值
+  - name: 补助用途描述
+    type: string
+    description: 提取 补助用途描述 的文本值
+  - name: 补助金额
+    type: number
+    description: 提取 补助金额 的数值（含单位，如万元、吨等）
+  - name: 酬金-租金金额及支付方式
+    type: number
+    description: 提取 酬金-租金金额及支付方式 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 法定代表人
+    type: string
+    description: 法定代表人/授权代表
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (聘用协议文件.甲乙双方名称及签章 CONTAINS 领导干部姓名 OR 聘用协议文件.甲乙双方名称及签章 CONTAINS 领导干部化名) && (党员领导干部个人事项报告表.兼职取酬情况 IS NULL OR 党员领导干部个人事项报告表.承包租赁经营活动申报
+    IS NULL) && (银行账户流水.交易金额 == 聘用协议文件.酬金/租金金额及支付方式 OR 银行账户流水.交易金额 累计超过 5000元/月) && (银行账户流水.资金用途（顾问费/租金/承包费） IN ['顾问费','租赁费','承包费','咨询费'])
+    && (单位考勤记录.请假记录 IS NOT NULL OR 单位
+  description: 当存在承包、租赁、聘用协议文件且协议乙方为领导干部本人或其化名，但个人事项报告表未申报该项兼职或经营活动，同时银行流水显示有规律性金额转账（累计月均超5000元作为参考阈值）且备注为经营类款项，并辅以考勤异常，则判定为私自从事经营活动。
+  audit_item: 党员领导干部个人或者借他人名义经商、办企业
+  suspicion: 私自以承包、租赁、受聘等方式从事经营活动
+  regulation: "[\n  {\n    \"法规名称\": \"中国共产党纪律处分条例\",\n    \"法规文号\": \"2023年修订\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"\
+    第一百零三条第一款第（五）项、第（六）项\",\n    \"内容概述\": \"违反有关规定从事营利活动，有下列行为之一的：（五）违规在经济组织、社会组织等单位中兼职，或者经批准兼职但获取薪酬、奖金、津贴等额外利益；（六）利用参与企业重组改制、定向增发、兼并投资等工作中掌握的信息买卖股票，或者以其他方式非正常获利。私自承包、租赁、受聘属于违规兼职或从事营利活动。\"\
+    \n  },\n  {\n    \"法规名称\": \"中华人民共和国公务员"
+- expression: ABS(科目名称、债务人/债权人、期末余额、账龄.期末余额) > 0 && 科目名称、债务人/债权人、期末余额、账龄.账龄 > 365 && (合同履约状态、约定结算日期.合同履约状态 = "已履约" || 合同履约状态、约定结算日期.约定结算日期
+    < "决算日") && 收付款记录、未达账项、付款方、收款方、金额、用途摘要、对方账户名、账务发生额、交易金额、交易对方名称、摘要、大额转出金额、收款方名称、交易摘要、交易对方（金融机构）、账户余额、付款金额、收款方户名、账号、收入流水、对方户名、对方账号、收款金额、期末余额、银行账户、大额转账记录、对方账户名称、现金支取金额、频繁取现记录、重大资
+  description: 筛选往来款项明细表中挂账超过一年且余额不为零的记录，若对应合同已履约或约定结算日期早于决算日，但银行对账单中无相应资金收付冲销，视为应结未结违规。
+  audit_item: 未按规定进行年终清理结算和结账，导致决算报表数据与实际情况不符
+  suspicion: 预收预付款项应结清未结清
+  regulation: "[\n  {\n    \"法规名称\": \"《政府会计制度——行政事业单位会计科目和报表》\",\n    \"法规文号\": \"财会〔2017〕25号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第五部分 年终结账\",\n    \"内容概述\": \"单位在年度终了前，应对各项往来款项进行清理，及时办理结算，不得长期挂账。\"\n  }\n]"
+- expression: (信息表.单位名称 NOT IN (批准文件.批准执收单位名称) AND 信息表.执收权限截止日 >= 明细台账.征收日期) OR (协议文件 IS NULL AND 明细台账.执收单位 <> 批准文件.批准执收单位名称)
+    OR (协议文件.协议有效期 < 明细台账.征收日期)
+  description: 判定逻辑：1)实际征收单位不在财政部门批准的执收单位清单内，且征收时该单位权限名义上有效，属擅自变更；2)存在委托征收但无正式协议或批准文件；3)跨部门协作协议已超期仍继续征收。任意条件满足即视为违规。
+  audit_item: 违反规定征收非税收入
+  suspicion: 未经批准擅自改变非税收入执收单位
+  regulation: "[\n  {\n    \"法规名称\": \"政府非税收入管理办法\",\n    \"法规文号\": \"财税〔2016〕33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"非税收入由法律、法规、规章规定的部门、单位征收；法律、法规、规章未规定征收部门、单位的，由财政部门直接征收；财政部门可以依法委托其他部门、单位征收。未经批准，不得擅自改变非税收入执收单位。\"\
+    \n  }\n]"
+- expression: EXISTS (SELECT 金融服务业务台账.合作单位名称 FROM 金融服务业务台账 WHERE 金融服务业务台账.合作单位名称 LIKE '%供销社%' AND 金融服务业务台账.合作单位名称 NOT IN (SELECT
+    合作单位授权使用供销社名义的协议文件.授权单位名称列表 FROM 合作单位授权使用供销社名义的协议文件)) OR EXISTS (SELECT 公开舆情监测记录.涉及供销社名义的金融活动主体名称 FROM 公开舆情监测记录 WHERE
+    公开舆情监测记录.涉及供销社名义的金融活动主体名称 NOT IN (合作单位授权使用供销社名义的协议文件.授权单位名称列表))
+  description: 判定规则：金融服务业务台账中使用供销社名义的合作单位（单位名称包含“供销社”关键词）不在授权协议清单中，或通过舆情监测发现冒用供销社名义开展金融活动的主体无授权记录，即认定未及时排查清理。
+  audit_item: 供销合作社金融服务不规范
+  suspicion: 未排查清理冒用供销社名义的金融活动
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反不正当竞争法\",\n    \"法规文号\": \"主席令第29号\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第六条\",\n    \"内容概述\": \"经营者不得实施足以引人误认为是他人商品或者与他人存在特定联系的混淆行为，包括擅自使用他人有一定影响的企业名称（包括简称、字号等）。\"\n  }\n]"
+- expression: (明细表.收款方账号 NOT IN 协议文件.合同约定收款账号) || (明细表.交易类型 == '个人账户') || (明细表.金额 > 50000 && 同一账户月转出次数 > 3)
+  description: 判定逻辑：当资金收款方与备案合同施工单位账号不一致，或收款方为个人账户，或单笔支出超5万元且对应账户月转出超3次，视为可疑。上述条件任一满足即触发疑点。
+  audit_item: 挪用住宅专项维修资金
+  suspicion: 维修资金划转至非施工单位或个人账户
+  regulation: "[\n  {\n    \"法规名称\": \"《住宅专项维修资金管理办法》\",\n    \"法规文号\": \"建设部令第165号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十八条\",\n    \"内容概述\": \"住宅专项维修资金应当专项用于住宅共用部位、共用设施设备保修期满后的维修和更新、改造，不得挪作他用。\"\n  }\n]"

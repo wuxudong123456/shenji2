@@ -1,0 +1,165 @@
+name: audit/记录留痕类/整改记录
+type: model
+description: 从记录留痕类类文档（整改记录）中提取结构化元数据。涵盖字段如：不合格项数、不合格项闭环状态、亏损记录、产出数量指标、发现问题、品牌认证进展、存在问题、市场风险。文档范围包括：低效项目历史整改记录、公路质量检测整改记录、内部审计报告整改记录、水质监测整改记录、竣工验收不合格整改记录、质量检测整改记录、资金监管部门检查报告整改记录、资金绩效评价报告整改记录、项目运营监测整改记录、项目验收整改记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 整改
+- 金额
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 整改记录
+  member_count: 1
+  member_details:
+  - 低效项目历史整改记录
+  - 公路质量检测整改记录
+  - 内部审计报告整改记录
+  - 水质监测整改记录
+  - 竣工验收不合格整改记录
+  - 质量检测整改记录
+  - 资金监管部门检查报告整改记录
+  - 资金绩效评价报告整改记录
+  - 项目运营监测整改记录
+  - 项目验收整改记录
+  - 食堂卫生检查报告整改记录
+output:
+  fields:
+  - name: 不合格项数
+    type: string
+    description: 提取 不合格项数 的文本值
+  - name: 不合格项闭环状态
+    type: boolean
+    description: 提取 不合格项闭环状态 的布尔值（是/否）
+  - name: 亏损记录
+    type: string
+    description: 提取 亏损记录 的文本值
+  - name: 产出数量指标
+    type: number
+    description: 提取 产出数量指标 的数值（含单位，如万元、吨等）
+  - name: 发现问题
+    type: string
+    description: 提取 发现问题 的文本值
+  - name: 品牌认证进展
+    type: string
+    description: 提取 品牌认证进展 的文本值
+  - name: 存在问题
+    type: string
+    description: 提取 存在问题 的文本值
+  - name: 市场风险
+    type: string
+    description: 提取 市场风险 的文本值
+  - name: 效益指标
+    type: string
+    description: 提取 效益指标 的文本值
+  - name: 整改事项
+    type: string
+    description: 提取 整改事项 的文本值
+  - name: 整改完成情况
+    type: string
+    description: 提取 整改完成情况 的文本值
+  - name: 整改完成日期
+    type: date
+    description: 提取 整改完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 整改完成标志
+    type: boolean
+    description: 提取 整改完成标志 的布尔值（是/否）
+  - name: 整改措施
+    type: string
+    description: 提取 整改措施 的文本值
+  - name: 整改是否闭环
+    type: boolean
+    description: 提取 整改是否闭环 的布尔值（是/否）
+  - name: 整改状态
+    type: boolean
+    description: 提取 整改状态 的布尔值（是/否）
+  - name: 整改要求
+    type: string
+    description: 提取 整改要求 的文本值
+  - name: 既往闲置问题整改措施
+    type: string
+    description: 提取 既往闲置问题整改措施 的文本值
+  - name: 是否启动退出程序
+    type: boolean
+    description: 提取 是否启动退出程序 的布尔值（是/否）
+  - name: 未达标项是否关联整改措施
+    type: boolean
+    description: 提取 未达标项是否关联整改措施 的布尔值（是/否）
+  - name: 检测指标不合格项
+    type: string
+    description: 提取 检测指标不合格项 的文本值
+  - name: 涉及金额
+    type: number
+    description: 提取 涉及金额 的数值（含单位，如万元、吨等）
+  - name: 渠道拓展措施
+    type: string
+    description: 提取 渠道拓展措施 的文本值
+  - name: 溯源体系搭建
+    type: string
+    description: 提取 溯源体系搭建 的文本值
+  - name: 监测日期
+    type: date
+    description: 提取 监测日期 的日期值，格式 YYYY-MM-DD
+  - name: 监测点位
+    type: string
+    description: 提取 监测点位 的文本值
+  - name: 绩效目标完成率
+    type: string
+    description: 提取 绩效目标完成率 的文本值
+  - name: 责任人签字
+    type: string
+    description: 提取 责任人签字 的文本值
+  - name: 问题类型
+    type: string
+    description: 提取 问题类型 的文本值
+  - name: 需整改问题清单
+    type: string
+    description: 提取 需整改问题清单 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目实际运营状态
+    type: boolean
+    description: 提取 项目实际运营状态 的布尔值（是/否）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 明细表.实际交付日期 IS NOT NULL AND (验收报告.验收日期 IS NULL OR 明细表.实际交付日期 < 验收报告.验收日期)
+  description: 若项目存在明确的交付使用记录（如交房、移交物业等），但竣工验收报告显示验收日期在交付之后或根本没有组织竣工验收，则构成未组织验收擅自交付的违规行为。同时，若尾款支付日期早于验收日期，也可作为交付迹象辅助判定。
+  audit_item: 建设项目初步设计概算投资超过可研批准估算%及以上未报告审批部门
+  suspicion: 建设工程竣工后未组织验收擅自交付使用
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"建设单位收到建设工程竣工报告后，应当组织设计、施工、工程监理等有关单位进行竣工验收。建设工程经验收合格的，方可交付使用。\"\n  }\n]"
+- expression: 验收报告.验收结论 = '不合格' AND 明细表.实际交付日期 IS NOT NULL
+  description: 竣工验收报告明确结论为不合格，但项目已有实际交付使用记录（如交房记录、物业移交、用户入住等），直接违反不得交付使用的强制性规定。无任何容差或辩解空间。
+  audit_item: 建设项目初步设计概算投资超过可研批准估算%及以上未报告审批部门
+  suspicion: 建设工程竣工验收不合格擅自交付使用
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"建设工程经验收合格的，方可交付使用；验收不合格的，不得交付使用。\"\n  }\n]"

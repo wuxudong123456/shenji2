@@ -1,0 +1,50 @@
+name: audit/财务账簿类/分户账
+type: model
+description: 从财务账簿类类文档（分户账）中提取结构化元数据。涵盖字段如：入账日期、入账金额、对应房号。文档范围包括：维修资金分户账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务账簿类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 财务账簿类
+  member_types:
+  - 分户账
+  member_count: 1
+  member_details:
+  - 维修资金分户账
+output:
+  fields:
+  - name: 入账日期
+    type: date
+    description: 提取 入账日期 的日期值，格式 YYYY-MM-DD
+  - name: 入账金额
+    type: number
+    description: 提取 入账金额 的数值（含单位，如万元、吨等）
+  - name: 对应房号
+    type: string
+    description: 提取 对应房号 的文本值
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+violations:
+- expression: 清册.缴费日期 < 分户账.入账日期 - 30天 || ABS(清册.缴费金额 - 分户账.入账金额) > 0.01
+  description: 业主缴费30日后仍未在专户银行流水中体现同等金额入账，或某期间内实收总额与存入专户总额存在差异，即视为截留或延迟归集。30天为参考阈值，可依据地方细则调整。
+  audit_item: 挪用住宅专项维修资金
+  suspicion: 代收机构延迟归集或截留业主缴纳的维修资金
+  regulation: "[\n  {\n    \"法规名称\": \"《住宅专项维修资金管理办法》\",\n    \"法规文号\": \"建设部令第165号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十三条\",\n    \"内容概述\": \"商品住宅的业主应当在办理房屋入住手续前，将首期住宅专项维修资金存入住宅专项维修资金专户。已售公有住房的售房单位应当在办理房屋产权登记前，将首期住宅专项维修资金存入住宅专项维修资金专户。代收单位应当在规定期限内将代收的维修资金存入专户。\"\
+    \n  }\n]"

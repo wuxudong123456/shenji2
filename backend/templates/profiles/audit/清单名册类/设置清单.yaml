@@ -1,0 +1,121 @@
+name: audit/清单名册类/设置清单
+type: model
+description: 从清单名册类类文档（设置清单）中提取结构化元数据。涵盖字段如：处置类型、对应国家目录资格编码、成立日期、批准文号、批准机关、机构名称、类型、设立时间。文档范围包括：机构设置清单、职业资格项目设置清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 设置清单
+  member_count: 1
+  member_details:
+  - 机构设置清单
+  - 职业资格项目设置清单
+output:
+  fields:
+  - name: 处置类型
+    type: string
+    description: 提取 处置类型 的文本值
+  - name: 对应国家目录资格编码
+    type: string
+    description: 提取 对应国家目录资格编码 的文本值
+  - name: 成立日期
+    type: date
+    description: 提取 成立日期 的日期值，格式 YYYY-MM-DD
+  - name: 批准文号
+    type: string
+    description: 提取 批准文号 的文本值
+  - name: 批准机关
+    type: string
+    description: 提取 批准机关 的文本值
+  - name: 机构名称
+    type: string
+    description: 提取 机构名称 的文本值
+  - name: 类型
+    type: string
+    description: 提取 类型 的文本值
+  - name: 设立时间
+    type: date
+    description: 提取 设立时间 的日期值，格式 YYYY-MM-DD
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (设置清单.处置类型 IN ('设立','撤销','合并')) AND (设置清单.批准文号 IS NULL OR 设置清单.批准文号 = '' OR 设置清单.成立日期 < (SELECT 批准日期 FROM 审批文件
+    WHERE 批准文号 = 设置清单.批准文号))
+  description: 机构设置清单中记录为设立、撤销或合并的机构，若无法与有效的审批文件文号关联，或其实际执行日期早于批准日期，则判定为擅自行为。成立日期早于批准日期表明存在“先建后批”或“未批先建”。
+  audit_item: 违规设置或变更机构
+  suspicion: 擅自设立、撤销、合并机构
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第九条\",\n    \"内容概述\": \"地方各级人民政府行政机构的设立、撤销、合并或者变更规格、名称，由本级人民政府提出方案，经上一级人民政府机构编制管理机关审核后，报上一级人民政府批准；县级以上地方各级人民政府行政机构的设立、撤销或者合并，还应当依法报本级人民代表大会常务委员会备案。\"\
+    \n  }\n]"
+- expression: 明细表.在职人数 > 核定机构名称数量级别核定内设机构数量名称规格性质职责描述.核定机构数量 OR (明细表.机构名称 NOT IN (批复文件.批准机构名称) AND 明细表.成立日期 IS NOT NULL AND
+    DATEDIFF(NOW(),明细表.成立日期) > 365)
+  description: 内设机构明细表中处于有效状态的机构总数超过三定方案规定的限额，或存在以“临时机构”、“领导小组”等名义设立的机构且存续超过一年，虽未计入正式限额但实际承担常设职能，均属违规。
+  audit_item: 违规设置或变更机构
+  suspicion: 在核定的机构限额之外设置机构
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第六条、第十三条\",\n    \"内容概述\": \"地方各级人民政府行政机构应当在上级核定的限额内设置、调整机构，不得在限额外设置机构。临时机构应当在其任务完成后及时撤销。\"\n  }\n]"
+- expression: (设置清单.对应国家目录资格编码 IS NULL) AND (设置清单.项目名称 REGEXP '(师|员|工程师|管理师|规划师|咨询师)') AND (设置清单.批准机关 != '人力资源和社会保障部' AND
+    设置清单.批准文号 NOT IN (省级以上人社部门有效批文库) OR 设置清单.批准文号 IS NULL)
+  description: 若单位现行职业资格项目无法匹配国家目录有效编码（即不在国家目录内），且项目名称包含典型职业资格后缀词，同时批准机关并非人社部或无有效批文，即判定为疑似改头换面设立已取消资格。实践中可结合已取消资格核心词库计算名称文本相似度，相似度≥80%触发严重预警。
+  audit_item: 职业资格鉴定政策执行不到位
+  suspicion: 变相设立已清理取消的职业资格项目
+  regulation: "[\n  {\n    \"法规名称\": \"人力资源社会保障部关于公布国家职业资格目录的通知\",\n    \"法规文号\": \"人社部发〔2017〕68号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第一条、第二条\",\n    \"内容概述\": \"国家按照规定的条件和程序将职业资格纳入国家目录，实行清单式管理，目录之外一律不得许可和认定职业资格，目录之内除准入类职业资格外一律不得与就业创业挂钩。\"\
+    \n  },\n  {\n    \"法规名称\": \"国务院办公厅关于清理规范各类职业资格相关活动的通知\",\n    \"法规文号\": \"国办发〔2007〕73号\",\n    \"效力级别\": \"行政"

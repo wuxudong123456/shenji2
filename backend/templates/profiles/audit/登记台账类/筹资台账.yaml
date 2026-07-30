@@ -1,0 +1,130 @@
+name: audit/登记台账类/筹资台账
+type: model
+description: 从登记台账类类文档（筹资台账）中提取结构化元数据。涵盖字段如：人均筹资额、受益人口数、实收筹资额、筹资总额、筹资项目名称、项目名称、预算金额。文档范围包括：村级建设项目筹资台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 项目
+- 预算
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 筹资台账
+  member_count: 1
+  member_details:
+  - 村级建设项目筹资台账
+output:
+  fields:
+  - name: 人均筹资额
+    type: string
+    description: 提取 人均筹资额 的文本值
+  - name: 受益人口数
+    type: string
+    description: 提取 受益人口数 的文本值
+  - name: 实收筹资额
+    type: string
+    description: 提取 实收筹资额 的文本值
+  - name: 筹资总额
+    type: number
+    description: 提取 筹资总额 的数值（含单位，如万元、吨等）
+  - name: 筹资项目名称
+    type: string
+    description: 提取 筹资项目名称 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 预算金额
+    type: number
+    description: 提取 预算金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (村级建设项目筹资台账.筹资总额 / 村级建设项目筹资台账.受益人口数) > 村民一事一议筹资筹劳管理办法.省级规定的年度人均筹资上限
+  description: 根据筹资台账中的筹资总额和受益人口数计算人均筹资额，与省级政府规定的年度人均筹资上限进行比较，超过即构成超标准筹资。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 一事一议筹资筹劳超出省级规定限额标准
+  regulation: "[\n  {\n    \"法规名称\": \"村民一事一议筹资筹劳管理办法\",\n    \"法规文号\": \"国办发〔2007〕4号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第八条\",\n    \"内容概述\": \"一事一议筹资筹劳标准由省级人民政府农民负担监督管理部门根据当地经济发展水平提出具体限额，经省级人民政府批准后公布执行。\"\n  }\n]"
+- expression: (村级建设项目筹资台账.项目名称 NOT IN (村民会议记录.讨论通过的项目名称)) || ((村级财务收支明细表.支出摘要 IN ('差旅费','餐饮费','办公费')) && (SUM(村级财务收支明细表.金额)
+    / 村级建设项目筹资台账.实收筹资额 > 0.3)) || (建设项目施工合同 IS NULL AND 村级财务收支明细表.支出摘要 NOT IN (村民会议记录.讨论通过的项目名称))
+  description: 筹资台账中的项目在会议记录上无记载，或大量资金用于非建设性消费（如差旅餐饮占比超30%且无施工合同），即判定为虚构项目或挪用集资款。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 虚构村级公益项目骗取村民集资款
+  regulation: "[\n  {\n    \"法规名称\": \"农民承担费用和劳务管理条例\",\n    \"法规文号\": \"国务院令第92号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十五条\",\n    \"内容概述\": \"村提留和乡统筹费必须严格按规定用途使用，不得挪用或私分。\"\n  }\n]"

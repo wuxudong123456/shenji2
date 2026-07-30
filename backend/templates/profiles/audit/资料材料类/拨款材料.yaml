@@ -1,0 +1,62 @@
+name: audit/资料材料类/拨款材料
+type: model
+description: 从资料材料类类文档（拨款材料）中提取结构化元数据。涵盖字段如：申报项目名称、资金去向、金额。文档范围包括：养老服务项目拨款材料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 拨款材料
+  member_count: 1
+  member_details:
+  - 养老服务项目拨款材料
+output:
+  fields:
+  - name: 申报项目名称
+    type: string
+    description: 提取 申报项目名称 的文本值
+  - name: 资金去向
+    type: string
+    description: 提取 资金去向 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (SUM(明细表.用于养老服务支出金额) / SUM(明细表.年度总支出)) < 0.55
+  description: 将年度内实际用于养老服务业项目的彩票公益金支出与本年度彩票公益金总支出进行比值计算，低于政策规定的55%（或地方细化的比例标准）即构成比例未达标。若存在未按比例计提或分配的情况，同样适用。
+  audit_item: 农村养老服务政策实施不规范、建设质量不达标
+  suspicion: 彩票公益金用于养老服务业的比例未达到政策要求
+  regulation: "[\n  {\n    \"法规名称\": \"民政部关于进一步规范彩票公益金使用管理的通知\",\n    \"法规文号\": \"民发〔2019〕68号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第二项\",\n    \"内容概述\": \"地方各级民政部门留成的公益金，应主要用于老年人福利、残疾人福利、儿童福利、社会公益等方面，其中用于老年人福利方面的资金占比不低于55%。\"\n  }\n]"

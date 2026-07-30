@@ -1,0 +1,135 @@
+name: audit/合同协议类/供餐合同
+type: model
+description: 从合同协议类类文档（供餐合同）中提取结构化元数据。涵盖字段如：合同主体、合同期限、责任条款、违约条款、退出约定条款。文档范围包括：供餐合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 供餐合同
+  member_count: 1
+  member_details:
+  - 供餐合同
+output:
+  fields:
+  - name: 合同主体
+    type: string
+    description: 提取 合同主体 的文本值
+  - name: 合同期限
+    type: string
+    description: 提取 合同期限 的文本值
+  - name: 责任条款
+    type: number
+    description: 提取 责任条款 的数值（含单位，如万元、吨等）
+  - name: 违约条款
+    type: number
+    description: 提取 违约条款 的数值（含单位，如万元、吨等）
+  - name: 退出约定条款
+    type: number
+    description: 提取 退出约定条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (各任务主责部门、配合部门、责任人、部门职责划分.部门职责划分 == true) || (会议时间、议题、决定事项、责任方.议题 CONTAINS '推诿' OR '扯皮' AND 未解决标志 == true) ||
+    (合同主体、责任条款、违约条款、合同期限、退出约定条款.责任条款存在模糊或缺失) || (反馈问题描述、责任部门、完成时限、问题数、已整改数、整改完成率.超期未整改率 > 30%)
+  description: 职责划分不明导致无人负责；会议记录显示推诿且无后续解决措施；供餐合同未明确食品质量、安全责任；问题长期未整改，均视为管理不到位。
+  audit_item: 营养餐制度执行不到位
+  suspicion: 营养餐管理职责推诿扯皮
+  regulation: "[\n  {\n    \"法规名称\": \"农村义务教育学生营养改善计划实施细则\",\n    \"法规文号\": \"教财〔2012〕2号\",\n    \"效力级别\": \"部门规章\",\n   \
+    \ \"条款号\": \"第六条\",\n    \"内容概述\": \"各有关部门要各司其职，各负其责，加强协调配合，不得推诿扯皮。\"\n  },\n  {\n    \"法规名称\": \"食品安全法\",\n    \"法规文号\"\
+    : \"主席令第二十一号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第七条\",\n    \"内容概述\": \"县级以上地方人民政府对本行政区域的食品安全监督管理工作负责，统一领导、组织、协调本行政区域的食品"
+- expression: (记录台账.被投诉单位 >= 制度文件.投诉次数阈值 && 登记表.退出日期) || (制度文件.卫生不达标次数标准 >= 制度文件.投诉次数阈值 && 登记表.退出日期)
+  description: 当某供餐单位累计投诉次数或卫生检查不合格次数达到退出制度规定的阈值，但退出执行登记表中未查到该单位的退出记录时，判定为执行不到位，存在选择性监管或包庇风险。
+  audit_item: 营养餐食品安全与膳食营养不符合要求
+  suspicion: 供餐退出机制执行不力
+  regulation: "[\n  {\n    \"法规名称\": \"学校食品安全与营养健康管理规定\",\n    \"法规文号\": \"教育部、国家市场监督管理总局、国家卫生健康委员会令第45号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"第三十七条\",\n    \"内容概述\": \"学校应当建立供餐单位食品安全信用档案，对有不良信用记录的供餐单位实施重点监管，并建立退出机制。\"\n  }\n]"

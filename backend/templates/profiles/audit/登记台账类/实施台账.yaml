@@ -1,0 +1,142 @@
+name: audit/登记台账类/实施台账
+type: model
+description: 从登记台账类类文档（实施台账）中提取结构化元数据。涵盖字段如：利用去向、剥离厚度、剥离量、剥离面积、实际利用量、户编号、措施类型、覆盖标准。文档范围包括：土壤剥离项目实施台账、帮扶措施实施台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 实施台账
+  member_count: 1
+  member_details:
+  - 土壤剥离项目实施台账
+  - 帮扶措施实施台账
+output:
+  fields:
+  - name: 利用去向
+    type: string
+    description: 提取 利用去向 的文本值
+  - name: 剥离厚度
+    type: string
+    description: 提取 剥离厚度 的文本值
+  - name: 剥离量
+    type: string
+    description: 提取 剥离量 的文本值
+  - name: 剥离面积
+    type: string
+    description: 提取 剥离面积 的文本值
+  - name: 实际利用量
+    type: string
+    description: 提取 实际利用量 的文本值
+  - name: 户编号
+    type: string
+    description: 提取 户编号 的文本值
+  - name: 措施类型
+    type: string
+    description: 提取 措施类型 的文本值
+  - name: 覆盖标准
+    type: string
+    description: 提取 覆盖标准 的文本值
+  - name: 资金投入
+    type: string
+    description: 提取 资金投入 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 风险等级
+    type: string
+    description: 提取 风险等级 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (帮扶措施实施台账.措施类型 按村/乡分组后 COUNT(DISTINCT 措施类型) = 1 && 帮扶措施实施台账.覆盖户数 > 10) || (帮扶项目资金使用效益分析表.投入产出比 < 0.5) || (帮扶项目验收材料.实际效益指标
+    / 可研预期效益指标 < 0.6) || (返贫风险监测预警系统.风险等级 = '高风险' AND 帮扶措施实施台账.措施类型 NOT IN ('专项医疗救助','综合保障兜底','高投入产业帮扶') )
+  description: 表达式判断四条规则：①同一行政村或乡镇内大规模采取完全相同的单一帮扶措施（如全部种植同一种作物、全部参加同质化培训），表明未按户分类施策，存在“一刀切”；②资金使用效益分析显示投入产出比低于0.5，即每投入1元产生的直接经济收益不足0.5元，效益极低；③项目验收实绩达不到可研报告预期指标的60%，成效严重缩水；④对监测系统标注高风险户，未采取针对性强的重投入兜底措施，而是与其他低风险户同策。满足任
+  audit_item: 防止返贫帮扶政策落实不到位
+  suspicion: 防止返贫帮扶措施搞“一刀切”，成效不实造成资金浪费
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于实现巩固拓展脱贫攻坚成果同乡村振兴有效衔接的意见\",\n    \"法规文号\": \"中发〔2020〕30号\",\n    \"效力级别\"\
+    : \"党内法规和规范性文件\",\n    \"条款号\": \"第三部分（九）\",\n    \"内容概述\": \"坚持因地制宜、分类施策，健全防止返贫动态监测和帮扶机制，按照缺什么补什么的原则，根据监测对象的风险类别和发展需求开展针对性帮扶，不搞“一刀切”。\"\
+    \n  },\n  {\n    \"法规名称\": \"关于进一步健全防止返贫动态监测和帮扶机制的通知\",\n    \"法规文号\": \"国乡振发〔2021〕1号\",\n    \"效"
+- expression: (剥离厚度 < 30) OR (实际利用量/剥离总量 < 0.8) OR (利用去向 NOT IN ('高标准农田建设','耕地复垦','劣地改良','土壤改良'))
+  description: 剥离厚度未达到30厘米标准，或剥离土壤实际利用率低于80%，或剥离土壤被出售、填埋等非优先利用方向，均构成违规。三个条件为“或”关系，满足任一即判定为违规。
+  audit_item: 项目和政策落实不到位
+  suspicion: 建设项目占用黑土地未按规定进行耕层土壤剥离利用
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十条\"\
+    ,\n    \"内容概述\": \"建设项目占用黑土地的，建设单位应当按照规定的标准对耕作层土壤进行剥离，剥离的土壤优先用于高标准农田建设、劣地改良、土地整治等。\"\n  }\n]"

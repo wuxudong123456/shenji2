@@ -1,0 +1,75 @@
+name: audit/记录留痕类/分红记录
+type: model
+description: 从记录留痕类类文档（分红记录）中提取结构化元数据。涵盖字段如：人均分红额、分红人数、分红日期、分红金额、年度分红金额、成员姓名。文档范围包括：农民专业合作社分红记录、分红记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 分红记录
+  member_count: 1
+  member_details:
+  - 农民专业合作社分红记录
+  - 分红记录
+output:
+  fields:
+  - name: 人均分红额
+    type: string
+    description: 提取 人均分红额 的文本值
+  - name: 分红人数
+    type: number
+    description: 提取 分红人数 的数值（含单位，如万元、吨等）
+  - name: 分红日期
+    type: date
+    description: 提取 分红日期 的日期值，格式 YYYY-MM-DD
+  - name: 分红金额
+    type: number
+    description: 提取 分红金额 的数值（含单位，如万元、吨等）
+  - name: 年度分红金额
+    type: date
+    description: 提取 年度分红金额 的日期值，格式 YYYY-MM-DD
+  - name: 成员姓名
+    type: string
+    description: 提取 成员姓名 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (数据表.分红收入年增长率 < 0.05) || (数据表.本地农民就业占比 < 0.6) || (合作协议.分红比例条款 != 分红记录.年度分红金额) || (数据表.农民工资性收入年增长率 < 0.05)
+  description: 分红收入或工资性收入年增长率低于5%视为带动增收效果不显著；本地农民就业比例低于60%表明未优先带动当地农户；协议分红与实际发放不符则直接判定机制执行不到位。
+  audit_item: 现代农业产业园（集群、强镇）管理不规范、效益不佳
+  suspicion: 利益联结机制缺失未带动农民增收
+  regulation: "[\n  {\n    \"法规名称\": \"《关于促进农业产业化联合体发展的指导意见》\",\n    \"法规文号\": \"农经发〔2017〕13号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"二、基本原则和任务目标\",\n    \"内容概述\": \"要建立紧密的利益共享机制，保障农民分享产业链增值收益，带动农户增收致富。\"\n  }\n]"

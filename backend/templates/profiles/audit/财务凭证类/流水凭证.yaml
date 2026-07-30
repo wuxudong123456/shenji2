@@ -1,0 +1,99 @@
+name: audit/财务凭证类/流水凭证
+type: model
+description: 从财务凭证类类文档（流水凭证）中提取结构化元数据。涵盖字段如：交易对手、交易日期、交易时间、付款方、摘要、收款方、收款方名称、收款金额与付款给委托方的记录。文档范围包括：补助资金发放银行流水凭证、资金流水凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 付款
+- 金额
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 流水凭证
+  member_count: 1
+  member_details:
+  - 补助资金发放银行流水凭证
+  - 资金流水凭证
+output:
+  fields:
+  - name: 交易对手
+    type: string
+    description: 提取 交易对手 的文本值
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 交易时间
+    type: date
+    description: 提取 交易时间 的日期值，格式 YYYY-MM-DD
+  - name: 付款方
+    type: number
+    description: 提取 付款方 的数值（含单位，如万元、吨等）
+  - name: 摘要
+    type: string
+    description: 提取 摘要 的文本值
+  - name: 收款方
+    type: number
+    description: 提取 收款方 的数值（含单位，如万元、吨等）
+  - name: 收款方名称
+    type: number
+    description: 提取 收款方名称 的数值（含单位，如万元、吨等）
+  - name: 收款金额与付款给委托方的记录
+    type: number
+    description: 提取 收款金额与付款给委托方的记录 的数值（含单位，如万元、吨等）
+  - name: 日期
+    type: date
+    description: 提取 日期 的日期值，格式 YYYY-MM-DD
+  - name: 时间
+    type: date
+    description: 提取 时间 的日期值，格式 YYYY-MM-DD
+  - name: 账号
+    type: string
+    description: 提取 账号 的文本值
+  - name: 资金流入流出金额
+    type: number
+    description: 提取 资金流入流出金额 的数值（含单位，如万元、吨等）
+  - name: 资金状态
+    type: boolean
+    description: 提取 资金状态 的布尔值（是/否）
+  - name: 进账金额
+    type: number
+    description: 提取 进账金额 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (明细表.发放形式 == '现金' && 明细表.金额 > 0) || (存在登记表且登记表.家长签名 > 0) || (收款方名称中收款方为大量分散个人账户且非食堂供餐供应商)
+  description: 凡出现现金发放方式、现金签收记录，或资金直接打入大量非供应商个人账户并无集中供餐佐证的，即判定为违规现金发放。
+  audit_item: 违反农村义务教育学生营养改善计划相关规定的行为
+  suspicion: 营养膳食补助违规以现金形式直接发放
+  regulation: "[\n  {\n    \"法规名称\": \"农村义务教育学生营养改善计划专项资金管理办法\",\n    \"法规文号\": \"财教〔2021〕174号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"补助资金应全部用于为受益学生提供营养餐，不得以现金形式直接发放给学生个人和家长，必须通过学校食堂供餐或购买营养餐食品等方式落实。\"\n  }\n]"

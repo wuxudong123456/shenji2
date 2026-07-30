@@ -1,0 +1,63 @@
+name: audit/资料材料类/价格资料
+type: model
+description: 从资料材料类类文档（价格资料）中提取结构化元数据。涵盖字段如：地区、市场平均年租金、资产类别。文档范围包括：相同区域同类资产租赁市场价格资料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 资产
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 价格资料
+  member_count: 1
+  member_details:
+  - 相同区域同类资产租赁市场价格资料
+output:
+  fields:
+  - name: 地区
+    type: string
+    description: 提取 地区 的文本值
+  - name: 市场平均年租金
+    type: string
+    description: 提取 市场平均年租金 的文本值
+  - name: 资产类别
+    type: string
+    description: 提取 资产类别 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ((价格资料.市场平均年租金 - 管理表.年租金) / 价格资料.市场平均年租金) * 100 > 30
+  description: 判定低价承包的逻辑：将合同年租金与周边同类资产市场平均年租金对比，计算偏低比例。公式为(市场均价-合同价)/市场均价*100%。超过30%视为严重偏离市场价格，存在利益输送或恶意低价发包嫌疑，易导致集体收益流失。
+  audit_item: 农村集体资产管理不到位
+  suspicion: 集体资产承包合同价格显失公允
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国村民委员会组织法\",\n    \"法规文号\": \"主席令第37号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第八条\",\n    \"内容概述\": \"村民委员会应当尊重并支持集体经济组织依法独立进行经济活动的自主权，保障集体经济组织和村民、承包经营户、联户或者合伙的合法财产权和其他合法权益。\"\n  },\n  {\n   \
+    \ \"法规名称\": \"关于稳步推进农村集体产权制度改革的意见\",\n    \"法规文号\": \"中发〔2016〕37号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第五条\",\n\
+    \    \"内容概述"

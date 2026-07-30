@@ -1,0 +1,70 @@
+name: audit/审查报告类/履职报告
+type: model
+description: 从审查报告类类文档（履职报告）中提取结构化元数据。涵盖字段如：对公积金中心监督情况的总结。文档范围包括：履职报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 履职报告
+  member_count: 1
+  member_details:
+  - 履职报告
+output:
+  fields:
+  - name: 对公积金中心监督情况的总结
+    type: string
+    description: 提取 对公积金中心监督情况的总结 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (年度报告.贷款逾期率 > 1.5% OR 年度报告.归集金额 <> 年度报告.使用金额) AND 会议记录.表决结果 = '无异议'
+  description: 管委会应对公积金中心年度报告进行实质性审议并提出质询。若年度报告中出现明显异常指标（如贷款逾期率超过行业警戒线1.5%）或数据勾稽关系不符，而管委会会议记录显示无任何质询即审议通过，即构成监督流于形式。
+  audit_item: 住房公积金决策机构未按规定履职
+  suspicion: 管委会未对公积金中心年度报告履行监督审议职责
+  regulation: "[\n  {\n    \"法规名称\": \"《住房公积金管理条例》\",\n    \"法规文号\": \"国务院令第350号（2019年修订）\",\n    \"效力级别\": \"行政法规\",\n  \
+    \  \"条款号\": \"第九条、第十条\",\n    \"内容概述\": \"管委会负责审批住房公积金归集、使用计划执行情况的报告，并监督住房公积金管理中心的业务运作。\"\n  }\n]"

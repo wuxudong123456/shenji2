@@ -1,0 +1,147 @@
+name: audit/业务单据类/通知单
+type: model
+description: 从业务单据类类文档（通知单）中提取结构化元数据。涵盖字段如：变更内容、变更原因、变更涉及金额、批准日期、涉及强制性标准条款、设计单位出图日期、设计变更内容。文档范围包括：设计变更通知单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 通知单
+  member_count: 1
+  member_details:
+  - 设计变更通知单
+output:
+  fields:
+  - name: 变更内容
+    type: string
+    description: 提取 变更内容 的文本值
+  - name: 变更原因
+    type: string
+    description: 提取 变更原因 的文本值
+  - name: 变更涉及金额
+    type: number
+    description: 提取 变更涉及金额 的数值（含单位，如万元、吨等）
+  - name: 批准日期
+    type: date
+    description: 提取 批准日期 的日期值，格式 YYYY-MM-DD
+  - name: 涉及强制性标准条款
+    type: number
+    description: 提取 涉及强制性标准条款 的数值（含单位，如万元、吨等）
+  - name: 设计单位出图日期
+    type: date
+    description: 提取 设计单位出图日期 的日期值，格式 YYYY-MM-DD
+  - name: 设计变更内容
+    type: string
+    description: 提取 设计变更内容 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: MIN(日志.变更实施旁站记录日期, 日志.变更实施旁站记录日期) < MAX(审批表.最终批准日期, 通知单.设计单位出图日期) || (申请单.变更提出日期 IS NULL && 签证单.签证日期 IS NOT
+    NULL)
+  description: 若实际施工日期早于最终审批日期或设计变更图纸发出日期，即存在未批先建行为；或仅有现场签证而无变更申请单，属于先干后报。当施工或监理记录的变更时间早于审批完成时间，触发疑点；风险等级：差异天数>15天为严重违规。
+  audit_item: 工程变更审计评估
+  suspicion: 工程变更未经审批擅自实施
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程价款结算暂行办法\",\n    \"法规文号\": \"财建[2004]369号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十三条\",\n    \"内容概述\": \"工程设计变更确定后14天内，如承包人未提出变更工程价款报告，则发包人可根据所掌握的资料决定是否调整合同价款和调整的具体金额。重大工程变更涉及工程价款变更报告和确认的时限应当严格掌握。\"\
+    \n  },\n  {\n    \"法规名称\": \"政府投资条例\",\n    \"法规文号\": \"国务院令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十一条"
+- expression: (设计文件.设计参数（如荷载、防火等级） 不符合 强制性标准对应阈值) && (合格证书.审查结论 == '合格') || (审查记录.符合性结论 == '不符合' && 通知单.批准日期 > 合格证书.签发日期)
+  description: 比对设计图纸中的关键参数是否违反工程建设强制性标准中规定的限值（如结构安全系数、消防通道宽度等）。若图纸审查记录显示符合标准，但实际参数不符，或审查发现不符合项但未经正式设计变更即通过审查，均为可疑。
+  audit_item: 工程质量事故调查
+  suspicion: 设计文件违反工程建设强制性标准
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号（2019年修正）\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第十条\",\n    \"内容概述\": \"建设工程发包单位不得迫使承包方以低于成本的价格竞标，不得任意压缩合理工期。建设单位不得明示或者暗示设计单位或者施工单位违反工程建设强制性标准，降低建设工程质量。\"\
+    \n  },\n  {\n    \"法规名称\": \"实施工程建设强制性标准监督规定\",\n    \"法规文号\": \"建设部令第81号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第二条、第"
+- expression: 施工图预算.预算总额 > 初步设计概算.概算总额 * 1.1 || 设计变更通知单中原因描述包含‘设计遗漏’‘设计错误’‘图纸矛盾’ 且 设计变更涉及金额合计 > 概算总额 * 0.05
+  description: 施工图预算超过概算10%以上，或由于设计错误/遗漏产生的设计变更累计金额超过概算5%，表明设计深度不满足规范要求，造成后期大量变更和投资增加。设计遗漏等主观原因导致的变更为重点关注对象。
+  audit_item: 重大工程项目全过程审计
+  suspicion: 设计深度不足导致重大设计变更和投资超概
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第二十条\",\n    \"内容概述\": \"勘察、设计单位必须按照工程建设强制性标准进行勘察、设计，并对其勘察、设计的质量负责。设计文件应当符合国家规定的设计深度要求，注明工程合理使用年限。\"\n  },\n  {\n\
+    \    \"法规名称\": \"建设工程勘察设计管理条例\",\n    \"法规文号\": \"国务院令第662号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十六条\",\n   \
+    \ \"内容概述\": \"编"

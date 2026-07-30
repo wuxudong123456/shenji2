@@ -1,0 +1,88 @@
+name: audit/记录留痕类/收款记录
+type: model
+description: 从记录留痕类类文档（收款记录）中提取结构化元数据。涵盖字段如：交易日期、付款方名称、实际收费金额、对应老人、收款日期、收费项目、金额。文档范围包括：财务收款记录、银行收款记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 付款
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 收款记录
+  member_count: 1
+  member_details:
+  - 财务收款记录
+  - 银行收款记录
+output:
+  fields:
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 付款方名称
+    type: number
+    description: 提取 付款方名称 的数值（含单位，如万元、吨等）
+  - name: 实际收费金额
+    type: number
+    description: 提取 实际收费金额 的数值（含单位，如万元、吨等）
+  - name: 对应老人
+    type: string
+    description: 提取 对应老人 的文本值
+  - name: 收款日期
+    type: date
+    description: 提取 收款日期 的日期值，格式 YYYY-MM-DD
+  - name: 收费项目
+    type: number
+    description: 提取 收费项目 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (采购合同.返利或折扣条款 && 审批单.冲减金额) || (收款记录.付款方名称 && 采购合同.供应商 && 收款记录.金额 && 会计凭证.借方科目 && 会计凭证.贷方科目 && 会计凭证.入账科目（其他收益/递延收益/营业外收入))
+  description: 有返利条款但无冲减记录，或供应商返利款项直接计入收益而未调减成本，均属违规。
+  audit_item: 未按规定确认成本费用
+  suspicion: 未按规定冲减相关成本费用
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第1号——存货\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第六条、第七条\",\n    \"内容概述\": \"存货的采购成本包括购买价款、相关税费等；企业采购商品的进货费用金额较小的，可以在发生时直接计入当期销售费用。购货折扣、购货折让，应冲减存货成本或财务费用。\"\n  }\n\
+    ]"
+- expression: (核查表.是否公示 = '否') || (入住合同.约定收费项目 NOT IN (管理制度.允许收费项目)) || (ABS(入住合同.各项收费标准 - 管理制度.对应收费标准上限) > 0 且 无超标准审批文件)
+    || (调查表.收费投诉内容 >= 1 && 投诉内容涉及隐藏收费或标准不符)
+  description: 条件一：公示核查表记录为未公示即触发；条件二：合同约定收费项目超出制度允许范围；条件三：实际收费金额超过制度上限且无特批文件；条件四：老人满意度调查中反馈收费与公示不一致。任一条件成立即为疑点。
+  audit_item: 农村养老机构建后管护不到位、使用效果不佳
+  suspicion: 农村养老机构收费项目及标准未公示
+  regulation: "[\n  {\n    \"法规名称\": \"养老机构管理办法\",\n    \"法规文号\": \"民政部令第66号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第二十九条\",\n    \"内容概述\": \"养老机构应当公示服务项目收费标准和依据，接受社会监督。不得以任何名义收取公示以外的费用。\"\n  }\n]"

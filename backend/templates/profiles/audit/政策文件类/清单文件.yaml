@@ -1,0 +1,58 @@
+name: audit/政策文件类/清单文件
+type: model
+description: 从政策文件类类文档（清单文件）中提取结构化元数据。涵盖字段如：禁止类、限制类产业条目。文档范围包括：国家负面清单文件等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 政策文件类
+- 审计
+- 元数据提取
+template_class:
+  category: 政策文件类
+  member_types:
+  - 清单文件
+  member_count: 1
+  member_details:
+  - 国家负面清单文件
+output:
+  fields:
+  - name: 禁止类
+    type: string
+    description: 提取 禁止类 的文本值
+  - name: 限制类产业条目
+    type: string
+    description: 提取 限制类产业条目 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+violations:
+- expression: EXISTS (SELECT 1 FROM 地方招商引资优惠政策文件 WHERE 地方招商引资优惠政策文件.鼓励类 IN (SELECT 国家负面清单文件.禁止类) OR 地方招商引资优惠政策文件.优惠类产业清单 IN
+    (SELECT 国家负面清单文件.禁止类))
+  description: 若地方招商引资政策明确鼓励或提供优惠的产业中，包含国家负面清单中的禁止类产业，则触发违规。比对基于产业名称精确匹配，模糊匹配或近似名称需人工确认。
+  audit_item: 上位与下位政策法规检查
+  suspicion: 下位政策突破上位负面清单引入禁止类产业
+  regulation: "[\n  {\n    \"法规名称\": \"产业结构调整指导目录（2019年本）\",\n    \"法规文号\": \"国家发展和改革委员会令第29号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第三类 淘汰类、第二类 限制类\",\n    \"内容概述\": \"对属于淘汰类、限制类的产业，禁止或限制投资、生产、销售和使用，各地不得以任何名义变相引入。\"\n  }\n]"

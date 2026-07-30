@@ -1,0 +1,64 @@
+name: audit/法律文书类/确权证书
+type: model
+description: 从法律文书类类文档（确权证书）中提取结构化元数据。涵盖字段如：权利人、标的物描述、证书编号。文档范围包括：确权证书等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 法律文书类
+- 审计
+- 元数据提取
+template_class:
+  category: 法律文书类
+  member_types:
+  - 确权证书
+  member_count: 1
+  member_details:
+  - 确权证书
+output:
+  fields:
+  - name: 权利人
+    type: string
+    description: 提取 权利人 的文本值
+  - name: 标的物描述
+    type: string
+    description: 提取 标的物描述 的文本值
+  - name: 证书编号
+    type: string
+    description: 提取 证书编号 的文本值
+  - name: 文书类型
+    type: string
+    description: 法律文书类型（判决书/裁定书/起诉状等）
+    required: false
+  - name: 文书编号
+    type: string
+    description: 文书案号/编号
+    required: false
+  - name: 当事人
+    type: string
+    description: 当事人/原告/被告名称
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 发文机关
+    type: string
+    description: 制作或发布该法律文书的机关或单位
+    required: false
+violations:
+- expression: 确权证书.标的物描述 IN (数据.标的物描述) AND 数据.权利人 <> 数据.权利人 || 数据.权属性质 <> 数据.权属性质
+  description: 通过关键字段比对，发现同一地块或资产在不同部门的登记系统中出现重复确权（如集体组织与个人同时持有有效权属证书），即为衔接冲突。触发条件为存在交叉匹配且权利人字段矛盾。
+  audit_item: 政策支持落实和监督检查不到位
+  suspicion: 农村集体产权改革与其他改革衔接冲突
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央国务院关于稳步推进农村集体产权制度改革的意见\",\n    \"法规文号\": \"中发〔2016〕37号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第十七条\",\n    \"内容概述\": \"农村集体产权制度改革要加强与农村土地制度改革、林权制度改革等衔接协调，妥善解决权属交叉、重叠等问题。\"\n  }\n]"

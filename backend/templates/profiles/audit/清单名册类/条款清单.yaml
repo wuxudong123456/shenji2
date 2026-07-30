@@ -1,0 +1,86 @@
+name: audit/清单名册类/条款清单
+type: model
+description: 从清单名册类类文档（条款清单）中提取结构化元数据。涵盖字段如：条款来源、适用对象、限制条款名称。文档范围包括：贷款申请人资格限制条款清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 条款清单
+  member_count: 1
+  member_details:
+  - 贷款申请人资格限制条款清单
+output:
+  fields:
+  - name: 条款来源
+    type: number
+    description: 提取 条款来源 的数值（含单位，如万元、吨等）
+  - name: 适用对象
+    type: string
+    description: 提取 适用对象 的文本值
+  - name: 限制条款名称
+    type: number
+    description: 提取 限制条款名称 的数值（含单位，如万元、吨等）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 标准文件.实际执行的申请限制条款（如户籍、成立年限、额外担保等） IS NOT NULL AND 标准文件.实际执行的申请限制条款（如户籍、成立年限、额外担保等） NOT IN (政策规定的申请条件清单、规定的风险分担比例要求.政策规定的申请条件清单)
+  description: 当贷款申请人资格审核标准文件中存在任何一项限制条款，其内容不在国家及地方政策文件明确允许的申请条件范围内时，判定为违规设置不合理限制性条款。附加条款可能包括户籍限制、企业成立年限超政策要求、额外担保人身份要求、无犯罪记录证明等。
+  audit_item: 创业担保贷款政策执行不到位
+  suspicion: 违规设置创业担保贷款申请限制性条款
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于进一步做好新形势下就业创业工作的意见\",\n    \"法规文号\": \"国发〔2015〕23号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"三、（八）\",\n    \"内容概述\": \"将小额担保贷款调整为创业担保贷款，明确支持对象、额度和期限，任何单位不得擅自增设限制条件。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"关于进一步加大创业担保贷款贴息力度全力支持重点群体创业就业的通知\",\n    \"法规文号\": \"财金〔2020〕21号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第一条\"\
+    ,\n    \"内"

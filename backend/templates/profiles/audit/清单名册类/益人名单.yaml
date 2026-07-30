@@ -1,0 +1,92 @@
+name: audit/清单名册类/益人名单
+type: model
+description: 从清单名册类类文档（益人名单）中提取结构化元数据。涵盖字段如：住址、受益类型、姓名、身份证号。文档范围包括：受益人名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 益人名单
+  member_count: 1
+  member_details:
+  - 受益人名单
+output:
+  fields:
+  - name: 住址
+    type: string
+    description: 提取 住址 的文本值
+  - name: 受益类型
+    type: string
+    description: 提取 受益类型 的文本值
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ( (ABS(申报材料.改造户数 - 验收报告.实际完成户数) / 申报材料.改造户数 > 0.2) || (受益对象信息交叉核验表.户籍状态 = '注销' OR 受益对象信息交叉核验表.收入水平 > 当地准入标准)
+    || (申报项目地址的土地用途 NOT IN ('保障性安居工程用地','划拨建设用地') ) || (银行账户流水.收款方名称 NOT IN (受益人名单.姓名) && 金额 > 50万元) || (项目申报材料.批复日期 > 项目资金拨付记录表.拨付日期)
+    )
+  description: 1. 虚实偏差阈值：申报改造户数与验收实际户数偏差超过20%即触发可疑；2. 受益人资格异常：发现受益人为已死亡/高收入/已享受其他安置政策的个体；3. 土地性质不符：项目地址土地非安居住地性质；4. 大额资金流向非受益人：单笔超50万元拨款未转入受益人名下，可能流向关联方；5.
+    时间逻辑矛盾：拨款早于项目批复，可能为虚构项目提前套取。满足任一条件则判定为虚假申报疑点。
+  audit_item: 骗取或套取中央财政保障性安居工程专项资金
+  suspicion: 虚假申报材料骗取安居工程专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政城镇保障性安居工程专项资金管理办法\",\n    \"法规文号\": \"财综〔2019〕31号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第十四条\",\n    \"内容概述\": \"申报使用资金的单位和个人，应当严格按照规定使用资金，不得弄虚作假、虚报冒领，不得以任何形式骗取、套取专项资金。\"\n  },\n  {\n    \"\
+    法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第六条\",\n    \"内容概述\"\
+    : \"国家机关及其工作"

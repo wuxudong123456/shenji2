@@ -1,0 +1,166 @@
+name: audit/合同协议类/购销合同
+type: model
+description: 从合同协议类类文档（购销合同）中提取结构化元数据。涵盖字段如：产品标准、品牌认证要求、实际收储库点地址、批次、数量、轮入粮食批号、轮出粮食批号、采购期限。文档范围包括：消费帮扶购销合同、粮油购销合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 采购
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 购销合同
+  member_count: 1
+  member_details:
+  - 消费帮扶购销合同
+  - 粮油购销合同
+output:
+  fields:
+  - name: 产品标准
+    type: string
+    description: 提取 产品标准 的文本值
+  - name: 品牌认证要求
+    type: string
+    description: 提取 品牌认证要求 的文本值
+  - name: 实际收储库点地址
+    type: string
+    description: 提取 实际收储库点地址 的文本值
+  - name: 批次
+    type: string
+    description: 提取 批次 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 轮入粮食批号
+    type: string
+    description: 提取 轮入粮食批号 的文本值
+  - name: 轮出粮食批号
+    type: string
+    description: 提取 轮出粮食批号 的文本值
+  - name: 采购期限
+    type: string
+    description: 提取 采购期限 的文本值
+  - name: 采购量约定
+    type: string
+    description: 提取 采购量约定 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (验收日期、消防验收编号、防潮等级、库房完好性.消防验收编号 == "未通过" || 验收日期、消防验收编号、防潮等级、库房完好性.防潮等级 < 批准库点名称、地址、库容、资质有效期.要求等级) && (实际收储库点地址、数量、批次、轮出粮食批号、轮入粮食批号.实际收储库点地址
+    != 批准库点名称、地址、库容、资质有效期.批准库点地址) && (补贴对象、补贴库点编号、补贴金额、补贴计算基数（库存数量）、补贴标准、发放金额.补贴库点编号 == 批准库点名称、地址、库容、资质有效期.批准库点编号)
+  description: 当库点硬件未通过消防验收或防潮等级不达标，同时实际收储地址与批准地址不符，但财政补贴仍按批准库点拨付时，即构成在不符合条件库点收储并骗取补贴。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 在不符条件库点收储政策性粮油
+  regulation: "[\n  {\n    \"法规名称\": \"《中央储备粮管理条例》\",\n    \"法规文号\": \"国务院令第388号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十四条\",\n    \"内容概述\": \"承储中央储备粮的企业应当具备相应的仓储设施条件，符合国家有关消防安全、防潮防雨等规定，未经批准不得擅自变更储存地点。\"\n  },\n  {\n    \"法规名称\": \"\
+    《关于进一步强化国家政策性粮食收储管理工作的通知》\",\n    \"法规文号\": \"国粮电〔2015〕8号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"二、严格库点资格审核\",\n\
+    \    \"内容概"
+- expression: ABS(实物台账.账面库存数量 - 抽检台账.库存核查结果（实物侧量）) / 实物台账.账面库存数量 > 0.03 && 拨付文件.补贴计算基数（库存数量） == 实物台账.账面库存数量
+  description: 以现场监盘核实的实际库存与账面库存差异超过3%（考虑合理损耗），且财政补贴依据的基数仍采用账面虚高库存计算，即判定为账实不符且多领补贴。多领补贴金额=(账面库存-实盘库存)×补贴标准。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 政策性粮油账实不符、多领财政补贴
+  regulation: "[\n  {\n    \"法规名称\": \"《关于进一步加强中央储备粮油库存管理的通知》\",\n    \"法规文号\": \"国粮发〔2015〕24号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"承储企业必须保证账实相符，不得虚报库存，财政补贴必须以实有库存为依据，对虚报库存骗取补贴的应全额追回并处理。\"\n  },\n  {\n    \"\
+    法规名称\": \"《粮食流通管理条例》\",\n    \"法规文号\": \"国务院令第407号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十条\",\n    \"内容概述\":\
+    \ \"政策性粮食存储企业"
+- expression: (情况表.实际轮换数量 / 计划轮换数量、轮换期限、品种.计划轮换数量 < 0.6) || (购销合同.每笔轮换实际出入库日期 > 审查期限 + 90天) || (检测报告.脂肪酸值 > 陈化判定标准 && 情况表.出入库记录
+    == "已轮出")
+  description: 轮换完成率低于60%，或实际出库日期超过规定期限90天以上，或者轮出的粮食脂肪酸值已达陈化标准但仍在库，均属于未按规定轮换，可能导致储备粮陈化贬值。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 未按规定进行储备粮轮换
+  regulation: "[\n  {\n    \"法规名称\": \"《中央储备粮油轮换管理办法》\",\n    \"法规文号\": \"国粮发〔2012〕147号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第七条、第十一条\",\n    \"内容概述\": \"承储企业须严格按照下达的轮换计划执行，按期完成轮换，保证储备粮品质符合国家标准，严禁超期存储。\"\n  }\n]"
+- expression: ((检测报告.脂肪酸值 == 检测报告.脂肪酸值) && (实际收储库点地址、数量、批次、轮出粮食批号、轮入粮食批号.轮出粮食批号 == 实际收储库点地址、数量、批次、轮出粮食批号、轮入粮食批号.轮入粮食批号 ||
+    行驶路线、停留点、装卸地点、轨迹坐标.行驶路线 == 行驶路线、停留点、装卸地点、轨迹坐标.行驶路线)) && (联方清单.买方名称 == 联方清单.卖方名称 || 资金收付方名称、金额、结算日期.资金流向为闭环)
+  description: 当轮入新粮质量指标与轮出陈粮完全一致，或出入库批号一致，或运输轨迹显示粮食未离开库区，同时买卖双方为关联方或资金形成闭环，即构成虚假轮换，以陈粮顶新粮骗取轮换差价补贴。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 虚假轮换以陈顶新套取补贴
+  regulation: "[\n  {\n    \"法规名称\": \"《粮食流通管理条例》\",\n    \"法规文号\": \"国务院令第407号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四十三条\",\n    \"内容概述\": \"禁止以陈顶新、虚假轮换等手段套取财政补贴，对违规企业应责令改正、追回补贴并处罚款。\"\n  },\n  {\n    \"法规名称\": \"《中央储备粮油轮换管理办法》\"\
+    ,\n    \"法规文号\": \"国粮发〔2012〕147号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十五条\",\n    \"内容概述\": \"严禁变换名义进行库存不动、批号不变的虚假轮换，一经查实"

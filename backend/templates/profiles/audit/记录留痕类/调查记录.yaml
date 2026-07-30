@@ -1,0 +1,76 @@
+name: audit/记录留痕类/调查记录
+type: model
+description: 从记录留痕类类文档（调查记录）中提取结构化元数据。涵盖字段如：学生用餐实况、强制措施描述、是否被指定购买、访谈应答。文档范围包括：农户调查记录、现场调查记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 调查记录
+  member_count: 1
+  member_details:
+  - 农户调查记录
+  - 现场调查记录
+output:
+  fields:
+  - name: 学生用餐实况
+    type: string
+    description: 提取 学生用餐实况 的文本值
+  - name: 强制措施描述
+    type: string
+    description: 提取 强制措施描述 的文本值
+  - name: 是否被指定购买
+    type: boolean
+    description: 提取 是否被指定购买 的布尔值（是/否）
+  - name: 访谈应答
+    type: string
+    description: 提取 访谈应答 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 合作合同.是否包含排他性条款 == '唯一指定' || '独家供应' || ( 采购记录.供应商 == 指定供应商 && 采购记录.价格 > 市场同期均价 * 1.3 ) || 合作合同.供应商与供电企业关联关系
+  description: 强制指定供应商、利用垄断地位抬高价格或存在利益输送均属违规；价格偏差超过30%为异常阈值。
+  audit_item: 电网改造和供电服务不合规
+  suspicion: 强制农户在指定厂家购买表后线及设施
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反垄断法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十七条\",\n    \"内容概述\": \"禁止具有市场支配地位的经营者没有正当理由，限定交易相对人只能与其交易或者只能与其指定的经营者进行交易。\"\n  }\n]"
+- expression: (政策文件.实施方案名称 == true) || (SUM(资金拨付明细表.拨付金额 WHERE 资金用途='营养餐补助') == 0) || (采购台账.记录数==0)
+  description: 若地方未出台相应实施方案，或未拨付任何专项资金，或无任何采购供餐记录，则判定未开展计划。
+  audit_item: 营养餐制度执行不到位
+  suspicion: 未开展农村义务教育学生营养改善计划
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于实施农村义务教育学生营养改善计划的意见\",\n    \"法规文号\": \"国办发〔2011〕54号\",\n    \"效力级别\": \"国务院规范性文件\"\
+    ,\n    \"条款号\": \"第二条第（三）款\",\n    \"内容概述\": \"地方人民政府要制定本地区农村义务教育学生营养改善试点方案，确保资金落实到位，学生受益。\"\n  },\n  {\n    \"法规名称\"\
+    : \"农村义务教育学生营养改善计划实施细则\",\n    \"法规文号\": \"教财〔2012〕2号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第四条\",\n    \"内容概述\"\
+    :"

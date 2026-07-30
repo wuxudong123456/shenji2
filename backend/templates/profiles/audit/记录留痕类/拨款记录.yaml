@@ -1,0 +1,67 @@
+name: audit/记录留痕类/拨款记录
+type: model
+description: 从记录留痕类类文档（拨款记录）中提取结构化元数据。涵盖字段如：拨付时间、拨款项目名称、金额。文档范围包括：财政拨款记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 拨款
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 拨款记录
+  member_count: 1
+  member_details:
+  - 财政拨款记录
+output:
+  fields:
+  - name: 拨付时间
+    type: date
+    description: 提取 拨付时间 的日期值，格式 YYYY-MM-DD
+  - name: 拨款项目名称
+    type: number
+    description: 提取 拨款项目名称 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 年度建设项目计划文件不存在 || (年度计划项目数 == 0 || 财政拨款项目与年度计划匹配率 < 70%)
+  description: 无法提供经政府批复的正式年度计划文件，或计划中无任何项目，或实际拨款项目与计划匹配率低于70%，表明未实质编制年度计划。
+  audit_item: 项目规划及资金使用不符合规定
+  suspicion: 未编制农村公路建设项目年度计划
+  regulation: "[\n  {\n    \"法规名称\": \"农村公路建设管理办法\",\n    \"法规文号\": \"交通运输部令2018年第4号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十五条\",\n    \"内容概述\": \"地方交通运输主管部门应当根据规划项目库编制农村公路建设项目年度计划，报同级人民政府批准后执行。\"\n  }\n]"

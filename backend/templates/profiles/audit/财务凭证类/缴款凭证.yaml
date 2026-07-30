@@ -1,0 +1,102 @@
+name: audit/财务凭证类/缴款凭证
+type: model
+description: 从财务凭证类类文档（缴款凭证）中提取结构化元数据。涵盖字段如：上缴收益金额、入账金额、国库入账日期、国库实际入账金额、执收单位、执收单位名称、收入金额、收费项目名称。文档范围包括：国库缴款凭证、政府非税收入缴款凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 缴款凭证
+  member_count: 1
+  member_details:
+  - 国库缴款凭证
+  - 政府非税收入缴款凭证
+output:
+  fields:
+  - name: 上缴收益金额
+    type: number
+    description: 提取 上缴收益金额 的数值（含单位，如万元、吨等）
+  - name: 入账金额
+    type: number
+    description: 提取 入账金额 的数值（含单位，如万元、吨等）
+  - name: 国库入账日期
+    type: date
+    description: 提取 国库入账日期 的日期值，格式 YYYY-MM-DD
+  - name: 国库实际入账金额
+    type: number
+    description: 提取 国库实际入账金额 的数值（含单位，如万元、吨等）
+  - name: 执收单位
+    type: string
+    description: 提取 执收单位 的文本值
+  - name: 执收单位名称
+    type: string
+    description: 提取 执收单位名称 的文本值
+  - name: 收入金额
+    type: number
+    description: 提取 收入金额 的数值（含单位，如万元、吨等）
+  - name: 收费项目名称
+    type: number
+    description: 提取 收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 缴库日期
+    type: date
+    description: 提取 缴库日期 的日期值，格式 YYYY-MM-DD
+  - name: 缴库金额
+    type: number
+    description: 提取 缴库金额 的数值（含单位，如万元、吨等）
+  - name: 缴款日期
+    type: date
+    description: 提取 缴款日期 的日期值，格式 YYYY-MM-DD
+  - name: 缴费时间
+    type: date
+    description: 提取 缴费时间 的日期值，格式 YYYY-MM-DD
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (分配表.实际分红到账金额 > 0) && ( (缴款凭证.上缴收益金额 IS NULL) || (ABS(分配表.实际分红到账金额 - 批复文件.非税收入-国有资本经营收益预算金额) / 分配表.实际分红到账金额
+    > 0.1) || (预算编制及调整文件未列示投资收益预算) )
+  description: 若事业单位取得对外投资收益，但未开具非税收入缴款书缴库，或实际到账金额与预算列入数偏差超过10%，或预算未安排该笔收益，即属于未按规定纳入预算管理。
+  audit_item: 国有资产收入管理不合规
+  suspicion: 事业单位对外投资收益未纳入预算管理
+  regulation: "[\n  {\n    \"法规名称\": \"事业单位国有资产管理暂行办法\",\n    \"法规文号\": \"财政部令第36号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十二条\",\n    \"内容概述\": \"事业单位对外投资收益以及利用国有资产出租、出借取得的收入，应当纳入单位预算，统一核算，统一管理。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国预算法\"\
+    ,\n    \"法规文号\": \"中华人民共和国主席令第12号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五十六条\",\n    \"内容概述\": \"政府的全部收入应当上缴国家金库，任何部门、"
+- expression: (审批文件.项目性质 IN ('经济适用房','公租房','棚改房') && 减免收费项目（如人防工程易地建设费、白蚁防治费等）、减免对象.减免收费项目（如人防工程易地建设费、白蚁防治费等） == 缴款凭证.收费项目名称
+    && 缴款凭证.金额 > 0 && 缴款凭证.备注 NOT LIKE '%减免%')
+  description: 当保障性安居工程项目属于行政事业性收费减免范围，但政府部门开具的非税收入缴款书显示该收费项目实缴金额大于0，且未标注减免，即视为违规收取。
+  audit_item: 违规向保障性安居工程项目收取应减免税费
+  suspicion: 重复收取已减免的行政事业性收费
+  regulation: "[\n  {\n    \"法规名称\": \"关于减免保障性安居工程建设有关行政事业性收费和政府性基金的通知\",\n    \"法规文号\": \"财综〔2011〕59号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第一条\",\n    \"内容概述\": \"对各类保障性安居工程建设项目免收城市基础设施配套费、人防工程易地建设费、白蚁防治费等行政事业性收费和政府性基金。\"\n  }\n]"

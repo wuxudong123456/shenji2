@@ -1,0 +1,88 @@
+name: audit/清单名册类/挂牌清单
+type: model
+description: 从清单名册类类文档（挂牌清单）中提取结构化元数据。涵盖字段如：加挂牌子名称、批准部门、挂牌日期、挂牌机构名称。文档范围包括：机构挂牌清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 挂牌清单
+  member_count: 1
+  member_details:
+  - 机构挂牌清单
+output:
+  fields:
+  - name: 加挂牌子名称
+    type: string
+    description: 提取 加挂牌子名称 的文本值
+  - name: 批准部门
+    type: string
+    description: 提取 批准部门 的文本值
+  - name: 挂牌日期
+    type: date
+    description: 提取 挂牌日期 的日期值，格式 YYYY-MM-DD
+  - name: 挂牌机构名称
+    type: string
+    description: 提取 挂牌机构名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (挂牌清单.加挂牌子名称 NOT IN (SELECT 备案机构名称 FROM 备案记录 WHERE 备案状态='有效')) AND (挂牌清单.挂牌日期 IS NOT NULL) OR (挂牌清单.同一机构挂牌数量
+    > 1 AND 挂牌清单.同一机构挂牌数量 > (SELECT COUNT(*) FROM 备案记录 WHERE 机构名称 = 挂牌清单.挂牌机构名称 AND 备案状态='有效'))
+  description: 办公场所悬挂的机构名称，未经编制部门批准备案，或同一机构加挂牌子数量超出备案批准数量，均属擅自加挂。尤其关注加挂牌子后独立开展业务、开设账户的行为。
+  audit_item: 违规设置或变更机构
+  suspicion: 擅自加挂机构牌子或变相增设机构
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第九条、第十五条\",\n    \"内容概述\": \"机构名称、牌子的加挂属于机构编制管理事项，未经批准不得擅自加挂；严禁通过加挂牌子变相增设机构或提高机构规格。\"\n  }\n]"

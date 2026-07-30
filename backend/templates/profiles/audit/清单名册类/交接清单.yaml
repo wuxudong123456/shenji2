@@ -1,0 +1,85 @@
+name: audit/清单名册类/交接清单
+type: model
+description: 从清单名册类类文档（交接清单）中提取结构化元数据。涵盖字段如：姓名、离职日期、身份证号。文档范围包括：员工离职交接清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 交接清单
+  member_count: 1
+  member_details:
+  - 员工离职交接清单
+output:
+  fields:
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 离职日期
+    type: date
+    description: 提取 离职日期 的日期值，格式 YYYY-MM-DD
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (人力资源系统在职人员清单.状态 = '离职' || 员工离职交接清单.解除劳动关系日期 IS NOT NULL) && (住房公积金缴存明细表.缴存状态 = '正常') && (DATEDIFF(DAY, COALESCE(人力资源系统在职人员清单.离职日期,
+    员工离职交接清单.解除劳动关系日期), CURRENT_DATE) > 30)
+  description: 判定规则：员工已离职且劳动关系终止超过30天，但公积金缴存状态仍为“正常”，未按《住房公积金管理条例》要求及时封存。表达式使用COALESCE取最早可得的离职日期，超过30日即触发违规，严重者往往超过90天甚至多年。
+  audit_item: 住房公积金账户未及时清理
+  suspicion: 离职人员住房公积金账户未及时清理
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金管理条例\",\n    \"法规文号\": \"国务院令第350号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十五条\",\n    \"内容概述\": \"单位与职工终止劳动关系的，应当自劳动关系终止之日起30日内向住房公积金管理中心办理变更登记，并办理职工住房公积金账户转移或者封存手续。\"\n  }\n]"

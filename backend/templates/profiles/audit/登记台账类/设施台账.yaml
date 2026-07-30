@@ -1,0 +1,157 @@
+name: audit/登记台账类/设施台账
+type: model
+description: 从登记台账类类文档（设施台账）中提取结构化元数据。涵盖字段如：供电户数、变压器容量、各灌区计量设施安装数量、地区标识、已建成数量、改造年份、是否满足负荷需求、月均用电量。文档范围包括：电力设施台账、计量设施台账、设施台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 设施台账
+  member_count: 1
+  member_details:
+  - 电力设施台账
+  - 计量设施台账
+  - 设施台账
+output:
+  fields:
+  - name: 供电户数
+    type: string
+    description: 提取 供电户数 的文本值
+  - name: 变压器容量
+    type: string
+    description: 提取 变压器容量 的文本值
+  - name: 各灌区计量设施安装数量
+    type: number
+    description: 提取 各灌区计量设施安装数量 的数值（含单位，如万元、吨等）
+  - name: 地区标识
+    type: string
+    description: 提取 地区标识 的文本值
+  - name: 已建成数量
+    type: number
+    description: 提取 已建成数量 的数值（含单位，如万元、吨等）
+  - name: 改造年份
+    type: string
+    description: 提取 改造年份 的文本值
+  - name: 是否满足负荷需求
+    type: boolean
+    description: 提取 是否满足负荷需求 的布尔值（是/否）
+  - name: 月均用电量
+    type: string
+    description: 提取 月均用电量 的文本值
+  - name: 未建成原因
+    type: string
+    description: 提取 未建成原因 的文本值
+  - name: 运行状态
+    type: boolean
+    description: 提取 运行状态 的布尔值（是/否）
+  - name: 近6个月数据上传次数
+    type: string
+    description: 提取 近6个月数据上传次数 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (电力设施台账.变压器容量 / 电力设施台账.供电户数 < 规定户均容量下限) OR (电压质量监测点数据统计表.电压值 < 198 且 连续出现次数 > 5) OR (停电故障登记.月均停电次数 > 同省非特殊地区均值
+    * 1.5) OR (电网覆盖率 < 电力保障专项政策.电网覆盖率目标)
+  description: 判定逻辑：1.脱贫地区或革命老区户均配变容量低于国家或省级标准（如2千伏安/户）；2.电压监测点末端电压低于198V（220V的-10%）连续一个月出现超过5次；3.月均停电频率显著高于周边非特殊地区50%以上；4.电网覆盖率未达到专项政策承诺值。满足任一条件则为保障不到位。
+  audit_item: 供电服务不合规
+  suspicion: 特殊地区电力保障未达标
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于实现巩固拓展脱贫攻坚成果同乡村振兴有效衔接的意见\",\n    \"法规文号\": \"中发〔2020〕30号\",\n    \"效力级别\"\
+    : \"制度文件\",\n    \"条款号\": \"第三部分（八）\",\n    \"内容概述\": \"持续改善脱贫地区基础设施条件，提升供电保障能力，实现供电可靠率和综合电压合格率等指标达到国家标准。\"\n  },\n  {\n\
+    \    \"法规名称\": \"农村电网改造升级管理办法\",\n    \"法规文号\": \"发改能源规〔2020〕641号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十七条\",\n\
+    \    "
+- expression: 绩效自评报告.自评完成数量与比率 > 计量设施台账.各灌区计量设施安装数量 || (绩效自评报告.节水效益数据 - (1-(用水量统计表.各户实际用水量/用水量统计表.各农户实际用水量及种植面积)) > 0.1)
+  description: 将未安装计量设施或设施未正常运行的灌区纳入已完成改革范围，或上报节水率明显高于实际测算节水率10个百分点以上，判定为虚报绩效。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 虚报农业水价综合改革工作绩效
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、建立健全农业水价形成机制（七）\",\n    \"内容概述\": \"完善供水计量设施。新建、改扩建工程要同步建设计量设施；尚未配备计量设施的已建工程要抓紧改造。奠定按量计价、精准补贴基础。\"\n\
+    \  }\n]"
+- expression: 设施台账.已建成数量 < 建设计划.计划安装数量 * 0.9 || 验收记录.验收合格数量 < 建设计划.计划安装数量
+  description: 实际建成并验收合格的数量低于计划建设数量的90%，或验收合格数量低于计划数，即认定为未完成建设任务。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 计量设施建设任务未完成
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、建立健全农业水价形成机制（七）\",\n    \"内容概述\": \"新建、改扩建工程要同步建设计量设施；尚未配备计量设施的已建工程要抓紧改造。各地要加快配套完善计量设施建设，确保计量供水收费基础。\"\
+    \n  }\n]"
+- expression: 验收记录.验收状态='已验收' && (设施台账.近6个月数据上传次数=0 || 设施台账.月均用电量=0)
+  description: 已完成验收的计量设施，若近6个月无任何数据上传或无用电记录，说明设施处于闲置或停用状态。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 计量设施建成后闲置未投入使用
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、建立健全农业水价形成机制（七）\",\n    \"内容概述\": \"加强计量设施的运行维护和管理，确保其正常运行，为实行计量收费奠定坚实基础。\"\n  }\n]"

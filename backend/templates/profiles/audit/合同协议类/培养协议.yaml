@@ -1,0 +1,177 @@
+name: audit/合同协议类/培养协议
+type: model
+description: 从合同协议类类文档（培养协议）中提取结构化元数据。涵盖字段如：专项补贴、基层服务优先条款、承诺工资标准、服务单位性质要求、服务年限、服务期限、社保要求、薪酬承诺条款。文档范围包括：培养协议、定向医学生培养协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 薪酬
+- 补贴
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 培养协议
+  member_count: 1
+  member_details:
+  - 培养协议
+  - 定向医学生培养协议
+output:
+  fields:
+  - name: 专项补贴
+    type: string
+    description: 提取 专项补贴 的文本值
+  - name: 基层服务优先条款
+    type: number
+    description: 提取 基层服务优先条款 的数值（含单位，如万元、吨等）
+  - name: 承诺工资标准
+    type: string
+    description: 提取 承诺工资标准 的文本值
+  - name: 服务单位性质要求
+    type: string
+    description: 提取 服务单位性质要求 的文本值
+  - name: 服务年限
+    type: string
+    description: 提取 服务年限 的文本值
+  - name: 服务期限
+    type: string
+    description: 提取 服务期限 的文本值
+  - name: 社保要求
+    type: string
+    description: 提取 社保要求 的文本值
+  - name: 薪酬承诺条款
+    type: number
+    description: 提取 薪酬承诺条款 的数值（含单位，如万元、吨等）
+  - name: 违约责任条款
+    type: number
+    description: 提取 违约责任条款 的数值（含单位，如万元、吨等）
+  - name: 违约金条款
+    type: number
+    description: 提取 违约金条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: COUNT(履约情况表.单位层级 == '县级及以上') / COUNT(履约情况表.学生姓名) > 政策允许的非基层分配比例 || 履约情况表.分配单位 LIKE '%县级医院%' && 培养协议.基层服务优先条款
+    LIKE '%优先农村%'
+  description: 统计订单定向毕业生中分配至县级医院及以上机构的比例，若超过协议或政策允许范围，或违背优先农村原则大量截留，则判定违规。
+  audit_item: 乡镇、村公共卫生医生配备、培训、经费保障等不符合相关规定
+  suspicion: 订单定向医学生培养未优先分配至农村基层
+  regulation: "[\n  {\n    \"法规名称\": \"农村订单定向医学生免费培养工作实施意见\",\n    \"法规文号\": \"发改社会〔2010〕1194号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"四、（二）\",\n    \"内容概述\": \"定向医学生毕业后应到农村基层医疗卫生机构服务6年，各地方不得以任何理由截留或调整其服务单位。\"\n  },\n  {\n    \"法规名称\"\
+    : \"国务院关于建立全科医生制度的指导意见\",\n    \"法规文号\": \"国发〔2011〕23号\",\n    \"效力级别\": \"国务院规范性文件\",\n    \"条款号\": \"三、（四）\",\n    \"\
+    内容概述\": \""
+- expression: 履约情况表.实际履约状态 == '违约' && 违约处理记录.违约金缴纳情况 == '未缴或不足'
+  description: 无故不履行协议即构成违约，若违约金未追偿到位或违约率畸高，反映管理漏洞。设定年违约率超过5%为异常。
+  audit_item: 乡镇、村公共卫生医生配备、培训、经费保障等不符合相关规定
+  suspicion: 订单定向医学生无故违约未履行服务协议
+  regulation: "[\n  {\n    \"法规名称\": \"农村订单定向医学生免费培养工作实施意见\",\n    \"法规文号\": \"发改社会〔2010〕1194号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"四、（三）\",\n    \"内容概述\": \"定向医学生在规定学习期间不能完成学业或毕业后不履行协议的，应按规定退还已享受的减免教育费用并缴纳违约金，违约情况记入个人诚信档案。\"\n  },\n\
+    \  {\n    \"法规名称\": \"关于做好农村订单定向免费医学生就业安置和履约管理工作的通知\",\n    \"法规文号\": \"国卫科教发〔2019〕56号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   "
+- expression: 履约情况表.实际月均工资 < 培养协议.承诺工资标准 * 90% || 履约情况表.社保参保状态 != '正常参保'
+  description: 实际到账工资显著低于协议承诺标准（低于90%视为违规），或未缴纳社会保险，均属待遇保障不足。
+  audit_item: 乡镇、村公共卫生医生配备、培训、经费保障等不符合相关规定
+  suspicion: 订单定向医学生工资待遇未按协议保障
+  regulation: "[\n  {\n    \"法规名称\": \"农村订单定向医学生免费培养工作实施意见\",\n    \"法规文号\": \"发改社会〔2010〕1194号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"四、（二）\",\n    \"内容概述\": \"定向医学生在服务期间，享受与当地同类人员同等待遇，并按协议约定保障其工资、福利和社会保险。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"关于做好农村订单定向免费医学生就业安置和履约管理工作的通知\",\n    \"法规文号\": \"国卫科教发〔2019〕56号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"二、（二）\"\
+    ,\n    "
+- expression: 定向生违约处理台账.应追缴金额 > 定向生违约处理台账.实际追缴金额 AND 定向生违约处理台账.处理状态 != '已全额追缴'
+  description: 存在违约行为但未足额追缴培养费用和违约金的，即构成违规；重点关注应追缴金额与实际入库金额差额超过1000元且处理状态长期挂账的情形。
+  audit_item: 乡镇卫生院、村卫生室布局和标准化建设不合规
+  suspicion: 订单定向医学生违约后未追缴违约金
+  regulation: "[\n  {\n    \"法规名称\": \"关于做好农村订单定向免费培养医学生就业安置和履约管理工作的通知\",\n    \"法规文号\": \"国卫科教发〔2019〕56号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"四、加强违约管理\",\n    \"内容概述\": \"各级卫生健康行政部门要严肃履约管理，对违约人员按规定追缴培养费及违约金，并将违约记录纳入个人诚信档案，确保财政资金安全。\"\
+    \n  }\n]"
+- expression: (定向医学生待遇发放凭证.实发工资 < 定向医学生待遇发放凭证.同期当地事业单位同岗位工资标准 * 0.9) OR (定向医学生待遇发放凭证.社保缴纳记录 = '未缴')
+  description: 定向生实发工资低于协议承诺或当地同类岗位工资的90%，或存在未依法缴纳社会保险的，均视为待遇保障不足；差额越大、欠缴时间越长风险越严重。
+  audit_item: 乡镇卫生院、村卫生室布局和标准化建设不合规
+  suspicion: 定向医学生工资待遇或社保未落实兑现
+  regulation: "[\n  {\n    \"法规名称\": \"关于做好农村订单定向免费培养医学生就业安置和履约管理工作的通知\",\n    \"法规文号\": \"国卫科教发〔2019〕56号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"三、落实待遇保障措施\",\n    \"内容概述\": \"各地要切实保障定向医学生的工资待遇和社会保险，确保定向生在服务期内享受与当地同类事业单位在编人员同等薪酬待遇，不得以任何理由克扣。\"\
+    \n  }\n]"

@@ -1,0 +1,65 @@
+name: audit/记录留痕类/踏勘记录
+type: model
+description: 从记录留痕类类文档（踏勘记录）中提取结构化元数据。涵盖字段如：尺寸、材质、现场实际做法。文档范围包括：实际现场踏勘记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 踏勘记录
+  member_count: 1
+  member_details:
+  - 实际现场踏勘记录
+output:
+  fields:
+  - name: 尺寸
+    type: string
+    description: 提取 尺寸 的文本值
+  - name: 材质
+    type: string
+    description: 提取 材质 的文本值
+  - name: 现场实际做法
+    type: string
+    description: 提取 现场实际做法 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (ABS(签证单.工程量 - 踏勘记录.尺寸) > 0) || (验收记录.验收部位 != 签证单.签证内容) || (日志.施工内容 != 签证单.签证内容 && 日志.旁站记录 IS NULL)
+  description: 签证工程量与实际核查工程量存在正偏差即判定为虚假；隐蔽验收记录部位与签证部位不匹配，或施工日志无对应记录且监理未旁站，均表明签证内容虚假。若工程量虚增比例>15%，属于严重虚报冒领。
+  audit_item: 工程变更审计评估
+  suspicion: 虚假工程变更套取建设资金
+  regulation: "[\n  {\n    \"法规名称\": \"建设项目审计处理暂行规定\",\n    \"法规文号\": \"审投发[1996]105号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第六条\",\n    \"内容概述\": \"建设项目不突破设计概算，对超出设计概算的投资，审计中发现有高估冒算、虚假签证等行为的，应当予以核减，并按规定处理。\"\n  },\n  {\n    \"法规名称\"\
+    : \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第九条\",\n    \"内容概述\": \"单位和个人有下列骗取财政资金"

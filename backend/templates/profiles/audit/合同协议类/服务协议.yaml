@@ -1,0 +1,156 @@
+name: audit/合同协议类/服务协议
+type: model
+description: 从合同协议类类文档（服务协议）中提取结构化元数据。涵盖字段如：免费服务项目清单、协议编号、可收费项目及标准上限、各方签章、服务内容、服务期限、服务条款、费用标准。文档范围包括：乡村医生签约服务协议、金融机构服务协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 协议
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 服务协议
+  member_count: 1
+  member_details:
+  - 乡村医生签约服务协议
+  - 金融机构服务协议
+output:
+  fields:
+  - name: 免费服务项目清单
+    type: number
+    description: 提取 免费服务项目清单 的数值（含单位，如万元、吨等）
+  - name: 协议编号
+    type: string
+    description: 提取 协议编号 的文本值
+  - name: 可收费项目及标准上限
+    type: number
+    description: 提取 可收费项目及标准上限 的数值（含单位，如万元、吨等）
+  - name: 各方签章
+    type: string
+    description: 提取 各方签章 的文本值
+  - name: 服务内容
+    type: string
+    description: 提取 服务内容 的文本值
+  - name: 服务期限
+    type: string
+    description: 提取 服务期限 的文本值
+  - name: 服务条款
+    type: number
+    description: 提取 服务条款 的数值（含单位，如万元、吨等）
+  - name: 费用标准
+    type: number
+    description: 提取 费用标准 的数值（含单位，如万元、吨等）
+  - name: 费用金额
+    type: number
+    description: 提取 费用金额 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (收费项目清单.法定依据文件文号 IS NULL) || (明细表.服务内容描述 IS NULL OR 明细表.服务内容描述 == '') || (明细表.对方科目名称（如技术咨询费） NOT IN 收费项目清单.收费项目名称)
+  description: 判定条件一：收费项目无法提供国务院、发改委、行业主管部门等颁发的有效批准文件，即为无依据收费。判定条件二：收取了诸如“财务顾问费”等费用，但服务内容记录为空或无任何服务成果，即为无实质服务收费。判定条件三：财务账上存在的对外收费项目（如“技术咨询费”），未列入公司公示的合法收费项目清单中。以上条件均为或的关系。
+  audit_item: 未按规定落实降成本政策措施
+  suspicion: 无法定依据违规收费或自立名目收取保证金
+  regulation: "[\n  {\n    \"法规名称\": \"优化营商环境条例\",\n    \"法规文号\": \"国务院令第722号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第三十九条\",\n    \"内容概述\": \"涉企收费应当依法有据、规范透明。严禁越权收费、超标准收费、自立项目收费、对已取消的收费项目继续收费。\"\n  },\n  {\n    \"法规名称\": \"保障中小企业款项支付条例\"\
+    ,\n    \"法规文号\": \"国务院令第728号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"机关、事业单位和大型企业除依法设立投标保证金、履约保"
+- expression: (明细表.服务内容摘要 IS NULL OR 明细表.服务内容摘要 == '' OR 不存在对应的服务成果文件) && 明细表.客户名称（中小微企业标识） == '中小微企业'
+  description: 向中小微企业收取了财务顾问费等中间业务费用，但无法提供任何能证明其提供了实质性服务、令客户受益的文件记录（如尽调报告、融资方案、管理建议书、咨询回复等），即判定为无实质服务违规收费。
+  audit_item: 未按规定落实降成本政策措施
+  suspicion: 金融机构无实质服务违规收取财务顾问费
+  regulation: "[\n  {\n    \"法规名称\": \"中国银监会关于整治银行业金融机构不规范经营的通知\",\n    \"法规文号\": \"银监发〔2012〕3号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条第（一）款、第（二）款\",\n    \"内容概述\": \"“以贷收费”：不得在发放贷款或以其他方式提供融资时强制捆绑、搭售理财、保险、基金等产品。“浮利分费”：不得将利息分解为费用收取，严禁变相提高利率。服务收费应遵循质价相符原则，即提供服务、质价相符。\"\
+    \n  },\n  {\n    \"法规名称\": \"优化营商环境条例\",\n    \"法规文号\": \"国务院令第722号\",\n    \"效力"
+- expression: 明细表.收费金额 > 0 && (明细表.收费项目名称 LIKE '%签约%' || 明细表.收费项目名称 IN (免费服务项目清单.免费服务项目清单))
+  description: 收费明细中存在金额大于0的记录，且收费项目包含‘签约’字样或项目名称属于政策规定的免费基本公共卫生服务项目，即构成违规收费疑点。签约服务中的公卫项目应由财政补贴支付，不得转嫁居民。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不合规
+  suspicion: 乡村医生签约服务违规收费
+  regulation: "[\n  {\n    \"法规名称\": \"基本公共卫生服务补助资金管理办法\",\n    \"法规文号\": \"财社〔2022〕44号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第四条\",\n    \"内容概述\": \"基本公共卫生服务项目免费向居民提供，补助资金用于乡村医生等承担服务的机构和人员支出，不得以任何形式向居民收取相关费用。\"\n  }\n]"

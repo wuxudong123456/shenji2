@@ -1,0 +1,195 @@
+name: audit/登记台账类/采购台账
+type: model
+description: 从登记台账类类文档（采购台账）中提取结构化元数据。涵盖字段如：供应商、供应商名称、农药名称、单价、合同编号、合同金额、器械名称、对应药品医保编码。文档范围包括：农药经营采购台账、村卫生室药品采购台账、采购台账、食材采购台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 合同
+- 登记
+- 采购
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 采购台账
+  member_count: 1
+  member_details:
+  - 农药经营采购台账
+  - 村卫生室药品采购台账
+  - 采购台账
+  - 食材采购台账
+output:
+  fields:
+  - name: 供应商
+    type: string
+    description: 提取 供应商 的文本值
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 农药名称
+    type: string
+    description: 提取 农药名称 的文本值
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 提取 合同编号 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 器械名称
+    type: string
+    description: 提取 器械名称 的文本值
+  - name: 对应药品医保编码
+    type: string
+    description: 提取 对应药品医保编码 的文本值
+  - name: 批准文号
+    type: string
+    description: 提取 批准文号 的文本值
+  - name: 批号
+    type: string
+    description: 提取 批号 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 物资名称
+    type: string
+    description: 提取 物资名称 的文本值
+  - name: 生产批号
+    type: string
+    description: 提取 生产批号 的文本值
+  - name: 登记证号
+    type: string
+    description: 提取 登记证号 的文本值
+  - name: 签订日期
+    type: date
+    description: 提取 签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 药品名称
+    type: string
+    description: 提取 药品名称 的文本值
+  - name: 规格
+    type: string
+    description: 提取 规格 的文本值
+  - name: 采购单价
+    type: number
+    description: 提取 采购单价 的数值（含单位，如万元、吨等）
+  - name: 采购数量
+    type: number
+    description: 提取 采购数量 的数值（含单位，如万元、吨等）
+  - name: 采购日期
+    type: date
+    description: 提取 采购日期 的日期值，格式 YYYY-MM-DD
+  - name: 采购渠道
+    type: string
+    description: 提取 采购渠道 的文本值
+  - name: 采购申请日期
+    type: date
+    description: 提取 采购申请日期 的日期值，格式 YYYY-MM-DD
+  - name: 采购类别
+    type: string
+    description: 提取 采购类别 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 食材品种
+    type: string
+    description: 提取 食材品种 的文本值
+  - name: 食材种类
+    type: string
+    description: 提取 食材种类 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ( (采购台账.合同金额 > 管理制度.重大采购金额阈值) && (采购台账.合同编号 NOT IN (SELECT 议题名称 FROM 记录留痕类-会议记录-会议日期、议题名称、表决结果、参会人员签字、所议事项与采购项目关联标识
+    WHERE 表决结果='是' AND 会议日期 BETWEEN 采购台账.采购申请日期 AND 采购台账.签订日期)) ) || ( (SUM(采购台账.合同金额) GROUP BY 采购台账.供应商名称,采购台账.采购类别 OVER
+    滑动时间窗口60天) > 管理制度.重大采购金额阈值 && (该组 NOT EXISTS 对应集体决策记录) )
+  description: 重大采购阈值来源于企业采购管理制度（如500万元及以上）。第一个条件检查单笔金额超过阈值但缺失集体决策记录；第二个条件识别化整为零行为，即同一供应商同类物资在60天内累计金额超过阈值且无集体决策记录。OR连接，任一满足即触发疑点。
+  audit_item: 违规开展重大物资（服务）采购
+  suspicion: 未经集体决策程序采购大宗商品和服务
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步推进国有企业贯彻落实“三重一大”决策制度的意见\",\n    \"法规文号\": \"中办发〔2010〕17号\",\n    \"效力级别\": \"\
+    制度文件\",\n    \"条款号\": \"第二条（三）\",\n    \"内容概述\": \"大额度资金运作事项属于“三重一大”范围，必须由领导班子集体作出决定。\"\n  },\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\"\
+    ,\n    \"法规文号\": \"中纪发〔2004〕25号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第六条\",\n    \"内容概述\": \"不得违反决策原则和程序决"
+- expression: ( (ABS(采购台账.单价 - 比价文件.同期同类物资市场均价)/比价文件.同期同类物资市场均价 > 0.10) || (验收单.验收结论 = '合格' && 检测报告.检测指标结果 = '否') || (验收单.实际到货规格
+    != 采购合同.规格型号) )
+  description: 第一个条件判断采购单价较同期同类市场均价溢价超过10%；第二个条件识别验收环节舞弊，即质量检测不合格但验收单仍签署合格；第三个条件判断实际到货规格与合同约定不符，属于以次充好。任一条件成立即产生疑点。
+  audit_item: 违规开展重大物资（服务）采购
+  suspicion: 采购物资价格虚高且质量不达标
+  regulation: "[\n  {\n    \"法规名称\": \"企业国有资产法\",\n    \"法规文号\": \"主席令第5号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第十九条\"\
+    ,\n    \"内容概述\": \"国家出资企业应当建立健全内部监督管理和风险控制制度，防止国有资产损失。\"\n  },\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\"\
+    : \"中纪发〔2004〕25号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第六条第（二）款\",\n    \"内容概述\": \"不得利用职权进行关联交易，以明显不合理的价格购买商品或者服务。\"\
+    \n  },"
+- expression: 采购台账.供应商名称 IS NULL && 销售凭证.销售对象(经营单位) = '该经营单位' OR (销售台账.购买方名称 IS NULL && 销售凭证.数量 > 0)
+  description: 经营单位有实际采购(依据生产企业销售给该经营单位的凭证)但采购台账无记录或关键字段缺失;或有销售记录但销售台账未建立或缺失购买方信息。任一条件成立,即判定未按规定建立台账。
+  audit_item: 农药生产经营管理不符合规定
+  suspicion: 农药经营者未建立采购销售台账
+  regulation: "[\n  {\n    \"法规名称\": \"《农药管理条例》\",\n    \"法规文号\": \"国务院令第677号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第二十六条、第二十七条\",\n    \"内容概述\": \"农药经营者应当建立采购台账,如实记录农药名称、数量、登记证号和供货商信息;应当建立销售台账,如实记录销售农药的名称、数量、购买方、销售日期等内容。经营台账应当保存2年以上。\"\
+    \n  }\n]"

@@ -1,0 +1,209 @@
+name: audit/合同协议类/业务合同
+type: model
+description: 从合同协议类类文档（业务合同）中提取结构化元数据。涵盖字段如：交易总价、交易金额、付款条件、佣金条款、公章、合同标的、合同生效日、合同签订方。文档范围包括：业务合同、大型企业与中小企业的业务合同、担保业务合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 付款
+- 合同
+- 金额
+- 验收
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 业务合同
+  member_count: 1
+  member_details:
+  - 业务合同
+  - 大型企业与中小企业的业务合同
+  - 担保业务合同
+output:
+  fields:
+  - name: 交易总价
+    type: string
+    description: 提取 交易总价 的文本值
+  - name: 交易金额
+    type: number
+    description: 提取 交易金额 的数值（含单位，如万元、吨等）
+  - name: 付款条件
+    type: number
+    description: 提取 付款条件 的数值（含单位，如万元、吨等）
+  - name: 佣金条款
+    type: number
+    description: 提取 佣金条款 的数值（含单位，如万元、吨等）
+  - name: 公章
+    type: string
+    description: 提取 公章 的文本值
+  - name: 合同标的
+    type: string
+    description: 提取 合同标的 的文本值
+  - name: 合同生效日
+    type: string
+    description: 提取 合同生效日 的文本值
+  - name: 合同签订方
+    type: string
+    description: 提取 合同签订方 的文本值
+  - name: 合同编号
+    type: string
+    description: 提取 合同编号 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 履约义务条款
+    type: number
+    description: 提取 履约义务条款 的数值（含单位，如万元、吨等）
+  - name: 履行期限
+    type: string
+    description: 提取 履行期限 的文本值
+  - name: 担保人名称
+    type: string
+    description: 提取 担保人名称 的文本值
+  - name: 持股比例
+    type: number
+    description: 提取 持股比例 的数值（含单位，如万元、吨等）
+  - name: 收款时点
+    type: number
+    description: 提取 收款时点 的数值（含单位，如万元、吨等）
+  - name: 是否派驻董事
+    type: boolean
+    description: 提取 是否派驻董事 的布尔值（是/否）
+  - name: 签约方
+    type: string
+    description: 提取 签约方 的文本值
+  - name: 签署日期
+    type: date
+    description: 提取 签署日期 的日期值，格式 YYYY-MM-DD
+  - name: 约定交割日
+    type: string
+    description: 提取 约定交割日 的文本值
+  - name: 约定折扣条款
+    type: number
+    description: 提取 约定折扣条款 的数值（含单位，如万元、吨等）
+  - name: 表决权比例
+    type: number
+    description: 提取 表决权比例 的数值（含单位，如万元、吨等）
+  - name: 质保金比例
+    type: number
+    description: 提取 质保金比例 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 验收条件
+    type: string
+    description: 提取 验收条件 的文本值
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (工商登记信息.成立日期 >= 领导干部离职审批文件.离职日期 - 缓冲期) && (领导干部离职审批文件.离职日期 + 3年 >= 当前日期 OR 当前日期 - 领导干部离职审批文件.离职日期 <= 3年) &&
+    ((工商登记信息.投资人/股东姓名及身份证号 = 领导干部离职审批文件.姓名) OR (工商登记信息.企业名称 = 直系亲属经商办企业备案表.企业名称 AND 工商登记信息.投资人/股东姓名及身份证号 = 直系亲属经商办企业备案表.亲属姓名))
+    && (关联企业清单.企业名称 = 工商登记信息.企业名称 AND 关联企业清单.主营业务关键词 匹配 领导干部离职审批文件.管辖业务范围
+  description: 缓冲期可设定为6个月，避免离职前已谋划的合理情形；禁业期以3年为限；企业投资人或实际控制人为本人或直系亲属（代持）；业务关联性通过关键词匹配（如原分管住建，企业主营房地产开发、建筑工程咨询），叠加与原任职单位存在交易或利用原权力获得审批，即触发违规。
+  audit_item: 党员领导干部离职或者退休后违反规定接受聘任或从事盈利性活动，或者个人从事与原任职务管辖业务相关的营利性活动
+  suspicion: 离职或退休后违规从事与原职务相关的营利性活动
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国公务员法\",\n    \"法规文号\": \"主席令第20号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第一百零七条\",\n    \"内容概述\": \"原系领导成员的公务员在离职三年内，不得从事与原工作业务直接相关的营利性活动。\"\n  },\n  {\n    \"法规名称\": \"中国共产党纪律处分条例\",\n    \"\
+    法规文号\": \"中发〔2018〕31号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"第九十六条\",\n    \"内容概述\": \"离职或者退（离）休后违反有关规定从事与原任职务管辖业务相关的营利活动，视"
+- expression: ((收支台账.服务内容摘要 = ‘无’ OR 收支台账.有无实质交付物 = ‘否’) AND 收支台账.支付金额 > 0 AND 收支台账.收款方名称 IN (领导人员姓名, 领导人员关联方)) OR (业务合同.约定折扣条款存在
+    AND ABS(行对账单.收款金额 - 业务合同.合同金额) > 0 AND 处置台账 无对应上交记录) OR (报销凭证.事由 LIKE ‘%奖励资金%’ AND 报销凭证.报销人 = 领导人员 AND 无经审批的分配方案)
+  description: 支付给无实质服务的个人或空壳公司的大额中介费、佣金；合同折扣款未上缴财务而由个人截留；政府奖励款项被以报销名义私分而未纳入公司账簿，均构成侵占。
+  audit_item: 国有企业领导人员利用职权谋取私利以及损害本企业利益
+  suspicion: 私分或侵占企业折扣费、中介费、佣金
+  regulation: "[\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\": \"中纪发〔2009〕7号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第六条第（二）项\",\n    \"内容概述\": \"不得将企业经济往来中的折扣费、中介费、佣金、礼金，以及因企业行为受到有关部门和单位奖励的财物等据为己有或者私分。\"\n  }\n]"
+- expression: (EXISTS (明细账 WHERE 对方单位 IN (贷方发生额) AND 摘要 NOT LIKE '%保证金%' AND 摘要 NOT LIKE '%押金%')) AND (NOT EXISTS (贷方发生额 WHERE
+    客户名称=明细账.对方单位 AND 贷方发生额≈明细账.贷方金额 AND 凭证日期))
+  description: 当其他应付款贷方出现来自客户的收款，且金额与某一期间收入确认金额高度相近但未找到对应结转分录时，判定为收入挂账。若相关销售合同约定的履约义务已完成或商品控制权已转移，即构成蓄意调节收入。
+  audit_item: 未按规定核算负债
+  suspicion: 违规将当期收入隐匿在其他应付款
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第14号——收入\",\n    \"法规文号\": \"财会[2017]22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第四条、第五条\",\n    \"内容概述\": \"企业应当在履行了合同中的履约义务，即在客户取得相关商品控制权时确认收入；对于合同中企业已收或应收客户对价而应向客户转让商品的义务，应确认为合同负债，待履约时转为收入。\"\
+    \n  }\n]"
+- expression: (ABS(会计凭证.金额 - 银行对账单.交易金额) > 0.01) || (会计凭证.对方单位名称 NOT IN (业务合同.签约方) AND 会计凭证.金额 > 10万元) || (会计凭证.附件张数 = 0 AND
+    会计凭证.金额 > 1万元) || (Benford首位数字分布检验 P值 < 0.01) || (会计凭证.摘要 CONTAINS '账外''小金库')
+  description: 金额与银行流水不符、无真实合同支撑的大额交易、原始凭证缺失、数字分布违背Benford定律或摘要出现敏感词，均触发伪造变造疑点。其中ABS(金额差)>0.01为直接可疑；无合同匹配且金额>10万元为严重可疑；无附件且金额>1万元为一般可疑。
+  audit_item: 违反会计管理规定的行为
+  suspicion: 伪造、变造会计凭证会计账簿及其他会计资料
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号（2017年修正）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第十三条、第四十三条\",\n    \"内容概述\": \"会计凭证、会计账簿和其他会计资料，必须符合国家统一的会计制度的规定，不得伪造、变造。伪造、变造会计凭证、会计账簿，编制虚假财务会计报告，构成犯罪的，依法追究刑事责任。\"\
+    \n  }\n]"
+- expression: (业务台账.担保人名称 NOT IN (名录.机构名称)) || (执照.有效期 < 业务台账.担保日期) || (执照.许可范围 NOT LIKE '%住房公积金贷款担保%')
+  description: 担保机构未在住房公积金管理中心备案合作名录中，或资质证书已过期，或许可范围未明确包含住房公积金贷款担保业务，任意条件满足即判定为无资质违规经营。
+  audit_item: 未按规定开展住房公积金贷款担保业务
+  suspicion: 无担保资质违规开展公积金贷款担保业务
+  regulation: "[\n  {\n    \"法规名称\": \"《融资担保公司监督管理条例》\",\n    \"法规文号\": \"国务院令第683号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"设立融资担保公司，应当经监督管理部门批准。未经监督管理部门批准，任何单位和个人不得经营融资担保业务。\"\n  }\n]"

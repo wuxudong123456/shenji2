@@ -1,0 +1,173 @@
+name: audit/业务单据类/入库单
+type: model
+description: 从业务单据类类文档（入库单）中提取结构化元数据。涵盖字段如：供应商、入库日期、对应采购合同编号、数量、日期、物料编码、货物名称、采购数量。文档范围包括：入库单、原材料出入库单、药品采购入库单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 合同
+- 采购
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 入库单
+  member_count: 1
+  member_details:
+  - 入库单
+  - 原材料出入库单
+  - 药品采购入库单
+output:
+  fields:
+  - name: 供应商
+    type: string
+    description: 提取 供应商 的文本值
+  - name: 入库日期
+    type: date
+    description: 提取 入库日期 的日期值，格式 YYYY-MM-DD
+  - name: 对应采购合同编号
+    type: string
+    description: 提取 对应采购合同编号 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 日期
+    type: date
+    description: 提取 日期 的日期值，格式 YYYY-MM-DD
+  - name: 物料编码
+    type: string
+    description: 提取 物料编码 的文本值
+  - name: 货物名称
+    type: string
+    description: 提取 货物名称 的文本值
+  - name: 采购数量
+    type: number
+    description: 提取 采购数量 的数值（含单位，如万元、吨等）
+  - name: 采购药品名称
+    type: string
+    description: 提取 采购药品名称 的文本值
+  - name: 领料单号
+    type: string
+    description: 提取 领料单号 的文本值
+  - name: 领用人
+    type: string
+    description: 提取 领用人 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (领料单号.领料单号 重复) || (领料单号.数量 > 标准单位耗用量.标准单位耗用量*生产日报表.实际产量*1.1) || (领料单号.领用料单未连续编号 且 审批人不在领料流程.审批权限内)
+  description: 领料单号重复表明重复报销；领用量超出标准耗用量10%以上且无超领审批单异常；单据编号不连续且审批人无权限可能为冒领。
+  audit_item: 未按规定确认成本费用
+  suspicion: 冒领或重复列支原材料
+  regulation: "[\n  {\n    \"法规名称\": \"企业内部控制应用指引第8号——资产管理\",\n    \"法规文号\": \"财会〔2010〕11号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第六条、第八条\",\n    \"内容概述\": \"企业应当建立严格的存货领用制度，明确审批权限，定期核对实存与账存，防止浪费、被盗和流失。\"\n  },\n  {\n    \"法规名称\": \"\
+    企业会计准则第1号——存货\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第五条、第六条第（二）款\",\n    \"内容概述\"\
+    : \"存货成本包括采"
+- expression: ((合同台账.供应商 股东/高管 集合 ∩ 合同台账.客户名称 股东/高管 集合)≠∅) && (合同台账.采购标的 == 合同台账.销售标的) && ( (合同台账.销售单价 - 合同台账.采购单价) / 合同台账.采购单价
+    ≤ 0.02 ) && ( |合同台账.签订日期 - 合同台账.签订日期| ≤ 30天 )
+  description: 判定条件：①采购供应商与销售客户的显名股东或高级管理人员存在交集（≥1人），构成实质关联；②同一标的物一进一出；③贸易毛利率≤2%，远低于正常商业利润，缺乏商业实质；④采购与销售合同签署时间间隔≤30天，呈现资金过账特征。满足全部条件即触发重大虚假贸易疑点，风险等级高。
+  audit_item: 虚假贸易审计
+  suspicion: 上下游关联方交易缺乏商业实质
+  regulation: "[\n  {\n    \"法规名称\": \"关于规范中央企业贸易管理严禁各类虚假贸易的通知\",\n    \"法规文号\": \"国资发财评规〔2023〕74号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"不准参与特定利益关系企业间开展的无商业目的的贸易业务，严禁上下游为同一控制人或存在特定利益关系的空转贸易。\"\n  }\n]"
+- expression: ( (合同台账.预付款比例 >= 0.8) && ( NOW() - 合同台账.约定交货日期 > 90天 ) && ( 入库单.对应采购合同编号 记录为空 ) ) || ( (合同台账.收款条件（赊销） == '赊销')
+    && ( NOW() - 合同台账.约定交货日期 > 180天 ) && ( 明细账.金额 > 0 ) && ( 出库单.对应销售合同编号 记录为空 ) )
+  description: 采购端：预付款比例≥80%，且超过约定交货期90天仍未收到货物，同时系统内无任何对应入库记录，表明资金已付出但实物流未发生，高度疑似融资性贸易。销售端：赊销方式下货物声称已交付超过180天，应收账款仍未收回，且无出库单流转记录，表明货权未真实转移，疑似空转贸易。任一条件满足即触发疑点，预付款情形风险等级高。
+  audit_item: 虚假贸易审计
+  suspicion: 大额预付款无货物交付或应收账款长期无回收
+  regulation: "[\n  {\n    \"法规名称\": \"关于规范中央企业贸易管理严禁各类虚假贸易的通知\",\n    \"法规文号\": \"国资发财评规〔2023〕74号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第三条、第四条\",\n    \"内容概述\": \"严禁以贸易业务为名从事融资性贸易，严禁开展对交易标的没有控制权的空转贸易。\"\n  }\n]"
+- expression: (采购合同.合同总额 != 入库单.数量) || (管理台账.发票金额 > 付款记录.金额 * 1.2) || (固定资产折旧与摊销明细表.本期折旧 > (固定资产原值 * 税法最低折旧率上限))
+  description: 逻辑判断：采购合同、入库单、发票三单金额不一致，或发票金额显著超过实际付款（无真实交易），或折旧摊销超出税法允许上限，均构成虚列成本。其中发票金额超过付款金额20%视为异常。
+  audit_item: 违反税收征管规定的行为
+  suspicion: 虚列成本费用少缴企业所得税
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国企业所得税法\",\n    \"法规文号\": \"主席令第六十三号\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第八条\",\n    \"内容概述\": \"企业实际发生的与取得收入有关的、合理的支出，包括成本、费用、税金、损失和其他支出，准予在计算应纳税所得额时扣除。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国税收征收管理法\"\
+    ,\n    \"法规文号\": \"主席令第四十九号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第六十三条\",\n    \"内容概述\": \"多列支出属于偷税行为，由税务机关追缴其不"
+- expression: COUNT(其他.处方编号 WHERE 其他.药品名称 NOT IN (基本药品目录清单.基本药品目录清单)) > 10
+  description: 统计处方笺中药品名称不在国家基本药物目录内的处方数量，若超过10张，则疑为超出基本用药目录范围用药。重点关注抗生素、注射液等高风险品类。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不合规
+  suspicion: 乡村医生超出基本用药目录用药
+  regulation: "[\n  {\n    \"法规名称\": \"关于完善国家基本药物制度的意见\",\n    \"法规文号\": \"国办发〔2018〕88号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"二（四）\",\n    \"内容概述\": \"医疗卫生机构应全面配备、优先使用基本药物，临床用药应首选基本药物，无充分理由不得开具基本药物目录外药品。\"\n  }\n]"

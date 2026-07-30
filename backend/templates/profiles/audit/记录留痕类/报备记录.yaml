@@ -1,0 +1,68 @@
+name: audit/记录留痕类/报备记录
+type: model
+description: 从记录留痕类类文档（报备记录）中提取结构化元数据。涵盖字段如：房屋编号、报修原因、报修日期、损坏描述。文档范围包括：房屋维修报备记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 报备记录
+  member_count: 1
+  member_details:
+  - 房屋维修报备记录
+output:
+  fields:
+  - name: 房屋编号
+    type: string
+    description: 提取 房屋编号 的文本值
+  - name: 报修原因
+    type: string
+    description: 提取 报修原因 的文本值
+  - name: 报修日期
+    type: date
+    description: 提取 报修日期 的日期值，格式 YYYY-MM-DD
+  - name: 损坏描述
+    type: string
+    description: 提取 损坏描述 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (报备记录.报修原因包含‘拆除’‘破坏’‘拆改’ && 登记表.是否审批 = ‘否’) || (收支台账.摘要包含‘保证金扣除’ && 收支台账.收入项目名称包含‘违规装修’ && 登记表中无对应审批记录) || (检查记录.检查发现（如违规装修、破坏结构）包含‘违规改建’‘私改墙体’‘增加隔断’等)
+    || (投诉记录.投诉内容包含‘违规装修’‘破坏结构’且属实)
+  description: 表达式通过四种途径识别未获批的破坏性装修行为：维修记录中出现非正常破损且无装修审批的，表明承租人擅自施工损坏房屋；保证金扣除记录若因违规装修且没有审批追溯，系运营单位已发现并处理的证据；物业检查记录直接记载的违规装修现象、经核实的举报投诉，均可单独触发疑点。符合任一条件即判定为擅自装修或破坏。
+  audit_item: 未按规定使用公共租赁住房
+  suspicion: 承租人破坏或擅自装修公租房
+  regulation: "[\n  {\n    \"法规名称\": \"公共租赁住房管理办法\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十六条\",\n    \"内容概述\": \"承租人不得破坏或者擅自装修所承租公共租赁住房。\"\n  }\n]"

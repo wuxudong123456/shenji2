@@ -1,0 +1,138 @@
+name: audit/合同协议类/购置合同
+type: model
+description: 从合同协议类类文档（购置合同）中提取结构化元数据。涵盖字段如：发动机排量、合同签订日期、合同金额、实际购置价格、购置日期、车辆品牌型号。文档范围包括：资产购置合同、车辆购置合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 车辆
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 购置合同
+  member_count: 1
+  member_details:
+  - 资产购置合同
+  - 车辆购置合同
+output:
+  fields:
+  - name: 发动机排量
+    type: string
+    description: 提取 发动机排量 的文本值
+  - name: 合同签订日期
+    type: date
+    description: 提取 合同签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 实际购置价格
+    type: number
+    description: 提取 实际购置价格 的数值（含单位，如万元、吨等）
+  - name: 购置日期
+    type: date
+    description: 提取 购置日期 的日期值，格式 YYYY-MM-DD
+  - name: 车辆品牌型号
+    type: string
+    description: 提取 车辆品牌型号 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: 购置合同.实际购置价格 > 负责人用车配备标准(含价格、排量).负责人用车配备标准(含价格、排量) || 购置合同.发动机排量 > 负责人用车配备标准(含价格、排量).负责人用车配备标准(含价格、排量) || 资产台账.使用状态
+    == '待报废' && 资产台账.使用状态 < 负责人用车配备标准(含价格、排量).负责人用车配备标准(含价格、排量)
+  description: 判定规则：1.将车辆实际购置价格与企业内部制度或上级主管部门规定的价格上限进行比对，超出即违规；2.将车辆实际发动机排量与制度规定的排量上限比对，超出即违规；3.核查车辆是否未达到规定最低使用年限即提前报废更新。
+  audit_item: 未严格落实中央八项规定及实施细则精神
+  suspicion: 超标准配备公务用车
+  regulation: "[\n  {\n    \"法规名称\": \"中央企业负责人履职待遇、业务支出管理办法\",\n    \"法规文号\": \"国资发分配〔2015〕15号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第八条、第九条\",\n    \"内容概述\": \"企业负责人公务用车配置标准，参照中央和国家机关公务用车配备有关规定执行，不得超标准配备。车辆不得超编配备，实行集中管理，不得既领取公务交通补贴又违规使用公务用车。\"\
+    \n  },\n  {\n    \"法规名称\": \"党政机关厉行节约反对浪费条例\",\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"党内法规\",\n    "
+- expression: (资产台账.使用状态 = '闲置' || 闲置资产明细表.闲置时长 >= 365) && (资产使用效率分析表.年使用天数 <= 30 || 资产使用效率分析表.利用率 < 0.05) && (闲置资产专项报告.闲置原因分析不包含'不可抗力'
+    && 历史问题整改报告.闲置问题整改状态 = '未整改')
+  description: 判定闲置资产并排除不可抗力等合理原因，同时满足连续闲置超过1年、年使用天数低于30天或利用率低于5%的条件，且未被有效整改的，视为严重违规闲置。
+  audit_item: 资产管理方面存在的问题
+  suspicion: 购置或建成资产长期闲置
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国企业国有资产法\",\n    \"法规文号\": \"中华人民共和国主席令第五号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第三十六条\",\n    \"内容概述\": \"国家出资企业投资应当符合国家产业政策，并按照国家规定进行可行性研究；与他人交易应当公平、有偿，取得合理对价。\"\n  }\n]"

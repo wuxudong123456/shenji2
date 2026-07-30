@@ -1,0 +1,128 @@
+name: audit/合同协议类/置换协议
+type: model
+description: 从合同协议类类文档（置换协议）中提取结构化元数据。涵盖字段如：置换来源企业、设备及产能。文档范围包括：产能置换协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 置换协议
+  member_count: 1
+  member_details:
+  - 产能置换协议
+output:
+  fields:
+  - name: 置换来源企业
+    type: string
+    description: 提取 置换来源企业 的文本值
+  - name: 设备及产能
+    type: string
+    description: 提取 设备及产能 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: SUM(淘汰清单.实际淘汰产能) < 政策文件.目标任务量（按企业、按设备） OR （淘汰清单.实际关停日期 IS NULL AND 统计表.累计完成量 包含该设备） OR （自查报告.企业上报完成量 > 自查报告.政府核定完成量
+    AND 差异率 > 10%）
+  description: 通过汇总实际关停的产能与政策下达的任务量比对，若实际完成量低于目标任务量，即构成未足量完成。同时，若任务完成统计表显示某设备已关停，但淘汰清单中缺少对应的实际关停日期或关闭证明，则涉嫌虚报完成；企业自查报告与政府考核结果差异超过10%的，需重点核查是否存在虚假淘汰。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 未按期足量完成去产能任务或虚假淘汰
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于钢铁行业化解过剩产能实现脱困发展的意见\",\n    \"法规文号\": \"国发〔2016〕6号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"三、主要任务（二）\",\n    \"内容概述\": \"各地区、各企业要严格按照目标任务和时间要求，加大化解过剩产能工作力度，确保完成去产能任务。\"\n  },\n  {\n    \"法规名称\"\
+    : \"关于做好2018年重点领域化解过剩产能工作的通知\",\n    \"法规文号\": \"发改运行〔2018〕554号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"二、认真组织开展化解过剩产"
+- expression: 新建产能规模、淘汰产能来源及数量、置换比例、新建项目产能、置换来源产能.置换比例 < 各行业置换比例要求（如钢铁置换范围、置换程序：各行业置换比例要求（如钢铁1:1.25）、置换范围、置换程序、各行业置换比例要求（如钢铁置换范围.各行业置换比例要求（如钢铁1:1.25）
+    OR （新建产能规模、淘汰产能来源及数量、置换比例、新建项目产能、置换来源产能.置换来源产能 NOT IN 淘汰清单.置换来源设备是否纳入淘汰计划  OR 淘汰清单.实际关停时间 IS NULL） OR 置换来源企业、设备及产能.关停证明文件（拆除照片、公告等）
+    IS NULL
+  description: 置换比例不得低于政策规定的最低值，置换用的退出产能必须真实关停并提供有效证明。若置换比例不足，或者用于置换的产能未纳入淘汰清单、无实际关停日期、缺少关闭证明，均构成违规。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 产能置换比例不达标或虚假置换
+  regulation: "[\n  {\n    \"法规名称\": \"关于做好2018年重点领域化解过剩产能工作的通知\",\n    \"法规文号\": \"发改运行〔2018〕554号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"附件：产能置换实施办法\",\n    \"内容概述\": \"钢铁、水泥、平板玻璃等行业新建项目必须实施产能置换，置换比例分别为：钢铁不低于1:1.25，水泥、平板玻璃不低于1:1.5；置换产能必须真实退出，不得重复使用。\"\
+    \n  }\n]"

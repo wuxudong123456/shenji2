@@ -1,0 +1,66 @@
+name: audit/数据表格类/确认表
+type: model
+description: 从数据表格类类文档（确认表）中提取结构化元数据。涵盖字段如：村干部签字、村民签字、村民签字人数、签字单位、签字真实性核实结果、签章日期、预算单位名称。文档范围包括：村民签字确认表、预算编制责任部门签字确认表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 预算
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 确认表
+  member_count: 1
+  member_details:
+  - 村民签字确认表
+  - 预算编制责任部门签字确认表
+output:
+  fields:
+  - name: 村干部签字
+    type: string
+    description: 提取 村干部签字 的文本值
+  - name: 村民签字
+    type: string
+    description: 提取 村民签字 的文本值
+  - name: 村民签字人数
+    type: number
+    description: 提取 村民签字人数 的数值（含单位，如万元、吨等）
+  - name: 签字单位
+    type: string
+    description: 提取 签字单位 的文本值
+  - name: 签字真实性核实结果
+    type: boolean
+    description: 提取 签字真实性核实结果 的布尔值（是/否）
+  - name: 签章日期
+    type: date
+    description: 提取 签章日期 的日期值，格式 YYYY-MM-DD
+  - name: 预算单位名称
+    type: number
+    description: 提取 预算单位名称 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 预算编制责任部门签字确认表.签字单位 != 对应的预算单位名称 && 对应的预算单位属于下属单位
+  description: 下属单位的预算编制责任签字由上级部门代替，且该下属单位具备独立预算申报资格，即判定为代报代编。
+  audit_item: 预算编制不规范
+  suspicion: 代报代编所属单位预算
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法实施条例\",\n    \"法规文号\": \"国务院令第729号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十七条\",\n    \"内容概述\": \"各部门应当根据本级政府财政部门的预算编制要求，制定本部门预算编制方案，组织所属各单位编制预算，不得代报代编所属单位预算。\"\n  }\n]"

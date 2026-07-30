@@ -1,0 +1,117 @@
+name: audit/清单名册类/事项清单
+type: model
+description: 从清单名册类类文档（事项清单）中提取结构化元数据。涵盖字段如：事项名称、具体控制描述、办理条件、审批事项名称、对应法规条款号、清单事项覆盖面、清单有无制定、责任部门。文档范围包括：前置研究事项清单、审计事项清单、行政许可/审批事项清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 审批
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 事项清单
+  member_count: 1
+  member_details:
+  - 前置研究事项清单
+  - 审计事项清单
+  - 行政许可/审批事项清单
+output:
+  fields:
+  - name: 事项名称
+    type: string
+    description: 提取 事项名称 的文本值
+  - name: 具体控制描述
+    type: string
+    description: 提取 具体控制描述 的文本值
+  - name: 办理条件
+    type: string
+    description: 提取 办理条件 的文本值
+  - name: 审批事项名称
+    type: string
+    description: 提取 审批事项名称 的文本值
+  - name: 对应法规条款号
+    type: number
+    description: 提取 对应法规条款号 的数值（含单位，如万元、吨等）
+  - name: 清单事项覆盖面
+    type: string
+    description: 提取 清单事项覆盖面 的文本值
+  - name: 清单有无制定
+    type: boolean
+    description: 提取 清单有无制定 的布尔值（是/否）
+  - name: 责任部门
+    type: string
+    description: 提取 责任部门 的文本值
+  - name: 需提交材料清单
+    type: string
+    description: 提取 需提交材料清单 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (法律法规识别台账.条款号 IS NOT NULL && 审计事项清单.对应法规条款号 IS NULL) || (ABS(COUNT(法律法规识别台账.条款号) - COUNT(审计事项清单.对应法规条款号)) >
+    0) || (法律法规识别台账.修订日期 < 法律法规识别台账.生效日期)
+  description: 判定单位是否将外部法律法规中的禁止性、限制性及要求性条款完整、及时地转化为内部审计事项清单和审计关注重点。表达式第一部分：存在法规条款但未映射到任何审计事项，即为疑点；第二部分：法规条款总数与审计事项覆盖的法规条款数不一致，触发疑点；第三部分：内部审计制度修订时间早于新法规生效日期，表明制度未能跟进法规更新，存在合规断档。风险等级：法规条款缺失映射为高风险，总数偏差为低风险，制度滞后的为预警。
+  audit_item: 从法规到事项
+  suspicion: 未建立法规条款与审计事项动态映射机制
+  regulation: "[\n  {\n    \"法规名称\": \"审计署关于内部审计工作的规定\",\n    \"法规文号\": \"审计署令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十二条\",\n    \"内容概述\": \"内部审计机构应当对本单位及所属单位贯彻落实国家重大政策措施情况进行审计；对本单位及所属单位发展规划、战略决策、重大措施以及年度业务计划执行情况进行审计。\"\n  },\n  {\n\
+    \    \"法规名称\": \"中国内部审计准则第2101号内部审计具体准则——审计计划\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\": \"第八条\"\
+    ,\n  "
+- expression: ( 收费明细台账.对应审批事项 && 服务合同.服务提供方 IN (名录.机构名称) && ABS(服务合同.是否强制或唯一 - 1) = 0 ) && ( ABS(收费明细台账.收费总额 - 流水.收款金额) <
+    0.01 )
+  description: 触发条件：在办理行政许可、资质认定等事项时，官方明确要求或暗中诱导必须通过特定名录内的中介机构提供服务，且该名录无公开竞争、无同等替代选项；同时，审计期间发现该中介服务的收费记录数量与被审计单位审批业务量呈明显同步变动，表明两者已捆绑。
+  audit_item: 违规收费-依托行政职权、行政资源及影响力通过垄断经营、指定服务、强制培训等违规收费
+  suspicion: 利用审批权指定中介服务并收费
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于进一步清理规范国务院部门行政审批中介服务的通知\",\n    \"法规文号\": \"国办发〔2015〕31号\",\n    \"效力级别\":\
+    \ \"制度文件\",\n    \"条款号\": \"第二条第三项\",\n    \"内容概述\": \"审批部门不得以任何形式指定中介服务机构，对各类中介服务机构提供的服务不得以任何形式附加限制性或歧视性条件。\"\n  },\n\
+    \  {\n    \"法规名称\": \"优化营商环境条例\",\n    \"法规文号\": \"国务院令第722号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十三条\",\n  \
+    \  \"内容概述\": "

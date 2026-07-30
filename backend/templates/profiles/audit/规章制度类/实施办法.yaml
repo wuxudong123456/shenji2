@@ -1,0 +1,59 @@
+name: audit/规章制度类/实施办法
+type: model
+description: 从规章制度类类文档（实施办法）中提取结构化元数据。涵盖字段如：补贴对象、补贴方式。文档范围包括：农机购置补贴专项实施办法等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 补贴
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 实施办法
+  member_count: 1
+  member_details:
+  - 农机购置补贴专项实施办法
+output:
+  fields:
+  - name: 补贴对象
+    type: string
+    description: 提取 补贴对象 的文本值
+  - name: 补贴方式
+    type: string
+    description: 提取 补贴方式 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 资金来源、资金用途、支出金额、拨付时间.资金来源 LIKE "%农机购置补贴%" && 资金来源、资金用途、支出金额、拨付时间.资金用途 NOT LIKE "%农机购置补贴%" && 资金来源、资金用途、支出金额、拨付时间.支出金额>0
+    && 整合资金来源清单、资金调整用途.资金调整用途 NOT IN ("农机具购置补贴")
+  description: 农机购置补贴为约束性任务，资金必须专款专用直补到户。若资金分配明细显示资金被用于非补贴用途（如基础设施建设、产业发展），且实施方案未按规定保留约束性任务属性，即触发违规。当涉及金额≥10万元时风险等级为高。
+  audit_item: 涉农资金统筹整合不规范
+  suspicion: 农机购置补贴资金违规统筹用于非补贴项目
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政农业生产发展资金管理办法\",\n    \"法规文号\": \"财农〔2022〕36号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第六条、第十二条\",\n    \"内容概述\": \"农机购置补贴属于约束性任务，不得擅自调整；资金不得用于与农业生产发展无关的支出，严禁挪作他用。\"\n  }\n]"

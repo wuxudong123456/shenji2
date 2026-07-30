@@ -1,0 +1,61 @@
+name: audit/规章制度类/办事指南
+type: model
+description: 从规章制度类类文档（办事指南）中提取结构化元数据。涵盖字段如：办理条件、所需提交材料、有无指定供应商说明。文档范围包括：行政审批事项办事指南等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 办事指南
+  member_count: 1
+  member_details:
+  - 行政审批事项办事指南
+output:
+  fields:
+  - name: 办理条件
+    type: string
+    description: 提取 办理条件 的文本值
+  - name: 所需提交材料
+    type: string
+    description: 提取 所需提交材料 的文本值
+  - name: 有无指定供应商说明
+    type: boolean
+    description: 提取 有无指定供应商说明 的布尔值（是/否）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ( 办事指南.有无指定供应商说明 && 收费明细.对应审批事项 && 办事指南.办理条件 )
+  description: 若在审批所需材料中，被审计单位自行设置的办事指南将某项有偿服务捆绑为受理前置条件，且指定唯一或特定范围的机构提供该服务（即使表面上未写死唯一，但通过技术参数等限制只能某几家满足），同时该服务并非法律法规明确规定必须购买的，则构成捆绑收费。需排除法律法规强制要求的法定检测评估。
+  audit_item: 违规收费-依托行政职权、行政资源及影响力通过垄断经营、指定服务、强制培训等违规收费
+  suspicion: 行政审批捆绑购买指定商品服务
+  regulation: "[\n  {\n    \"法规名称\": \"优化营商环境条例\",\n    \"法规文号\": \"国务院令第722号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第二十四条\",\n    \"内容概述\": \"行政审批机关不得将特定的中介服务作为受理的前置条件，不得强制企业接受指定的中介服务。\"\n  },\n  {\n    \"法规名称\": \"国务院关于在市场体系建设中建立公平竞争审查制度的意见\"\
+    ,\n    \"法规文号\": \"国发〔2016〕34号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"审查标准-商品和要素自由流动标准\",\n    \"内容概述\": \"不得限定经营"

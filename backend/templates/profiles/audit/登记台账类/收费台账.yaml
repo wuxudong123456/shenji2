@@ -1,0 +1,139 @@
+name: audit/登记台账类/收费台账
+type: model
+description: 从登记台账类类文档（收费台账）中提取结构化元数据。涵盖字段如：单价、收取的杂费、收费金额、收费面积、水量、用户名称、管理费列支、缴费户数。文档范围包括：收费台账、水务公司收费台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 收费台账
+  member_count: 1
+  member_details:
+  - 收费台账
+  - 水务公司收费台账
+output:
+  fields:
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 收取的杂费
+    type: number
+    description: 提取 收取的杂费 的数值（含单位，如万元、吨等）
+  - name: 收费金额
+    type: number
+    description: 提取 收费金额 的数值（含单位，如万元、吨等）
+  - name: 收费面积
+    type: number
+    description: 提取 收费面积 的数值（含单位，如万元、吨等）
+  - name: 水量
+    type: string
+    description: 提取 水量 的文本值
+  - name: 用户名称
+    type: string
+    description: 提取 用户名称 的文本值
+  - name: 管理费列支
+    type: number
+    description: 提取 管理费列支 的数值（含单位，如万元、吨等）
+  - name: 缴费户数
+    type: number
+    description: 提取 缴费户数 的数值（含单位，如万元、吨等）
+  - name: 费种
+    type: number
+    description: 提取 费种 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 收费明细表.收费方式='按亩收费' || (用水量统计表.各用水户实际用水量>0 && 收费明细表.金额/收费台账.收费面积=固定单价且未与用水量挂钩)
+  description: 收费方式仍为按亩收费，或虽有计量数据但收费金额与用水量无线性匹配关系，均为未执行计量收费。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 未执行农业用水计量供水与计量收费
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、建立健全农业水价形成机制（八）\",\n    \"内容概述\": \"区分粮食作物、经济作物等用水类型，在终端用水环节实行分类水价。各地应以此为基础，逐步实现按量收费。\"\n  }\n]"
+- expression: 收费明细表.基层实际执行水价 > 批复文件.省级或上级批准的最高限价/基准价 * 1.05
+  description: 基层实际执行的水价超过省级价格主管部门批复的最高限价5%以上，存在搭车收费、擅自加价行为。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 农业水价违规层层加码
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、建立健全农业水价形成机制（六）\",\n    \"内容概述\": \"水价制定要统筹考虑供水成本、水资源稀缺程度、用户承受能力等，合理确定。任何单位和个人不得随意加价及搭车收费。\"\n  }\n]"
+- expression: 收费台账.费种（污水处理费）='污水处理费' AND 收费台账.金额 > 收费台账.金额 AND 项目清单.项目类型='保障性住房' AND 收费台账.用户名称（项目名称）=项目清单.项目名称
+  description: 减免比例依据地方政策确定，例如减半征收则减免比例为50%，若实际缴费大于应缴费金额即视为未足额减免，构成违规。如地方政策为全免，则应缴费金额为0，任何大于0的收费均违规。
+  audit_item: 违规向保障性安居工程项目收取应减免行政事业性收费和政府性基金
+  suspicion: 违规全额收取保障性安居工程项目污水处理费
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于保障性安居工程建设和管理的指导意见\",\n    \"法规文号\": \"国办发〔2011〕45号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第三条第（六）款\",\n    \"内容概述\": \"免除保障性安居工程政府性基金，污水处理费按政府性基金管理，按规定应予减免。\"\n  }\n]"

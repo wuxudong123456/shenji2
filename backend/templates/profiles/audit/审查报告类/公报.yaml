@@ -1,0 +1,79 @@
+name: audit/审查报告类/公报
+type: model
+description: 从审查报告类类文档（公报）中提取结构化元数据。涵盖字段如：地下水超采区范围、地表水资源量、多年平均降雨量。文档范围包括：当地水资源公报等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 公报
+  member_count: 1
+  member_details:
+  - 当地水资源公报
+output:
+  fields:
+  - name: 地下水超采区范围
+    type: string
+    description: 提取 地下水超采区范围 的文本值
+  - name: 地表水资源量
+    type: string
+    description: 提取 地表水资源量 的文本值
+  - name: 多年平均降雨量
+    type: string
+    description: 提取 多年平均降雨量 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (公报.多年平均降雨量 < 400 || 公报.地下水超采区范围 = '是') && (记录表.用途（冲污/景观补水） IN ('冲污', '景观补水') && (记录表.实际调水量(万吨) > 论证报告.调水规模论证
+    * 1.1 || 评估材料.大水面建成后使用率 < 0.5))
+  description: 表达式首先判断区域本底是否为缺水地区（年降雨量<400mm或属于地下水超采区）。若是，则检查是否存在调水用于冲污或造景的行为。进一步，判定该调水行为是否存在超额（实际调水量超过批准规模10%以上）或无效（大水面建成后使用率低于50%）的情况。满足缺水条件且存在无效/超额调水行为，即判定为违规。
+  audit_item: 农村黑臭水体治理不到位
+  suspicion: 缺水地区违规调水冲污或造景
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国水法\",\n    \"法规文号\": \"中华人民共和国主席令第74号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第二十一条\",\n    \"内容概述\": \"开发、利用水资源，应当首先满足城乡居民生活用水，并兼顾农业、工业、生态环境用水以及航运等需要。在干旱和半干旱地区开发、利用水资源，应当充分考虑生态环境用水需要。\"\n  },\n\
+    \  {\n    \"法规名称\": \"地下水管理条例\",\n    \"法规文号\": \"中华人民共和国国务院令第748号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三十五条\"\
+    ,\n  "

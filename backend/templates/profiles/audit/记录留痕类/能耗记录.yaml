@@ -1,0 +1,64 @@
+name: audit/记录留痕类/能耗记录
+type: model
+description: 从记录留痕类类文档（能耗记录）中提取结构化元数据。涵盖字段如：单位产量能耗、总能耗费用。文档范围包括：水电能耗记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 能耗记录
+  member_count: 1
+  member_details:
+  - 水电能耗记录
+output:
+  fields:
+  - name: 单位产量能耗
+    type: string
+    description: 提取 单位产量能耗 的文本值
+  - name: 总能耗费用
+    type: number
+    description: 提取 总能耗费用 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (原材料投入产出表.实际单耗 - BOM物料清单.单位产品材料定额) / BOM物料清单.单位产品材料定额 > 10% && 原材料价格波动表.采购单价及同比变动 < 5% && (主营业务成本明细表.直接材料成本
+    - 原材料投入产出表.主要原材料投入量) > 15%
+  description: 若实际单位产品材料消耗明显超出定额，而材料价格无明显上涨，且材料成本总额变动远超投入量变动，则存在少结转成本、将成本挤入存货或虚增产量的可能。阈值10%为耗用异常，15%为成本异常。
+  audit_item: 企业财务报表分析
+  suspicion: 主营业务成本与产量、物耗不匹配
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第1号——存货\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十四条\",\n    \"内容概述\": \"企业应当采用先进先出法、加权平均法或者个别计价法确定发出存货的实际成本。对于已售存货，应当将其成本结转为当期损益，不得随意少转或多转。\"\n  },\n  {\n    \"\
+    法规名称\": \"企业会计准则——基本准则\",\n    \"法规文号\": \"财政部令第33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三十三条\",\n    \"内容概述\"\
+    : \"费用是指"

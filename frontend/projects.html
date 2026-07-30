@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>审计项目 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.p-setup { display:none; }
+.p-setup.active { display:block; animation:fadeIn 0.3s ease; }
+.kw-panel { display:none; }
+.kw-panel.active { display:block; animation:fadeIn 0.3s ease; }
+.kw-tabs { display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border); }
+.kw-tab { padding:10px 24px;cursor:pointer;font-weight:500;font-size:15px;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s; }
+.kw-tab:hover { color:var(--color-primary); }
+.kw-tab.active { color:var(--color-primary);border-bottom-color:var(--color-primary); }
+.project-card { border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:8px;transition:all 0.15s;cursor:pointer; }
+.project-card:hover { border-color:var(--color-primary);box-shadow:var(--shadow-sm); }
+.dt-panel { animation:fadeIn 0.3s ease; }
+.sheet-tab {
+  padding:8px 18px; font-size:13px; font-weight:500; cursor:pointer;
+  background:var(--color-bg); border:1px solid var(--color-border);
+  border-bottom:none; border-radius:6px 6px 0 0;
+  color:var(--color-text-muted); transition:all 0.1s;
+}
+.sheet-tab:hover { background:#fff; color:var(--color-text); }
+.sheet-tab.active {
+  background:#fff; color:var(--color-primary); font-weight:600;
+  border-color:var(--color-primary); border-bottom:2px solid #fff;
+  margin-bottom:-1px; position:relative; z-index:1;
+}
+.goal-card { border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:8px; }
+.material-item { display:flex;align-items:center;gap:var(--space-sm);padding:8px 0;font-size:14px; }
+.material-item + .material-item { border-top:1px solid var(--color-border); }
+.section-label { font-size:12px;color:var(--color-text-muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px; }
+.audit-standard-ref { font-size:12px;color:var(--color-text-muted);font-style:italic; }
+</style>
+</head>
+<body data-page="projects">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content">
+
+<!-- ====== 项目详情 ====== -->
+<div id="view-detail" style="display:none;">
+  <div class="page-header"><div><h1 id="detail-title"><i class="bi bi-folder2-open"></i> 项目详情</h1>
+  <div class="breadcrumb"><a href="#" onclick="Proj.backToList()"><i class="bi bi-arrow-left"></i> 返回项目列表</a></div></div></div>
+
+  <!-- 操作按钮栏 — 所有 Tab 上方，始终可见 -->
+  <div style="display:flex;gap:8px;margin:var(--space-md) 0;">
+    <button class="btn btn-accent btn-lg" onclick="Proj.launchFromDetail()"><i class="bi bi-rocket-takeoff"></i> 启动智能分析</button>
+    <button class="btn btn-outline" onclick="Proj.editProject()"><i class="bi bi-pencil"></i> 修改项目信息</button>
+  </div>
+
+  <!-- Excel Sheet 风格 Tab -->
+  <div style="display:flex;gap:2px;align-items:flex-end;" id="detail-tabs">
+    <div class="sheet-tab active" onclick="Proj.detailTab('info',this)">项目基本情况</div>
+    <div class="sheet-tab" onclick="Proj.detailTab('profile',this)">被审计单位情况</div>
+    <div class="sheet-tab" onclick="Proj.detailTab('policy',this)">被审计行业政策</div>
+    <div class="sheet-tab" onclick="Proj.detailTab('materials',this)">项目资料</div>
+    <div style="flex:1;border-bottom:2px solid var(--color-primary);"></div>
+  </div>
+
+  <!-- Tab 1: 项目基本情况 -->
+  <div id="dt-info" class="dt-panel">
+    <div class="card"><div class="card-header"><h3><i class="bi bi-info-circle"></i> 项目基本情况</h3></div>
+      <div class="table-wrap"><table class="table" style="font-size:13px;"><tbody>
+        <tr><td style="width:100px;color:var(--color-text-muted);">项目名称</td><td><strong id="d-name">—</strong></td></tr>
+        <tr><td style="color:var(--color-text-muted);">项目编号</td><td id="d-code">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">被审计单位</td><td id="d-unit">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">审计类型</td><td id="d-type">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">审计期间</td><td id="d-period">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">单位层级</td><td id="d-level">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">审计组长</td><td id="d-leader">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">主审</td><td id="d-auditor">—</td></tr>
+        <tr><td style="color:var(--color-text-muted);">审计目标</td><td id="d-objective">—</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Tab 2: 被审计单位情况 -->
+  <div id="dt-profile" class="dt-panel" style="display:none;">
+    <div class="card"><div class="card-header"><h3><i class="bi bi-building"></i> 被审计单位情况</h3></div>
+      <div class="table-wrap"><table class="table" style="font-size:13px;"><tbody>
+        <tr><td style="width:100px;color:var(--color-text-muted);">单位性质</td><td>行政机关</td></tr>
+        <tr><td style="color:var(--color-text-muted);">主要职能</td><td>教育行政管理、教学设备采购管理</td></tr>
+        <tr><td style="color:var(--color-text-muted);">预算规模</td><td>年度预算约2.5亿元</td></tr>
+        <tr><td style="color:var(--color-text-muted);">内控健全性</td><td><span class="badge badge-warning">基本健全</span></td></tr>
+        <tr><td style="color:var(--color-text-muted);">风险评估</td><td><span class="badge badge-accent">中风险</span></td></tr>
+        <tr><td style="color:var(--color-text-muted);">主要风险点</td><td>采购程序合规、资金使用规范</td></tr>
+        <tr><td style="color:var(--color-text-muted);">以往审计问题</td><td>2024年发现零星采购未比价问题</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Tab 3: 被审计行业政策 -->
+  <div id="dt-policy" class="dt-panel" style="display:none;">
+    <div class="card"><div class="card-header"><h3><i class="bi bi-journal-text"></i> 被审计行业政策</h3></div>
+      <div style="font-size:13px;line-height:1.8;">
+        <div class="rec-item"><i class="bi bi-journal-text" style="color:var(--color-primary);"></i><div style="flex:1;"><strong>《中华人民共和国招标投标法》</strong><div style="font-size:12px;color:var(--color-text-muted);">法律 · 现行有效 · 招标基本法</div></div><a class="trace-link" href="#">📍</a></div>
+        <div class="rec-item"><i class="bi bi-journal-text" style="color:var(--color-primary);"></i><div style="flex:1;"><strong>《必须招标的工程项目规定》</strong><div style="font-size:12px;color:var(--color-text-muted);">部门规章 · 发改委16号令</div></div><a class="trace-link" href="#">📍</a></div>
+        <div class="rec-item"><i class="bi bi-journal-text" style="color:var(--color-success);"></i><div style="flex:1;"><strong>《湖南省建设工程招标投标管理办法》</strong><div style="font-size:12px;color:var(--color-text-muted);">地方性法规 · 湖南省</div></div><a class="trace-link" href="#">📍</a></div>
+        <div class="rec-item"><i class="bi bi-journal-text" style="color:var(--color-accent);"></i><div style="flex:1;"><strong>《某市教育局采购管理办法》</strong><div style="font-size:12px;color:var(--color-text-muted);">单位制度 · 审计对象适用</div></div><a class="trace-link" href="#">📍</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: 项目资料 -->
+  <div id="dt-materials" class="dt-panel" style="display:none;">
+
+    <!-- 审计业务文档 -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><h3><i class="bi bi-file-earmark-text"></i> 审计业务文档</h3><span class="badge badge-muted">按四阶段分类</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        <div style="padding:10px;background:rgba(26,58,92,0.03);border-radius:8px;border-left:3px solid var(--color-primary);">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px;">一、现场实施</div>
+          <div style="font-size:12px;color:var(--color-text-muted);">实施方案<span class="badge badge-success" style="float:right;">已上传</span></div>
+          <div style="font-size:12px;color:var(--color-text-muted);margin-top:2px;">审计通知书<span class="badge badge-warning" style="float:right;">待上传</span></div>
+        </div>
+        <div style="padding:10px;background:rgba(26,58,92,0.03);border-radius:8px;border-left:3px solid var(--color-warning);">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px;">二、出具报告</div>
+          <div style="font-size:12px;color:var(--color-text-muted);">征求意见稿<span class="badge badge-warning" style="float:right;">待上传</span></div>
+          <div style="font-size:12px;color:var(--color-text-muted);margin-top:2px;">审理意见书<span class="badge badge-muted" style="float:right;">未启动</span></div>
+        </div>
+        <div style="padding:10px;background:rgba(26,58,92,0.03);border-radius:8px;border-left:3px solid var(--color-success);">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px;">三、审计整改</div>
+          <div style="font-size:12px;color:var(--color-text-muted);">整改台账<span class="badge badge-muted" style="float:right;">未启动</span></div>
+        </div>
+        <div style="padding:10px;background:rgba(26,58,92,0.03);border-radius:8px;border-left:3px solid var(--color-text-muted);">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px;">四、成果利用</div>
+          <div style="font-size:12px;color:var(--color-text-muted);">成果统计<span class="badge badge-muted" style="float:right;">未启动</span></div>
+        </div>
+      </div>
+      <div class="upload-zone" style="padding:10px;margin-top:8px;font-size:12px;" onclick="AuditWorkbench.toast('上传审计业务文档','info')">
+        <i class="bi bi-cloud-upload"></i> 上传业务文档（自动归类到对应阶段）
+      </div>
+    </div>
+
+    <!-- 审计项目资料 -->
+    <div class="card">
+      <div class="card-header"><h3><i class="bi bi-folder"></i> 审计项目资料</h3><a href="docworkshop.html" style="font-size:13px;">资料工坊 →</a></div>
+      <div style="font-size:13px;">
+        <div class="rec-item"><i class="bi bi-file-earmark-pdf" style="color:var(--color-accent);"></i><div style="flex:1;"><strong>采购合同汇总.pdf</strong><div style="font-size:12px;color:var(--color-text-muted);">3.4MB · 已解析</div></div><a class="trace-link" href="docworkshop.html">📍</a></div>
+        <div class="rec-item"><i class="bi bi-file-earmark-spreadsheet" style="color:var(--color-success);"></i><div style="flex:1;"><strong>银行流水2026Q1.csv</strong><div style="font-size:12px;color:var(--color-text-muted);">856KB · 已解析</div></div><a class="trace-link" href="docworkshop.html">📍</a></div>
+        <div class="upload-zone" style="padding:12px;margin-top:8px;font-size:12px;" onclick="AuditWorkbench.toast('上传项目资料','info')">
+          <i class="bi bi-cloud-upload"></i> 上传项目资料
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ====== 项目列表（按年度折叠） ====== -->
+<div id="view-list">
+  <div class="page-header"><div><h1>审计项目</h1>
+  <div class="breadcrumb">依据《国家审计准则》· 审计立项 → 审计对象和范围 → 审计事项 → 督办提醒</div></div></div>
+
+  <!-- 2026年度（当前展开） -->
+  <div class="year-section">
+    <div class="year-header" onclick="Proj.toggleYear(this)" data-year="2026">
+      <i class="bi bi-chevron-down year-arrow"></i>
+      <span class="year-label">2026 年度</span>
+      <span class="badge badge-primary" style="margin-left:8px;">2 个项目</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--color-text-muted);">当前年度</span>
+    </div>
+    <div class="year-body">
+      <!-- 进行中 -->
+      <div style="margin-bottom:4px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">进行中</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+
+          <div class="apple-card" style="cursor:pointer;" onclick="Proj.resume('教育局2026采购审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-warning);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-warning);font-weight:500;">进行中</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">07-04</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">教育局2026教学设备采购审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某市教育局 · 预算执行审计</p>
+            <div style="display:flex;gap:24px;margin-bottom:14px;">
+              <div><span style="font-size:22px;font-weight:600;">3</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-accent);">2</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">疑点</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-success);">5</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">资料</span></div>
+            </div>
+            <div style="height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden;"><div style="height:100%;width:85%;background:var(--color-primary);border-radius:2px;"></div></div>
+            <button class="card-launch" onclick="event.stopPropagation();Proj.launchFromCard('教育局2026教学设备采购审计','某市教育局','预算执行审计')"><i class="bi bi-rocket-takeoff"></i> 启动分析</button>
+          </div>
+
+          <div class="apple-card" style="cursor:pointer;" onclick="Proj.resume('农业农村局补贴核查')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-primary);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-primary);font-weight:500;">进行中</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">07-03</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">农业农村局2026补贴核查</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某县农业农村局 · 农业农村审计</p>
+            <div style="display:flex;gap:24px;margin-bottom:14px;">
+              <div><span style="font-size:22px;font-weight:600;">2</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-accent);">5</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">疑点</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-success);">3</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">资料</span></div>
+            </div>
+            <div style="height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden;"><div style="height:100%;width:60%;background:var(--color-primary);border-radius:2px;"></div></div>
+            <button class="card-launch" onclick="event.stopPropagation();Proj.launchFromCard('农业农村局2026补贴核查','某县农业农村局','农业农村审计')"><i class="bi bi-rocket-takeoff"></i> 启动分析</button>
+          </div>
+
+          <!-- 新建项目 -->
+          <div class="apple-card" style="cursor:pointer;border:2px dashed var(--color-border);display:flex;align-items:center;justify-content:center;gap:10px;min-height:130px;" onclick="Proj.open()">
+            <i class="bi bi-plus-circle" style="font-size:32px;color:var(--color-primary);opacity:0.5;"></i>
+            <span style="font-size:15px;font-weight:600;color:var(--color-primary);opacity:0.7;">新建项目</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2025年度（折叠） -->
+  <div class="year-section collapsed">
+    <div class="year-header" onclick="Proj.toggleYear(this)" data-year="2025">
+      <i class="bi bi-chevron-right year-arrow"></i>
+      <span class="year-label">2025 年度</span>
+      <span class="badge" style="background:var(--color-bg);color:var(--color-text-muted);margin-left:8px;">3 个项目</span>
+    </div>
+    <div class="year-body" style="display:none;">
+      <div style="margin-bottom:4px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">已完成</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+
+          <div class="apple-card" style="cursor:pointer;opacity:0.85;" onclick="Proj.showDetail('卫健委2025医疗设备采购审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-success);font-weight:500;">已归档</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">2025-12-28</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">卫健委2025医疗设备采购审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某市卫健委 · 预算执行审计</p>
+            <div style="display:flex;gap:24px;">
+              <div><span style="font-size:22px;font-weight:600;">2</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-success);">3</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">疑点确认</span></div>
+            </div>
+          </div>
+
+          <div class="apple-card" style="cursor:pointer;opacity:0.85;" onclick="Proj.showDetail('交通局2025公路建设审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-success);font-weight:500;">已归档</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">2025-09-15</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">交通局2025公路建设审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某市交通局 · 固定资产投资审计</p>
+            <div style="display:flex;gap:24px;">
+              <div><span style="font-size:22px;font-weight:600;">4</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-success);">7</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">疑点确认</span></div>
+            </div>
+          </div>
+
+          <div class="apple-card" style="cursor:pointer;opacity:0.85;" onclick="Proj.showDetail('财政局2025预算执行审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-success);font-weight:500;">已归档</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">2025-06-30</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">财政局2025预算执行审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某市财政局 · 预算执行审计</p>
+            <div style="display:flex;gap:24px;">
+              <div><span style="font-size:22px;font-weight:600;">5</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+              <div><span style="font-size:22px;font-weight:600;color:var(--color-success);">2</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">疑点确认</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2024及更早（折叠） -->
+  <div class="year-section collapsed">
+    <div class="year-header" onclick="Proj.toggleYear(this)" data-year="2024">
+      <i class="bi bi-chevron-right year-arrow"></i>
+      <span class="year-label">2024 年及更早</span>
+      <span class="badge" style="background:var(--color-bg);color:var(--color-text-muted);margin-left:8px;">2 个项目</span>
+    </div>
+    <div class="year-body" style="display:none;">
+      <div style="margin-bottom:4px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">已归档</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+
+          <div class="apple-card" style="cursor:pointer;opacity:0.75;" onclick="Proj.showDetail('教育局2024校园建设审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-text-muted);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-text-muted);font-weight:500;">已归档</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">2024-12-20</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">教育局2024校园建设审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某县教育局 · 固定资产投资审计</p>
+            <div style="display:flex;gap:24px;">
+              <div><span style="font-size:22px;font-weight:600;">3</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+            </div>
+          </div>
+
+          <div class="apple-card" style="cursor:pointer;opacity:0.75;" onclick="Proj.showDetail('环保局2024专项资金审计')">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--color-text-muted);flex-shrink:0;"></div>
+              <span style="font-size:12px;color:var(--color-text-muted);font-weight:500;">已归档</span>
+              <span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">2024-08-10</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">环保局2024专项资金审计</h3>
+            <p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">某市环保局 · 专项资金审计</p>
+            <div style="display:flex;gap:24px;">
+              <div><span style="font-size:22px;font-weight:600;">4</span><span style="font-size:12px;color:var(--color-text-muted);margin-left:4px;">事项</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.year-section { margin-bottom:8px; }
+.year-section + .year-section { margin-top:20px; }
+.year-header {
+  display:flex; align-items:center; gap:6px;
+  padding:12px 16px; cursor:pointer; border-radius:10px;
+  background:#fff; border:1px solid var(--color-border);
+  transition:all 0.15s; user-select:none;
+}
+.year-header:hover { border-color:var(--color-primary); background:rgba(26,58,92,0.02); }
+.year-header .year-arrow { font-size:14px; color:var(--color-primary); transition:transform 0.2s; }
+.year-header .year-label { font-size:18px; font-weight:700; color:var(--color-text); }
+.collapsed .year-header { opacity:0.7; }
+.collapsed .year-header:hover { opacity:1; }
+.year-body { padding:8px 0 0; }
+.apple-card {
+  background:#fff; border-radius:16px; padding:20px 24px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.06);
+  transition:box-shadow 0.2s ease,transform 0.2s ease;
+}
+.apple-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08),0 2px 4px rgba(0,0,0,0.04);transform:translateY(-1px); }
+.apple-card .card-launch { display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:6px 14px;font-size:12px;font-weight:600;color:#fff;background:var(--color-accent);border:none;border-radius:6px;cursor:pointer;transition:all 0.15s; }
+.apple-card .card-launch:hover { opacity:0.85;transform:scale(1.02); }
+</style>
+
+<!-- ====== 项目立项（国家审计准则）====== -->
+<div id="view-setup" class="p-setup">
+  <div class="page-header"><div><h1><i class="bi bi-plus-circle"></i> 审计项目立项</h1>
+  <div class="breadcrumb">依据《国家审计准则》· 审计立项 → 审计对象和范围 → 审计事项 → 督办提醒</div></div>
+  <div>
+    <button class="btn btn-primary" onclick="Proj.save()"><i class="bi bi-save"></i> 保存项目</button>
+    <button class="btn btn-outline" onclick="Proj.cancel()"><i class="bi bi-x-lg"></i></button>
+  </div></div>
+
+  <!-- Tabs：国家审计准则流程 -->
+  <div class="kw-tabs" id="setup-tabs">
+    <div class="kw-tab active" onclick="Proj.tab(1)">一、审计立项</div>
+    <div class="kw-tab" onclick="Proj.tab(2)">二、审计对象和范围</div>
+    <div class="kw-tab" onclick="Proj.tab(3)">三、审计事项</div>
+    <div class="kw-tab" onclick="Proj.tab(4)">四、督办提醒</div>
+  </div>
+
+  <!-- Tab 1：审计立项 -->
+  <div class="kw-panel active" id="tab-1">
+    <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">依据《国家审计准则》第45-52条 · 支持手工创建和Excel批量导入两种方式</div>
+
+    <!-- 三种创建方式 -->
+    <div style="display:flex;gap:var(--space-md);margin-bottom:var(--space-lg);">
+      <div class="card" style="flex:1;text-align:center;cursor:pointer;border:2px solid var(--color-primary);background:rgba(26,58,92,0.02);" id="mode-ai" onclick="Proj.setMode('ai')">
+        <i class="bi bi-magic" style="font-size:36px;color:var(--color-primary);"></i>
+        <h3 style="margin:8px 0 4px;">AI 辅助</h3>
+        <p style="font-size:13px;color:var(--color-text-muted);">粘贴审计通知/方案，AI自动提取</p>
+      </div>
+      <div class="card" style="flex:1;text-align:center;cursor:pointer;" id="mode-template" onclick="Proj.setMode('template')">
+        <i class="bi bi-file-earmark-spreadsheet" style="font-size:36px;color:var(--color-success);"></i>
+        <h3 style="margin:8px 0 4px;">模板导入</h3>
+        <p style="font-size:13px;color:var(--color-text-muted);">下载模板 → 填写 → 导入</p>
+      </div>
+      <div class="card" style="flex:1;text-align:center;cursor:pointer;" id="mode-manual" onclick="Proj.setMode('manual')">
+        <i class="bi bi-pencil-square" style="font-size:36px;color:var(--color-text-muted);"></i>
+        <h3 style="margin:8px 0 4px;">手工创建</h3>
+        <p style="font-size:13px;color:var(--color-text-muted);">逐项填写项目信息</p>
+      </div>
+    </div>
+
+    <!-- AI辅助区（增强版：支持文件上传 + 文本粘贴）-->
+    <div class="card" id="zone-ai" style="display:none;border:2px solid var(--color-primary);">
+      <div class="card-header"><h3><i class="bi bi-magic"></i> AI辅助立项</h3></div>
+      <div class="alert alert-info" style="font-size:13px;">
+        上传审计相关文档（审计通知书、审前调查资料、被审计单位情况介绍、实施方案等），或粘贴文档内容。AI将自动分析并完成：<strong>项目基本信息 + 审计对象和范围 + 审计事项抽取</strong>。
+      </div>
+
+      <!-- File upload -->
+      <div style="margin-bottom:var(--space-md);">
+        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:4px;">📎 上传项目相关资料（可选，支持多文件）</div>
+        <div class="upload-zone" style="padding:20px;" id="ai-upload-zone">
+          <i class="bi bi-cloud-upload" style="font-size:32px;color:var(--color-primary);opacity:0.4;"></i>
+          <p style="font-size:13px;color:var(--color-text-muted);margin-top:4px;">拖拽文件到此处，或 <a href="#" onclick="event.preventDefault();">点击选择</a></p>
+          <p style="font-size:12px;color:var(--color-text-muted);">支持 PDF / Word / Excel / 图片 / 文本 · 可使用 OntoSKU 解析</p>
+        </div>
+        <div id="ai-files" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Or paste text -->
+      <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:4px;">📝 或粘贴文档内容</div>
+      <textarea class="form-textarea" id="ai-paste" rows="8" style="font-size:14px;line-height:1.8;"
+        placeholder="粘贴审计通知书、审前调查资料、被审计单位情况介绍等内容...&#10;&#10;例如：&#10;审计通知书&#10;根据《审计法》和2026年度审计项目计划安排...&#10;被审计单位：某市教育局&#10;审计期间：2026年1月至6月&#10;审计类型：预算执行审计&#10;涉及金额：教学设备采购约500万元&#10;..."></textarea>
+
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-accent btn-lg" onclick="Proj.aiExtract()"><i class="bi bi-magic"></i> AI综合分析</button>
+        <span style="font-size:13px;color:var(--color-text-muted);">自动完成：项目基本信息 + 审计对象和范围 + 审计事项拆分</span>
+      </div>
+
+      <div id="ai-result" style="display:none;margin-top:12px;padding:12px;background:rgba(45,125,70,0.06);border-radius:var(--radius-md);border:1px solid var(--color-success);">
+        <div style="font-size:13px;color:var(--color-success);margin-bottom:8px;"><i class="bi bi-check-circle"></i> AI综合分析完成，已提取以下内容：</div>
+        <div id="ai-fields"></div>
+        <button class="btn btn-primary btn-lg" style="margin-top:8px;" onclick="Proj.confirmAi()"><i class="bi bi-check-lg"></i> 一键确认，填充全部信息</button>
+      </div>
+    </div>
+
+    <!-- 模板导入区 -->
+    <div class="card" id="zone-template" style="display:none;">
+      <div class="card-header"><h3>模板导入</h3></div>
+      <div style="display:flex;align-items:center;gap:var(--space-md);margin-bottom:12px;">
+        <a href="#" class="btn btn-outline"><i class="bi bi-download"></i> 下载导入模板（.xlsx）</a>
+        <span style="font-size:13px;color:var(--color-text-muted);">模板包含：项目编号、项目名称、被审计单位、审计类型、审计期间等全部字段</span>
+      </div>
+      <div class="upload-zone" style="padding:30px;">
+        <div class="upload-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+        <p style="font-weight:500;">点击上传或拖拽填写好的 Excel 文件</p>
+        <p style="font-size:13px;color:var(--color-text-muted);">支持 .xlsx / .xls</p>
+      </div>
+    </div>
+
+    <!-- 手工创建表单 -->
+    <div id="zone-manual">
+      <!-- 基础字段 -->
+      <div class="card"><div class="card-header"><h3>基础信息</h3></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);">
+          <div class="form-group"><label class="form-label">项目编号 <span class="text-danger">*</span></label><input class="form-input" id="f-code" placeholder="如：审通〔2026〕001号"></div>
+          <div class="form-group"><label class="form-label">项目名称 <span class="text-danger">*</span></label><input class="form-input" id="f-name" placeholder="如：某市教育局2026年度预算执行审计"></div>
+          <div class="form-group"><label class="form-label">审计报告文号</label><input class="form-input" id="f-report-no" placeholder="如：审报〔2026〕001号"></div>
+          <div class="form-group"><label class="form-label">被审计单位 <span class="text-danger">*</span></label><input class="form-input" id="f-unit" placeholder="如：某市教育局"></div>
+          <div class="form-group"><label class="form-label">审计类型 <span class="text-danger">*</span></label><select class="form-select" id="f-type"><option>预算执行审计</option><option>专项审计调查</option><option>经济责任审计</option><option>固定资产投资审计</option><option>绩效审计</option><option>资源环境审计</option></select></div>
+          <div class="form-group"><label class="form-label">审计方式</label><select class="form-select"><option>就地审计</option><option>送达审计</option><option>联网审计</option></select></div>
+          <div class="form-group"><label class="form-label">项目开始日期</label><input type="date" class="form-input" id="f-start"></div>
+          <div class="form-group"><label class="form-label">审计进点日期</label><input type="date" class="form-input" id="f-entry-date"></div>
+          <div class="form-group"><label class="form-label">审计期间（起）</label><input type="date" class="form-input" id="f-period-start" value="2026-01-01"></div>
+          <div class="form-group"><label class="form-label">审计期间（止）</label><input type="date" class="form-input" id="f-period-end" value="2026-06-30"></div>
+          <div class="form-group"><label class="form-label">单位层级</label><select class="form-select" id="f-level"><option>国家级</option><option>省级</option><option selected>市级</option><option>县级</option><option>乡镇级</option></select></div>
+          <div class="form-group"><label class="form-label">涉及金额（万元）</label><input class="form-input" id="f-amount" placeholder="如：500"></div>
+        </div>
+      </div>
+
+      <!-- 审计目标 -->
+      <div class="card"><div class="card-header"><h3>审计目标</h3></div>
+        <div class="form-group">
+          <textarea class="form-textarea" id="f-objective" rows="4" style="font-size:14px;"
+            placeholder="如：通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理、提高资金使用效益。"></textarea></div>
+        <button class="btn btn-primary" onclick="Proj.aiParse()"><i class="bi bi-magic"></i> AI辅助生成审计目标</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2：审计对象和范围 -->
+  <div class="kw-panel" id="tab-2">
+    <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">依据《国家审计准则》第53-60条 · 明确审计对象、审计范围、审计重点及延伸审计规则</div>
+    <div class="card"><div class="card-header"><h3>审计对象和范围 <span class="text-danger">*</span></h3></div>
+      <div class="form-group"><label class="form-label">审计对象</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
+          <input class="form-input" id="f-target-unit" placeholder="被审计单位全称（如：某市教育局）" value="某市教育局">
+          <input class="form-input" id="f-extend-unit" placeholder="延伸审计单位（如：下属XX等X家二级单位）" value="下属招生办、教研室等5家二级单位">
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">审计范围描述 <span class="text-danger">*</span></label>
+        <textarea class="form-textarea" id="f-scope" rows="10" style="font-size:14px;line-height:1.8;">本次审计针对某市教育局2026年1月至6月预算执行情况及教学设备采购合规性进行审计，重点关注采购程序、资金使用和供应商管理等方面，必要时追溯到相关年度和延伸审计有关单位。
+
+按照"全面审计、聚焦重点"的工作原则，结合被审计单位预算规模、采购体量、业务特点等因素，确定此次审计对象为某市教育局本部及下属招生办、教研室等5家二级单位。
+
+延伸审计本实施方案以外的单位或事项，需报经审计组组长或其委托人员批准，并填报延伸审计台账。</textarea></div>
+      <div class="form-group"><label class="form-label">审计重点</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="focus-tags">
+          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">采购程序合规性<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
+          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">资金使用合规性<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
+          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">供应商管理<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
+          <span class="badge badge-warning" style="padding:6px 12px;font-size:13px;">预算编制与执行<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" placeholder="添加审计重点" id="focus-input" onkeydown="if(event.key==='Enter'){Proj.addFocus();event.preventDefault();}">
+          <button class="btn btn-sm btn-outline" onclick="Proj.addFocus()"><i class="bi bi-plus-lg"></i> 添加</button>
+        </div>
+      </div>
+      <div class="alert alert-info" style="font-size:13px;margin-bottom:0;">
+        <i class="bi bi-info-circle"></i> AI将根据审计范围和重点自动匹配违规模型、推荐法规依据和审计方法。
+        <a href="#" onclick="Proj.aiGenScope()" style="margin-left:8px;"><i class="bi bi-magic"></i> AI辅助生成范围描述</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4：督办提醒（看板视图）-->
+  <div class="kw-panel" id="tab-4">
+    <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">依据审计项目管理制度 · 四阶段12+里程碑 · AI自动计算期限 · 智能提醒临期/逾期</div>
+
+    <!-- Audit type selector for auto calculation -->
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-weight:600;white-space:nowrap;">审计项目类型：</span>
+        <select class="form-select" style="width:240px;" id="phase-audit-type" onchange="PhaseBoard.calcAll()">
+          <option value="30">预算执行审计（30天）</option>
+          <option value="45">经济责任审计（45天）</option>
+          <option value="60">自然资源资产责任审计（60天）</option>
+          <option value="60">政府重大投资/民生专项（60天）</option>
+        </select>
+        <span style="font-weight:600;white-space:nowrap;">进点日期：</span>
+        <input type="date" class="form-input" style="width:160px;" id="phase-entry-date" value="2026-07-03" onchange="PhaseBoard.calcAll()">
+        <button class="btn btn-primary btn-sm" onclick="PhaseBoard.calcAll()"><i class="bi bi-magic"></i> AI计算全部期限</button>
+        <span class="badge badge-success" id="phase-status" style="margin-left:auto;">已计算</span>
+      </div>
+    </div>
+
+    <!-- Kanban: 4 columns -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);" id="phase-kanban"></div>
+  </div>
+
+  <!-- Tab 3：审计事项（含AI推荐）-->
+  <div class="kw-panel" id="tab-3">
+    <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">审计事项是对审计内容的具体分解。每个事项可独立执行审计程序，系统将自动匹配违规模型、推荐资料清单和法规依据。</div>
+    <div class="card"><div class="card-header"><h3>审计事项清单</h3><span class="badge badge-muted" id="item-count2">3 个</span>
+      <button class="btn btn-sm btn-outline" onclick="Proj.addItem()"><i class="bi bi-plus-lg"></i> 添加</button></div>
+      <div class="alert alert-info" style="font-size:13px;"><i class="bi bi-robot"></i> AI根据项目信息自动拆分审计事项。点击展开查看AI推荐和审计任务分解。点击"启动分析"进入智能分析流程。</div>
+      <div id="audit-items2">
+        <!-- Item 1 -->
+        <div class="card" style="margin-bottom:var(--space-md);border-left:4px solid var(--color-primary);">
+          <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="Proj.toggleItem(this)">
+            <span style="font-size:22px;font-weight:700;color:var(--color-primary);width:28px;">1.</span>
+            <div style="flex:1;"><strong>教学设备采购合规性审计</strong>
+              <div style="font-size:13px;color:var(--color-text-muted);">核查5笔采购合同是否依法公开招标 · 涉及金额约500万元</div>
+              <span class="badge badge-muted">部门预算执行审计</span> <span class="badge badge-accent">高优先级</span></div>
+            <i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem('教学设备采购合规性审计')"><i class="bi bi-play-fill"></i> 启动分析</button>
+          </div>
+          <div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">
+              <div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;">
+                <div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常见问题表现</div>
+                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>将大额项目拆分为多个小额子项目</li><li>子项目金额均低于招标门槛</li><li>短时间内集中签订多份合同</li><li>同一供应商多次中标</li></ul>
+              </div>
+              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;">
+                <div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 审计所需资料</div>
+                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>采购合同及补充协议</li><li>招标公告及招标文件</li><li>评标报告及中标通知书</li><li>银行付款凭证及流水</li><li>供应商工商登记信息</li></ul>
+              </div>
+              <div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;">
+                <div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常见违规行为</div>
+                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>化整为零规避公开招标</li><li>违规采用询价方式采购</li><li>未按规定发布采购公告</li><li>供应商围标串标</li></ul>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
+              <div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;">
+                <div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常用审计方法</div>
+                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li><strong>合同比对法：</strong>比对合同签订时间、金额、供应商</li><li><strong>资金追踪法：</strong>追踪采购资金流向</li><li><strong>关联分析法：</strong>审查供应商股权及人员关联</li><li><strong>阈值检测法：</strong>金额与招标门槛逐一比对</li></ul>
+              </div>
+              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;">
+                <div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 审计依据</div>
+                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>《招标投标法》第4条 — 禁止化整为零</li><li>《招标投标法》第49条 — 处罚条款</li><li>《必须招标的工程项目规定》第5条</li><li>《政府采购法》第28条</li><li>《政府采购法实施条例》第67条</li></ul>
+              </div>
+            </div>
+            <!-- 审计事项任务分解 -->
+            <div style="margin-top:var(--space-md);border-top:1px solid var(--color-border);padding-top:var(--space-md);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <strong style="font-size:14px;"><i class="bi bi-list-check"></i> 审计事项任务分解</strong>
+                <button class="btn btn-sm btn-outline" onclick="Proj.addTask(this)"><i class="bi bi-plus-lg"></i> 添加任务</button>
+              </div>
+              <div class="table-wrap"><table class="table"><thead><tr><th style="width:40px;">序号</th><th>审计任务</th><th style="width:100px;">计划时间</th><th style="width:80px;">状态</th></tr></thead><tbody>
+                <tr><td>1</td><td>收集并审查5份采购合同原件</td><td>第1周</td><td><span class="badge badge-success">已完成</span></td></tr>
+                <tr><td>2</td><td>比对合同签订时间与金额分布</td><td>第1-2周</td><td><span class="badge badge-warning">进行中</span></td></tr>
+                <tr><td>3</td><td>核查招标公告发布情况</td><td>第2周</td><td><span class="badge badge-muted">待启动</span></td></tr>
+                <tr><td>4</td><td>审查供应商工商登记及关联关系</td><td>第2-3周</td><td><span class="badge badge-muted">待启动</span></td></tr>
+                <tr><td>5</td><td>核实银行付款凭证与合同一致性</td><td>第3周</td><td><span class="badge badge-muted">待启动</span></td></tr>
+                <tr><td>6</td><td>出具审计取证单</td><td>第4周</td><td><span class="badge badge-muted">待启动</span></td></tr>
+              </tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <!-- Item 2 -->
+        <div class="card" style="margin-bottom:var(--space-md);border-left:4px solid var(--color-primary);">
+          <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="Proj.toggleItem(this)">
+            <span style="font-size:22px;font-weight:700;color:var(--color-primary);width:28px;">2.</span>
+            <div style="flex:1;"><strong>采购资金使用合规性审计</strong>
+              <div style="font-size:13px;color:var(--color-text-muted);">核查采购资金是否按规定用途使用 · 涉及银行流水23笔</div>
+              <span class="badge badge-muted">部门预算执行审计</span> <span class="badge badge-warning">中优先级</span></div>
+            <i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem('采购资金使用合规性审计')"><i class="bi bi-play-fill"></i> 启动分析</button>
+          </div>
+          <div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">
+              <div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见问题表现</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>采购资金挪用至非指定用途</li><li>大额现金支付</li><li>收款方与合同供应商不一致</li></ul></div>
+              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计所需资料</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>银行付款凭证</li><li>资金流水明细</li><li>专项资金拨付文件</li><li>采购预算批复</li></ul></div>
+              <div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见违规行为</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>截留挪用专项资金</li><li>重复支付采购款项</li><li>超预算采购</li></ul></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
+              <div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常用审计方法</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li><strong>资金追踪法：</strong>追踪资金流向</li><li><strong>凭证抽查法：</strong>抽查大额支付凭证</li></ul></div>
+              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计依据</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>《预算法》第53条</li><li>《财政违法行为处罚处分条例》</li></ul></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main></div>
+<script src="js/app.js"></script>
+<script>
+var Proj = {
+  /** 折叠/展开年度 */
+  toggleYear: function(header) {
+    var section = header.parentElement;
+    var body = section.querySelector('.year-body');
+    var arrow = header.querySelector('.year-arrow');
+    var collapsed = section.classList.toggle('collapsed');
+    if (body) body.style.display = collapsed ? 'none' : '';
+    if (arrow) {
+      arrow.className = collapsed ? 'bi bi-chevron-right year-arrow' : 'bi bi-chevron-down year-arrow';
+    }
+  },
+
+  open: function() {
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-setup').style.display = 'block';
+  },
+  cancel: function() {
+    document.getElementById('view-list').style.display = '';
+    document.getElementById('view-setup').style.display = 'none';
+  },
+  resume: function(n) { this.showDetail(n); },
+
+  /** 显示项目详情 */
+  showDetail: function(name) {
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+    document.getElementById('detail-title').innerHTML = '<i class="bi bi-folder2-open"></i> ' + name;
+    // 填充项目基本情况
+    document.getElementById('d-name').textContent = name;
+    document.getElementById('d-code').textContent = '审通〔2026〕001号';
+    document.getElementById('d-unit').textContent = name.indexOf('教育')>=0 ? '某市教育局' : '某县农业农村局';
+    document.getElementById('d-type').textContent = name.indexOf('教育')>=0 ? '预算执行审计' : '农业农村审计';
+    document.getElementById('d-period').textContent = '2026-01-01 至 2026-06-30';
+    document.getElementById('d-level').textContent = '市级';
+    document.getElementById('d-leader').textContent = '张三';
+    document.getElementById('d-auditor').textContent = '李四';
+    document.getElementById('d-objective').textContent = '通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理。';
+    window.scrollTo({top:0,behavior:'smooth'});
+  },
+
+  /** 返回项目列表 */
+  detailTab: function(name, el) {
+    document.querySelectorAll('#detail-tabs .sheet-tab').forEach(function(s){s.classList.remove('active');});
+    el.classList.add('active');
+    document.querySelectorAll('.dt-panel').forEach(function(p){p.style.display='none';});
+    var panel = document.getElementById('dt-'+name);
+    if(panel) panel.style.display='block';
+  },
+
+  backToList: function() {
+    document.getElementById('view-list').style.display = '';
+    document.getElementById('view-detail').style.display = 'none';
+  },
+
+  /** 从详情页启动智能分析（含压缩记忆） */
+  /** 修改项目信息 — 跳转到项目立项页面 */
+  editProject: function() {
+    this.backToList();
+    setTimeout(function(){ Proj.open(); }, 200);
+    AuditWorkbench.toast('项目信息加载中，可修改后保存','info');
+  },
+
+  /** 从卡片直接启动分析 — 带项目上下文传给 LLM */
+  launchFromCard: function(name, unit, domain) {
+    var fullMemory = {
+      title: name,
+      domain: domain || '预算执行审计',
+      unit: unit || '',
+      objective: '对' + (unit || name) + '进行' + (domain || '预算执行') + '审计，重点关注采购合规性、资金使用合规性和内部控制执行情况。',
+      level: '市级',
+      period: '2026-01-01 至 2026-06-30',
+      concerns: '招标投标\n采购方式\n供应商管理\n资金支付',
+      createdAt: new Date().toISOString()
+    };
+    fullMemory.compressedPrompt = [
+      '【项目背景】' + name + '，审计' + (unit || '被审计单位') + '，类型：' + (domain || '预算执行审计') + '。',
+      '【审计目标】对' + (unit || name) + '进行' + (domain || '预算执行') + '审计。',
+      '【审计层级】市级单位，优先适用地方规定。'
+    ].join('\n');
+    localStorage.setItem('aw_project_memory', JSON.stringify(fullMemory));
+    location.href = 'analysis.html';
+  },
+
+  launchFromDetail: function() {
+    var name = document.getElementById('d-name').textContent;
+    var domain = document.getElementById('d-type').textContent;
+    var unit = document.getElementById('d-unit').textContent;
+    var objective = document.getElementById('d-objective').textContent;
+
+    // 完整项目记忆
+    var fullMemory = {
+      title: name,
+      domain: domain,
+      unit: unit,
+      objective: objective,
+      level: document.getElementById('d-level').textContent,
+      period: document.getElementById('d-period').textContent,
+      createdAt: new Date().toISOString()
+    };
+
+    // 压缩记忆（给LLM的精简上下文）
+    fullMemory.compressedPrompt = [
+      '【项目背景】' + name + '，审计' + unit + '，类型：' + domain + '。',
+      '【审计目标】' + objective + '。',
+      '【审计层级】市级单位，优先适用地方规定。'
+    ].join('\n');
+
+    localStorage.setItem('aw_project_memory', JSON.stringify(fullMemory));
+    location.href = 'analysis.html';
+  },
+  setMode: function(m) {
+    ['ai','template','manual'].forEach(function(x){
+      var card = document.getElementById('mode-'+x);
+      var zone = document.getElementById('zone-'+x);
+      var active = (x===m);
+      if(card){ card.style.borderColor = active ? (x==='ai'?'var(--color-primary)':'var(--color-success)') : 'var(--color-border)'; card.style.background = active ? 'rgba(26,58,92,0.02)' : ''; }
+      if(zone) zone.style.display = active ? 'block' : 'none';
+    });
+    if(m==='template') AuditWorkbench.toast('请下载模板，填写后上传导入','info');
+    if(m==='ai') AuditWorkbench.toast('请粘贴审计通知/方案等文档，AI将自动提取','info');
+  },
+
+  aiExtract: function() {
+    var text = document.getElementById('ai-paste').value.trim();
+    if(!text) return AuditWorkbench.toast('请先粘贴文档内容或上传文件','warning');
+
+    var html = '<div style="margin-bottom:12px;"><strong style="color:var(--color-primary);">📋 一、项目基本信息</strong></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr><th>字段</th><th>AI提取值</th><th>置信度</th></tr></thead><tbody>' +
+      '<tr><td>项目编号</td><td>审通〔2026〕001号</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>项目名称</td><td>某市教育局2026年度预算执行及教学设备采购合规性审计</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>被审计单位</td><td>某市教育局</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>审计类型</td><td>预算执行审计</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>审计方式</td><td>就地审计</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>审计期间</td><td>2026-01-01 至 2026-06-30</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>进点日期</td><td>2026-07-03</td><td><span class="badge badge-warning">中</span></td></tr>' +
+      '<tr><td>涉及金额</td><td>约500万元</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '<tr><td>单位层级</td><td>市级</td><td><span class="badge badge-success">高</span></td></tr>' +
+      '</tbody></table></div>' +
+
+      '<div style="margin-bottom:12px;margin-top:16px;"><strong style="color:var(--color-primary);">📐 二、审计对象和范围</strong></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr><th>字段</th><th>AI提取值</th></tr></thead><tbody>' +
+      '<tr><td>审计对象</td><td>某市教育局本部及下属招生办、教研室等5家二级单位</td></tr>' +
+      '<tr><td>审计范围</td><td style="font-size:13px;">2026年1月至6月预算执行及教学设备采购合规性审计，重点关注采购程序、资金使用和供应商管理</td></tr>' +
+      '<tr><td>审计重点</td><td>采购程序合规性 / 资金使用合规性 / 供应商管理 / 预算编制与执行</td></tr>' +
+      '</tbody></table></div>' +
+
+      '<div style="margin-bottom:12px;margin-top:16px;"><strong style="color:var(--color-primary);">🎯 三、审计事项（AI自动拆分）</strong></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>审计事项</th><th>优先级</th></tr></thead><tbody>' +
+      '<tr><td>1</td><td>教学设备采购合规性审计 — 核查5笔采购合同是否依法公开招标</td><td><span class="badge badge-accent">高</span></td></tr>' +
+      '<tr><td>2</td><td>采购资金使用合规性审计 — 核查资金是否按规定用途使用</td><td><span class="badge badge-warning">中</span></td></tr>' +
+      '<tr><td>3</td><td>供应商资质及关联关系审查 — 审查围标串标嫌疑</td><td><span class="badge badge-warning">中</span></td></tr>' +
+      '</tbody></table></div>';
+
+    document.getElementById('ai-fields').innerHTML = html;
+    document.getElementById('ai-result').style.display = 'block';
+    document.getElementById('ai-result').scrollIntoView({behavior:'smooth'});
+    AuditWorkbench.toast('AI已综合分析文档，提取了基本信息+范围+事项','success');
+  },
+
+  confirmAi: function() {
+    // Fill Tab 1
+    document.getElementById('f-code').value = '审通〔2026〕001号';
+    document.getElementById('f-name').value = '某市教育局2026年度预算执行及教学设备采购合规性审计';
+    document.getElementById('f-unit').value = '某市教育局';
+    document.getElementById('f-type').value = '预算执行审计';
+    document.getElementById('f-entry-date').value = '2026-07-03';
+    document.getElementById('f-amount').value = '500';
+    document.getElementById('f-level').value = '市级';
+    // Fill Tab 2
+    document.getElementById('f-target-unit').value = '某市教育局';
+    document.getElementById('f-extend-unit').value = '下属招生办、教研室等5家二级单位';
+    document.getElementById('f-scope').value = '本次审计针对某市教育局2026年1月至6月预算执行情况及教学设备采购合规性进行审计，重点关注采购程序、资金使用和供应商管理等方面，必要时追溯到相关年度和延伸审计有关单位。\n\n按照"全面审计、聚焦重点"的工作原则，结合被审计单位预算规模、采购体量、业务特点等因素，确定此次审计对象为某市教育局本部及下属招生办、教研室等5家二级单位。\n\n延伸审计本实施方案以外的单位或事项，需报经审计组组长或其委托人员批准，并填报延伸审计台账。';
+    this.setMode('manual');
+    AuditWorkbench.toast('已一键填充全部信息（Tab 1+2+3），可逐页核对修改','success');
+  },
+  addMember: function() {
+    var n=document.getElementById('member-name').value.trim();
+    var r=document.getElementById('member-role').value;
+    if(!n)return;
+    var t=document.getElementById('team-tags');
+    var s=document.createElement('span');
+    s.className='badge badge-muted';s.style.cssText='padding:6px 12px;font-size:13px;';
+    s.innerHTML=n+'（'+r+'）<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i>';
+    t.appendChild(s);
+    document.getElementById('member-name').value='';
+  },
+  addFocus: function() {
+    var v = document.getElementById('focus-input').value.trim();
+    if(!v) return;
+    var t = document.getElementById('focus-tags');
+    var s = document.createElement('span');
+    s.className = 'badge badge-accent'; s.style.cssText = 'padding:6px 12px;font-size:13px;';
+    s.innerHTML = v + '<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i>';
+    t.appendChild(s);
+    document.getElementById('focus-input').value = '';
+  },
+
+  addField: function() {
+    var c=document.getElementById('custom-fields');
+    var n=prompt('字段名称：');if(!n)return;
+    var d=document.createElement('div');
+    d.className='form-group';d.style.cssText='display:inline-block;width:32%;margin-right:1%;';
+    d.innerHTML='<label class="form-label">'+n+'</label><input class="form-input"><button class="btn btn-sm" style="color:var(--color-accent);margin-top:4px;background:none;border:none;font-size:11px;" onclick="this.parentElement.remove()"><i class="bi bi-x-lg"></i> 删除</button>';
+    c.appendChild(d);
+  },
+
+  aiGenScope: function() {
+    var unit = document.getElementById('f-unit') ? document.getElementById('f-unit').value : '某市教育局';
+    var type = document.getElementById('f-type') ? document.getElementById('f-type').value : '预算执行审计';
+    var start = document.getElementById('f-period-start') ? document.getElementById('f-period-start').value : '2026-01-01';
+    var end = document.getElementById('f-period-end') ? document.getElementById('f-period-end').value : '2026-06-30';
+    document.getElementById('f-scope').value = '本次审计针对'+unit+start+'至'+end+'期间'+type+'情况进行审计，重点关注采购程序、资金使用和供应商管理等方面，必要时追溯到相关年度和延伸审计有关单位。\n\n按照"全面审计、聚焦重点"的工作原则，结合被审计单位预算规模、采购体量、业务特点等因素，确定此次审计对象为'+unit+'本部及下属相关二级单位。\n\n延伸审计本实施方案以外的单位或事项，需报经审计组组长或其委托人员批准，并填报延伸审计台账。';
+    AuditWorkbench.toast('AI已生成范围描述，可根据实际情况修改','success');
+  },
+
+  tab: function(n) {
+    document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(t,i){t.classList.toggle('active',i+1===n);});
+    for(var i=1;i<=4;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
+    if(n===4) PhaseBoard.calcAll();
+  },
+  aiParse: function() {
+    document.getElementById('f-objective').value = document.getElementById('f-objective').value || '通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理、提高资金使用效益。';
+    AuditWorkbench.toast('AI已辅助生成审计目标','success');
+  },
+  aiGenPlan: function() {
+    var h='<div style="font-size:14px;line-height:2;animation:fadeIn 0.3s ease;">'+
+      '<h4>一、审计目标</h4><p>通过对被审计单位预算执行及采购活动的审计，揭示存在的问题，提出整改建议，促进规范管理。</p>'+
+      '<h4>二、审计范围</h4><p>时间范围：2026年1月至6月；单位范围：某市教育局及其所属单位；资金范围：教学设备采购资金约500万元。</p>'+
+      '<h4>三、审计内容与重点</h4><p>1.采购程序合规性：是否依法公开招标；2.资金使用合规性：是否按预算用途使用；3.供应商管理：是否存在围标串标。</p>'+
+      '<h4>四、审计程序与方法</h4><table class="table"><thead><tr><th>方法</th><th>内容</th></tr></thead><tbody>'+
+      '<tr><td>检查</td><td>查阅采购合同、招标文件、付款凭证等原始资料</td></tr>'+
+      '<tr><td>询问</td><td>向采购负责人了解采购决策过程</td></tr>'+
+      '<tr><td>重新计算</td><td>复核合同金额与招标门槛的比对</td></tr>'+
+      '<tr><td>分析程序</td><td>分析供应商之间的关联关系</td></tr></tbody></table>'+
+      '<h4>五、时间安排</h4><p>2026年7月1日至8月15日（共45天）：准备阶段5天、实施阶段30天、报告阶段10天。</p>'+
+      '<h4>六、人员分工</h4><p>审计组5人：组长1人（负责全面工作）、主审1人（负责采购合规性）、审计员3人。</p>'+
+      '<div class="alert alert-info" style="margin-top:8px;"><i class="bi bi-robot"></i> 本方案由AI生成，请审计人员根据实际情况调整后确认。</div></div>';
+    document.getElementById('plan-content').innerHTML=h;
+    AuditWorkbench.toast('AI已生成审计实施方案','success');
+  },
+  toggleItem: function(el) {
+    var detail=el.parentElement.querySelector('.item-detail');
+    var icon=el.querySelector('.bi-chevron-down');
+    if(!detail||!icon)return;
+    var open=detail.style.display!=='none';
+    detail.style.display=open?'none':'block';
+    icon.style.transform=open?'':'rotate(180deg)';
+  },
+  addTask: function(btn) {
+    var table = btn.closest('.item-detail') || btn.closest('.card');
+    var tbody = table ? table.querySelector('tbody') : null;
+    if(!tbody) return;
+    var n = prompt('审计任务名称：');
+    if(!n) return;
+    var t = prompt('计划时间：','第X周');
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (tbody.children.length+1) + '</td><td>' + n + '</td><td>' + (t||'') + '</td><td><span class="badge badge-muted">待启动</span></td>';
+    tbody.appendChild(tr);
+    AuditWorkbench.toast('任务已添加','success');
+  },
+
+  addItem: function() {
+    var n=prompt('审计事项名称:');if(!n)return;
+    var c=document.getElementById('audit-items2');
+    var i=c.children.length+1;
+    var d=document.createElement('div');
+    d.className='card';d.style.cssText='margin-bottom:8px;border-left:4px solid var(--color-primary);';
+    d.innerHTML='<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;"><span style="font-size:22px;font-weight:700;color:var(--color-primary);">'+i+'.</span><div style="flex:1;"><strong>'+n+'</strong><div style="font-size:13px;color:var(--color-text-muted);">手动添加</div><span class="badge badge-muted">待分类</span></div><button class="btn btn-sm btn-primary" onclick="Proj.launchItem(\''+n+'\')"><i class="bi bi-play-fill"></i> 启动分析</button></div>';
+    c.appendChild(d);
+    document.getElementById('item-count2').textContent=i+' 个';
+  },
+  launchItem: function(name) {
+    var m=document.createElement('div');
+    m.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding-top:30px;';
+    m.innerHTML='<div style="background:#fff;border-radius:var(--radius-lg);max-width:960px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);">'+
+      '<div style="padding:16px 24px;border-bottom:2px solid var(--color-border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;">'+
+      '<i class="bi bi-cpu" style="font-size:24px;color:var(--color-primary);"></i><div style="flex:1;"><h2 style="margin:0;font-size:18px;">'+name+'</h2><div style="font-size:13px;color:var(--color-text-muted);">AI分析结果</div></div>'+
+      '<span class="badge badge-accent">AI分析</span><button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div>'+
+      '<div style="padding:20px 24px;">'+
+      '<h4 style="color:var(--color-accent);margin-bottom:8px;"><i class="bi bi-robot"></i> 常见问题表现</h4>'+
+      '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">'+
+      '<div class="rec-item" style="border-left:3px solid var(--color-accent);"><div><strong>1. 拆分项目规避招标</strong><div style="font-size:12px;color:var(--color-text-muted);">将500万项目拆为5个99万子项目，每个低于200万招标门槛</div></div><span class="badge badge-accent">高风险</span></div>'+
+      '<div class="rec-item" style="border-left:3px solid var(--color-accent);"><div><strong>2. 集中时段签订合同</strong><div style="font-size:12px;color:var(--color-text-muted);">5份合同集中在2026年3月1日至15日签订</div></div><span class="badge badge-accent">高风险</span></div>'+
+      '<div class="rec-item" style="border-left:3px solid var(--color-warning);"><div><strong>3. 同一供应商多次中标</strong><div style="font-size:12px;color:var(--color-text-muted);">5个项目均由XX科技有限公司中标</div></div><span class="badge badge-warning">中风险</span></div>'+
+      '<div class="rec-item" style="border-left:3px solid var(--color-warning);"><div><strong>4. 采用非公开采购方式</strong><div style="font-size:12px;color:var(--color-text-muted);">全部采用询价方式，未发布公开招标公告</div></div><span class="badge badge-warning">中风险</span></div></div>'+
+      '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-robot"></i> 审计所需资料</h4>'+
+      '<div class="table-wrap" style="margin-bottom:16px;"><table class="table"><thead><tr><th>资料名称</th><th>关键字段</th><th>来源</th><th>状态</th></tr></thead><tbody>'+
+      '<tr><td>采购合同及补充协议</td><td>金额、采购方式、供应商、日期</td><td>被审计单位</td><td><span class="badge badge-success">已关联</span></td></tr>'+
+      '<tr><td>招标公告及招标文件</td><td>公告日期、发布媒体、招标方式</td><td>被审计单位</td><td><span class="badge badge-warning">待收集</span></td></tr>'+
+      '<tr><td>评标报告及中标通知书</td><td>评委名单、评分、中标金额</td><td>被审计单位</td><td><span class="badge badge-warning">待收集</span></td></tr>'+
+      '<tr><td>银行付款凭证及流水</td><td>付款日期、金额、收款方</td><td>银行</td><td><span class="badge badge-success">已关联</span></td></tr>'+
+      '<tr><td>供应商工商登记信息</td><td>信用代码、法人、股东</td><td>市场监管部门</td><td><span class="badge badge-success">已关联</span></td></tr></tbody></table></div>'+
+      '<h4 style="color:var(--color-warning);margin-bottom:8px;"><i class="bi bi-robot"></i> 违规行为库匹配</h4>'+
+      '<div style="margin-bottom:16px;">'+
+      '<div class="rec-item" style="border-left:4px solid var(--color-accent);"><input type="checkbox" class="rec-check" checked><div style="flex:1;"><strong>化整为零规避公开招标</strong><div style="font-size:12px;color:var(--color-text-muted);">将应公开招标项目拆分为多个小额项目 · 匹配度:97%</div></div><span class="badge badge-accent">高风险</span></div>'+
+      '<div class="rec-item" style="border-left:4px solid var(--color-accent);"><input type="checkbox" class="rec-check" checked><div style="flex:1;"><strong>违规采用询价方式采购</strong><div style="font-size:12px;color:var(--color-text-muted);">达到门槛的项目采用非公开竞争方式 · 匹配度:89%</div></div><span class="badge badge-accent">高风险</span></div>'+
+      '<div class="rec-item" style="border-left:4px solid var(--color-warning);"><input type="checkbox" class="rec-check"><div style="flex:1;"><strong>未按规定发布采购公告</strong><div style="font-size:12px;color:var(--color-text-muted);">达到门槛的项目未在指定媒体发布公告 · 匹配度:78%</div></div><span class="badge badge-warning">待确认</span></div>'+
+      '<div class="rec-item" style="border-left:4px solid var(--color-warning);"><input type="checkbox" class="rec-check"><div style="flex:1;"><strong>供应商围标串标</strong><div style="font-size:12px;color:var(--color-text-muted);">多家供应商协商报价或轮流中标 · 匹配度:65%</div></div><span class="badge badge-warning">待确认</span></div></div>'+
+      '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-robot"></i> 审计依据及法规清单</h4>'+
+      '<div class="table-wrap" style="margin-bottom:16px;"><table class="table"><thead><tr><th>法规名称</th><th>条款</th><th>效力级别</th><th>适用说明</th><th>溯源</th></tr></thead><tbody>'+
+      '<tr><td>《招标投标法》</td><td>第4条</td><td>法律</td><td>禁止化整为零 — <strong>主依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
+      '<tr><td>《招标投标法》</td><td>第49条</td><td>法律</td><td>处罚5‰-10‰ — <strong>追责依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
+      '<tr><td>《必须招标的工程项目规定》</td><td>第5条</td><td>部门规章</td><td>货物≥200万须招标 — <strong>量化依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
+      '<tr><td>《政府采购法》</td><td>第28条</td><td>法律</td><td>公开招标应为主采购方式</td><td><a class="trace-link" href="#">📍</a></td></tr>'+
+      '<tr><td>《政府采购法实施条例》</td><td>第67条</td><td>行政法规</td><td>化整为零认定标准</td><td><a class="trace-link" href="#">📍</a></td></tr></tbody></table></div>'+
+      '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--color-border);">'+
+      '<button class="btn btn-accent btn-lg" onclick="Proj.confirmAndLaunch()"><i class="bi bi-rocket-takeoff"></i> 确认并开始智能分析</button>'+
+      '<button class="btn btn-outline" onclick="this.closest(\'[style*=fixed]\').remove()">关闭</button>'+
+      '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);align-self:center;"><i class="bi bi-robot"></i> AI伴随 · 所有内容可确认修改</span></div></div></div>';
+    m.addEventListener('click',function(e){if(e.target===this)this.remove();});
+    document.body.appendChild(m);
+  },
+  confirmAndLaunch: function() {
+    var n=document.getElementById('f-name').value||'未命名项目';
+    var d=document.getElementById('f-type')?document.getElementById('f-type').value:'';
+    localStorage.setItem('aw_project_memory',JSON.stringify({title:n,domain:d,createdAt:new Date().toISOString()}));
+    location.href='analysis.html';
+  },
+  save: function() { AuditWorkbench.toast('项目已保存','success'); }
+};
+
+// ====== 督办提醒看板 ======
+var PhaseBoard = {
+  phases: [
+    { name:'一、现场实施阶段', color:'var(--color-primary)', milestones:[
+      {id:1,name:'① 立项',days:0,base:'entry',desc:'维护项目基本信息'},
+      {id:2,name:'② 实施方案出具',days:5,base:'entry',remind:3,desc:'进点后5日内编制实施方案'},
+      {id:3,name:'③ 现场实施结束',days:'type',base:'entry',remind:3,desc:'进点+N天(N=项目类型天数)'}
+    ]},
+    { name:'二、出具审计报告阶段', color:'var(--color-warning)', milestones:[
+      {id:4,name:'④ 征求意见稿',days:5,base:'prev',remind:3,desc:'现场结束后5日'},
+      {id:5,name:'⑤ 被审计单位递交意见',days:10,base:'prev',remind:3,desc:'送达后10日'},
+      {id:6,name:'⑥ 修改报告提交审核',days:2,base:'prev',remind:1,desc:'意见提交后2日'},
+      {id:7,name:'⑦ 复核意见书签字',days:3,base:'prev',remind:1,desc:'报告提交后3日'},
+      {id:8,name:'⑧ 递交法规审理',days:2,base:'prev',remind:1,desc:'复核签字后2日'},
+      {id:9,name:'⑨ 出具审理意见书',days:3,base:'prev',remind:1,desc:'移交后3日(大型5日)'},
+      {id:10,name:'⑩ 审理意见采纳说明',days:2,base:'prev',remind:1,desc:'审理意见后2日'},
+      {id:11,name:'⑪ 审理委员会审定',days:null,base:'prev',remind:0,desc:'不限时间，完成后填会议时间'},
+      {id:12,name:'⑫ 签发并送达',days:3,base:'prev',remind:1,desc:'会议后3日送达被审计单位'}
+    ]},
+    { name:'三、审计整改阶段', color:'var(--color-success)', milestones:[
+      {id:13,name:'周期性整改台账',days:null,base:'prev',remind:0,desc:'每月18日前上传(12月8日前)'},
+      {id:14,name:'归档',days:null,base:'prev',remind:0,desc:'建立档案，移交档案室，项目→已完成'}
+    ]},
+    { name:'四、成果利用阶段', color:'var(--color-text-muted)', milestones:[
+      {id:15,name:'成果统计与分析',days:null,base:'prev',remind:0,desc:'审计成果汇总与利用'}
+    ]}
+  ],
+
+  calcAll: function() {
+    var entryDate = document.getElementById('phase-entry-date').value;
+    var typeDays = parseInt(document.getElementById('phase-audit-type').value);
+    if(!entryDate) return AuditWorkbench.toast('请先填写进点日期','warning');
+
+    var prevDate = new Date(entryDate);
+    var today = new Date(); today.setHours(0,0,0,0);
+    var html = '';
+
+    this.phases.forEach(function(phase) {
+      html += '<div style="background:var(--color-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow:hidden;">' +
+        '<div style="padding:10px 14px;font-weight:600;font-size:13px;color:#fff;background:'+phase.color+';">'+phase.name+'</div>' +
+        '<div style="padding:8px;">';
+
+      phase.milestones.forEach(function(m) {
+        var days = m.days === 'type' ? typeDays : (m.days || 0);
+        var dueDate = new Date(prevDate);
+        if(m.base === 'entry') dueDate = new Date(entryDate);
+        dueDate.setDate(dueDate.getDate() + days);
+
+        var diffDays = Math.ceil((dueDate - today) / (1000*60*60*24));
+        var statusColor, statusText;
+        if(diffDays < 0) { statusColor = 'var(--color-accent)'; statusText = '逾期'+Math.abs(diffDays)+'天'; }
+        else if(diffDays <= 3 && m.remind > 0) { statusColor = 'var(--color-warning)'; statusText = '临期'+diffDays+'天'; }
+        else { statusColor = 'var(--color-success)'; statusText = m.days === null ? '待定' : diffDays+'天后'; }
+
+        var dateStr = m.days === null ? '待确定' : dueDate.toLocaleDateString('zh-CN',{month:'short',day:'numeric'});
+
+        html += '<div style="padding:6px 8px;margin-bottom:4px;border-radius:8px;background:var(--color-bg);font-size:12px;cursor:pointer;" ' +
+          'onclick="PhaseBoard.toggleMilestone(this)" title="'+m.desc+'">' +
+          '<div style="display:flex;align-items:center;gap:6px;">' +
+          '<span style="font-weight:600;white-space:nowrap;">'+m.name+'</span>' +
+          '<span style="color:'+statusColor+';font-size:11px;white-space:nowrap;">● '+statusText+'</span>' +
+          '<span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);">📅 '+dateStr+'</span>' +
+          '</div>' +
+          '<div class="m-detail" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--color-border);">' +
+          '<div style="font-size:11px;color:var(--color-text-muted);margin-bottom:4px;">'+m.desc+'</div>' +
+          '<div style="display:flex;gap:4px;">' +
+          '<input type="date" class="form-input form-input-sm" style="font-size:11px;width:130px;" placeholder="实际完成日期">' +
+          '<button class="btn btn-xs btn-primary" onclick="event.stopPropagation();PhaseBoard.completeMilestone(this)">✓ 完成</button>' +
+          '</div></div></div>';
+      });
+
+      html += '</div></div>';
+    });
+
+    document.getElementById('phase-kanban').innerHTML = html;
+    document.getElementById('phase-status').textContent = 'AI已计算';
+    document.getElementById('phase-status').className = 'badge badge-success';
+    AuditWorkbench.toast('AI已计算全部15个里程碑节点期限','success');
+  },
+
+  toggleMilestone: function(el) {
+    var detail = el.querySelector('.m-detail');
+    if(detail) detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+  },
+
+  completeMilestone: function(btn) {
+    var input = btn.parentElement.querySelector('input');
+    if(!input.value) return AuditWorkbench.toast('请选择实际完成日期','warning');
+    btn.parentElement.parentElement.querySelector('.m-detail').style.display = 'none';
+    btn.closest('[style*=border-radius]').style.background = 'rgba(45,125,70,0.08)';
+    btn.textContent = '✓ 已完成';
+    btn.className = 'btn btn-xs btn-success';
+    AuditWorkbench.toast('节点已完成，已更新下一节点期限','success');
+  }
+};
+</script>
+</body>
+</html>

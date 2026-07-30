@@ -1,0 +1,159 @@
+name: audit/登记台账类/入库台账
+type: model
+description: 从登记台账类类文档（入库台账）中提取结构化元数据。涵盖字段如：产地、入库数量、入库时间、净重、出入库时间、出库数量、出库时间、含水率。文档范围包括：储备猪肉出入库台账、生物质发电厂原料入库台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 入库台账
+  member_count: 1
+  member_details:
+  - 储备猪肉出入库台账
+  - 生物质发电厂原料入库台账
+output:
+  fields:
+  - name: 产地
+    type: string
+    description: 提取 产地 的文本值
+  - name: 入库数量
+    type: number
+    description: 提取 入库数量 的数值（含单位，如万元、吨等）
+  - name: 入库时间
+    type: date
+    description: 提取 入库时间 的日期值，格式 YYYY-MM-DD
+  - name: 净重
+    type: string
+    description: 提取 净重 的文本值
+  - name: 出入库时间
+    type: date
+    description: 提取 出入库时间 的日期值，格式 YYYY-MM-DD
+  - name: 出库数量
+    type: number
+    description: 提取 出库数量 的数值（含单位，如万元、吨等）
+  - name: 出库时间
+    type: date
+    description: 提取 出库时间 的日期值，格式 YYYY-MM-DD
+  - name: 含水率
+    type: string
+    description: 提取 含水率 的文本值
+  - name: 实际入库秸秆量
+    type: string
+    description: 提取 实际入库秸秆量 的文本值
+  - name: 批次号
+    type: string
+    description: 提取 批次号 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 秸秆收购毛重
+    type: string
+    description: 提取 秸秆收购毛重 的文本值
+  - name: 质量状态
+    type: boolean
+    description: 提取 质量状态 的布尔值（是/否）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ABS(上报综合利用率统计表.上报综合利用率 - 检测报告.复核利用率) > 0.05 OR (检测报告.复核利用率 < 禁烧责任部门.年度综合利用率目标值) OR (生产台账.原料入库量 合计 < 明细表.申请补贴数量)
+    OR (入库台账.净重 合计 + 核查表.还田面积 * 单位面积秸秆还田量 < 草谷比.理论产量 * 0.60)
+  description: 1. 统计上报利用率与第三方复核利用率的绝对差值超过5个百分点，视为虚报；2. 复核利用率低于政府下达的目标值则直接认定为未完成；3. 企业生产台账入库量小于补贴申报数量，表明存在虚报冒领；4. 电厂入库秸秆量与还田折算利用量之和不足理论产量的60%，但上报利用率却达标，则“物料不平衡”，说明统计失真。满足任一条件即生成疑点，多个条件可综合判定违规严重程度。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 秸秆综合利用率虚报或未达政策目标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国循环经济促进法\",\n    \"法规文号\": \"主席令第四号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第三十四条\",\n    \"内容概述\": \"国家鼓励和支持农业生产者采用先进技术，对农作物秸秆、畜禽粪便等进行综合利用，开发沼气等生物质能源。\"\n  },\n  {\n    \"法规名称\": \"关于进一步加强农作物秸秆综合利用工作的通知\"\
+    ,\n    \"法规文号\": \"发改环资〔2022〕1401号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三条、第六条\",\n    \"内容概述\": \"要求各地科学设定"
+- expression: (ABS(统计表.上报综合利用率 - 检测报告.复核综合利用率) > 0.05 && 检测报告.复核综合利用率 < 年度禁烧目标) || (SUM(入库台账.实际入库秸秆量) + SUM(核查表.核定的还田面积) <
+    制度文件.理论资源量 * 年度禁烧目标)
+  description: 当上报的综合利用率与依据入企业库台账、还田核查面积重新计算的复核利用率偏差超过5个百分点，且复核利用率未达到政策目标（如90%），即判定为虚报数据；或者企业收购与还田量的总和远低于秸秆可收集量乘以目标利用率所需的利用量，表明实际利用能力无法支撑上报数据。偏差阈值5%参考了农业农村部对秸秆台账数据的质量控制要求。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 秸秆综合利用率虚报不达标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国统计法\",\n    \"法规文号\": \"中华人民共和国主席令第十五号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第七条、第四十一条\",\n    \"内容概述\": \"国家机关、企业事业单位和其他组织以及个体工商户和个人等统计调查对象，必须依照本法和国家有关规定，真实、准确、完整、及时地提供统计调查所需的资料，不得提供不真实或者不完整的统计资料，不得迟报、拒报统计资料。作为统计调查对象的国家机关、企业事业单位或者其他组织有提供不真实或者不完整的统计资料行为的，由县级以上人民政府统计机构责令改正，给予警告，可以予以通报并处以罚款。"
+- expression: (明细表.实际库存数量 < 计划文件.计划储备总量 * 0.9 && DATEDIFF(明细表.生产日期, 计划文件.最低保有量) > 15) || 检测报告.检测结论 != '合格'
+  description: 实际库存量低于计划储备量的90%且持续超过15天，视为数量不达标；质量检测报告中结论为不合格即视为质量不达标，二者满足任一条件即生成疑点。
+  audit_item: 落实政府猪肉储备政策不到位
+  suspicion: 政府猪肉常规储备数量不达标或质量不合格
+  regulation: "[\n  {\n    \"法规名称\": \"关于完善政府猪肉储备调节机制 做好猪肉市场保供稳价工作预案\",\n    \"法规文号\": \"发改价格〔2021〕770号\",\n    \"效力级别\":\
+    \ \"部门规章\",\n    \"条款号\": \"三、（一）常规储备\",\n    \"内容概述\": \"地方常规储备规模按城市常住人口每人每天二两、保障城区常住人口3天消费量确定，必须确保数量真实、质量合格和储存安全，实行专库储存、专人管理、专账记载。\"\
+    \n  }\n]"
+- expression: DATEDIFF(对比表.实际轮换时间, 对比表.计划轮换时间) > 30 || (ABS(对比表.计划轮换数量 - 对比表.实际轮换数量) / 对比表.计划轮换数量 > 0.1 && 对比表.无正当理由说明) ||
+    (入库台账.批次号 == 入库台账.批次号)
+  description: 轮换延迟超过30天，或实际轮换数量与计划差异率超过10%且无正当理由说明，或出入库记录中出现批次号完全相同的“账面轮换”，均属轮换违规。
+  audit_item: 落实政府猪肉储备政策不到位
+  suspicion: 未按规定对政府储备猪肉进行轮换
+  regulation: "[\n  {\n    \"法规名称\": \"关于完善政府猪肉储备调节机制 做好猪肉市场保供稳价工作预案\",\n    \"法规文号\": \"发改价格〔2021〕770号\",\n    \"效力级别\":\
+    \ \"部门规章\",\n    \"条款号\": \"五、保障措施\",\n    \"内容概述\": \"各地要建立健全储备轮换机制，原则上冻猪肉每年轮换不少于3次，轮换期间储备库存数量不得低于计划总量的70%，确保储备肉质新鲜安全。\"\
+    \n  }\n]"

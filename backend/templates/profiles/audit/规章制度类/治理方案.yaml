@@ -1,0 +1,98 @@
+name: audit/规章制度类/治理方案
+type: model
+description: 从规章制度类类文档（治理方案）中提取结构化元数据。涵盖字段如：治理范围、管控措施、责任部门。文档范围包括：畜禽粪污与种植面源污染治理方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 治理方案
+  member_count: 1
+  member_details:
+  - 畜禽粪污与种植面源污染治理方案
+output:
+  fields:
+  - name: 治理范围
+    type: string
+    description: 提取 治理范围 的文本值
+  - name: 管控措施
+    type: string
+    description: 提取 管控措施 的文本值
+  - name: 责任部门
+    type: string
+    description: 提取 责任部门 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (数据表.氨氮浓度 > 2.0 || 数据表.总磷浓度 > 0.4) && (EXISTS(图.排污口位置) || EXISTS(图.农田范围)) && (治理方案.管控措施 NOT LIKE '%控源截污%' ||
+    机制文件.责任分工决议 LIKE '%推诿%')
+  description: 表达式判定逻辑：1. 治理后的水体水质监测指标（氨氮、总磷）超出地表水V类标准，出现富营养化反弹；2. GIS空间分析确认水体汇水区范围内存在养殖场或农田等污染源；3. 同时，审查治理方案发现未包含对这些污染源的控源截污措施，或跨部门联席会议纪要充分暴露了职责推诿。三者同时满足，高度警示治理与面源管控脱节。
+  audit_item: 农村黑臭水体治理不到位
+  suspicion: 治理后水质因面源污染反弹
+  regulation: "[\n  {\n    \"法规名称\": \"农业农村污染治理攻坚战行动方案(2021-2025年)\",\n    \"法规文号\": \"环土壤〔2022〕8号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"三、(八)\",\n    \"内容概述\": \"推进农村黑臭水体治理。要统筹农村黑臭水体与农村生活污水、农业面源污染治理，形成合力。对纳入监管清单的黑臭水体，要精准识别污染成因，系统开展控源截污、清淤疏浚、生态修复等工程。\"\
+    \n  }\n]"

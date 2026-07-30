@@ -1,0 +1,61 @@
+name: audit/规章制度类/详细规划
+type: model
+description: 从规章制度类类文档（详细规划）中提取结构化元数据。涵盖字段如：地块编号、容积率等、规划建筑高度。文档范围包括：区域控制性详细规划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 详细规划
+  member_count: 1
+  member_details:
+  - 区域控制性详细规划
+output:
+  fields:
+  - name: 地块编号
+    type: string
+    description: 提取 地块编号 的文本值
+  - name: 容积率等
+    type: string
+    description: 提取 容积率等 的文本值
+  - name: 规划建筑高度
+    type: string
+    description: 提取 规划建筑高度 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (对比表.违规类型 == '不合理技术参数') && (ABS(详细规划.规划建筑高度) / 详细规划.规划建筑高度 > 0.3 || 存在单一来源进口设备强制要求) && (信息表[地块编号].竞买人数量 <= 2)
+  description: 当出让文件中的技术参数如建筑高度、设备来源等与区域控规或常规标准偏差超过30%，或强制要求采用某国进口设备，且同时满足竞买人不足3家时，视为通过不合理参数变相指定竞买人。
+  audit_item: 违反建设管理相关政策规定-土地招拍挂活动中违规设置限制条件
+  suspicion: 设置不合理的技术参数
+  regulation: "[\n  {\n    \"法规名称\": \"招标拍卖挂牌出让国有建设用地使用权规定\",\n    \"法规文号\": \"国土资源部令第39号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第十一条\",\n    \"内容概述\": \"出让公告不得设定影响公平竞争的限制条件，包括通过不合理技术参数排斥潜在竞买人。\"\n  },\n  {\n    \"法规名称\": \"城乡规划法\",\n\
+    \    \"法规文号\": \"中华人民共和国主席令第七十四号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第四十三条\",\n    \"内容概述\": \"建设用地规划许可证确定的规划条件，任何单位不得擅自变更。"

@@ -1,0 +1,106 @@
+name: audit/登记台账类/运行台账
+type: model
+description: 从登记台账类类文档（运行台账）中提取结构化元数据。涵盖字段如：数量、设备型号、运行参数记录。文档范围包括：冷链设备配置与运行台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 运行台账
+  member_count: 1
+  member_details:
+  - 冷链设备配置与运行台账
+output:
+  fields:
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 设备型号
+    type: string
+    description: 提取 设备型号 的文本值
+  - name: 运行参数记录
+    type: string
+    description: 提取 运行参数记录 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (仓储保鲜冷链技术标准文件.存在标识 == 0) || (冷链设备操作规程文档.存在标识 == 0) || (COUNT(冷链设备配置与运行台账.设备型号 DISTINCT) > COUNT(冷链设备操作规程文档.覆盖设备型号
+    DISTINCT)) || (AVG(操作规程执行检查记录表.合规率) < 0.7)
+  description: 技术标准文件或操作规程文档任一缺失即违规；已配置的设备型号数量大于操作规程覆盖的设备型号数量，即部分设备无操作规程；检查记录合规率低于70%，反映规程未有效执行或规程本身不可操作。
+  audit_item: 项目建设组织实施不到位
+  suspicion: 未制定冷链技术标准或操作规程
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国安全生产法\",\n    \"法规文号\": \"中华人民共和国主席令第88号（2021年修正）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第三十六条\",\n    \"内容概述\": \"生产经营单位应当教育和督促从业人员严格执行本单位的安全生产规章制度和安全操作规程，并向从业人员如实告知作业场所和工作岗位存在的危险因素、防范措施及事故应急措施。未制定操作规程违反此规定。\"\
+    \n  }\n]"

@@ -1,0 +1,90 @@
+name: audit/清单名册类/工程清单
+type: model
+description: 从清单名册类类文档（工程清单）中提取结构化元数据。涵盖字段如：工程名称、工程类别、方案编制日期、规模特征。文档范围包括：危险性较大分部分项工程清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 工程
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 工程清单
+  member_count: 1
+  member_details:
+  - 危险性较大分部分项工程清单
+output:
+  fields:
+  - name: 工程名称
+    type: string
+    description: 提取 工程名称 的文本值
+  - name: 工程类别
+    type: string
+    description: 提取 工程类别 的文本值
+  - name: 方案编制日期
+    type: date
+    description: 提取 方案编制日期 的日期值，格式 YYYY-MM-DD
+  - name: 规模特征
+    type: string
+    description: 提取 规模特征 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: （安全专项施工方案.是否要求论证 == '是' && 专家论证意见书.论证会议日期 IS NULL） || （专家论证意见书.论证会议日期 != NULL && 安全专项施工方案.批准日期 > 专家论证意见书.论证会议日期）
+    || （危险性较大分部分项工程清单.工程类别 包含 '深基坑'/'高大模板'/'起重吊装' 且 专家论证意见书 无对应记录） || （项目监理日志.分项工程开工审批日期 < 专家论证意见书.论证会议日期）
+  description: 判定规则：1）按规定需要论证的方案，未召开专家论证会直接实施；2）方案审批日期晚于论证日期，说明论证流于形式，方案未经论证即获批；3）工程类别属于危险性较大工程但缺失论证记录；4）实际开工时间早于论证时间，属于未论证先施工的严重违规。
+  audit_item: 重大工程项目风险预警
+  suspicion: 安全专项施工方案未组织专家论证
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程安全生产管理条例\",\n    \"法规文号\": \"国务院令第393号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十六条\",\n    \"内容概述\": \"施工单位应当在施工组织设计中编制安全技术措施和施工现场临时用电方案，对达到一定规模的危险性较大的分部分项工程编制专项施工方案，并附具安全验算结果，经施工单位技术负责人、总监理工程师签字后实施，由专职安全生产管理人员进行现场监督；其中涉及深基坑、地下暗挖工程、高大模板工程的专项施工方案，施工单位还应当组织专家进行论证、审查。\"\
+    \n  }\n]"

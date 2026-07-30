@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的空间 — AuditWorkbench</title>
+  <link rel="stylesheet" href="lib/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .ws-tabs { display: flex; gap: 0; margin-bottom: var(--space-lg); border-bottom: 2px solid var(--color-border); }
+    .ws-tab {
+      padding: 10px 20px; cursor: pointer; font-weight: 500; font-size: 14px;
+      color: var(--color-text-muted); border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all 0.15s;
+    }
+    .ws-tab:hover { color: var(--color-primary); }
+    .ws-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+    .ws-panel { display: none; }
+    .ws-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+    /* Expression tree editor */
+    .tree-node { margin-left: var(--space-lg); border-left: 2px solid var(--color-border); padding-left: var(--space-md); }
+    .tree-operator {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;
+    }
+    .tree-operator.and { background: rgba(45,125,70,0.1); color: var(--color-success); }
+    .tree-operator.or  { background: rgba(196,30,58,0.1); color: var(--color-accent); }
+    .tree-condition {
+      display: flex; align-items: center; gap: var(--space-sm);
+      padding: 8px 12px; margin: 4px 0;
+      background: var(--color-card); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); font-size: 14px;
+    }
+    .tree-condition .cond-field { font-family: var(--font-mono); font-weight: 600; color: var(--color-primary); }
+    .tree-condition .cond-op    { padding: 2px 8px; background: var(--color-bg); border-radius: 4px; font-size: 12px; }
+    .tree-condition .cond-value { font-family: var(--font-mono); color: var(--color-success); }
+    .tree-condition .cond-actions { margin-left: auto; display: flex; gap: 4px; }
+  </style>
+</head>
+<body data-page="workspace">
+
+  <div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+  <nav id="aw-navbar" class="app-navbar"></nav>
+  <div class="app-layout">
+    <aside id="aw-sidebar" class="app-sidebar"></aside>
+    <main class="app-content">
+
+      <div class="page-header">
+        <div>
+          <h1><i class="bi bi-person"></i> 我的空间</h1>
+          <div class="breadcrumb">我的表达式 · 分析历史 · 依据收藏 · 导出记录</div>
+        </div>
+      </div>
+
+      <div class="ws-tabs">
+        <div class="ws-tab active" onclick="Workspace.switchTab('expressions')">⚙️ 我的表达式 <span class="badge badge-muted">3</span></div>
+        <div class="ws-tab" onclick="Workspace.switchTab('history')">📊 分析历史 <span class="badge badge-muted">5</span></div>
+        <div class="ws-tab" onclick="Workspace.switchTab('bookmarks')">⭐ 依据收藏 <span class="badge badge-muted">12</span></div>
+        <div class="ws-tab" onclick="Workspace.switchTab('exports')">📤 导出记录 <span class="badge badge-muted">8</span></div>
+      </div>
+
+      <!-- Expressions Panel -->
+      <div class="ws-panel active" id="panel-expressions">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">
+          <h3 style="margin:0;">自定义违规检测规则</h3>
+          <button class="btn btn-primary" onclick="Workspace.showExpressionEditor()"><i class="bi bi-plus-lg"></i> 新建表达式</button>
+        </div>
+
+        <div class="association-card">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <strong>教育局采购规避招标检测</strong>
+              <span class="badge badge-accent" style="margin-left:8px;">v2</span>
+            </div>
+            <span class="text-muted text-sm">2026-07-04</span>
+          </div>
+          <div style="margin-top:4px;font-size:13px;color:var(--color-text-muted);">
+            检测拆分采购规避公开招标的典型模式
+          </div>
+          <div style="margin-top:8px;background:var(--color-bg);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;">
+            <span class="tree-operator or">OR</span>
+            <span style="margin-left:8px;">
+              <span style="color:var(--color-primary);">COUNT(子项目)</span> > 1
+              <span style="color:var(--color-text-muted);">AND</span>
+              <span style="color:var(--color-primary);">子项目.供应商</span> 全相同
+            </span>
+          </div>
+          <div class="assoc-links">
+            <button class="btn btn-sm btn-outline"><i class="bi bi-play-fill"></i> 测试</button>
+            <button class="btn btn-sm btn-outline"><i class="bi bi-pencil"></i> 编辑</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--color-success);"><i class="bi bi-cloud-upload"></i> 发布到违规库</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div class="ws-panel" id="panel-history">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>时间</th><th>项目名称</th><th>疑点数</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>2026-07-04 14:30</td><td>教育局2026采购审计</td><td><span class="badge badge-accent">2条</span></td><td><span class="badge badge-success">已完成</span></td><td><a href="analysis.html">查看</a></td></tr>
+              <tr><td>2026-07-03 10:15</td><td>农业农村局补贴核查</td><td><span class="badge badge-accent">5条</span></td><td><span class="badge badge-success">已完成</span></td><td><a href="#">查看</a></td></tr>
+              <tr><td>2026-07-02 16:00</td><td>卫健委采购合规审计</td><td><span class="badge badge-warning">3条</span></td><td><span class="badge badge-warning">待复核</span></td><td><a href="#">继续</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bookmarks Panel -->
+      <div class="ws-panel" id="panel-bookmarks">
+        <div class="rec-item"><i class="bi bi-bookmark-star"></i><div style="flex:1;"><strong>《招标投标法》第4条</strong><div style="font-size:12px;color:var(--color-text-muted);">禁止化整为零规避招标</div></div><a class="trace-link" href="#">溯源</a></div>
+        <div class="rec-item"><i class="bi bi-bookmark-star"></i><div style="flex:1;"><strong>《必须招标的工程项目规定》第5条</strong><div style="font-size:12px;color:var(--color-text-muted);">货物≥200万须公开招标</div></div><a class="trace-link" href="#">溯源</a></div>
+        <div class="rec-item"><i class="bi bi-bookmark-star"></i><div style="flex:1;"><strong>《政府采购法》第28条</strong><div style="font-size:12px;color:var(--color-text-muted);">公开招标应为主要采购方式</div></div><a class="trace-link" href="#">溯源</a></div>
+      </div>
+
+      <!-- Exports Panel -->
+      <div class="ws-panel" id="panel-exports">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>时间</th><th>文件类型</th><th>文件名</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>07-04 15:30</td><td>取证单</td><td>教育局采购审计_疑点1_取证单.docx</td><td><a href="#">下载</a></td></tr>
+              <tr><td>07-04 15:30</td><td>取证单</td><td>教育局采购审计_疑点2_取证单.docx</td><td><a href="#">下载</a></td></tr>
+              <tr><td>07-03 11:00</td><td>报告初稿</td><td>农业农村局补贴审计_报告初稿.docx</td><td><a href="#">下载</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    const Workspace = {
+      switchTab(tab) {
+        document.querySelectorAll('.ws-tab').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.ws-panel').forEach(el => el.classList.remove('active'));
+        document.getElementById('panel-' + tab).classList.add('active');
+        event.target.closest('.ws-tab').classList.add('active');
+      },
+      showExpressionEditor() {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+        <div style="background:#fff;border-radius:var(--radius-lg);max-width:700px;width:95%;padding:24px;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;"><i class="bi bi-diagram-3"></i> 编排违规表达式</h3>
+            <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+          </div>
+          <div class="form-group"><label class="form-label">表达式名称</label><input class="form-input" placeholder="例如：教育局采购规避招标检测"></div>
+          <div class="form-group"><label class="form-label">所属领域</label><select class="form-select"><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option></select></div>
+          <label class="form-label">条件编排 (可视化逻辑树)</label>
+          <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:16px;background:var(--color-bg);">
+            <div><span class="tree-operator and">AND (全部满足)</span></div>
+            <div class="tree-node">
+              <div class="tree-condition">
+                <span class="cond-field">采购方式</span><span class="cond-op">!=</span><span class="cond-value">'公开招标'</span>
+                <span class="cond-actions"><button class="btn btn-sm btn-outline"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline" style="color:var(--color-accent);"><i class="bi bi-x-lg"></i></button></span>
+              </div>
+              <div class="tree-condition">
+                <span class="cond-field">合同金额</span><span class="cond-op">>=</span><span class="cond-value">2000000</span>
+                <span class="cond-actions"><button class="btn btn-sm btn-outline"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline" style="color:var(--color-accent);"><i class="bi bi-x-lg"></i></button></span>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline" style="margin-top:8px;margin-left:24px;"><i class="bi bi-plus-lg"></i> 添加条件</button>
+          </div>
+          <div style="margin:12px 0;text-align:center;color:var(--color-text-muted);font-size:13px;">
+            <button class="btn btn-sm btn-outline"><i class="bi bi-plus-lg"></i> + 添加 OR 条件组</button>
+          </div>
+          <div class="alert alert-info"><i class="bi bi-lightbulb"></i> <strong>智能问数：</strong>也可以口述查询需求，让AI自动生成表达式</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input class="form-input" placeholder="口述：帮我查所有采购方式为非公开招标且金额超200万的合同..." id="nl-input">
+            <button class="btn btn-primary btn-sm" onclick="document.getElementById('nl-input').value && AuditWorkbench.toast('AI正在理解您的需求...','info')"><i class="bi bi-magic"></i> AI生成</button>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="this.closest('[style*=fixed]').remove()">取消</button>
+            <button class="btn btn-accent" onclick="this.closest('[style*=fixed]').remove();AuditWorkbench.toast('表达式已保存','success')"><i class="bi bi-check-lg"></i> 保存</button>
+            <button class="btn btn-primary" onclick="this.closest('[style*=fixed]').remove();AuditWorkbench.toast('请选择测试数据','info')"><i class="bi bi-play-fill"></i> 保存并测试</button>
+          </div>
+        </div>`;
+        modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+        document.body.appendChild(modal);
+      }
+    };
+  </script>
+</body>
+</html>

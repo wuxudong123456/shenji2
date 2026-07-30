@@ -1,0 +1,87 @@
+name: audit/清单名册类/购置清单
+type: model
+description: 从清单名册类类文档（购置清单）中提取结构化元数据。涵盖字段如：批准文号、报关单号、车辆识别号。文档范围包括：进口车辆专项购置清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 车辆
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 购置清单
+  member_count: 1
+  member_details:
+  - 进口车辆专项购置清单
+output:
+  fields:
+  - name: 批准文号
+    type: string
+    description: 提取 批准文号 的文本值
+  - name: 报关单号
+    type: string
+    description: 提取 报关单号 的文本值
+  - name: 车辆识别号
+    type: string
+    description: 提取 车辆识别号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (登记清单.车辆来源（国产/进口） = '进口' AND 平台记录.采购方式 NOT IN ('公开招标', '政府集中采购')) OR (购置清单.批准文号 IS NULL AND 登记清单.车辆来源（国产/进口）
+    = '进口')
+  description: 进口车辆必须履行规定的政府采购程序且取得进口审批，无合规采购方式或无批准文号的进口车均属违规。
+  audit_item: 违规配备公务用车
+  suspicion: 违反规定进口或购买汽车
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"党政机关应当配备使用国产汽车，带头使用新能源汽车，除特殊情况外不得购置进口汽车。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国政府采购法\",\n \
+    \   \"法规文号\": \"主席令第六十八号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第七条\",\n    \"内容概述\": \"政府采购实行集中采购和分散采购相结合，纳入集中采购目录的政府采购项目，"

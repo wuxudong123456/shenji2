@@ -1,0 +1,156 @@
+name: audit/登记台账类/贷款台账
+type: model
+description: 从登记台账类类文档（贷款台账）中提取结构化元数据。涵盖字段如：交易日期、借款主体类型、入账金额、利率、对方账户名称、担保方式、摘要、行业。文档范围包括：贷款台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 贷款台账
+  member_count: 1
+  member_details:
+  - 贷款台账
+output:
+  fields:
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 借款主体类型
+    type: number
+    description: 提取 借款主体类型 的数值（含单位，如万元、吨等）
+  - name: 入账金额
+    type: number
+    description: 提取 入账金额 的数值（含单位，如万元、吨等）
+  - name: 利率
+    type: string
+    description: 提取 利率 的文本值
+  - name: 对方账户名称
+    type: string
+    description: 提取 对方账户名称 的文本值
+  - name: 担保方式
+    type: string
+    description: 提取 担保方式 的文本值
+  - name: 摘要
+    type: string
+    description: 提取 摘要 的文本值
+  - name: 行业
+    type: string
+    description: 提取 行业 的文本值
+  - name: 质押-抵押品
+    type: string
+    description: 提取 质押-抵押品 的文本值
+  - name: 贴息应享主体
+    type: string
+    description: 提取 贴息应享主体 的文本值
+  - name: 贷款利率
+    type: number
+    description: 提取 贷款利率 的数值（含单位，如万元、吨等）
+  - name: 贷款合同号
+    type: number
+    description: 提取 贷款合同号 的数值（含单位，如万元、吨等）
+  - name: 贷款品种
+    type: number
+    description: 提取 贷款品种 的数值（含单位，如万元、吨等）
+  - name: 贷款金额
+    type: number
+    description: 提取 贷款金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (贷款台账.借款主体类型='农村集体经济组织' && 贷款台账.贷款利率 > (数据.平均利率 * 1.2)) OR (金融统计期内集体经济组织贷款获批笔数 = 0 && 同类企业获批笔数 > 0)
+  description: 对比集体经济组织贷款利率与同类企业平均利率，若超出20%或高出1.5个百分点以上，或近两年无任何集体经济组织贷款获批，而同类企业贷款正常，即视为金融支持政策未落实。
+  audit_item: 政策支持落实和监督检查不到位
+  suspicion: 农村集体经济组织融资担保政策不完善
+  regulation: "[\n  {\n    \"法规名称\": \"关于金融服务乡村振兴的指导意见\",\n    \"法规文号\": \"银发〔2019〕8号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第六条\",\n    \"内容概述\": \"要求金融机构创新符合农村集体经济组织特点的金融产品，合理确定贷款利率，降低融资成本。\"\n  }\n]"
+- expression: (贷款台账.抵押物评估价值 / 贷款台账.贷款金额 > 1.25) OR (贷款主体类型、抵押物价值、获贷金额、拒贷原因.抵押物价值 > 涉农贷款抵押率上限要求、优惠利率.涉农贷款抵押率上限要求 > 1.25) OR
+    (贷款主体类型、抵押物价值、获贷金额、拒贷原因.拒贷原因 LIKE '%抵押不足%' AND 拒贷原因 LIKE '%抵押不足%' AND 贷款主体类型、抵押物价值、获贷金额、拒贷原因.抵押物价值/获贷金额 <= 1.25)
+  description: 政策允许涉农贷款抵押率可放宽，即贷款金额最高可达抵押物评估价值的80%，则抵押物价值/贷款金额应≤1.25。若比值超过1.25，表明银行额外提高抵押要求，如要求抵押物价值达到贷款额200%则比值为2；对于因抵押不足拒贷且比值已≤1.25的，说明银行未落实放宽政策。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 涉农贷款抵押率超标变相抬高贷款门槛
+  regulation: "[\n  {\n    \"法规名称\": \"关于金融服务乡村振兴的指导意见\",\n    \"法规文号\": \"银发〔2019〕11号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第三条\",\n    \"内容概述\": \"鼓励银行业金融机构适当提高涉农贷款风险容忍度，合理确定贷款期限和抵押率，对确权颁证且权属清晰的新型农业经营主体资产，抵押率最高可放宽至80%。\"\n  },\n  {\n\
+    \    \"法规名称\": \"中华人民共和国商业银行法\",\n    \"法规文号\": \"\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第三十六条\",\n    \"内容概述\": \"\
+    商业银行贷款，借"
+- expression: (贷款台账.贴息应享主体 = '是' AND NOT EXISTS (拨款凭证 WHERE 拨款凭证.收款单位 = 贷款台账.对方账户名称 AND 拨款凭证.贴息金额 >= 贷款台账.贷款金额*贷款台账.贷款利率*政策文件.贴息比例*贴息期限))
+    OR (拨款凭证.到账日期 - 贷款台账.交易日期 > 政策文件.发放时限要求（如季度后15个工作日内）) OR (指标文件.支出进度/贴息专项预算额度 < 0.5 AND 当前日期 > 预算年度中间时点)
+  description: 符合条件的贷款应获得贴息但未收到拨款或收到金额不足，或贴息到账时间远超规定时限（如按季支付已超期1个月），或财政已安排预算但实际支出进度严重滞后，均判定为落实不到位。
+  audit_item: 相关支持政策落实不到位
+  suspicion: nan
+  regulation: "[\n  {\n    \"法规名称\": \"关于财政支持建立现代乡村产业体系的通知\",\n    \"法规文号\": \"财办〔2021〕XX号（假设）\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"各级财政要足额安排涉农贷款贴息资金，按时兑现贴息政策，任何单位不得截留、挪用或无故拖延拨付。\"\n  },\n  {\n    \"法规名称\": \"\
+    中华人民共和国预算法实施条例\",\n    \"法规文号\": \"国务院令第729号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第五十八条\",\n    \"内容概述\": \"各级政府财政部门应当加强"

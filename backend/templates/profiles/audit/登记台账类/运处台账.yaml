@@ -1,0 +1,126 @@
+name: audit/登记台账类/运处台账
+type: model
+description: 从登记台账类类文档（运处台账）中提取结构化元数据。涵盖字段如：各村庄垃圾收集量、处置终端、收集量、清运日期、清运村庄、清运记录缺失时段。文档范围包括：村镇垃圾收运处台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 运处台账
+  member_count: 1
+  member_details:
+  - 村镇垃圾收运处台账
+output:
+  fields:
+  - name: 各村庄垃圾收集量
+    type: string
+    description: 提取 各村庄垃圾收集量 的文本值
+  - name: 处置终端
+    type: string
+    description: 提取 处置终端 的文本值
+  - name: 收集量
+    type: string
+    description: 提取 收集量 的文本值
+  - name: 清运日期
+    type: date
+    description: 提取 清运日期 的日期值，格式 YYYY-MM-DD
+  - name: 清运村庄
+    type: string
+    description: 提取 清运村庄 的文本值
+  - name: 清运记录缺失时段
+    type: string
+    description: 提取 清运记录缺失时段 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (规划中转站数量.规划中转站数量 - 验收报告.实际建成中转站数量) / 规划中转站数量.规划中转站数量 > 0.2 || (MAX(运处台账.同一村庄清运间隔天数) > 7) || (日报.出勤车辆 < 规划中转站数量.规划中转站数量
+    * 0.6)
+  description: 建成率低于80%视为进展慢；同一村庄最长清运间隔超过7天视为不能及时清运；出勤车辆低于配置数量60%表明运力不足，致使垃圾随意堆放。满足任一条件即触发疑点。
+  audit_item: 农村生活垃圾收运处不符合规定
+  suspicion: 村镇垃圾随意丢弃堆放，清运任务进展缓慢
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国固体废物污染环境防治法\",\n    \"法规文号\": \"2020年修订\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第四十六条\",\n    \"内容概述\": \"地方各级人民政府应当加强农村生活垃圾污染环境的防治，组织、指导对生活垃圾的清扫、收集、运输和处理。\"\n  },\n  {\n    \"法规名称\": \"农村人居环境整治提升五年行动方案（2021-2025年）\"\
+    ,\n    \"法规文号\": \"厅字〔2021〕44号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"二、（六）\",\n    \"内容概述\": \"健全"
+- expression: 监测报告.PM2.5 > 500 μg/m³ && 图.异常高温点坐标 IN (运处台账.清运村庄) || 整改清单.违规焚烧点位置 >= 2
+  description: PM2.5极高且对应区域存在热源异常点，或台账记录显示垃圾长期未清运区域同时出现热源点，判定为疑似焚烧；同一地点重复出现焚烧记录视为屡禁不止。
+  audit_item: 农村生活垃圾收运处不符合规定
+  suspicion: 露天焚烧农村生活垃圾
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国固体废物污染环境防治法\",\n    \"法规文号\": \"2020年修订\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第四十九条\",\n    \"内容概述\": \"禁止随意倾倒、抛撒、堆放或者焚烧生活垃圾。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国大气污染防治法\",\n    \"法规文号\": \"\
+    2018年修订\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第八十二条\",\n    \"内容概述\": \"禁止在人口集中地区和其他依法需要特殊保护的区域内焚烧沥青、油毡、橡胶、塑料、皮革、垃圾以及其他产生有"

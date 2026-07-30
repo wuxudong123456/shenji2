@@ -1,0 +1,166 @@
+name: audit/登记台账类/抽检台账
+type: model
+description: 从登记台账类类文档（抽检台账）中提取结构化元数据。涵盖字段如：DNA指纹检测结果、不完善粒、库存核查结果、抽样仓号、抽样品种名称、抽样库点、抽样日期、抽样时间。文档范围包括：种子质量抽检台账、粮食质量抽检台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 抽检台账
+  member_count: 1
+  member_details:
+  - 种子质量抽检台账
+  - 粮食质量抽检台账
+output:
+  fields:
+  - name: DNA指纹检测结果
+    type: boolean
+    description: 提取 DNA指纹检测结果 的布尔值（是/否）
+  - name: 不完善粒
+    type: string
+    description: 提取 不完善粒 的文本值
+  - name: 库存核查结果
+    type: boolean
+    description: 提取 库存核查结果 的布尔值（是/否）
+  - name: 抽样仓号
+    type: string
+    description: 提取 抽样仓号 的文本值
+  - name: 抽样品种名称
+    type: string
+    description: 提取 抽样品种名称 的文本值
+  - name: 抽样库点
+    type: string
+    description: 提取 抽样库点 的文本值
+  - name: 抽样日期
+    type: date
+    description: 提取 抽样日期 的日期值，格式 YYYY-MM-DD
+  - name: 抽样时间
+    type: date
+    description: 提取 抽样时间 的日期值，格式 YYYY-MM-DD
+  - name: 杂质
+    type: string
+    description: 提取 杂质 的文本值
+  - name: 标签标注品种
+    type: string
+    description: 提取 标签标注品种 的文本值
+  - name: 样品品种名称
+    type: string
+    description: 提取 样品品种名称 的文本值
+  - name: 检测结果
+    type: boolean
+    description: 提取 检测结果 的布尔值（是/否）
+  - name: 水分
+    type: string
+    description: 提取 水分 的文本值
+  - name: 霉变粒
+    type: string
+    description: 提取 霉变粒 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (检测报告.水分含量 > 清杂工艺要求.温湿度控制指标) || (检测报告.杂质含量 > 清杂工艺要求.清杂工艺要求) || (抽检台账.霉变粒 > 0) && (日志.异常情况记载 > 7 || 日志.通风记录 >
+    5)
+  description: 当任一质量指标（水分、杂质）超标，或出现霉变粒，且同时存在保管记录异常（如高温高湿天数超7天或无通风记录超5天），判定为未按规定保管、清杂导致质量不达标。进一步结合整改报告确认问题是否为长期存在。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 粮食保管及清杂违规致质量不达标
+  regulation: "[\n  {\n    \"法规名称\": \"《粮油仓储管理办法》\",\n    \"法规文号\": \"国家发展和改革委员会令第5号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十六条、第二十一条\",\n    \"内容概述\": \"粮油仓储单位应当遵守国家粮油质量安全标准，保持仓储设施完好，及时进行清杂整理，确保储存安全；入库粮油应当符合规定质量标准，不符合标准的不得作为合格粮入库。\"\n \
+    \ },\n  {\n    \"法规名称\": \"《粮油储存安全责任暂行规定》\",\n    \"法规文号\": \"国粮发〔2016〕206号\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\":\
+    \ \"第"
+- expression: ABS(实物台账.账面库存数量 - 抽检台账.库存核查结果（实物侧量）) / 实物台账.账面库存数量 > 0.03 && 拨付文件.补贴计算基数（库存数量） == 实物台账.账面库存数量
+  description: 以现场监盘核实的实际库存与账面库存差异超过3%（考虑合理损耗），且财政补贴依据的基数仍采用账面虚高库存计算，即判定为账实不符且多领补贴。多领补贴金额=(账面库存-实盘库存)×补贴标准。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 政策性粮油账实不符、多领财政补贴
+  regulation: "[\n  {\n    \"法规名称\": \"《关于进一步加强中央储备粮油库存管理的通知》\",\n    \"法规文号\": \"国粮发〔2015〕24号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"承储企业必须保证账实相符，不得虚报库存，财政补贴必须以实有库存为依据，对虚报库存骗取补贴的应全额追回并处理。\"\n  },\n  {\n    \"\
+    法规名称\": \"《粮食流通管理条例》\",\n    \"法规文号\": \"国务院令第407号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十条\",\n    \"内容概述\":\
+    \ \"政策性粮食存储企业"
+- expression: 进度表.首次推广日期 < 备案材料.审定通过日期
+  description: 推广日期早于审定通过日期，即构成未审先推。任何此类时间倒置均属严重违规。
+  audit_item: 种业市场监管方面不符合相关规定
+  suspicion: 种子未审先推违规行为未有效监管
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国种子法\",\n    \"法规文号\": \"中华人民共和国主席令第三十五号（2015年修订）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第二十三条\",\n    \"内容概述\": \"应当审定的农作物品种未经审定的，不得发布广告、推广、销售。\"\n  }\n]"
+- expression: (档案.许可品种名称 IN 品种权证书.品种名称) && (档案.企业名称 NOT IN (品种权证书.品种权人 ∪ 品种权证书.被许可人)) || (抽检台账.DNA指纹检测结果 != 抽检台账.标签标注品种)
+  description: 未经品种权人或其授权许可的主体生产授权品种，或实际检测出的品种与标签标注品种不符，均属于套牌侵权。两个条件满足其一即可判定。
+  audit_item: 种业市场监管方面不符合相关规定
+  suspicion: 种子套牌侵权行为未有效查处
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国种子法\",\n    \"法规文号\": \"中华人民共和国主席令第三十五号（2015年修订）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第二十八条\",\n    \"内容概述\": \"任何单位或者个人未经植物新品种权所有人许可，不得生产、繁殖或者销售该授权品种的繁殖材料，不得为商业目的将该授权品种的繁殖材料重复使用于生产另一品种的繁殖材料。\"\
+    \n  }\n]"

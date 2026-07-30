@@ -1,0 +1,72 @@
+name: audit/记录留痕类/评议记录
+type: model
+description: 从记录留痕类类文档（评议记录）中提取结构化元数据。涵盖字段如：参会人员、签到表、评议日期、评议结论。文档范围包括：民主评议记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 人员
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 评议记录
+  member_count: 1
+  member_details:
+  - 民主评议记录
+output:
+  fields:
+  - name: 参会人员
+    type: string
+    description: 提取 参会人员 的文本值
+  - name: 签到表
+    type: string
+    description: 提取 签到表 的文本值
+  - name: 评议日期
+    type: date
+    description: 提取 评议日期 的日期值，格式 YYYY-MM-DD
+  - name: 评议结论
+    type: string
+    description: 提取 评议结论 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: '( (审批表.民主评议意见 IS NULL OR 评议记录.评议日期 > 审批表.审批日期) OR (调查表.调查日期 > 审批表.审批日期 OR 调查表 IS NULL) OR (发放记录.发放日期 < 审批表.审批日期)
+    OR (管理台账.保障状态 = ''在保'' AND (管理台账.最近一次复核日期 IS NULL OR DATEDIFF(CURDATE(), 管理台账.最近一次复核日期) > 365) ) OR ( (数据.有无车辆登记 = TRUE
+    OR 数据.有无房产登记 = TRUE OR 数据.银行存款余额 > 当地低保标准*12) AND 调查表.家庭收入 <= 当地低保标准 '
+  description: 满足任一条件即构成程序违规疑点：1. 审批表中无民主评议意见或评议日期晚于审批日期，说明未经民主评议或程序倒置；2. 家庭经济状况调查表完成日期晚于审批日期或缺失，说明未经调查核实即审批；3. 低保金发放日期早于审批日期，说明先发放后审批；4.
+    在保对象最近一次复核日期为空或距今超过365天，说明未定期开展动态管理，可能应退未退；5. 部门数据显示拥有车辆、房产或银行存款超过当地一年低保标准，而调
+  audit_item: 最低生活保障审核审批程序不合规
+  suspicion: 未按规定程序办理低保审批与待遇核定
+  regulation: "[\n  {\n    \"法规名称\": \"社会救助暂行办法\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十一条\",\n    \"内容概述\": \"申请最低生活保障，乡镇人民政府、街道办事处应当通过入户调查、邻里访问、信函索证、群众评议、信息核查等方式，对申请人的家庭收入状况、财产状况进行调查核实，提出初审意见，在申请人所在村、社区公示后报县级人民政府民政部门审批。\"\
+    \n  },\n  {\n    \"法规名称\": \"社会救助暂行办法\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n   "

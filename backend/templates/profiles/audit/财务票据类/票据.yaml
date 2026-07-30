@@ -1,0 +1,233 @@
+name: audit/财务票据类/票据
+type: model
+description: 从财务票据类类文档（票据）中提取结构化元数据。涵盖字段如：业务发生日期、付款方名称、发票内容、发票金额、开具日期、捐赠方、收款单位、收款账户名称。文档范围包括：原始票据、向企业收取费用的票据、捐赠票据、捐赠票据存根联、收费票据、收费票据存根联、村卫生室收费票据等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务票据类
+- 审计
+- 付款
+- 票据
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 财务票据类
+  member_types:
+  - 票据
+  member_count: 1
+  member_details:
+  - 原始票据
+  - 向企业收取费用的票据
+  - 捐赠票据
+  - 捐赠票据存根联
+  - 收费票据
+  - 收费票据存根联
+  - 村卫生室收费票据
+output:
+  fields:
+  - name: 业务发生日期
+    type: date
+    description: 提取 业务发生日期 的日期值，格式 YYYY-MM-DD
+  - name: 付款方名称
+    type: number
+    description: 提取 付款方名称 的数值（含单位，如万元、吨等）
+  - name: 发票内容
+    type: string
+    description: 提取 发票内容 的文本值
+  - name: 发票金额
+    type: number
+    description: 提取 发票金额 的数值（含单位，如万元、吨等）
+  - name: 开具日期
+    type: date
+    description: 提取 开具日期 的日期值，格式 YYYY-MM-DD
+  - name: 捐赠方
+    type: string
+    description: 提取 捐赠方 的文本值
+  - name: 收款单位
+    type: number
+    description: 提取 收款单位 的数值（含单位，如万元、吨等）
+  - name: 收款账户名称
+    type: number
+    description: 提取 收款账户名称 的数值（含单位，如万元、吨等）
+  - name: 收费项目
+    type: number
+    description: 提取 收费项目 的数值（含单位，如万元、吨等）
+  - name: 收费项目名称
+    type: number
+    description: 提取 收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 票据开具日期
+    type: date
+    description: 提取 票据开具日期 的日期值，格式 YYYY-MM-DD
+  - name: 票据类型
+    type: string
+    description: 提取 票据类型 的文本值
+  - name: 票据编号
+    type: string
+    description: 提取 票据编号 的文本值
+  - name: 票据金额
+    type: number
+    description: 提取 票据金额 的数值（含单位，如万元、吨等）
+  - name: 签名
+    type: string
+    description: 提取 签名 的文本值
+  - name: 缴款人
+    type: number
+    description: 提取 缴款人 的数值（含单位，如万元、吨等）
+  - name: 缴费方
+    type: number
+    description: 提取 缴费方 的数值（含单位，如万元、吨等）
+  - name: 缴费金额
+    type: number
+    description: 提取 缴费金额 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 金额或物资公允价值
+    type: number
+    description: 提取 金额或物资公允价值 的数值（含单位，如万元、吨等）
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 开票日期
+    type: date
+    description: 开票日期，格式 YYYY-MM-DD
+    required: false
+  - name: 购买方地址电话
+    type: string
+    description: 购买方地址及电话
+    required: false
+  - name: 购买方开户行及账号
+    type: string
+    description: 购买方开户银行及银行账号
+    required: false
+  - name: 销售方地址电话
+    type: string
+    description: 销售方地址及电话
+    required: false
+  - name: 销售方开户行及账号
+    type: string
+    description: 销售方开户银行及银行账号
+    required: false
+  - name: 规格型号
+    type: string
+    description: 货物规格型号
+    required: false
+  - name: 单位
+    type: string
+    description: 计量单位（如个、件、吨、千克）
+    required: false
+  - name: 数量
+    type: number
+    description: 销售数量
+    required: false
+  - name: 单价
+    type: number
+    description: 不含税单价
+    required: false
+  - name: 备注
+    type: string
+    description: 发票备注栏信息
+    required: false
+  - name: 收款方
+    type: string
+    description: 收款方名称
+    required: false
+  - name: 付款方
+    type: string
+    description: 付款方名称
+    required: false
+  - name: 机器编号
+    type: string
+    description: 税控机器编号
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 付方名称
+    type: string
+    description: 付款方或购买方名称
+    required: false
+  - name: 收方名称
+    type: string
+    description: 收款方或销售方名称
+    required: false
+  - name: 项目内容
+    type: string
+    description: 货物、服务或行程等具体内容描述
+    required: false
+violations:
+- expression: (征收台账.收费项目名称 IN (法定征收对象、法定收费标准上限、法定项目名称、法定征收标准、已取消项目名称、取消执行日期.已取消项目名称)) && (征收台账.实际征收日期 > 法定征收对象、法定收费标准上限、法定项目名称、法定征收标准、已取消项目名称、取消执行日期.取消执行日期)
+    && (征收台账.征收金额 > 0)
+  description: 该表达式用于识别在政策规定的取消执行日期之后，被审计单位仍存在征收已取消项目的行为。通过将征收台账中的项目名称与已取消项目清单匹配，并比对征收日期和金额，只要在取消日期后产生任何大于零的收费记录，即判定为违规。
+  audit_item: 违反规定设立非税收入
+  suspicion: 继续征收已明令取消的非税收入项目
+  regulation: "[\n  {\n    \"法规名称\": \"政府非税收入管理办法\",\n    \"法规文号\": \"财税〔2016〕33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第七条\",\n    \"内容概述\": \"非税收入项目应当依法设立。已明确取消、停征、减征、免征或者缓征的非税收入项目，执收单位应当严格按照规定执行。\"\n  }\n]"
+- expression: ( 签到表.参训单位 && 通知文件.参训要求措辞（如‘必须’‘全员参加’） ) && ( 签到表.参训单位 && 票据.缴费金额 )
+  description: 若培训通知明确要求‘必须参训’、‘未参训不得通过考核’等强制性语句，且参加培训的人员与后续接受该机关监督检查、资质续期的对象几乎完全重合，同时培训收费未按经营服务性收费管理规定报批或备案，则判定为利用行政权力强制培训并收费。
+  audit_item: 违规收费-依托行政职权、行政资源及影响力通过垄断经营、指定服务、强制培训等违规收费
+  suspicion: 以行政命令强制参加培训并收费
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央办公厅 国务院办公厅关于严禁党政机关到风景名胜区开会的通知（含延伸规定精神）\",\n    \"法规文号\": \"厅字〔2014〕50号\",\n   \
+    \ \"效力级别\": \"制度文件\",\n    \"条款号\": \"总体要求\",\n    \"内容概述\": \"严禁党政机关以培训等名义变相收费。\"\n  },\n  {\n    \"法规名称\": \"行政事业性收费标准管理办法\"\
+    ,\n    \"法规文号\": \"发改价格规〔2018〕988号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"行政事业性收费实行目录清单管理，未列"
+- expression: 明细表.捐赠日期 < 票据取得日期 && 差异天数 > 30
+  description: 会计上应在取得合法票据时确认捐赠支出，若提前确认且跨月，可能存在调节利润或财务管理不规范。
+  audit_item: 资金管理方面存在的问题
+  suspicion: 未取得捐赠票据提前确认捐赠支出
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第24号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第九条、第二十五条\"\
+    ,\n    \"内容概述\": \"各单位必须根据实际发生的经济业务事项进行会计核算，填制会计凭证，登记会计账簿，编制财务会计报告。公司、企业必须根据实际发生的经济业务事项，按照国家统一的会计制度的规定确认收入、费用、成本。\"\n\
+    \  }\n]"
+- expression: sum(服务记录.收费金额) > 0 && 服务记录.服务项目 not in (甲乙双方权责.付费服务包内容与收费标准)
+  description: 统计实际收费记录中不属于协议文本中付费服务包内容的收费项目，只要发生未约定项目的收费即触发疑点。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不符合相关规定
+  suspicion: 家庭医生违规收取签约外费用
+  regulation: "[\n  {\n    \"法规名称\": \"关于推进家庭医生签约服务的指导意见\",\n    \"法规文号\": \"国医改办发〔2016〕1号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"三、（三）\",\n    \"内容概述\": \"家庭医生团队为居民提供约定的签约服务，除按规定收取签约服务费外，不得另行收取其他费用。\"\n  }\n]"
+- expression: (统计表.收费项目 IS NOT NULL AND 票据.票据类型 != '财政监制收据') || (服务内容约定.服务内容约定 IS NULL) || (统计表.实际收取金额 > 统计表.收费标准 * 1.1) ||
+    (票据.收款单位 != 法定的非税收入汇缴账户)
+  description: 判定条件一：向企业收费但未开具正规财政监制收据，直接表明为违规收费；条件二：合同未约定任何服务内容却收取“服务费”“保证金”，虚构名目；条件三：实际收费金额超出合同或标准10%以上，存在附加收费；条件四：收费资金未上缴财政而是进入单位自有账户，形成截留。满足任一条件即触发疑点。
+  audit_item: 截留挪用涉农财政专项资金
+  suspicion: 无依据向农机生产或销售企业收取费用
+  regulation: "[\n  {\n    \"法规名称\": \"农业专项转移支付资金管理办法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第X条（关于禁止向项目实施主体收费的规定）\"\
+    ,\n    \"内容概述\": \"任何单位和个人不得以任何名义向申请或使用涉农专项转移支付资金的农机生产、销售企业收取管理费、赞助费、保证金等，不得设置与项目无关的收费条件。\"\n  }\n]"
+- expression: (明细表.缴费主体类型='农村集体经济组织' && 明细表.收费项目 IN ('不动产登记费','工本费','测绘费') && 明细表.实收金额 > 0)
+  description: 根据财税〔2019〕45号等政策，对农村集体经济组织办理不动产登记应免收登记费、工本费等。只要存在缴费主体为农村集体经济组织且收费项目属于政策规定免征范围且实际收费金额大于0的记录，即判定为违规，无需设定金额阈值。
+  audit_item: 政策支持落实和监督检查不到位
+  suspicion: 免收不动产登记费政策落实不到位
+  regulation: "[\n  {\n    \"法规名称\": \"关于免征不动产登记费的通知\",\n    \"法规文号\": \"财税〔2019〕45号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第一条\",\n    \"内容概述\": \"对申请办理不动产登记的农村集体经济组织，免征不动产登记费。\"\n  }\n]"
+- expression: (分配台账.原接收记录 EXISTS) AND (票据编号.对应票据号码 IS NULL OR 票据编号.对应票据号码 != '公益事业捐赠票据')
+  description: 存在捐赠接收记录但未能提供对应的公益事业捐赠票据存根联，或开具的票据非财政部门监制的合规票据，即属违规。
+  audit_item: 社会捐赠款物管理和信息公开不合规
+  suspicion: 接受捐赠款物未开具合规捐赠票据
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国公益事业捐赠法\",\n    \"法规文号\": \"主席令第19号\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"受赠人接受捐赠后，应当向捐赠人出具合法、有效的收据，将受赠财产登记造册，妥善保管。\"\n  },\n  {\n    \"法规名称\": \"公益事业捐赠票据使用管理办法\"\
+    ,\n    \"法规文号\": \"财综〔2010〕112号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"公益事业捐赠票据是捐赠人对外捐赠并根据国家有关规定申请捐赠款"

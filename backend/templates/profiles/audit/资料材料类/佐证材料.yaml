@@ -1,0 +1,78 @@
+name: audit/资料材料类/佐证材料
+type: model
+description: 从资料材料类类文档（佐证材料）中提取结构化元数据。涵盖字段如：农户签名、家庭成员残疾/重病情况、指纹、材料类型、检测内容、残疾等级、申请理由、补贴对象名单。文档范围包括：困难群体救助相关佐证材料、补贴对象资格审核佐证材料、验收佐证材料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 补贴
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 佐证材料
+  member_count: 1
+  member_details:
+  - 困难群体救助相关佐证材料
+  - 补贴对象资格审核佐证材料
+  - 验收佐证材料
+output:
+  fields:
+  - name: 农户签名
+    type: string
+    description: 提取 农户签名 的文本值
+  - name: 家庭成员残疾-重病情况
+    type: string
+    description: 提取 家庭成员残疾-重病情况 的文本值
+  - name: 指纹
+    type: string
+    description: 提取 指纹 的文本值
+  - name: 材料类型
+    type: string
+    description: 提取 材料类型 的文本值
+  - name: 检测内容
+    type: string
+    description: 提取 检测内容 的文本值
+  - name: 残疾等级
+    type: string
+    description: 提取 残疾等级 的文本值
+  - name: 申请理由
+    type: string
+    description: 提取 申请理由 的文本值
+  - name: 补贴对象名单
+    type: string
+    description: 提取 补贴对象名单 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (实施方案.服务类型划分 > 1) && (评分表.考核指标版本 == 1) && (佐证材料.材料类型 == '无差异化佐证要求')
+  description: 当项目涉及多种服务类型（如病虫害防治、秸秆还田等），但仅使用同一套考核指标模板，且未规定各类服务应提供的差异化佐证材料（如病虫害防治需实验室检测报告）时，评价方案未予细化。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效评价方案未区分服务类型考核标准
+  regulation: "[\n  {\n    \"法规名称\": \"财政支出绩效评价管理暂行办法\",\n    \"法规文号\": \"财预〔2011〕285号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十四条\",\n    \"内容概述\": \"绩效评价指标应当根据评价对象的具体情况设定，具有针对性和可比性，能够反映评价对象的实际特点和水平。\"\n  }\n]"

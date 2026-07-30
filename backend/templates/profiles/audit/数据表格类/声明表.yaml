@@ -1,0 +1,53 @@
+name: audit/数据表格类/声明表
+type: model
+description: 从数据表格类类文档（声明表）中提取结构化元数据。涵盖字段如：投标人间关联关系、股东信息、董事监事高管名单。文档范围包括：供应商/投标人关联关系声明表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 声明表
+  member_count: 1
+  member_details:
+  - 供应商/投标人关联关系声明表
+output:
+  fields:
+  - name: 投标人间关联关系
+    type: string
+    description: 提取 投标人间关联关系 的文本值
+  - name: 股东信息
+    type: string
+    description: 提取 股东信息 的文本值
+  - name: 董事监事高管名单
+    type: string
+    description: 提取 董事监事高管名单 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (声明表.投标人间关联关系 ⊆ 招标方人员 || 声明表.股东信息 ⊆ 招标方人员亲属) && 记录表.中标单位 = 该投标单位
+  description: 核查招标方负责人及以上领导、经办人员及其近亲属是否在投标单位中持有股份或担任高级管理职务，若与中标单位存在此利害关系且未声明回避，即构成违规。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 允许有利害关系企业参与投标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\",\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第三十四条\",\n    \"内容概述\": \"与招标人存在利害关系可能影响招标公正性的法人、其他组织或者个人，不得参加投标。单位负责人为同一人或者存在控股、管理关系的不同单位，不得参加同一标段投标或者未划分标段的同一招标项目投标。\"\
+    \n  }\n]"

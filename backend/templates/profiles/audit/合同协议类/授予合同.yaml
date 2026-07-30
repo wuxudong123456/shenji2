@@ -1,0 +1,123 @@
+name: audit/合同协议类/授予合同
+type: model
+description: 从合同协议类类文档（授予合同）中提取结构化元数据。涵盖字段如：承包方名称、承包范围、禁止转包条款。文档范围包括：彩票经营权授予合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 授予合同
+  member_count: 1
+  member_details:
+  - 彩票经营权授予合同
+output:
+  fields:
+  - name: 承包方名称
+    type: string
+    description: 提取 承包方名称 的文本值
+  - name: 承包范围
+    type: string
+    description: 提取 承包范围 的文本值
+  - name: 禁止转包条款
+    type: number
+    description: 提取 禁止转包条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: 转出方、转入方、转包层级.转包层级 >= 2 || (禁止转包条款、承包方名称、承包范围.禁止转包条款 == '是' && 转出方、转入方、转包层级.转出方 != 禁止转包条款、承包方名称、承包范围.承包方名称) ||
+    (收款方名称、付款方名称、渠道标识、交易金额、交易时间.收款方名称 != 禁止转包条款、承包方名称、承包范围.承包方名称 && 收款方名称、付款方名称、渠道标识、交易金额、交易时间.收款方名称 不在 转出方、转入方、转包层级.转入方 中)
+  description: 转包层级超过一级，或合同明确禁止转包但存在转包关系，或资金流向主体与合同承包方不一致且转包关系表未体现，均推定为违规转包。资金流向与合同主体不匹配可能指向隐性转包。
+  audit_item: 彩票资金筹集审计常见违法违规问题
+  suspicion: 违规转包彩票经营权
+  regulation: "[\n  {\n    \"法规名称\": \"彩票管理条例\",\n    \"法规文号\": \"国务院令第554号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十五条\"\
+    ,\n    \"内容概述\": \"彩票代销合同应当约定双方权利义务，代销者不得转手代销彩票。\"\n  },\n  {\n    \"法规名称\": \"彩票管理条例实施细则\",\n    \"法规文号\": \"财政部 民政部\
+    \ 国家体育总局令第67号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十三条\",\n    \"内容概述\": \"彩票代销者应当按照彩票代销合同的约定销售彩票，不得委托他人代销彩票。\"\
+    \n  }\n]"

@@ -1,0 +1,995 @@
+name: audit/数据表格类/对照表
+type: model
+description: 从数据表格类类文档（对照表）中提取结构化元数据。涵盖字段如：一般公共预算支出总额、上级下达指标日期、不合理条件条款摘录、业务类型、事项名称、产品型号及价格、亩均投资额/人均补贴标准等比值、人员缺口数。文档范围包括：《绩效目标与评价结果公开情况对照表》、三同时制度执行情况对照表、不同机构风险承担比例对照表、个人费用转嫁核查对照表、中期财政规划与三年滚动计划衔接对照表、交通安全设施配套情况对照表、产业政策符合性对照表、人才激励措施落实情况对照表、任务清单与预算匹配对照表、任务量及补助标准对照表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 人员
+- 补贴
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 对照表
+  member_count: 1
+  member_details:
+  - 《绩效目标与评价结果公开情况对照表》
+  - 三同时制度执行情况对照表
+  - 不同机构风险承担比例对照表
+  - 个人费用转嫁核查对照表
+  - 中期财政规划与三年滚动计划衔接对照表
+  - 交通安全设施配套情况对照表
+  - 产业政策符合性对照表
+  - 人才激励措施落实情况对照表
+  - 任务清单与预算匹配对照表
+  - 任务量及补助标准对照表
+  - 企业法人/高管信息对照表
+  - 会计科目余额对照表（中心与分支机构）
+  - 保证金收取标准对照表
+  - 信息系统整合情况对照表
+  - 党委前置研究执行情况对照表
+  - 党委前置研究讨论事项执行情况对照表
+  - 关联关系对照表
+  - 农村公路养护资金预算与实际支出对照表
+  - 出入境时间记录对照表
+  - 出国人员所属单位及费用承担方对照表
+  - 创业载体认定标准对照表
+  - 办公用房面积对照表
+  - 功能区划分与产业布局对照表
+  - 土地利用总体规划对照表
+  - 培训对象筛选标准对照表
+  - 实际抵押情况对照表
+  - 审批权限与流程执行对照表
+  - 工程质量检测指标对照表
+  - 布局规划与实际设置对照表
+  - 年度公示信息核对对照表
+  - 建筑安装工程费支出对照表
+  - 建设项目关键节点时间对照表
+  - 成本费用与收入匹配对照表
+  - 战略目标分解及完成情况对照表
+  - 投资计划与任务清单关联对照表
+  - 挂牌工作完成情况对照表
+  - 改厕技术模式选用对照表
+  - 政策支持落实情况对照表
+  - 村卫生室服务人口覆盖情况对照表
+  - 村庄规划与上位规划指标对照表
+  - 标准对照表
+  - 煤改电区域电力负荷需求与供应能力对照表
+  - 用地指标使用情况对照表
+  - 申报材料真实性核查对照表
+  - 电商与信息工程资源整合对照表
+  - 禁养区与养殖场分布对照表
+  - 种质资源普查进度对照表
+  - 科技投入达标情况对照表
+  - 科研成果转化率与经济效益对照表
+  - 结余资金上缴国库时间节点对照表
+  - 绩效指标量化对照表
+  - 绩效目标与资金规模匹配对照表
+  - 绩效目标完成情况对照表
+  - 职责权限对照表
+  - 融资资金用途对照表
+  - 补助发放时间对照表
+  - 补贴资金发放时间节点对照表
+  - 规划编制时间节点对照表
+  - 财政拨款明细对照表
+  - 资产处置时间节点对照表
+  - 资本授权执行情况对照表
+  - 跨企业费用转嫁明细对照表
+  - 部门职能与预算项目关联性对照表
+  - 采购审批权限对照表
+  - 采购文件条款审查对照表
+  - 采购物资对照表
+  - 附注披露内容与准则要求对照表
+  - 非税收入冲抵经费支出明细对照表
+  - 项目库与规划匹配对照表
+  - 项目申报材料真实性核查对照表
+  - 项目申报资料真实性核查对照表
+  - 项目验收进度与资金拨付时间对照表
+  - 预算批复与绩效目标下达时间对照表
+  - 预算绩效管理委托事项对照表
+output:
+  fields:
+  - name: 一般公共预算支出总额
+    type: number
+    description: 提取 一般公共预算支出总额 的数值（含单位，如万元、吨等）
+  - name: 上级下达指标日期
+    type: date
+    description: 提取 上级下达指标日期 的日期值，格式 YYYY-MM-DD
+  - name: 不合理条件条款摘录
+    type: number
+    description: 提取 不合理条件条款摘录 的数值（含单位，如万元、吨等）
+  - name: 业务类型
+    type: string
+    description: 提取 业务类型 的文本值
+  - name: 事项名称
+    type: string
+    description: 提取 事项名称 的文本值
+  - name: 产品型号及价格
+    type: number
+    description: 提取 产品型号及价格 的数值（含单位，如万元、吨等）
+  - name: 亩均投资额-人均补贴标准等比值
+    type: string
+    description: 提取 亩均投资额-人均补贴标准等比值 的文本值
+  - name: 人员缺口数
+    type: string
+    description: 提取 人员缺口数 的文本值
+  - name: 任务产出量
+    type: string
+    description: 提取 任务产出量 的文本值
+  - name: 任务清单文号
+    type: string
+    description: 提取 任务清单文号 的文本值
+  - name: 任务清单编号
+    type: string
+    description: 提取 任务清单编号 的文本值
+  - name: 任职起始日期
+    type: date
+    description: 提取 任职起始日期 的日期值，格式 YYYY-MM-DD
+  - name: 企业名称
+    type: string
+    description: 提取 企业名称 的文本值
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 供应数量
+    type: number
+    description: 提取 供应数量 的数值（含单位，如万元、吨等）
+  - name: 供应裕度
+    type: string
+    description: 提取 供应裕度 的文本值
+  - name: 修订文件印发日期
+    type: date
+    description: 提取 修订文件印发日期 的日期值，格式 YYYY-MM-DD
+  - name: 借方科目
+    type: string
+    description: 提取 借方科目 的文本值
+  - name: 偏差原因
+    type: string
+    description: 提取 偏差原因 的文本值
+  - name: 偏差率
+    type: string
+    description: 提取 偏差率 的文本值
+  - name: 入驻企业类型
+    type: string
+    description: 提取 入驻企业类型 的文本值
+  - name: 入驻率要求
+    type: string
+    description: 提取 入驻率要求 的文本值
+  - name: 全量收费项目名称
+    type: number
+    description: 提取 全量收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 公示逾期总金额
+    type: number
+    description: 提取 公示逾期总金额 的数值（含单位，如万元、吨等）
+  - name: 公示项目数量
+    type: number
+    description: 提取 公示项目数量 的数值（含单位，如万元、吨等）
+  - name: 关系类型
+    type: string
+    description: 提取 关系类型 的文本值
+  - name: 关联人员
+    type: string
+    description: 提取 关联人员 的文本值
+  - name: 关联企业名称
+    type: string
+    description: 提取 关联企业名称 的文本值
+  - name: 冲抵金额
+    type: number
+    description: 提取 冲抵金额 的数值（含单位，如万元、吨等）
+  - name: 分等级养护支出
+    type: number
+    description: 提取 分等级养护支出 的数值（含单位，如万元、吨等）
+  - name: 到账日期
+    type: date
+    description: 提取 到账日期 的日期值，格式 YYYY-MM-DD
+  - name: 制度规定范围
+    type: string
+    description: 提取 制度规定范围 的文本值
+  - name: 功能分区要求
+    type: string
+    description: 提取 功能分区要求 的文本值
+  - name: 功能重合度
+    type: string
+    description: 提取 功能重合度 的文本值
+  - name: 匹配状态
+    type: boolean
+    description: 提取 匹配状态 的布尔值（是/否）
+  - name: 匹配的政策条款
+    type: number
+    description: 提取 匹配的政策条款 的数值（含单位，如万元、吨等）
+  - name: 协议约定比例
+    type: number
+    description: 提取 协议约定比例 的数值（含单位，如万元、吨等）
+  - name: 单笔投资金额
+    type: number
+    description: 提取 单笔投资金额 的数值（含单位，如万元、吨等）
+  - name: 原归属企业
+    type: string
+    description: 提取 原归属企业 的文本值
+  - name: 发放完成日期
+    type: date
+    description: 提取 发放完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 发放批次
+    type: string
+    description: 提取 发放批次 的文本值
+  - name: 可量化指标数量
+    type: number
+    description: 提取 可量化指标数量 的数值（含单位，如万元、吨等）
+  - name: 各区实际使用面积
+    type: string
+    description: 提取 各区实际使用面积 的文本值
+  - name: 各指标是否量化标志
+    type: boolean
+    description: 提取 各指标是否量化标志 的布尔值（是/否）
+  - name: 合规性状态
+    type: boolean
+    description: 提取 合规性状态 的布尔值（是/否）
+  - name: 名单报送截止日期
+    type: date
+    description: 提取 名单报送截止日期 的日期值，格式 YYYY-MM-DD
+  - name: 团组名称
+    type: string
+    description: 提取 团组名称 的文本值
+  - name: 团组编号
+    type: string
+    description: 提取 团组编号 的文本值
+  - name: 国家或行业标准最低值
+    type: string
+    description: 提取 国家或行业标准最低值 的文本值
+  - name: 在企业担任职务
+    type: string
+    description: 提取 在企业担任职务 的文本值
+  - name: 地块编码
+    type: string
+    description: 提取 地块编码 的文本值
+  - name: 地块规划用途
+    type: string
+    description: 提取 地块规划用途 的文本值
+  - name: 地理位置
+    type: string
+    description: 提取 地理位置 的文本值
+  - name: 地质类型字段
+    type: string
+    description: 提取 地质类型字段 的文本值
+  - name: 培训类型
+    type: string
+    description: 提取 培训类型 的文本值
+  - name: 处置日期
+    type: date
+    description: 提取 处置日期 的日期值，格式 YYYY-MM-DD
+  - name: 外部支付单位
+    type: string
+    description: 提取 外部支付单位 的文本值
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 季度标注
+    type: date
+    description: 提取 季度标注 的日期值，格式 YYYY-MM-DD
+  - name: 孵化服务能力标准
+    type: string
+    description: 提取 孵化服务能力标准 的文本值
+  - name: 完整性检查标记
+    type: string
+    description: 提取 完整性检查标记 的文本值
+  - name: 宗地界址点坐标
+    type: string
+    description: 提取 宗地界址点坐标 的文本值
+  - name: 实际上报日期
+    type: date
+    description: 提取 实际上报日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际上缴日期
+    type: date
+    description: 提取 实际上缴日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际人均面积
+    type: string
+    description: 提取 实际人均面积 的文本值
+  - name: 实际供地面积
+    type: string
+    description: 提取 实际供地面积 的文本值
+  - name: 实际停留天数
+    type: number
+    description: 提取 实际停留天数 的数值（含单位，如万元、吨等）
+  - name: 实际入境日期
+    type: date
+    description: 提取 实际入境日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际公开记录
+    type: string
+    description: 提取 实际公开记录 的文本值
+  - name: 实际出入境口岸
+    type: string
+    description: 提取 实际出入境口岸 的文本值
+  - name: 实际出境日期
+    type: date
+    description: 提取 实际出境日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际土地使用者
+    type: string
+    description: 提取 实际土地使用者 的文本值
+  - name: 实际处置日期
+    type: date
+    description: 提取 实际处置日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际委托内容
+    type: string
+    description: 提取 实际委托内容 的文本值
+  - name: 实际安排资金总额
+    type: number
+    description: 提取 实际安排资金总额 的数值（含单位，如万元、吨等）
+  - name: 实际完成设施类型
+    type: string
+    description: 提取 实际完成设施类型 的文本值
+  - name: 实际完成量
+    type: string
+    description: 提取 实际完成量 的文本值
+  - name: 实际履行的职责
+    type: string
+    description: 提取 实际履行的职责 的文本值
+  - name: 实际建成总面积
+    type: string
+    description: 提取 实际建成总面积 的文本值
+  - name: 实际建设用途
+    type: string
+    description: 提取 实际建设用途 的文本值
+  - name: 实际开展业务类型
+    type: string
+    description: 提取 实际开展业务类型 的文本值
+  - name: 实际开工日期
+    type: date
+    description: 提取 实际开工日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际执收标准
+    type: string
+    description: 提取 实际执收标准 的文本值
+  - name: 实际执收项目名称
+    type: string
+    description: 提取 实际执收项目名称 的文本值
+  - name: 实际执行比例
+    type: number
+    description: 提取 实际执行比例 的数值（含单位，如万元、吨等）
+  - name: 实际报送日期
+    type: date
+    description: 提取 实际报送日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际披露情况
+    type: string
+    description: 提取 实际披露情况 的文本值
+  - name: 实际抵押资产清单
+    type: string
+    description: 提取 实际抵押资产清单 的文本值
+  - name: 实际拨付农户日期
+    type: date
+    description: 提取 实际拨付农户日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际拨付金额
+    type: number
+    description: 提取 实际拨付金额 的数值（含单位，如万元、吨等）
+  - name: 实际收取比例的对比
+    type: number
+    description: 提取 实际收取比例的对比 的数值（含单位，如万元、吨等）
+  - name: 实际收费标准
+    type: number
+    description: 提取 实际收费标准 的数值（含单位，如万元、吨等）
+  - name: 实际数量
+    type: number
+    description: 提取 实际数量 的数值（含单位，如万元、吨等）
+  - name: 实际用电价格
+    type: number
+    description: 提取 实际用电价格 的数值（含单位，如万元、吨等）
+  - name: 实际用途
+    type: string
+    description: 提取 实际用途 的文本值
+  - name: 实际税费减免额
+    type: number
+    description: 提取 实际税费减免额 的数值（含单位，如万元、吨等）
+  - name: 实际落实状态
+    type: boolean
+    description: 提取 实际落实状态 的布尔值（是/否）
+  - name: 实际行使的权限
+    type: string
+    description: 提取 实际行使的权限 的文本值
+  - name: 审批日期
+    type: date
+    description: 提取 审批日期 的日期值，格式 YYYY-MM-DD
+  - name: 审批时间
+    type: date
+    description: 提取 审批时间 的日期值，格式 YYYY-MM-DD
+  - name: 审批记录
+    type: string
+    description: 提取 审批记录 的文本值
+  - name: 对应审批人级别
+    type: string
+    description: 提取 对应审批人级别 的文本值
+  - name: 对应的收入来源
+    type: number
+    description: 提取 对应的收入来源 的数值（含单位，如万元、吨等）
+  - name: 对应的海拔
+    type: string
+    description: 提取 对应的海拔 的文本值
+  - name: 对接状态
+    type: boolean
+    description: 提取 对接状态 的布尔值（是/否）
+  - name: 对象职业要求
+    type: string
+    description: 提取 对象职业要求 的文本值
+  - name: 峰值负荷需求
+    type: string
+    description: 提取 峰值负荷需求 的文本值
+  - name: 差异说明
+    type: string
+    description: 提取 差异说明 的文本值
+  - name: 已转化数量
+    type: number
+    description: 提取 已转化数量 的数值（含单位，如万元、吨等）
+  - name: 年初预算安排数
+    type: number
+    description: 提取 年初预算安排数 的数值（含单位，如万元、吨等）
+  - name: 年度
+    type: date
+    description: 提取 年度 的日期值，格式 YYYY-MM-DD
+  - name: 年度实际财政科技拨款总额
+    type: date
+    description: 提取 年度实际财政科技拨款总额 的日期值，格式 YYYY-MM-DD
+  - name: 年度投资总额
+    type: date
+    description: 提取 年度投资总额 的日期值，格式 YYYY-MM-DD
+  - name: 应公开项
+    type: string
+    description: 提取 应公开项 的文本值
+  - name: 应披露事项
+    type: string
+    description: 提取 应披露事项 的文本值
+  - name: 建安费允许列支明细
+    type: number
+    description: 提取 建安费允许列支明细 的数值（含单位，如万元、吨等）
+  - name: 建安费明细科目
+    type: number
+    description: 提取 建安费明细科目 的数值（含单位，如万元、吨等）
+  - name: 建设用地总规模等约束性指标及偏差值
+    type: string
+    description: 提取 建设用地总规模等约束性指标及偏差值 的文本值
+  - name: 开工报告批复日期
+    type: date
+    description: 提取 开工报告批复日期 的日期值，格式 YYYY-MM-DD
+  - name: 归属部门
+    type: string
+    description: 提取 归属部门 的文本值
+  - name: 成本占收入比例
+    type: number
+    description: 提取 成本占收入比例 的数值（含单位，如万元、吨等）
+  - name: 成本金额
+    type: number
+    description: 提取 成本金额 的数值（含单位，如万元、吨等）
+  - name: 所属单位
+    type: string
+    description: 提取 所属单位 的文本值
+  - name: 投产时间
+    type: date
+    description: 提取 投产时间 的日期值，格式 YYYY-MM-DD
+  - name: 投资计划文号
+    type: string
+    description: 提取 投资计划文号 的文本值
+  - name: 指标总数
+    type: string
+    description: 提取 指标总数 的文本值
+  - name: 授权品种权-专利总数
+    type: string
+    description: 提取 授权品种权-专利总数 的文本值
+  - name: 接收企业
+    type: string
+    description: 提取 接收企业 的文本值
+  - name: 推广面积-销售额
+    type: string
+    description: 提取 推广面积-销售额 的文本值
+  - name: 措施名称
+    type: string
+    description: 提取 措施名称 的文本值
+  - name: 支出金额
+    type: number
+    description: 提取 支出金额 的数值（含单位，如万元、吨等）
+  - name: 支出项目
+    type: number
+    description: 提取 支出项目 的数值（含单位，如万元、吨等）
+  - name: 收入金额
+    type: number
+    description: 提取 收入金额 的数值（含单位，如万元、吨等）
+  - name: 政务平台服务类专项经费
+    type: number
+    description: 提取 政务平台服务类专项经费 的数值（含单位，如万元、吨等）
+  - name: 政府购买服务支出金额
+    type: number
+    description: 提取 政府购买服务支出金额 的数值（含单位，如万元、吨等）
+  - name: 政策规定比例
+    type: number
+    description: 提取 政策规定比例 的数值（含单位，如万元、吨等）
+  - name: 数据互通状态
+    type: boolean
+    description: 提取 数据互通状态 的布尔值（是/否）
+  - name: 数据标准差异
+    type: string
+    description: 提取 数据标准差异 的文本值
+  - name: 数据记录连续完整性
+    type: string
+    description: 提取 数据记录连续完整性 的文本值
+  - name: 施工完成时间
+    type: date
+    description: 提取 施工完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 施工许可证发证日期
+    type: date
+    description: 提取 施工许可证发证日期 的日期值，格式 YYYY-MM-DD
+  - name: 时间差
+    type: date
+    description: 提取 时间差 的日期值，格式 YYYY-MM-DD
+  - name: 时间逻辑合规性
+    type: date
+    description: 提取 时间逻辑合规性 的日期值，格式 YYYY-MM-DD
+  - name: 是否允许建设区
+    type: boolean
+    description: 提取 是否允许建设区 的布尔值（是/否）
+  - name: 是否制定清单
+    type: boolean
+    description: 提取 是否制定清单 的布尔值（是/否）
+  - name: 是否履行规定审批程序
+    type: boolean
+    description: 提取 是否履行规定审批程序 的布尔值（是/否）
+  - name: 是否挂牌
+    type: boolean
+    description: 提取 是否挂牌 的布尔值（是/否）
+  - name: 是否确认转嫁
+    type: boolean
+    description: 提取 是否确认转嫁 的布尔值（是/否）
+  - name: 是否符合限制淘汰类
+    type: boolean
+    description: 提取 是否符合限制淘汰类 的布尔值（是/否）
+  - name: 是否超范围标记
+    type: boolean
+    description: 提取 是否超范围标记 的布尔值（是/否）
+  - name: 最低年龄
+    type: string
+    description: 提取 最低年龄 的文本值
+  - name: 最低面积
+    type: string
+    description: 提取 最低面积 的文本值
+  - name: 最高年龄
+    type: string
+    description: 提取 最高年龄 的文本值
+  - name: 有效期截止日
+    type: string
+    description: 提取 有效期截止日 的文本值
+  - name: 有无党委会研究记录
+    type: boolean
+    description: 提取 有无党委会研究记录 的布尔值（是/否）
+  - name: 期末余额
+    type: number
+    description: 提取 期末余额 的数值（含单位，如万元、吨等）
+  - name: 未完成原因
+    type: string
+    description: 提取 未完成原因 的文本值
+  - name: 未达标指标项及偏差值
+    type: string
+    description: 提取 未达标指标项及偏差值 的文本值
+  - name: 本级财政资金规模
+    type: string
+    description: 提取 本级财政资金规模 的文本值
+  - name: 机构名称
+    type: string
+    description: 提取 机构名称 的文本值
+  - name: 机构地理坐标
+    type: string
+    description: 提取 机构地理坐标 的文本值
+  - name: 村落名称
+    type: string
+    description: 提取 村落名称 的文本值
+  - name: 来源科目
+    type: string
+    description: 提取 来源科目 的文本值
+  - name: 标准人均面积
+    type: string
+    description: 提取 标准人均面积 的文本值
+  - name: 核查结论
+    type: string
+    description: 提取 核查结论 的文本值
+  - name: 核查项差异描述
+    type: string
+    description: 提取 核查项差异描述 的文本值
+  - name: 核算口径
+    type: string
+    description: 提取 核算口径 的文本值
+  - name: 毛利率
+    type: string
+    description: 提取 毛利率 的文本值
+  - name: 法定比例与合同约定比例
+    type: number
+    description: 提取 法定比例与合同约定比例 的数值（含单位，如万元、吨等）
+  - name: 涉嫌指向性参数
+    type: string
+    description: 提取 涉嫌指向性参数 的文本值
+  - name: 环保设施设计完成时间
+    type: date
+    description: 提取 环保设施设计完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 环评批复日期
+    type: date
+    description: 提取 环评批复日期 的日期值，格式 YYYY-MM-DD
+  - name: 理论任务量
+    type: string
+    description: 提取 理论任务量 的文本值
+  - name: 理论分配金额
+    type: number
+    description: 提取 理论分配金额 的数值（含单位，如万元、吨等）
+  - name: 生态红线面积
+    type: string
+    description: 提取 生态红线面积 的文本值
+  - name: 用地面积
+    type: string
+    description: 提取 用地面积 的文本值
+  - name: 申报数据与实际数据差异项
+    type: string
+    description: 提取 申报数据与实际数据差异项 的文本值
+  - name: 申报数据与核实数据的偏差率
+    type: string
+    description: 提取 申报数据与核实数据的偏差率 的文本值
+  - name: 电子政务平台建设及运维专项拨款金额
+    type: number
+    description: 提取 电子政务平台建设及运维专项拨款金额 的数值（含单位，如万元、吨等）
+  - name: 电子政务平台运维专项经费预算金额
+    type: number
+    description: 提取 电子政务平台运维专项经费预算金额 的数值（含单位，如万元、吨等）
+  - name: 疑似个人费用事项
+    type: number
+    description: 提取 疑似个人费用事项 的数值（含单位，如万元、吨等）
+  - name: 目标值与实际值的偏差
+    type: string
+    description: 提取 目标值与实际值的偏差 的文本值
+  - name: 目标完成率
+    type: string
+    description: 提取 目标完成率 的文本值
+  - name: 禁养区内养殖场名单
+    type: string
+    description: 提取 禁养区内养殖场名单 的文本值
+  - name: 离职人员关联企业-中介机构名称
+    type: string
+    description: 提取 离职人员关联企业-中介机构名称 的文本值
+  - name: 离职人员姓名及身份证号
+    type: string
+    description: 提取 离职人员姓名及身份证号 的文本值
+  - name: 科目名称
+    type: string
+    description: 提取 科目名称 的文本值
+  - name: 科目编码
+    type: string
+    description: 提取 科目编码 的文本值
+  - name: 站点ID
+    type: string
+    description: 提取 站点ID 的文本值
+  - name: 管理层成员任命路径
+    type: string
+    description: 提取 管理层成员任命路径 的文本值
+  - name: 系统名称
+    type: string
+    description: 提取 系统名称 的文本值
+  - name: 系统编号
+    type: string
+    description: 提取 系统编号 的文本值
+  - name: 结余资金确认日期
+    type: date
+    description: 提取 结余资金确认日期 的日期值，格式 YYYY-MM-DD
+  - name: 绩效目标下达日期
+    type: date
+    description: 提取 绩效目标下达日期 的日期值，格式 YYYY-MM-DD
+  - name: 绩效目标编号
+    type: string
+    description: 提取 绩效目标编号 的文本值
+  - name: 编制人数
+    type: number
+    description: 提取 编制人数 的数值（含单位，如万元、吨等）
+  - name: 缺失项
+    type: string
+    description: 提取 缺失项 的文本值
+  - name: 耕地保有量
+    type: string
+    description: 提取 耕地保有量 的文本值
+  - name: 脱钩状态
+    type: boolean
+    description: 提取 脱钩状态 的布尔值（是/否）
+  - name: 营业收入总额
+    type: number
+    description: 提取 营业收入总额 的数值（含单位，如万元、吨等）
+  - name: 董事会决议日期
+    type: date
+    description: 提取 董事会决议日期 的日期值，格式 YYYY-MM-DD
+  - name: 衔接状态
+    type: boolean
+    description: 提取 衔接状态 的布尔值（是/否）
+  - name: 补助标准
+    type: string
+    description: 提取 补助标准 的文本值
+  - name: 覆盖人口数
+    type: string
+    description: 提取 覆盖人口数 的文本值
+  - name: 覆盖行政村
+    type: string
+    description: 提取 覆盖行政村 的文本值
+  - name: 规上企业研发支出总额
+    type: number
+    description: 提取 规上企业研发支出总额 的数值（含单位，如万元、吨等）
+  - name: 规划印发日期
+    type: date
+    description: 提取 规划印发日期 的日期值，格式 YYYY-MM-DD
+  - name: 规划数量
+    type: number
+    description: 提取 规划数量 的数值（含单位，如万元、吨等）
+  - name: 规划用地性质
+    type: string
+    description: 提取 规划用地性质 的文本值
+  - name: 规划许可证核发日期
+    type: date
+    description: 提取 规划许可证核发日期 的日期值，格式 YYYY-MM-DD
+  - name: 规定上报截止日期
+    type: date
+    description: 提取 规定上报截止日期 的日期值，格式 YYYY-MM-DD
+  - name: 规定上缴截止日期
+    type: date
+    description: 提取 规定上缴截止日期 的日期值，格式 YYYY-MM-DD
+  - name: 计划停留天数
+    type: number
+    description: 提取 计划停留天数 的数值（含单位，如万元、吨等）
+  - name: 计划入境日期
+    type: date
+    description: 提取 计划入境日期 的日期值，格式 YYYY-MM-DD
+  - name: 计划出境日期
+    type: date
+    description: 提取 计划出境日期 的日期值，格式 YYYY-MM-DD
+  - name: 计划投资金额
+    type: number
+    description: 提取 计划投资金额 的数值（含单位，如万元、吨等）
+  - name: 计划指标
+    type: string
+    description: 提取 计划指标 的文本值
+  - name: 计划用途
+    type: string
+    description: 提取 计划用途 的文本值
+  - name: 计划落实时间
+    type: date
+    description: 提取 计划落实时间 的日期值，格式 YYYY-MM-DD
+  - name: 计划项目名称
+    type: string
+    description: 提取 计划项目名称 的文本值
+  - name: 设计可承载户数
+    type: string
+    description: 提取 设计可承载户数 的文本值
+  - name: 设计数量
+    type: number
+    description: 提取 设计数量 的数值（含单位，如万元、吨等）
+  - name: 设计设施类型
+    type: string
+    description: 提取 设计设施类型 的文本值
+  - name: 财政安排资金
+    type: string
+    description: 提取 财政安排资金 的文本值
+  - name: 账面逾期总金额
+    type: number
+    description: 提取 账面逾期总金额 的数值（含单位，如万元、吨等）
+  - name: 账面逾期项目数量
+    type: number
+    description: 提取 账面逾期项目数量 的数值（含单位，如万元、吨等）
+  - name: 贷方科目
+    type: string
+    description: 提取 贷方科目 的文本值
+  - name: 贷款获得及贴息金额
+    type: number
+    description: 提取 贷款获得及贴息金额 的数值（含单位，如万元、吨等）
+  - name: 费用承担方
+    type: number
+    description: 提取 费用承担方 的数值（含单位，如万元、吨等）
+  - name: 费用类型
+    type: number
+    description: 提取 费用类型 的数值（含单位，如万元、吨等）
+  - name: 资产编号
+    type: string
+    description: 提取 资产编号 的文本值
+  - name: 资金到账日期
+    type: date
+    description: 提取 资金到账日期 的日期值，格式 YYYY-MM-DD
+  - name: 资金总额
+    type: number
+    description: 提取 资金总额 的数值（含单位，如万元、吨等）
+  - name: 资金拨付日期
+    type: date
+    description: 提取 资金拨付日期 的日期值，格式 YYYY-MM-DD
+  - name: 资金缺口
+    type: string
+    description: 提取 资金缺口 的文本值
+  - name: 转化收入
+    type: number
+    description: 提取 转化收入 的数值（含单位，如万元、吨等）
+  - name: 选用技术模式
+    type: string
+    description: 提取 选用技术模式 的文本值
+  - name: 部门核心职能描述
+    type: string
+    description: 提取 部门核心职能描述 的文本值
+  - name: 采购金额区间
+    type: number
+    description: 提取 采购金额区间 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 附件凭证号
+    type: string
+    description: 提取 附件凭证号 的文本值
+  - name: 项目产出对职能的支撑度
+    type: string
+    description: 提取 项目产出对职能的支撑度 的文本值
+  - name: 项目验收合格日期
+    type: date
+    description: 提取 项目验收合格日期 的日期值，格式 YYYY-MM-DD
+  - name: 预算批复日期
+    type: date
+    description: 提取 预算批复日期 的日期值，格式 YYYY-MM-DD
+  - name: 预算批次
+    type: number
+    description: 提取 预算批次 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (企业法人/高管信息对照表.任职起始日期 - 领导干部离职/退休信息登记表.离职日期) < 3年 && 离职人员从业情况申报表.企业性质 IN ('民营企业','外商投资企业','中介机构') && (工商登记信息.注册地址
+    ∈ 领导干部离职/退休信息登记表.分管领域 OR 关联企业清单.主营业务关键词 匹配 领导干部离职审批文件.管辖业务范围) && (社会兼职申报.审批结果 != '批准' OR 社会兼职申报.审批结果 IS NULL)
+  description: 禁业期按通常3年设定；若任职起始日期与离职日期间隔小于1095天即为在禁业期内；企业性质须为民营企业、外商投资企业或中介机构之一；业务关联判定采用地区匹配或关键词重合（审计中可设定重合度阈值>60%）；若未履行审批手续或审批不通过即触发疑点。
+  audit_item: 党员领导干部离职或者退休后违反规定接受聘任或从事盈利性活动，或者个人从事与原任职务管辖业务相关的营利性活动
+  suspicion: 离职或退休后违规接受原管辖范围内企业聘任
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国公务员法\",\n    \"法规文号\": \"主席令第20号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第一百零七条\",\n    \"内容概述\": \"公务员辞去公职或者退休的，原系领导成员的公务员在离职三年内，不得到与原工作业务直接相关的企业或者其他营利性组织任职，不得从事与原工作业务直接相关的营利性活动。\"\n  },\n \
+    \ {\n    \"法规名称\": \"关于进一步规范党政领导干部在企业兼职（任职）问题的意见\",\n    \"法规文号\": \"中组发〔2013〕18号\",\n    \"效力级别\": \"党内法规\",\n    \"\
+    条款号\": "
+- expression: '领导干部离职审批文件.离职日期 + 3年 >= 当前日期 && (企业法人/高管信息对照表.离职人员关联企业/中介机构名称 IN (SELECT 工商登记信息.企业名称 FROM 工商登记信息 WHERE 工商登记信息.经营范围
+    LIKE ''%中介%'' OR 工商登记信息.经营范围 LIKE ''%经纪%'' OR 工商登记信息.经营范围 LIKE ''%咨询%'')) && ((银行资金流水明细表.交易摘要 LIKE ''%服务费%'' OR 银行资金流水明细表.交易摘要
+    LIKE ''%佣金%'' OR 银行资金流水明细表.交易摘要 LIKE ''%居间费%'') AND 领导干部离职审批文件.管辖业务范围 '
+  description: 在禁业期内，以中间人身份撮合交易并收取费用；通过企业名称或业务类型、银行流水中的佣金类收入、以及与原管辖对象的联系强度（通话频次前20%或直接出现审批加速）建立判违逻辑。
+  audit_item: 党员领导干部离职或者退休后违反规定接受聘任或从事盈利性活动，或者个人从事与原任职务管辖业务相关的营利性活动
+  suspicion: 离职或退休后违规从事有偿中介活动
+  regulation: "[\n  {\n    \"法规名称\": \"中国共产党纪律处分条例\",\n    \"法规文号\": \"中发〔2018〕31号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\"\
+    : \"第九十六条\",\n    \"内容概述\": \"党员领导干部离职或者退（离）休后违反有关规定从事有偿中介活动，情节较轻的，给予警告或者严重警告处分；情节较重的，给予撤销党内职务处分；情节严重的，给予留党察看处分。\"\n \
+    \ },\n  {\n    \"法规名称\": \"中华人民共和国公务员法\",\n    \"法规文号\": \"主席令第20号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第一百零七条\"\
+    ,\n    \""
+- expression: (姓名、所属单位、费用承担方.所属单位 != 本单位 AND 姓名、所属单位、费用承担方.费用承担方 = 本单位) AND (团组人员组成、费用承担约定.费用承担约定 中未明确由我方承担 OR 无相关批件)
+  description: 除上级批文明确约定由本单位负担外，不得用公款报销非本单位人员的出国费用。若人员所属单位非本单位且费用由本单位承担又无合规批准，即为违规。
+  audit_item: 因公出国（境）经费预算执行不合规
+  suspicion: 违规负担外单位人员因公出国费用
+  regulation: "[\n  {\n    \"法规名称\": \"因公临时出国经费管理办法\",\n    \"法规文号\": \"财行〔2013〕516号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第五条\",\n    \"内容概述\": \"各单位应严格按照出访团组人员名单报销费用，不得为本单位以外的人员报销与因公出国相关的费用，确因双边协议需承担的须在批件中明确。\"\n  }\n]"
+- expression: (明细台账.保证金类型 IN ('质量保证金','工程质保金') AND (明细台账.实际收取金额/采购合同.合同金额) > 0.03) OR (明细台账.保证金类型='履约保证金' AND (明细台账.实际收取金额/采购合同.合同金额)
+    > 0.10)
+  description: 根据《建设工程质量保证金管理办法》，质量保证金总预留比例不得高于工程价款结算总额的3%；履约保证金不得超过政府采购合同金额的10%。超出上述比例即构成超标准收取保证金。注意区分保证金类型，不同类型适用不同法定上限。
+  audit_item: 政府采购违规收取保证金或拖欠企业账款
+  suspicion: 超法定比例收取质量保证金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府采购法实施条例\",\n    \"法规文号\": \"国务院令第658号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第四十八条\",\n    \"内容概述\": \"采购人或者采购代理机构应当在采购文件中明确是否收取履约保证金，以及履约保证金的数额和提交方式。履约保证金的数额不得超过政府采购合同金额的10%。\"\n  },\n\
+    \  {\n    \"法规名称\": \"建设工程质量保证金管理办法\",\n    \"法规文号\": \"建质〔2017〕138号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第七条\"\
+    ,\n    \"内"
+- expression: (业务主管单位.业务主管单位 IS NOT NULL AND 业务主管单位.业务主管单位 包含 行政机关名称) OR (关系类型、脱钩状态.关系类型 IN ('主办', '主管', '联系', '挂靠') AND 关系类型、脱钩状态.脱钩状态
+    != '已完成')
+  description: 章程或登记证书中仍列示行政机关为业务主管单位，或关联关系对照表中标明存在主办、主管、联系、挂靠关系且脱钩状态未完成，即触发疑点。
+  audit_item: 未按规定与行业协会商会脱钩
+  suspicion: 未取消主办主管挂靠关系
+  regulation: "[\n  {\n    \"法规名称\": \"行业协会商会与行政机关脱钩总体方案\",\n    \"法规文号\": \"中办发〔2015〕39号\",\n    \"效力级别\": \"党内法规/规范性文件\"\
+    ,\n    \"条款号\": \"第二条主要任务（一）机构分离\",\n    \"内容概述\": \"取消行政机关（包括下属单位）与行业协会商会的主办、主管、联系和挂靠关系，行业协会商会依法直接登记和独立运行。\"\n  }\n]"
+- expression: (结余资金确认日期.实际上报日期 > 结余资金确认日期.规定上报截止日期) && (结余资金确认日期.结余金额 > 0)
+  description: 将结余资金上缴国库时间节点对照表中的实际上报日期与制度规定的上报截止日期进行比较。当实际上报日期晚于规定截止日期，且对应项目结余金额大于零时，判定为未按规定时限上报。规定时限依据财政部制度，通常为项目终止后或年度终了后30日内。
+  audit_item: 结余资金管理不规范
+  suspicion: 未按规定时限上报结余资金清理情况
+  regulation: "[\n  {\n    \"法规名称\": \"中央部门财政拨款结转和结余资金管理办法\",\n    \"法规文号\": \"财预〔2015〕82号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第十四条\",\n    \"内容概述\": \"中央部门应在年度终了后30日内，将本部门财政拨款结转和结余资金清理情况报财政部。项目终止或完成后，应及时清理相应结余资金并按规定上报。\"\n  }\n]"
+- expression: (对照表.实际上缴日期 > 对照表.规定上缴截止日期) && (结余金额 > 0) && (上缴状态 == '已上缴')
+  description: 结余资金确认后，单位应在制度规定时限内（如15个工作日内）将资金上缴国库。当实际上缴日期晚于规定截止日期，且上缴凭证显示已上缴时，判定为上缴不及时。若上缴状态为空或未上缴，则合并其他疑点（如未清理、未上报）。
+  audit_item: 结余资金管理不规范
+  suspicion: 结余资金未及时上缴国库
+  regulation: "[\n  {\n    \"法规名称\": \"中央部门财政拨款结转和结余资金管理办法\",\n    \"法规文号\": \"财预〔2015〕82号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第十五条\",\n    \"内容概述\": \"经财政部确认的结余资金，中央部门应在收到确认文件后15个工作日内上缴中央国库。\"\n  }\n]"
+- expression: (对照表.实际入境日期 - 对照表.实际出境日期) > 审批单.批准出访天数 || ((对照表.实际入境日期 - 对照表.计划入境日期) > 0 && 对比表.审批意见 != '同意')
+  description: 判定规则：1.根据出入境记录计算的实际在外停留天数，超过任务审批单批准的出访天数，即为超期滞留；2.实际入境日期晚于计划，且经查阅档案，未发现任何与行程变更相关的获批记录，说明擅自延期。两个条件任一满足即触发疑点。
+  audit_item: 违反出国团组管理相关规定
+  suspicion: 出国团组违规滞留或超期停留
+  regulation: "[\n  {\n    \"法规名称\": \"因公临时出国（境）管理办法\",\n    \"法规文号\": \"中办发〔2012〕5号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十七条\",\n    \"内容概述\": \"因公临时出国（境）团组应当在批准的在外停留天数内活动，期满按时回国。\"\n  },\n  {\n    \"法规名称\": \"因公临时出国经费管理办法\",\n    \"\
+    法规文号\": \"财行〔2013〕516号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十六条\",\n    \"内容概述\": \"出国人员不得擅自增加出访国家或者地区，不得擅自延长在国外停留时间。"
+- expression: 行程变更对比表.实际行程国家/城市列表 != 行程变更对比表.原审批行程国家/城市列表 && (行程变更对比表.审批意见 IS_NULL || 行程变更对比表.审批意见 != '同意') || (出国（境）费用报销明细表.交通票据（如机票）出发地/目的地
+    NOT_IN 出国团组任务审批单.批准的出访国家/地区列表)
+  description: 判定规则：1.将实际访问的城市/国家列表与审批列表比对，若存在差异，且无法提供经批准的变更申请记录，则为擅自更改行程或增加访问地点；2.财务凭证中出现批准行程之外的国家或城市的消费，作为物理证据证实行程变更。任一条件触发疑点。
+  audit_item: 违反出国团组管理相关规定
+  suspicion: 擅自变更出国行程或增加访问国家
+  regulation: "[\n  {\n    \"法规名称\": \"因公临时出国经费管理办法\",\n    \"法规文号\": \"财行〔2013〕516号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十六条\",\n    \"内容概述\": \"出国人员应当严格按照批准的事由、国家、城市、日程执行出访任务，不得擅自更改行程，不得以任何理由绕道旅行。\"\n  },\n  {\n    \"法规名称\": \"因公临时出国（境）管理办法\"\
+    ,\n    \"法规文号\": \"中办发〔2012〕5号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十八条\",\n    \"内容概述\": \"各派出单位要严格执行批准的出访"
+- expression: 对照表.实际停留天数 > 审批单.批准停留天数
+  description: 通过出入境记录计算的实际在境外停留天数（离境日至入境日）超出任务审批单中批准的天数，即为超期停留。表达式直接比较两个数值，实际停留天数大于批准天数即触发。
+  audit_item: 违反出国团组管理相关规定
+  suspicion: 因公出国团组超期停留
+  regulation: "[\n  {\n    \"法规名称\": \"《因公临时出国经费管理办法》\",\n    \"法规文号\": \"财行〔2013〕516号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十条\",\n    \"内容概述\": \"出国人员应当严格按照批准的天数安排行程，不得擅自延长在国外停留时间。\"\n  }\n]"
+- expression: (采购合同.合同金额 > 审批限额标准、审批层级、所需附件.审批限额标准 && 采购金额区间、对应审批人级别、审批记录.对应审批人级别 < 要求审批级别) || (COUNT(采购合同 BY 供应商, 同类设备, 时间差<90天)
+    >= 2 && SUM(合同金额) >= 审批限额标准、审批层级、所需附件.审批限额标准 && 无合并审批记录)
+  description: 单笔合同金额超过本级审批权限但未经上级审批；或通过化整为零方式将大额采购拆分为若干小额合同，每笔均未达审批上限，但累计金额超过阈值且无整体报批记录，均属程序违规。
+  audit_item: 违反规定配置国有资产
+  suspicion: 购置国有资产未按规定程序报批
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十三条\",\n    \"内容概述\": \"各部门及其所属单位购置规定限额以上的资产，应当经主管部门审核同意后报同级财政部门审批。国家另有规定的，从其规定。\"\n  }\n]"
+- expression: (批准文号.批准文号缺失) || (对照表.实际人均面积 > 对照表.标准人均面积) || (研究报告.用途 != '办公' && 研究报告.实际功能包含接待中心/宴会厅/游泳池等)
+  description: 未取得合法审批文号擅自建设办公用房或楼堂馆所，或人均建筑面积超出国家规定标准，或以技术业务用房名义建设实际具有楼堂馆所性质的项目，均属违规。
+  audit_item: 违反规定配置国有资产
+  suspicion: 违规建设楼堂馆所或未经批准建设办公用房
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关厉行节约反对浪费条例\",\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第三十六条\",\n    \"内容概述\": \"严格控制办公用房建设标准，不得超标准、超规模、超投资建设。严禁以任何理由新建楼堂馆所，严禁以危房改造等名义改扩建楼堂馆所，严禁以建技术业务用房名义搭车新建楼堂馆所。\"\
+    \n  }\n]"
+- expression: (资产台账.资产状态（在库/已处置）=="已处置" && !EXISTS(批准的处置方式（拍卖、招标、协议等） WHERE 批准的处置方式（拍卖、招标、协议等）.审批资产编号==资产台账.资产编号)) || (对照表.实际处置日期
+    < 对照表.审批日期)
+  description: 当资产台账显示资产已处置，但在审批文件中找不到对应审批记录，即为未经审批擅自处置；或实际处置日期早于审批日期，则存在先处置后审批的违规行为。
+  audit_item: 违规处置国有资产
+  suspicion: 擅自处置国有资产（出售、调拨、报损、报废等）
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十八条\",\n    \"内容概述\": \"各部门及其所属单位应当根据履行职责、事业发展需要和资产使用状况，经集体决策和履行审批程序，依据处置事项批复等相关文件及时处置行政事业性国有资产。\"\n  }\n]"
+- expression: (明细表.资产原值 > 制度文件.需上级审批的资产类型或金额标准 || 资产台账.资产类别 IN (制度文件.需上级审批的资产类型或金额标准)) && (审批文件.上级批复文件编号 IS NULL)
+  description: 依据内部审批流程制度，当处置资产的类别或原值达到需要上级（财政部门或国资委）审批的标准时，必须取得上级批复。若上级批复文件缺失，则构成未履行法定审批程序。
+  audit_item: 违规处置国有资产
+  suspicion: 国有资产处置未履行法定审批程序（应报未报上级/财政）
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性国有资产管理条例\",\n    \"法规文号\": \"国务院令第738号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十七条\",\n    \"内容概述\": \"除国家另有规定外，各部门及其所属单位将行政事业性国有资产进行转让、拍卖、置换、对外投资等，应当按照国家有关规定办理审批手续。\"\n  }\n]"
+- expression: (明细表.机构名称 != 三定方案.核定机构名称 OR 明细表.规格 != 三定方案.规格 OR 对照表.实际履行的职责 != 划分文件.正式赋予的职责) AND NOT EXISTS (SELECT 1 FROM
+    批复文件 WHERE 批准变更内容='变更' AND 批准内容 AND 规格='已生效')
+  description: 当机构的名称、规格、职责等任何要素与三定方案或最新批复文件不一致，且无有效变更批复文件时，即构成违规。职责差异可通过关键词匹配度低于70%或新增超出原职能范围的业务事项进行判定。
+  audit_item: 违规设置或变更机构
+  suspicion: 擅自变更机构名称、规格、性质、职责或权限
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第九条\",\n    \"内容概述\": \"地方各级人民政府行政机构的设立、撤销、合并或者变更规格、名称，由本级人民政府提出方案，经上一级人民政府机构编制管理机关审核后，报上一级人民政府批准。\"\n  }\n\
+    ]"
+- expression: (委托协议工作内容 CONTAINS '绩效目标设定' OR CONTAINS '绩效运行监控' OR CONTAINS '部门整体支出绩效评价' 且制度规定禁止外包) OR (委托事项对照表.是否超范围标记 = '是'
+    AND 项目已执行) OR (涉密标记 = '是' AND 无保密部门审批记录)
+  description: 委托内容包含制度明确禁止外包的核心职能（如绩效目标设定、监控）即触发；对照表已标记为超范围但仍实际委托代表流程失控；涉密项目未经保密审批即为严重违规。
+  audit_item: 部门、单位引入第三方机构参与绩效评价不规范
+  suspicion: 超范围委托第三方机构参与预算绩效管理工作
+  regulation: "[\n  {\n    \"法规名称\": \"关于委托第三方机构参与预算绩效管理的指导意见\",\n    \"法规文号\": \"财预〔2021〕6号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第三条\",\n    \"内容概述\": \"委托第三方机构参与预算绩效管理的范围应当严格界定，不得将应当由自身履行的绩效管理主体责任委托第三方，如绩效目标设定、绩效运行监控等。\"\n  }\n]"
+- expression: 《绩效目标与评价结果公开情况对照表》.应公开项='是' && 《绩效目标与评价结果公开情况对照表》.实际公开记录='无'
+  description: 根据法规与制度应主动公开的绩效目标或评价结果，在公开对照表中标记为‘应公开’，但实际公开记录为空（无任何公开痕迹），即判定为未公开违规。已扣除经合法保密审查豁免公开的情形。
+  audit_item: 部门、单位绩效评价结果未公开
+  suspicion: 重点项目绩效评价结果未公开
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府信息公开条例\",\n    \"法规文号\": \"国务院令第711号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十条第（七）项\",\n    \"内容概述\": \"行政机关应主动公开财政预算、决算信息及其他应当主动公开的政府信息，绩效信息作为财政信息公开的重要组成部分，应向社会公开。\"\n  },\n  {\n    \"法规名称\"\
+    : \"项目支出绩效评价管理办法\",\n    \"法规文号\": \"财预〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十八条\",\n    \"内容概述\": \"\
+    各级"
+- expression: (内部版《绩效评价报告》.扣分项 IS NOT NULL && 内部版《绩效评价报告》.扣分项 != '') && (公开版对应章节 IS NULL || 公开版对应章节 = '')
+  description: 将内部存档的完整绩效评价报告与对外公开版本进行文本比对，若内部版明确记载了扣分项、问题分析、整改要求等非成绩内容，而公开版中对应部分被完全删除或留空，即构成公开内容不完整。阈值：存在任何一项关键负面信息未公开即触发违规。
+  audit_item: 部门、单位绩效评价结果未公开
+  suspicion: 绩效评价关键信息公开不完整
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府信息公开条例\",\n    \"法规文号\": \"国务院令第711号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"行政机关应当及时、准确地公开政府信息。行政机关发现影响或者可能影响社会稳定、扰乱社会管理秩序的虚假或者不完整信息的，应当在其职责范围内发布准确的政府信息予以澄清。\"\n  },\n\
+    \  {\n    \"法规名称\": \"项目支出绩效评价管理办法\",\n    \"法规文号\": \"财预〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十八条\"\
+    ,\n"
+- expression: 绩效目标下达日期 IS NULL OR 绩效目标下达日期 > 预算批复日期
+  description: 若不存在绩效目标下达记录，或绩效目标下达日期晚于预算批复日期（即使晚1天），均视为未同步批复下达。在实务中，同步批复要求预算和绩效目标在同一文件或同一批次同步下达，时间差应为0。
+  audit_item: 部门、单位预算绩效目标下达或调整不合规
+  suspicion: 预算绩效目标未与预算同步批复下达
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第三条第（六）款\",\n    \"内容概述\": \"各级财政部门要将绩效目标设置作为预算安排的前置条件，加强绩效目标审核，将绩效目标与预算同步批复下达。\"\n  }\n]"
+- expression: (年终自评报告中的目标值 != 年初申报表中的目标值) AND (对应的绩效目标调整申请及批复记录 IS NULL OR 批复结果为未批准)
+  description: 若任何一项绩效指标的目标值在年末自评报告或执行文件中与年初申报值不一致，且找不到合法合规的审批记录（包括内部决策和财政批复），即判定为擅自调整。调整包括降低指标值、删除指标、新增指标等。
+  audit_item: 部门、单位预算绩效目标下达或调整不合规
+  suspicion: 未经批准自行调整预算绩效目标
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第四条第（十）款\",\n    \"内容概述\": \"预算执行中，各部门各单位应对绩效目标实现程度和预算执行进度实行‘双监控’，确需调整预算和绩效目标的，应按程序报批。\"\n  },\n  {\n\
+    \    \"法规名称\": \"中央部门预算绩效目标管理办法\",\n    \"法规文号\": \"财预〔2015〕88号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十一条\",\n\
+    \    \"内容"

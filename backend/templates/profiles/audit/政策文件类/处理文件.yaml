@@ -1,0 +1,42 @@
+name: audit/政策文件类/处理文件
+type: model
+description: 从政策文件类类文档（处理文件）中提取结构化元数据。涵盖字段如：供应商名称、对应合同编号、对账差异金额、涉及对象、被举报人。文档范围包括：应付账款争议处理文件、投诉举报处理文件等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 政策文件类
+- 审计
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 政策文件类
+  member_types:
+  - 处理文件
+  member_count: 1
+  member_details:
+  - 应付账款争议处理文件
+  - 投诉举报处理文件
+output:
+  fields:
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 对应合同编号
+    type: string
+    description: 提取 对应合同编号 的文本值
+  - name: 对账差异金额
+    type: number
+    description: 提取 对账差异金额 的数值（含单位，如万元、吨等）
+  - name: 涉及对象
+    type: string
+    description: 提取 涉及对象 的文本值
+  - name: 被举报人
+    type: string
+    description: 提取 被举报人 的文本值

@@ -1,0 +1,72 @@
+name: audit/审查报告类/效果报告
+type: model
+description: 从审查报告类类文档（效果报告）中提取结构化元数据。涵盖字段如：实际抽检利用率。文档范围包括：第三方检测机构出具的粪污处理效果报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 效果报告
+  member_count: 1
+  member_details:
+  - 第三方检测机构出具的粪污处理效果报告
+output:
+  fields:
+  - name: 实际抽检利用率
+    type: string
+    description: 提取 实际抽检利用率 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (ABS(统计表.上报综合利用率 - 效果报告.实际抽检利用率) > 10%) || (统计表.粪污处理利用总量 / 统计表.粪污产生总量 < 政策文件.考核目标值（综合利用率%）) || (维护记录.粪污日处理量汇总
+    < 统计表.粪污处理利用总量 * 0.6)
+  description: 通过三重逻辑筛查虚报行为：一是统计上报数据与第三方抽检核查结果的偏差率超过10个百分点阈值；二是实际利用总量与产生总量的比值低于国家或省级政策要求的达标线（例如75%或85%）；三是设施实际运行记录的累计处理量远低于上报利用总量的60%，表明设施处理能力或运行状况无法支撑上报数据，判定为严重数据造假。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 畜禽粪污综合利用率数据虚报瞒报
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国畜牧法\",\n    \"法规文号\": \"中华人民共和国主席令第一二四号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第四十六条\",\n    \"内容概述\": \"畜禽养殖场应当保证畜禽粪污处理利用设施的正常运行，不得弄虚作假。\"\n  },\n  {\n    \"法规名称\": \"畜禽规模养殖污染防治条例\",\n    \"法规文号\"\
+    : \"国务院令第643号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十条\",\n    \"内容概述\": \"向环境排放经过处理的畜禽养殖废弃物，应当符合国家和地方规定的污染物排放标准和"

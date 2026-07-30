@@ -1,0 +1,107 @@
+name: audit/登记台账类/下沉台账
+type: model
+description: 从登记台账类类文档（下沉台账）中提取结构化元数据。涵盖字段如：受助对象类型、资金金额。文档范围包括：资源下沉台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 下沉台账
+  member_count: 1
+  member_details:
+  - 资源下沉台账
+output:
+  fields:
+  - name: 受助对象类型
+    type: string
+    description: 提取 受助对象类型 的文本值
+  - name: 资金金额
+    type: number
+    description: 提取 资金金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: SUM(项目资金拨付文件.基层社项目金额) / SUM(项目资金拨付文件.资金拨付总额（万元）) < 0.7 || SUM(资金使用明细.培训费) = 0
+  description: 联合社对基层社的专项资金占比应不低于70%，且必须安排农民培训等指定用途。占比低于70%或未安排培训经费等指定支出即视为未落实资源倾斜。
+  audit_item: 供销合作社基层社改造不到位
+  suspicion: 各级联合社资源未向基层社倾斜
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央国务院关于深化供销合作社综合改革的决定\",\n    \"法规文号\": \"中发〔2015〕11号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"二、拓展经营服务领域，强化为农服务（三）加强基层社建设\",\n    \"内容概述\": \"各级联合社要加强指导和服务，把工作重心下沉到基层社，资源向基层社倾斜，支持基层社改革发展。\"\n  }\n\
+    ]"

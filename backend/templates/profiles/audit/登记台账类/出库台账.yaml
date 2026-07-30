@@ -1,0 +1,117 @@
+name: audit/登记台账类/出库台账
+type: model
+description: 从登记台账类类文档（出库台账）中提取结构化元数据。涵盖字段如：出库数量、出库日期、出库类型、品名、对应审批单号。文档范围包括：出库台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 审批
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 出库台账
+  member_count: 1
+  member_details:
+  - 出库台账
+output:
+  fields:
+  - name: 出库数量
+    type: number
+    description: 提取 出库数量 的数值（含单位，如万元、吨等）
+  - name: 出库日期
+    type: date
+    description: 提取 出库日期 的日期值，格式 YYYY-MM-DD
+  - name: 出库类型
+    type: string
+    description: 提取 出库类型 的文本值
+  - name: 品名
+    type: string
+    description: 提取 品名 的文本值
+  - name: 对应审批单号
+    type: string
+    description: 提取 对应审批单号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (出库台账.出库类型 == "销售" && 出库台账.品名.like("%救灾备荒种子%")) || (出库台账.出库类型 == "调拨" && 审批文件.审批编号.isNull()) || (监测表.储备品种 not.in
+    审批文件.调用事由 && 监测表.轮换记录.isNull())
+  description: 出库类型为销售且品名含救灾备荒种子关键词即直接判定为违规销售；调拨出库记录必须匹配唯一的审批编号，若为空则属私自调用；实际库存中出现计划外品种且无法提供主管部门批准的轮换或调剂手续，视为擅自变更储备作物种类。三种情形直接触犯储备种子动用红线。
+  audit_item: 救灾备荒种子储备方面不符合相关规定
+  suspicion: 承储企业违规调用、售卖救灾备荒种子或擅自改变储备品种
+  regulation: "[\n  {\n    \"法规名称\": \"国家救灾备荒种子储备管理办法\",\n    \"法规文号\": \"农农发〔2015〕1号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十二条、第十六条\",\n    \"内容概述\": \"储备种子仅限用于农业救灾、备荒等应急情形，未经省级农业农村主管部门批准，任何单位和个人不得动用、销售或进行商业性经营利用；储备品种需保持相对稳定，轮换须报批。\"\
+    \n  }\n]"

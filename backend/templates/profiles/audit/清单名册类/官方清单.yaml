@@ -1,0 +1,82 @@
+name: audit/清单名册类/官方清单
+type: model
+description: 从清单名册类类文档（官方清单）中提取结构化元数据。涵盖字段如：禁用农药名称、限用农药名称及受限作物范围。文档范围包括：禁用/限用农药官方清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 官方清单
+  member_count: 1
+  member_details:
+  - 禁用/限用农药官方清单
+output:
+  fields:
+  - name: 禁用农药名称
+    type: string
+    description: 提取 禁用农药名称 的文本值
+  - name: 限用农药名称及受限作物范围
+    type: string
+    description: 提取 限用农药名称及受限作物范围 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 农药采购发票.农药名称 IN (禁用农药名称、限用农药名称及受限作物范围.禁用农药名称) || (记录表.农药名称 IN (禁用农药名称、限用农药名称及受限作物范围.限用农药名称及受限作物范围) AND 记录表.作物名称
+    NOT IN (禁用农药名称、限用农药名称及受限作物范围.限用农药名称及受限作物范围)) || 管理台账.农药名称 IN (禁用农药名称、限用农药名称及受限作物范围.禁用农药名称)
+  description: 判定规则：采购发票或库存台账中出现禁用农药直接判定违规；使用记录中出现限用农药，但所施用的作物不在清单允许范围内视为违规。禁用清单以国家最新公告为准，无豁免条件。
+  audit_item: 农药使用管理不符合规定
+  suspicion: 违规使用禁用或限用农药
+  regulation: "[\n  {\n    \"法规名称\": \"农药管理条例\",\n    \"法规文号\": \"国务院令第677号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四十六条\"\
+    ,\n    \"内容概述\": \"任何单位和个人不得生产、经营和使用国家明令禁止使用的农药。\"\n  }\n]"

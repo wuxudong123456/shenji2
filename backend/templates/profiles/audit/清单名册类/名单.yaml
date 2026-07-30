@@ -1,0 +1,92 @@
+name: audit/清单名册类/名单
+type: model
+description: 从清单名册类类文档（名单）中提取结构化元数据。涵盖字段如：姓名、经审核的集资人名单、身份证号。文档范围包括：集资合作建房参与者名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 名单
+  member_count: 1
+  member_details:
+  - 集资合作建房参与者名单
+output:
+  fields:
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 经审核的集资人名单
+    type: string
+    description: 提取 经审核的集资人名单 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (经审核的集资人名单.与单位关系 != '正式劳动关系') || (经审核的集资人名单.是否已享受保障性住房政策 = '是') || (买受人付款记录.缴款人姓名 NOT IN (经审核的集资人名单.姓名))
+  description: 参与集资合作建房的人员必须为符合当地收入标准的本单位职工，且未享受过其他福利性住房政策。若出现非本单位人员、已享受房改政策人员或缴款人与分配对象身份存疑，则触发疑点。任一条件成立即视为违规。
+  audit_item: 违规集资合作建房
+  suspicion: 集资合作建房主体资格不符合规定
+  regulation: "[\n  {\n    \"法规名称\": \"经济适用住房管理办法\",\n    \"法规文号\": \"建住房〔2007〕258号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十五条\",\n    \"内容概述\": \"经济适用住房供应对象为城市低收入住房困难家庭，并与职工家庭人口、收入等因素挂钩，不得向非保障对象供应。集资合作建房参照执行，且只能对本单位符合条件的职工销售。\"\n  }\n\
+    ]"
+- expression: (分配套数、单套售价、分配人姓名、身份证号、房屋编号.身份证号 NOT IN 姓名、身份证号、经审核的集资人名单.身份证号) || (分配对象姓名.签约方为外部自然人或企业且合同价格 ≥ 同期同地段商品房市场价 *
+    0.9) || (利润分成条款、委托开发约定中存在“利润分成”或“按比例分配物业”等商业开发条款)
+  description: 表现包括将房屋分配给非集资人员、按商品房市场价格对外销售、或与开发商签订具有商业开发性质的分成协议。若出现前述任何情况，即构成违规。价格阈值以低于市场价90%作为疑似异常（变相商品房高价销售），同时合作条款包含利润分成即直接判定。
+  audit_item: 违规集资合作建房
+  suspicion: 以集资合作建房名义变相实施住房实物分配或商品房开发
+  regulation: "[\n  {\n    \"法规名称\": \"经济适用住房管理办法\",\n    \"法规文号\": \"建住房〔2007〕258号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十九条、第三十二条\",\n    \"内容概述\": \"经济适用住房购房人拥有有限产权，购买不满5年不得直接上市交易；严禁以建设经济适用住房名义变相进行商品房开发，不得将经济适用住房作为福利实物分配。\"\n  }\n]"

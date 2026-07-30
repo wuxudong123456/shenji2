@@ -1,0 +1,157 @@
+name: audit/登记台账类/执行台账
+type: model
+description: 从登记台账类类文档（执行台账）中提取结构化元数据。涵盖字段如：交易日期、交易金额、供应商名称、再分包记录、分包商名称、分包层级、合同总价、合同编号。文档范围包括：合同执行台账、工程合同执行台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 人员
+- 付款
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 执行台账
+  member_count: 1
+  member_details:
+  - 合同执行台账
+  - 工程合同执行台账
+output:
+  fields:
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 交易金额
+    type: number
+    description: 提取 交易金额 的数值（含单位，如万元、吨等）
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 再分包记录
+    type: string
+    description: 提取 再分包记录 的文本值
+  - name: 分包商名称
+    type: string
+    description: 提取 分包商名称 的文本值
+  - name: 分包层级
+    type: string
+    description: 提取 分包层级 的文本值
+  - name: 合同总价
+    type: string
+    description: 提取 合同总价 的文本值
+  - name: 合同编号
+    type: string
+    description: 提取 合同编号 的文本值
+  - name: 实际施工主体名称
+    type: string
+    description: 提取 实际施工主体名称 的文本值
+  - name: 签约单位
+    type: string
+    description: 提取 签约单位 的文本值
+  - name: 管理人员名单
+    type: string
+    description: 提取 管理人员名单 的文本值
+  - name: 约定付款节点及比例
+    type: number
+    description: 提取 约定付款节点及比例 的数值（含单位，如万元、吨等）
+  - name: 约定最早付款条件
+    type: number
+    description: 提取 约定最早付款条件 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: SUM(项目合同.合同金额) GROUP BY 项目合同.承包单位名称, YEAR(项目合同.合同签订日期) > 招标投标管理办法及招标文件.强制招标金额标准 && COUNT(项目合同.合同编号) > 1 && MAX(项目合同.合同金额)
+    < 招标投标管理办法及招标文件.强制招标金额标准
+  description: 将同一时期内本应作为一个整体招标的项目，人为拆分为若干个小额合同，使每个合同金额均低于招标限额，从而逃避招标监管。表达式按年、按承包单位汇总合同金额，若总额超过限额但单笔合同均未达到，则判定为化整为零。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 化整为零规避招标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四条\",\n    \"内容概述\": \"任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。\"\n  }\n]"
+- expression: 执行台账.实际施工主体名称 != 中标单位名称 && 无合法分包审批记录 && 支付明细表.收款单位名称 != 中标单位名称
+  description: 中标单位不履行合同约定的施工义务，将全部工程或肢解后以分包名义转给其他单位或个人施工，自己仅收取管理费。表达式通过比对中标人与实际施工人、收款人与合同签订人是否一致来判定转包。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 中标单位将全部工程转包
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国建筑法\",\n    \"法规文号\": \"主席令第91号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十八条\"\
+    ,\n    \"内容概述\": \"禁止承包单位将其承包的全部建筑工程转包给他人，禁止承包单位将其承包的全部建筑工程肢解以后以分包的名义分别转包给他人。\"\n  },\n  {\n    \"法规名称\": \"建设工程质量管理条例\"\
+    ,\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第七十八条\",\n    \"内容概述\": \"本条例所称转包，是指承包单位承包建设工程后"
+- expression: 合同编号.分包层级 > 1 || (分包单位名称.再分包记录 != "无" && 分包单位名称.禁止再分包条款 = "禁止")
+  description: 总包单位依法选定的分包商，将其承接的分包工程再次分包给其他单位，即构成二次分包。表达式判断是否存在第二层及以上分包记录，或分包合同中明确禁止再分包但存在再分包事实，直接判定违规。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 分包单位再次违法分包
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国建筑法\",\n    \"法规文号\": \"主席令第91号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十九条\"\
+    ,\n    \"内容概述\": \"禁止分包单位将其承包的工程再分包。\"\n  }\n]"

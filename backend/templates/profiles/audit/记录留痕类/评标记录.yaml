@@ -1,0 +1,72 @@
+name: audit/记录留痕类/评标记录
+type: model
+description: 从记录留痕类类文档（评标记录）中提取结构化元数据。涵盖字段如：名称、实际投标供应商数量、推荐中标候选人名单及排名、推荐意见、评分汇总。文档范围包括：评标委员会评标记录、评标记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 评标记录
+  member_count: 1
+  member_details:
+  - 评标委员会评标记录
+  - 评标记录
+output:
+  fields:
+  - name: 名称
+    type: string
+    description: 提取 名称 的文本值
+  - name: 实际投标供应商数量
+    type: number
+    description: 提取 实际投标供应商数量 的数值（含单位，如万元、吨等）
+  - name: 推荐中标候选人名单及排名
+    type: string
+    description: 提取 推荐中标候选人名单及排名 的文本值
+  - name: 推荐意见
+    type: string
+    description: 提取 推荐意见 的文本值
+  - name: 评分汇总
+    type: string
+    description: 提取 评分汇总 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (中标通知书.中标人 != 推荐中标候选人名单及排名.推荐中标候选人名单及排名) || (各评分项得分.各评分项得分 || 权重与招标文件不一致) || (资质文件.关联关系 && 中标排名非第一)
+  description: 筛查中标人不是评标委员会推荐的第一候选人的项目，或评标过程中使用了与招标文件不一致的评分标准，或中标人与招标人存在关联关系却低排名中标。任一条件触发即为违规调整中标结果疑点。
+  audit_item: 违反建设管理相关政策规定-工程建设项目招标活动中设置不合理的条件违反公平、公正原则
+  suspicion: 未按法定程序和评标结果确定中标人
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四十条、第四十六条\",\n    \"内容概述\": \"招标人应当确定排名第一的中标候选人为中标人；招标人和中标人不得再行订立背离合同实质性内容的其他协议。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\"\
+    ,\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四十九条、第五十五条\",\n    \"内容概述\": \"评标委员会成员不得私"

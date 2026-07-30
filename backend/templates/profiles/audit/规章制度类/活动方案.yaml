@@ -1,0 +1,138 @@
+name: audit/规章制度类/活动方案
+type: model
+description: 从规章制度类类文档（活动方案）中提取结构化元数据。涵盖字段如：会议议题、参与人员、地点、日程安排、时长、活动主题、活动内容、活动日程。文档范围包括：公务活动方案、活动方案、考察活动方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 人员
+- 会议
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 活动方案
+  member_count: 1
+  member_details:
+  - 公务活动方案
+  - 活动方案
+  - 考察活动方案
+output:
+  fields:
+  - name: 会议议题
+    type: string
+    description: 提取 会议议题 的文本值
+  - name: 参与人员
+    type: string
+    description: 提取 参与人员 的文本值
+  - name: 地点
+    type: string
+    description: 提取 地点 的文本值
+  - name: 日程安排
+    type: string
+    description: 提取 日程安排 的文本值
+  - name: 时长
+    type: string
+    description: 提取 时长 的文本值
+  - name: 活动主题
+    type: string
+    description: 提取 活动主题 的文本值
+  - name: 活动内容
+    type: string
+    description: 提取 活动内容 的文本值
+  - name: 活动日程
+    type: string
+    description: 提取 活动日程 的文本值
+  - name: 活动日程安排
+    type: string
+    description: 提取 活动日程安排 的文本值
+  - name: 考察内容
+    type: string
+    description: 提取 考察内容 的文本值
+  - name: 议程
+    type: string
+    description: 提取 议程 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 公务接待明细台账.接待场所名称 IN (A级景区名录) && (公务活动方案.考察内容 IS NULL || 公务活动方案.考察内容 NOT LIKE '%景区管理%' || 公务活动方案.考察内容 NOT LIKE
+    '%生态保护%') && (费用报销凭证.费用明细 CONTAINS '门票' || 费用报销凭证.费用明细 CONTAINS '导游费')
+  description: 当接待场所为A级景区，且活动方案中缺少与景区管理或生态环保等职能直接相关的实质考察内容，同时费用凭证中出现门票、导游费等旅游特征消费时，判定为变相旅游疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 在A级景区开展公务考察涉嫌变相旅游
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"接待单位不得超标准接待，不得组织旅游和与公务活动无关的参观，不得组织到营业性娱乐、健身场所活动。\"\n  }\n]"
+- expression: 公务接待明细台账.接待事由 = '公务考察学习' && (公务活动方案 IS NULL || 签到表 IS NULL || 考察报告 IS NULL || LENGTH(公务接待明细台账.活动内容描述) < 10)
+  description: 若接待事由仅为笼统的“考察学习”，缺乏具体的调研题目、学习内容文字描述，且无法提供对应的活动方案、参会签到或成果报告中的任意两项证明，视为虚构活动疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 公务考察学习活动缺乏具体内容涉嫌虚构
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第七条\",\n    \"内容概述\": \"无公函的公务活动和来访人员一律不予接待；接待单位应当根据规定的接待范围，严格接待审批控制，建立公务接待清单制度。\"\n  }\n]"
+- expression: (活动方案.时长 / 总行程时长 < 0.3) && (活动方案.地点 IN 旅游城市列表) || (费用报销凭证.住宿费 > 活动方案.时长 + 1) || (活动现场记录.实际参加人员 < 费用报销凭证.报销人员名单)
+    || (费用报销凭证.发票内容 包含 '景区门票')
+  description: 计算活动方案中明确公务（如会议、参观红色基地）的时间占总外出时间的比例，若低于30%且目的地为旅游城市，或住宿天数远超公务需求，或实际参与人数少于报销人数，或出现景区门票等明显旅游支出，则判定为借公务之名旅游。
+  audit_item: 其他违反中央八项规定及其实施细则精神问题
+  suspicion: 假借党建、培训等公务活动名义组织公款旅游
+  regulation: "[\n  {\n    \"法规名称\": \"中央和国家机关差旅费管理办法\",\n    \"法规文号\": \"财行〔2013〕531号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第二十九条\",\n    \"内容概述\": \"出差人员不得向接待单位提出正常公务活动以外的要求，不得在出差期间接受违反规定用公款支付的宴请、游览和非工作需要的参观，不得借出差之机旅游。\"\n  }\n]"

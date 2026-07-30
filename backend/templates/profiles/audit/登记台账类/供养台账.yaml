@@ -1,0 +1,123 @@
+name: audit/登记台账类/供养台账
+type: model
+description: 从登记台账类类文档（供养台账）中提取结构化元数据。涵盖字段如：供养方式、在册供养人员姓名、在册供养人员身份标识、月供养金/费用。文档范围包括：特困人员分散供养台账、特困人员集中供养台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 人员
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 供养台账
+  member_count: 1
+  member_details:
+  - 特困人员分散供养台账
+  - 特困人员集中供养台账
+output:
+  fields:
+  - name: 供养方式
+    type: string
+    description: 提取 供养方式 的文本值
+  - name: 在册供养人员姓名
+    type: string
+    description: 提取 在册供养人员姓名 的文本值
+  - name: 在册供养人员身份标识
+    type: string
+    description: 提取 在册供养人员身份标识 的文本值
+  - name: 月供养金-费用
+    type: number
+    description: 提取 月供养金-费用 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (数据表.年龄 > 政策文件.特困人员认定标准（无劳动能力、无生活来源、无法定赡养抚养义务人或义务人无履行义务能力） || 困难群体救助申请材料.残疾等级 ∈ 一级肢体残疾, 一级精神残疾') && 数据表.收入来源标记
+    == '无' && (困难群体救助申请材料.法定赡养人信息及赡养能力声明 == '无' || 困难群体救助申请材料.法定赡养人信息及赡养能力声明 == '无') && 供养台账.在册供养人员姓名 == null
+  description: 该表达式筛查'应供未供'疑点。当人员年龄达标或重度残疾、无收入来源、且无赡养人或赡养人无能力，却未在特困供养台账中时，判定为高度可疑。特别注意'分散供养'对象如果列入低保名单，可能以低标准取代特困高标准保障。
+  audit_item: 未按规定对城乡困难群体给予相应社会救助
+  suspicion: 符合特困条件人员未给予集中或分散供养
+  regulation: "[\n  {\n    \"法规名称\": \"社会救助暂行办法\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十四条、第十五条\",\n    \"内容概述\": \"对无劳动能力、无生活来源且无法定赡养、抚养、扶养义务人，或者其法定赡养、抚养、扶养义务人无赡养、抚养、扶养能力的老年人、残疾人以及未满16周岁的未成年人，给予特困人员供养。特困人员供养的内容包括提供基本生活条件、对生活不能自理的给予照料、提供疾病治疗、办理丧葬事宜。\"\
+    \n  }\n]"
+- expression: (明细表.救助对象身份标识 IN 人员名单.在保人员身份标识（身份证号） || 明细表.救助对象身份标识 IN 供养台账.在册供养人员身份标识（身份证号）) && 明细表.医疗总费用 > 大病起付线基准 && 明细表.医疗救助报销金额
+    < (明细表.个人自付金额 * 政策文件.救助比例)
+  description: 该表达式筛查'救助政策未落实'疑点。当患者的身份属于低保或特困人群，且其住院医疗总费用超出大病标准，但实际获得的医疗救助报销金额低于按政策规定比例计算应得金额时，判定为未足额救助。若报销金额为0，则为遗漏救助，风险极高。
+  audit_item: 未按规定对城乡困难群体给予相应社会救助
+  suspicion: 低保/特困对象大病医疗未获二次救助
+  regulation: "[\n  {\n    \"法规名称\": \"社会救助暂行办法\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第二十八条、第二十九条\",\n    \"内容概述\": \"最低生活保障家庭成员、特困供养人员等是医疗救助的重点救助对象。医疗救助采取的方式包括对救助对象参加城镇居民基本医疗保险或者新型农村合作医疗的个人缴费部分，给予补贴；对救助对象经基本医疗保险、大病保险和其他补充医疗保险支付后，个人及其家庭难以承担的符合规定的基本医疗自负费用，给予补助。\"\
+    \n  }\n]"

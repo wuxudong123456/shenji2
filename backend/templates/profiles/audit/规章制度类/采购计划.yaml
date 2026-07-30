@@ -1,0 +1,101 @@
+name: audit/规章制度类/采购计划
+type: model
+description: 从规章制度类类文档（采购计划）中提取结构化元数据。涵盖字段如：计划采购方式、预算金额。文档范围包括：年度政府采购计划、采购计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 采购
+- 金额
+- 预算
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 采购计划
+  member_count: 1
+  member_details:
+  - 年度政府采购计划
+  - 采购计划
+output:
+  fields:
+  - name: 计划采购方式
+    type: string
+    description: 提取 计划采购方式 的文本值
+  - name: 预算金额
+    type: number
+    description: 提取 预算金额 的数值（含单位，如万元、吨等）
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 明细表.采购金额 >= 公开招标限额标准 AND 明细表.采购方式 != '公开招标' AND (事项说明.审批意见 != '同意' OR 事项说明 IS NULL)
+  description: 公开招标限额标准依据当地当年度政府集中采购目录及限额标准执行，如货物或服务单项或批量预算金额达到200万元以上须公开招标。当项目金额达到限额但采购方式非公开招标，且无有效审批记录或审批未通过时，判定为违规规避公开招标。
+  audit_item: 政府采购组织管理不规范
+  suspicion: 应公开招标未招标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府采购法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十六条、第二十七条、第二十八条\",\n    \"内容概述\": \"政府采购公开招标应作为主要采购方式；采购人不得将应当以公开招标方式采购的货物或服务化整为零或者以其他任何方式规避公开招标采购；达到公开招标数额标准的项目，因特殊情况需要采用公开招标以外方式的，应当在采购活动开始前获得设区的市、自治州以上人民政府采购监督管理部门的批准。\"\
+    \n  },\n  {\n    \"法规名称\": \"中华人民共和国政府采购法实施条例\",\n   "
+- expression: 同一物料编码 && 同一供应商 && (采购日期间隔滚动30天内) && (SUM(采购金额) >= 招标限额) && (单次采购方式 != "招标" && 单次采购金额 < 招标限额)
+  description: 针对同一物料，在30天滚动周期内向同一供应商分多次采购，各次金额均低于招标限额，累计金额却达到或超过制度规定的招标限额，且未采用招标方式，涉嫌化整为零规避招标。具体限额需依照企业制度（如货物200万元）。
+  audit_item: 采购管理方面存在的问题
+  suspicion: 人为拆分采购规避招标增加采购成本
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号（2017修正）\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第四条\",\n    \"内容概述\": \"任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。\"\n  },\n  {\n    \"法规名称\": \"必须招标的工程项目规定\",\n\
+    \    \"法规文号\": \"国家发展改革委令第16号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二条、第五条\",\n    \"内容概述\": \"全部或部分使用国有资金投资的项目，达到规定规模标准的"

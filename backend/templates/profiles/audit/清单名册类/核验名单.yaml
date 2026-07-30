@@ -1,0 +1,135 @@
+name: audit/清单名册类/核验名单
+type: model
+description: 从清单名册类类文档（核验名单）中提取结构化元数据。涵盖字段如：保障对象姓名、保障对象身份证号、保障状态、审批通过日期、家庭人口、待遇类别、承租人身份证号、核定收入。文档范围包括：保障对象资格核验名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 审批
+- 补贴
+- 金额
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 核验名单
+  member_count: 1
+  member_details:
+  - 保障对象资格核验名单
+output:
+  fields:
+  - name: 保障对象姓名
+    type: string
+    description: 提取 保障对象姓名 的文本值
+  - name: 保障对象身份证号
+    type: string
+    description: 提取 保障对象身份证号 的文本值
+  - name: 保障状态
+    type: boolean
+    description: 提取 保障状态 的布尔值（是/否）
+  - name: 审批通过日期
+    type: date
+    description: 提取 审批通过日期 的日期值，格式 YYYY-MM-DD
+  - name: 家庭人口
+    type: string
+    description: 提取 家庭人口 的文本值
+  - name: 待遇类别
+    type: string
+    description: 提取 待遇类别 的文本值
+  - name: 承租人身份证号
+    type: string
+    description: 提取 承租人身份证号 的文本值
+  - name: 核定收入
+    type: number
+    description: 提取 核定收入 的数值（含单位，如万元、吨等）
+  - name: 残疾人身份证号
+    type: string
+    description: 提取 残疾人身份证号 的文本值
+  - name: 申报残疾等级
+    type: string
+    description: 提取 申报残疾等级 的文本值
+  - name: 补贴金额
+    type: number
+    description: 提取 补贴金额 的数值（含单位，如万元、吨等）
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ((数据.年度应税收入 / 核验名单.家庭人口 / 12 > 低保标准金额.低保标准金额) || (信息.权利人身份证号 = 核验名单.保障对象身份证号 && (信息.房屋面积 > 免计面积 || 非唯一住房)) ||
+    (信息.车主身份证号 = 核验名单.保障对象身份证号 && 信息.车辆价值 > 限额)) && (核验名单.保障状态 = "在保")
+  description: 计算税务系统反映的家庭人均月收入，与当地低保标准比较，超过标准即触发；家庭拥有非基本生活住房或高价值车辆等财产，即使收入未超标也视为不符合财产条件；以上任一情形成立且对象仍在发放低保金，即为违规嫌疑。
+  audit_item: 向不符合条件的人员发放保障待遇
+  suspicion: 低保对象家庭收入超标仍违规享受低保
+  regulation: "[\n  {\n    \"法规名称\": \"《社会救助暂行办法》\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十一条、第十二条\",\n    \"内容概述\": \"最低生活保障以家庭收入和财产状况认定；对家庭人均收入低于当地低保标准且财产符合规定的家庭，给予低保，并实施动态管理，对不符合条件的应停发。\"\n  }\n]"
+- expression: (核验名单.申报残疾等级 < 库.实际评定等级) && (明细表.补贴项目名称 = "重度残疾人护理补贴")
+  description: 残疾等级数字越小代表残疾程度越重，申报等级重于实际等级即表示伪造更严重的残疾程度；同时仍在领取只针对重度残疾的护理补贴，即判定为骗取行为。
+  audit_item: 向不符合条件的人员发放保障待遇
+  suspicion: 伪造残疾等级骗取重度残疾人护理补贴
+  regulation: "[\n  {\n    \"法规名称\": \"《国务院关于全面建立困难残疾人生活补贴和重度残疾人护理补贴制度的意见》\",\n    \"法规文号\": \"国发〔2015〕52号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"二（一）\",\n    \"内容概述\": \"重度残疾人护理补贴主要补助残疾人因残疾产生的额外长期照护支出，对象为残疾等级被评定为一级、二级且需要长期照护的重度残疾人。\"\n\
+    \  }\n]"
+- expression: (发放明细表.发放日期 > 注销人员数据.死亡日期（注销日期）) && (发放明细表.领取人身份证号 = 注销人员数据.注销人员身份证号)
+  description: 若某保障对象在户籍注销或殡葬记录中的死亡日期之后，仍存在待遇发放记录，即判定为死亡后违规继续领取。死亡日期与发放日期相等视为当天发放后死亡，只保留死亡后月末发放等合理延迟。
+  audit_item: 向不符合条件的人员发放保障待遇
+  suspicion: 死亡人员家属未及时申报仍继续领取社保待遇
+  regulation: "[\n  {\n    \"法规名称\": \"《中华人民共和国社会保险法》\",\n    \"法规文号\": \"中华人民共和国主席令第三十五号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第十七条\",\n    \"内容概述\": \"参加基本养老保险的个人，因病或者非因工死亡的，其遗属可以领取丧葬补助金和抚恤金；个人死亡的，个人账户余额可以继承，从死亡次月起停发养老待遇。\"\n  }\n]"
+- expression: (信息.户籍所在地 != 本地 && 缴纳记录.累计缴纳月数 < 政策文件.对外来务工人员户籍、居住或社保缴纳年限要求) && (分配名单.承租人身份证号 对应存在分配记录)
+  description: 非本地户籍申请人的社保累计缴纳月数未达到政策规定的最低年限，却已获得公租房分配，即构成违规。同时检查居住证连续居住时间是否达标。
+  audit_item: 向不符合条件的人员发放保障待遇
+  suspicion: 不符合户籍或居住年限违规享受公租房保障
+  regulation: "[\n  {\n    \"法规名称\": \"《公共租赁住房管理办法》\",\n    \"法规文号\": \"住房和城乡建设部令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第八条、第九条\",\n    \"内容概述\": \"申请公共租赁住房，应当符合以下条件：在本地无住房或者住房面积低于规定标准；收入、财产低于规定标准；申请人为外来务工人员的，在本地稳定就业达到规定年限。\"\n \
+    \ }\n]"

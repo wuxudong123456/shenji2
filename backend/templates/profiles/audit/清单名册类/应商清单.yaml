@@ -1,0 +1,94 @@
+name: audit/清单名册类/应商清单
+type: model
+description: 从清单名册类类文档（应商清单）中提取结构化元数据。涵盖字段如：供应商名称、设备品类、采购占比。文档范围包括：供应商清单、设备采购供应商清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 采购
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 应商清单
+  member_count: 1
+  member_details:
+  - 供应商清单
+  - 设备采购供应商清单
+output:
+  fields:
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 设备品类
+    type: string
+    description: 提取 设备品类 的文本值
+  - name: 采购占比
+    type: string
+    description: 提取 采购占比 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (设备采购供应商清单.采购占比 = 100% AND 设备采购供应商清单.是否用户自选 = '否') OR (设备采购供应商清单.采购占比 = 100% AND 用户投诉工单数据库.内容 包含 '强制购买') OR
+    (电力设施供应商合作协议.排他性约定 包含 '必须向乙方采购') OR (设备采购单价 > 市场均价 * 1.3)
+  description: 判定逻辑：任一条件满足即视为违规。1.某一区域（如一个乡镇）内所有农户新装或改造设备采购均来自同一供应商且无用户自主选择记录；2.用户投诉工单中出现强制消费描述经核实属实；3.合作协议中订有不公平排他条款，限制用户从其他渠道购买；4.指定设备单价明显高于同期市场均价30%以上。
+  audit_item: 供电服务不合规
+  suspicion: 强制农户购买指定厂家设备
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反垄断法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十七条\",\n    \"内容概述\": \"禁止具有市场支配地位的经营者没有正当理由，限定交易相对人只能与其进行交易或者只能与其指定的经营者进行交易。\"\n  },\n  {\n    \"法规名称\": \"优化营商环境条例\"\
+    ,\n    \"法规文号\": \"国务院令第722号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十六条\",\n    \"内容概述\": \"任何单位和个人不得强制或者变相强制市场主体接受中介服务、"
+- expression: 合作合同.是否包含排他性条款 == '唯一指定' || '独家供应' || ( 采购记录.供应商 == 指定供应商 && 采购记录.价格 > 市场同期均价 * 1.3 ) || 合作合同.供应商与供电企业关联关系
+  description: 强制指定供应商、利用垄断地位抬高价格或存在利益输送均属违规；价格偏差超过30%为异常阈值。
+  audit_item: 电网改造和供电服务不合规
+  suspicion: 强制农户在指定厂家购买表后线及设施
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反垄断法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十七条\",\n    \"内容概述\": \"禁止具有市场支配地位的经营者没有正当理由，限定交易相对人只能与其交易或者只能与其指定的经营者进行交易。\"\n  }\n]"

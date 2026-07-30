@@ -1,0 +1,877 @@
+name: audit/审查报告类/验收报告
+type: model
+description: 从审查报告类类文档（验收报告）中提取结构化元数据。涵盖字段如：三方签章完整情况、主要功能、主要工程量、主要构筑物实际数量及规格、主要设备清单、付款节点要求、使用状态、分产业实际产值。文档范围包括：三通两平台建设项目验收报告、交通安全及防护设施建设验收报告、交通安全及防护设施验收报告、企业环保验收报告、住建部门竣工验收报告、供水工程验收报告、保护工程项目验收报告、公益性公墓建设验收报告、农业电气化设备验收报告、农村厕所建设项目验收报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 付款
+- 合同
+- 安全
+- 工程
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 验收报告
+  member_count: 1
+  member_details:
+  - 三通两平台建设项目验收报告
+  - 交通安全及防护设施建设验收报告
+  - 交通安全及防护设施验收报告
+  - 企业环保验收报告
+  - 住建部门竣工验收报告
+  - 供水工程验收报告
+  - 保护工程项目验收报告
+  - 公益性公墓建设验收报告
+  - 农业电气化设备验收报告
+  - 农村厕所建设项目验收报告
+  - 农网改造升级项目验收报告
+  - 农膜回收验收报告
+  - 农资物联网项目验收报告
+  - 危房改造质量验收报告
+  - 土地开发进度验收报告
+  - 土壤改良工程验收报告
+  - 场地功能验收报告
+  - 垃圾处理设施建设验收报告
+  - 增殖放流项目验收报告
+  - 学校建设项目验收报告
+  - 学校设施设备自查验收报告
+  - 安防工程验收报告
+  - 实际完工报告或竣工验收报告
+  - 工程竣工验收报告
+  - 工程进度验收报告
+  - 工程验收报告
+  - 建设工程竣工验收报告
+  - 惠农财政补贴信息管理系统验收报告
+  - 教学设施验收报告
+  - 整治工程验收报告
+  - 新建公共设施建筑验收报告
+  - 无害化处理设施验收报告
+  - 桥梁改造工程验收报告
+  - 楼堂馆所工程验收报告
+  - 治理工程验收报告
+  - 治理项目验收报告
+  - 灾难备份建设验收报告
+  - 烘干、储藏等配套设施验收报告
+  - 环保项目验收报告
+  - 生物质锅炉验收报告
+  - 相关项目合同协议的验收报告
+  - 竣工验收报告
+  - 系统功能验收报告
+  - 绿化工程验收报告
+  - 耕层土壤剥离项目验收报告
+  - 节能验收报告
+  - 薄弱学校改善项目验收报告
+  - 规划编制质量验收报告
+  - 规模养殖场粪污处理设施配套验收报告
+  - 设备验收报告
+  - 项目竣工验收报告
+  - 项目进度验收报告
+  - 项目验收报告
+  - 食堂建设验收报告
+  - 验收报告
+  - 高标准农田建设项目验收报告
+  - 黑土地保护项目验收报告
+output:
+  fields:
+  - name: 三方签章完整情况
+    type: string
+    description: 提取 三方签章完整情况 的文本值
+  - name: 主要功能
+    type: string
+    description: 提取 主要功能 的文本值
+  - name: 主要工程量
+    type: string
+    description: 提取 主要工程量 的文本值
+  - name: 主要构筑物实际数量及规格
+    type: number
+    description: 提取 主要构筑物实际数量及规格 的数值（含单位，如万元、吨等）
+  - name: 主要设备清单
+    type: string
+    description: 提取 主要设备清单 的文本值
+  - name: 付款节点要求
+    type: number
+    description: 提取 付款节点要求 的数值（含单位，如万元、吨等）
+  - name: 使用状态
+    type: boolean
+    description: 提取 使用状态 的布尔值（是/否）
+  - name: 分产业实际产值
+    type: string
+    description: 提取 分产业实际产值 的文本值
+  - name: 功能室配置
+    type: string
+    description: 提取 功能室配置 的文本值
+  - name: 功能嵌套的验收结论
+    type: string
+    description: 提取 功能嵌套的验收结论 的文本值
+  - name: 单位
+    type: string
+    description: 提取 单位 的文本值
+  - name: 参与部门
+    type: string
+    description: 提取 参与部门 的文本值
+  - name: 参与验收各方签字
+    type: string
+    description: 提取 参与验收各方签字 的文本值
+  - name: 发现问题清单
+    type: string
+    description: 提取 发现问题清单 的文本值
+  - name: 各分项达标情况
+    type: string
+    description: 提取 各分项达标情况 的文本值
+  - name: 各功能区面积
+    type: string
+    description: 提取 各功能区面积 的文本值
+  - name: 各方签字盖章
+    type: string
+    description: 提取 各方签字盖章 的文本值
+  - name: 各方签章
+    type: string
+    description: 提取 各方签章 的文本值
+  - name: 合同签约方名称
+    type: string
+    description: 提取 合同签约方名称 的文本值
+  - name: 合同约定成活率标准
+    type: string
+    description: 提取 合同约定成活率标准 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 型号
+    type: string
+    description: 提取 型号 的文本值
+  - name: 填埋场位置
+    type: string
+    description: 提取 填埋场位置 的文本值
+  - name: 墓穴数量
+    type: number
+    description: 提取 墓穴数量 的数值（含单位，如万元、吨等）
+  - name: 复验结论
+    type: string
+    description: 提取 复验结论 的文本值
+  - name: 存在问题
+    type: string
+    description: 提取 存在问题 的文本值
+  - name: 学校名称
+    type: string
+    description: 提取 学校名称 的文本值
+  - name: 安全设施实际建设项数
+    type: string
+    description: 提取 安全设施实际建设项数 的文本值
+  - name: 宗地编号
+    type: string
+    description: 提取 宗地编号 的文本值
+  - name: 实施方案要点
+    type: string
+    description: 提取 实施方案要点 的文本值
+  - name: 实有数量
+    type: number
+    description: 提取 实有数量 的数值（含单位，如万元、吨等）
+  - name: 实有设备清单及数量
+    type: number
+    description: 提取 实有设备清单及数量 的数值（含单位，如万元、吨等）
+  - name: 实测建成面积
+    type: string
+    description: 提取 实测建成面积 的文本值
+  - name: 实测有机质含量等指标
+    type: string
+    description: 提取 实测有机质含量等指标 的文本值
+  - name: 实际交付模块数
+    type: string
+    description: 提取 实际交付模块数 的文本值
+  - name: 实际使用功能
+    type: string
+    description: 提取 实际使用功能 的文本值
+  - name: 实际供电可靠率
+    type: string
+    description: 提取 实际供电可靠率 的文本值
+  - name: 实际到货品牌
+    type: string
+    description: 提取 实际到货品牌 的文本值
+  - name: 实际单墓穴面积
+    type: string
+    description: 提取 实际单墓穴面积 的文本值
+  - name: 实际处理能力验收值
+    type: string
+    description: 提取 实际处理能力验收值 的文本值
+  - name: 实际完工日期
+    type: date
+    description: 提取 实际完工日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际完成内容
+    type: string
+    description: 提取 实际完成内容 的文本值
+  - name: 实际完成实物量
+    type: string
+    description: 提取 实际完成实物量 的文本值
+  - name: 实际完成工程量
+    type: string
+    description: 提取 实际完成工程量 的文本值
+  - name: 实际完成建设面积
+    type: string
+    description: 提取 实际完成建设面积 的文本值
+  - name: 实际完成户均容量
+    type: string
+    description: 提取 实际完成户均容量 的文本值
+  - name: 实际完成户数
+    type: string
+    description: 提取 实际完成户数 的文本值
+  - name: 实际完成投资额
+    type: string
+    description: 提取 实际完成投资额 的文本值
+  - name: 实际完成指标项
+    type: string
+    description: 提取 实际完成指标项 的文本值
+  - name: 实际完成改良面积
+    type: string
+    description: 提取 实际完成改良面积 的文本值
+  - name: 实际完成高效节水灌溉面积等
+    type: string
+    description: 提取 实际完成高效节水灌溉面积等 的文本值
+  - name: 实际建成中转站数量
+    type: number
+    description: 提取 实际建成中转站数量 的数值（含单位，如万元、吨等）
+  - name: 实际建成线路坐标
+    type: string
+    description: 提取 实际建成线路坐标 的文本值
+  - name: 实际建筑面积
+    type: string
+    description: 提取 实际建筑面积 的文本值
+  - name: 实际建设内容
+    type: string
+    description: 提取 实际建设内容 的文本值
+  - name: 实际建设规模
+    type: string
+    description: 提取 实际建设规模 的文本值
+  - name: 实际建设面积
+    type: string
+    description: 提取 实际建设面积 的文本值
+  - name: 实际开工日期
+    type: date
+    description: 提取 实际开工日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际开工时间
+    type: date
+    description: 提取 实际开工时间 的日期值，格式 YYYY-MM-DD
+  - name: 实际支出金额
+    type: number
+    description: 提取 实际支出金额 的数值（含单位，如万元、吨等）
+  - name: 实际施工日期
+    type: date
+    description: 提取 实际施工日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际电压合格率
+    type: string
+    description: 提取 实际电压合格率 的文本值
+  - name: 实际竣工日期
+    type: date
+    description: 提取 实际竣工日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际竣工面积
+    type: string
+    description: 提取 实际竣工面积 的文本值
+  - name: 实际竣工验收日期
+    type: date
+    description: 提取 实际竣工验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际验收日期
+    type: date
+    description: 提取 实际验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际验收服务地块坐标与面积
+    type: string
+    description: 提取 实际验收服务地块坐标与面积 的文本值
+  - name: 客运站点单位工程验收日期
+    type: date
+    description: 提取 客运站点单位工程验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 层数
+    type: string
+    description: 提取 层数 的文本值
+  - name: 工程内容
+    type: string
+    description: 提取 工程内容 的文本值
+  - name: 工程名称
+    type: string
+    description: 提取 工程名称 的文本值
+  - name: 工程总造价
+    type: string
+    description: 提取 工程总造价 的文本值
+  - name: 工程设计标准
+    type: string
+    description: 提取 工程设计标准 的文本值
+  - name: 工程质量评定
+    type: string
+    description: 提取 工程质量评定 的文本值
+  - name: 工程量清单
+    type: string
+    description: 提取 工程量清单 的文本值
+  - name: 已通电范围验收结论
+    type: string
+    description: 提取 已通电范围验收结论 的文本值
+  - name: 年度实际回收量
+    type: date
+    description: 提取 年度实际回收量 的日期值，格式 YYYY-MM-DD
+  - name: 年度或季度实际回收量
+    type: date
+    description: 提取 年度或季度实际回收量 的日期值，格式 YYYY-MM-DD
+  - name: 废气废水排放浓度
+    type: string
+    description: 提取 废气废水排放浓度 的文本值
+  - name: 延迟原因
+    type: string
+    description: 提取 延迟原因 的文本值
+  - name: 建筑名称
+    type: string
+    description: 提取 建筑名称 的文本值
+  - name: 建筑面积
+    type: string
+    description: 提取 建筑面积 的文本值
+  - name: 建设内容
+    type: string
+    description: 提取 建设内容 的文本值
+  - name: 建设地址
+    type: string
+    description: 提取 建设地址 的文本值
+  - name: 建设地点坐标
+    type: string
+    description: 提取 建设地点坐标 的文本值
+  - name: 建设用途
+    type: string
+    description: 提取 建设用途 的文本值
+  - name: 总投资额
+    type: string
+    description: 提取 总投资额 的文本值
+  - name: 截污管网铺设范围
+    type: string
+    description: 提取 截污管网铺设范围 的文本值
+  - name: 批复建筑面积
+    type: string
+    description: 提取 批复建筑面积 的文本值
+  - name: 批复项目性质
+    type: string
+    description: 提取 批复项目性质 的文本值
+  - name: 技术标准合规性
+    type: string
+    description: 提取 技术标准合规性 的文本值
+  - name: 投资概算
+    type: string
+    description: 提取 投资概算 的文本值
+  - name: 持证工匠签名
+    type: string
+    description: 提取 持证工匠签名 的文本值
+  - name: 排放去向
+    type: string
+    description: 提取 排放去向 的文本值
+  - name: 改造后技术等级
+    type: string
+    description: 提取 改造后技术等级 的文本值
+  - name: 数据互通
+    type: string
+    description: 提取 数据互通 的文本值
+  - name: 整改完成情况
+    type: string
+    description: 提取 整改完成情况 的文本值
+  - name: 整改期限
+    type: string
+    description: 提取 整改期限 的文本值
+  - name: 整改要求
+    type: string
+    description: 提取 整改要求 的文本值
+  - name: 整改闭环情况
+    type: string
+    description: 提取 整改闭环情况 的文本值
+  - name: 施工进度完成里程碑日期
+    type: date
+    description: 提取 施工进度完成里程碑日期 的日期值，格式 YYYY-MM-DD
+  - name: 是否满足设计承载力要求
+    type: boolean
+    description: 提取 是否满足设计承载力要求 的布尔值（是/否）
+  - name: 是否通过竣工验收
+    type: boolean
+    description: 提取 是否通过竣工验收 的布尔值（是/否）
+  - name: 最终建成的构筑物规格数量
+    type: number
+    description: 提取 最终建成的构筑物规格数量 的数值（含单位，如万元、吨等）
+  - name: 未完工项说明
+    type: string
+    description: 提取 未完工项说明 的文本值
+  - name: 未达标项是否关联整改措施
+    type: boolean
+    description: 提取 未达标项是否关联整改措施 的布尔值（是/否）
+  - name: 材料明细
+    type: string
+    description: 提取 材料明细 的文本值
+  - name: 检测报告
+    type: string
+    description: 提取 检测报告 的文本值
+  - name: 水土流失指标
+    type: string
+    description: 提取 水土流失指标 的文本值
+  - name: 水质达标率
+    type: string
+    description: 提取 水质达标率 的文本值
+  - name: 污水处理设施接入情况
+    type: string
+    description: 提取 污水处理设施接入情况 的文本值
+  - name: 物流设施建设资金去向
+    type: string
+    description: 提取 物流设施建设资金去向 的文本值
+  - name: 环保设施设计批复日期
+    type: date
+    description: 提取 环保设施设计批复日期 的日期值，格式 YYYY-MM-DD
+  - name: 环保验收文号及日期
+    type: date
+    description: 提取 环保验收文号及日期 的日期值，格式 YYYY-MM-DD
+  - name: 环评批复中要求的环保设施清单
+    type: string
+    description: 提取 环评批复中要求的环保设施清单 的文本值
+  - name: 现场实测单位能耗值
+    type: string
+    description: 提取 现场实测单位能耗值 的文本值
+  - name: 生均建筑面积
+    type: string
+    description: 提取 生均建筑面积 的文本值
+  - name: 生态修复工程完成情况
+    type: string
+    description: 提取 生态修复工程完成情况 的文本值
+  - name: 用地红线图
+    type: string
+    description: 提取 用地红线图 的文本值
+  - name: 疫情报告结论
+    type: string
+    description: 提取 疫情报告结论 的文本值
+  - name: 移交管护协议
+    type: string
+    description: 提取 移交管护协议 的文本值
+  - name: 竣工决算金额
+    type: number
+    description: 提取 竣工决算金额 的数值（含单位，如万元、吨等）
+  - name: 竣工坐标
+    type: string
+    description: 提取 竣工坐标 的文本值
+  - name: 竣工日期
+    type: date
+    description: 提取 竣工日期 的日期值，格式 YYYY-MM-DD
+  - name: 竣工面积
+    type: string
+    description: 提取 竣工面积 的文本值
+  - name: 竣工项目名称
+    type: string
+    description: 提取 竣工项目名称 的文本值
+  - name: 竣工验收合格日期
+    type: date
+    description: 提取 竣工验收合格日期 的日期值，格式 YYYY-MM-DD
+  - name: 竣工验收意见
+    type: string
+    description: 提取 竣工验收意见 的文本值
+  - name: 竣工验收日期
+    type: date
+    description: 提取 竣工验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 竣工验收签署日
+    type: string
+    description: 提取 竣工验收签署日 的文本值
+  - name: 竣工验收结论
+    type: string
+    description: 提取 竣工验收结论 的文本值
+  - name: 竣工验收面积
+    type: string
+    description: 提取 竣工验收面积 的文本值
+  - name: 签名盖章日期
+    type: date
+    description: 提取 签名盖章日期 的日期值，格式 YYYY-MM-DD
+  - name: 签字盖章
+    type: string
+    description: 提取 签字盖章 的文本值
+  - name: 签字页
+    type: string
+    description: 提取 签字页 的文本值
+  - name: 系统名称
+    type: string
+    description: 提取 系统名称 的文本值
+  - name: 系统间是否实现单点登录
+    type: boolean
+    description: 提取 系统间是否实现单点登录 的布尔值（是/否）
+  - name: 结算金额
+    type: number
+    description: 提取 结算金额 的数值（含单位，如万元、吨等）
+  - name: 结论
+    type: string
+    description: 提取 结论 的文本值
+  - name: 绩效结论是否数据支撑
+    type: boolean
+    description: 提取 绩效结论是否数据支撑 的布尔值（是/否）
+  - name: 绿化面积
+    type: string
+    description: 提取 绿化面积 的文本值
+  - name: 缺陷责任期开始时间
+    type: date
+    description: 提取 缺陷责任期开始时间 的日期值，格式 YYYY-MM-DD
+  - name: 缺项记录
+    type: string
+    description: 提取 缺项记录 的文本值
+  - name: 职务
+    type: string
+    description: 提取 职务 的文本值
+  - name: 能耗系统检测结论
+    type: string
+    description: 提取 能耗系统检测结论 的文本值
+  - name: 自查达标结论
+    type: string
+    description: 提取 自查达标结论 的文本值
+  - name: 装修材料清单
+    type: string
+    description: 提取 装修材料清单 的文本值
+  - name: 装修标准
+    type: string
+    description: 提取 装修标准 的文本值
+  - name: 计划完成日期
+    type: date
+    description: 提取 计划完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 计划竣工日期
+    type: date
+    description: 提取 计划竣工日期 的日期值，格式 YYYY-MM-DD
+  - name: 设备功能测试结论
+    type: string
+    description: 提取 设备功能测试结论 的文本值
+  - name: 设备名称
+    type: string
+    description: 提取 设备名称 的文本值
+  - name: 设备在线率
+    type: string
+    description: 提取 设备在线率 的文本值
+  - name: 设备型号
+    type: string
+    description: 提取 设备型号 的文本值
+  - name: 设备型号及状态
+    type: boolean
+    description: 提取 设备型号及状态 的布尔值（是/否）
+  - name: 设备清单
+    type: string
+    description: 提取 设备清单 的文本值
+  - name: 设备采购清单
+    type: string
+    description: 提取 设备采购清单 的文本值
+  - name: 设施实际完成量
+    type: string
+    description: 提取 设施实际完成量 的文本值
+  - name: 设施设备清单
+    type: string
+    description: 提取 设施设备清单 的文本值
+  - name: 设计产能
+    type: string
+    description: 提取 设计产能 的文本值
+  - name: 设计服务半径
+    type: string
+    description: 提取 设计服务半径 的文本值
+  - name: 评估预测能耗
+    type: string
+    description: 提取 评估预测能耗 的文本值
+  - name: 资金来源说明
+    type: string
+    description: 提取 资金来源说明 的文本值
+  - name: 达到可使用状态日期
+    type: date
+    description: 提取 达到可使用状态日期 的日期值，格式 YYYY-MM-DD
+  - name: 通电验收记录
+    type: string
+    description: 提取 通电验收记录 的文本值
+  - name: 遗留问题
+    type: string
+    description: 提取 遗留问题 的文本值
+  - name: 防渗措施
+    type: string
+    description: 提取 防渗措施 的文本值
+  - name: 防渗验收项
+    type: string
+    description: 提取 防渗验收项 的文本值
+  - name: 面积
+    type: string
+    description: 提取 面积 的文本值
+  - name: 项目位置
+    type: string
+    description: 提取 项目位置 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目坐标
+    type: string
+    description: 提取 项目坐标 的文本值
+  - name: 项目完工日期
+    type: date
+    description: 提取 项目完工日期 的日期值，格式 YYYY-MM-DD
+  - name: 项目完工状态
+    type: boolean
+    description: 提取 项目完工状态 的布尔值（是/否）
+  - name: 项目建设任务完成比例
+    type: number
+    description: 提取 项目建设任务完成比例 的数值（含单位，如万元、吨等）
+  - name: 项目状态
+    type: boolean
+    description: 提取 项目状态 的布尔值（是/否）
+  - name: 验收不合格项明细
+    type: string
+    description: 提取 验收不合格项明细 的文本值
+  - name: 验收人签字
+    type: string
+    description: 提取 验收人签字 的文本值
+  - name: 验收完成日期
+    type: date
+    description: 提取 验收完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 验收实测数据
+    type: string
+    description: 提取 验收实测数据 的文本值
+  - name: 验收工程量
+    type: string
+    description: 提取 验收工程量 的文本值
+  - name: 验收影像资料
+    type: string
+    description: 提取 验收影像资料 的文本值
+  - name: 验收意见
+    type: string
+    description: 提取 验收意见 的文本值
+  - name: 验收意见中的安全设施列示
+    type: string
+    description: 提取 验收意见中的安全设施列示 的文本值
+  - name: 验收日期
+    type: date
+    description: 提取 验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 验收时实际建成产能
+    type: string
+    description: 提取 验收时实际建成产能 的文本值
+  - name: 验收时承诺的全部功能清单
+    type: string
+    description: 提取 验收时承诺的全部功能清单 的文本值
+  - name: 验收时核定的设施处理能力
+    type: string
+    description: 提取 验收时核定的设施处理能力 的文本值
+  - name: 验收时间
+    type: date
+    description: 提取 验收时间 的日期值，格式 YYYY-MM-DD
+  - name: 验收未覆盖中小散户的说明
+    type: string
+    description: 提取 验收未覆盖中小散户的说明 的文本值
+  - name: 验收环节的处置合规性结论
+    type: string
+    description: 提取 验收环节的处置合规性结论 的文本值
+  - name: 验收确认的服务面积与质量
+    type: string
+    description: 提取 验收确认的服务面积与质量 的文本值
+  - name: 验收签字完整性
+    type: string
+    description: 提取 验收签字完整性 的文本值
+  - name: 验收签字笔迹
+    type: string
+    description: 提取 验收签字笔迹 的文本值
+  - name: 验收组成员姓名
+    type: string
+    description: 提取 验收组成员姓名 的文本值
+  - name: 验收结果
+    type: boolean
+    description: 提取 验收结果 的布尔值（是/否）
+  - name: 验收结论
+    type: string
+    description: 提取 验收结论 的文本值
+  - name: 验收结论及问题记录
+    type: string
+    description: 提取 验收结论及问题记录 的文本值
+  - name: 验收认定产值
+    type: string
+    description: 提取 验收认定产值 的文本值
+  - name: 验收设备清单及技术参数
+    type: string
+    description: 提取 验收设备清单及技术参数 的文本值
+  - name: 验收通过日期
+    type: date
+    description: 提取 验收通过日期 的日期值，格式 YYYY-MM-DD
+  - name: 验收通过时间
+    type: date
+    description: 提取 验收通过时间 的日期值，格式 YYYY-MM-DD
+  - name: 验收面积
+    type: string
+    description: 提取 验收面积 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (明细表.金额 > 0 && 执行记录.拨付金额 > 0) && (验收报告.验收结论 缺失 || 验收报告.实际完成内容 != 申报材料.实施内容 || 关联表.最终收款方 与 申报材料.申报单位 无业务关联) &&
+    筛查表.项目内容空泛度评分 > 80
+  description: 筛选已拨付资金但验收缺失或实际完成内容与申报严重不符，且资金流向与项目无关方或空壳公司的项目；风险评分基于项目内容空泛度、申报单位资质不匹配、预算与行业标准偏离度等加权计算，超过80分触发严重疑点。
+  audit_item: 编制虚假预算
+  suspicion: 虚构不存在项目套取财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第十二号（2014年修订）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第九十三条第一款\",\n    \"内容概述\": \"各级政府及有关部门、单位不得虚列收入和支出；虚列支出包括虚构项目申报预算、套取财政资金的行为。\"\n  },\n  {\n    \"法规名称\"\
+    : \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第六条第一款\",\n    \"内容概述\": \"\
+    以虚报、冒领等手段骗"
+- expression: (对比表.项目名称 > 0.85 || 对比表.实施内容摘要 > 0.7) && (明细表.申报年度 != 决算报告.竣工时间 或 明细表.申报部门 != 其他渠道批复部门) && 明细表.金额 > 0
+  description: 利用文本相似度分析比对项目名称和实施内容，当相似度超过阈值且在不同年度或不同部门重复获取资金时触发疑点；重叠度通过对建设规模、技术方案、绩效目标等关键词对比计算。
+  audit_item: 编制虚假预算
+  suspicion: 重复申报同一项目套取财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第十二号（2014年修订）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第九十三条第一款\",\n    \"内容概述\": \"各级政府及有关部门、单位不得虚列支出，通过重复申报骗取财政资金属于虚列支出行为。\"\n  },\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\"\
+    ,\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第六条第一款\",\n    \"内容概述\": \"以虚报、冒领等手段骗取财政资金的，"
+- expression: 投标文件.投标品牌及型号 == 'A' && 补充协议.变更后品牌、型号 == 'B' && 补充协议.签订时间 > 合同签订时间
+  description: 补充协议将中标的A品牌变更为B品牌，且后者价格更低、质量较差，属于改变投标承诺的实质性变更。
+  audit_item: 违法订立与招投标文件不符的合同或协议
+  suspicion: 补充协议变更中标设备品牌背离投标承诺
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四十六条\",\n    \"内容概述\": \"招标人和中标人应当自中标通知书发出之日起三十日内，按照招标文件和中标人的投标文件订立书面合同。招标人和中标人不得再行订立背离合同实质性内容的其他协议。\"\n  }\n]"
+- expression: 明细表.实际交付日期 IS NOT NULL AND (验收报告.验收日期 IS NULL OR 明细表.实际交付日期 < 验收报告.验收日期)
+  description: 若项目存在明确的交付使用记录（如交房、移交物业等），但竣工验收报告显示验收日期在交付之后或根本没有组织竣工验收，则构成未组织验收擅自交付的违规行为。同时，若尾款支付日期早于验收日期，也可作为交付迹象辅助判定。
+  audit_item: 建设项目初步设计概算投资超过可研批准估算%及以上未报告审批部门
+  suspicion: 建设工程竣工后未组织验收擅自交付使用
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"建设单位收到建设工程竣工报告后，应当组织设计、施工、工程监理等有关单位进行竣工验收。建设工程经验收合格的，方可交付使用。\"\n  }\n]"
+- expression: 验收报告.验收结论 = '不合格' AND 明细表.实际交付日期 IS NOT NULL
+  description: 竣工验收报告明确结论为不合格，但项目已有实际交付使用记录（如交房记录、物业移交、用户入住等），直接违反不得交付使用的强制性规定。无任何容差或辩解空间。
+  audit_item: 建设项目初步设计概算投资超过可研批准估算%及以上未报告审批部门
+  suspicion: 建设工程竣工验收不合格擅自交付使用
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"建设工程经验收合格的，方可交付使用；验收不合格的，不得交付使用。\"\n  }\n]"
+- expression: (验收报告.现场实测单位能耗值 > 评估报告.设计能效指标 * 1.05) || (记录表.采购规格 < 评估报告.设计能效指标) || (评估报告.围护结构传热系数设计值 > 标准文件.各项节能限值标准)
+  description: 表达式构建了三层穿透核查：一是实测能耗超出设计值5%以上，陷入‘会算账不会过日子’的偷工减料嫌疑；二是采购的设备能效等级低于设计承诺；三是关键材料检测结果直接不满足国家强制标准限值。任何一层条件成立均触发违规疑点。
+  audit_item: 批准、核准建设不符合国家有关规定的建设项目
+  suspicion: 擅自变更节能设计导致能效指标不达标
+  regulation: "[\n  {\n    \"法规名称\": \"民用建筑节能条例\",\n    \"法规文号\": \"国务院令第530号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十五条、第二十条\",\n    \"内容概述\": \"建设单位不得明示或者暗示设计单位、施工单位违反民用建筑节能强制性标准进行设计、施工；不得擅自变更节能设计，降低节能标准。\"\n  },\n  {\n    \"法规名称\"\
+    : \"公共建筑节能设计标准\",\n    \"法规文号\": \"GB 50189-2015\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\": \"各章节限值条款\",\n    \"内容概述\"\
+    : \"规定了公共建筑"
+- expression: (验收报告.实际竣工日期 - 其他.合同约定竣工日期 - 申请批复.批准延期天数 > 30天) && (结算书.违约金扣除栏 = 0 或 结算书.违约金扣除栏 < 其他.误期违约金计算标准（万分之几/天或总额上限）
+    × 逾期天数)
+  description: 逻辑规则：计算剔除合理顺延后的实际逾期天数，若逾期超过30天（审计风险阈值），且结算时未扣减相应违约金，或扣减金额远低于合同约定的违约金比例，判定为建设方监管失职或利益输送，导致国有资产损失。
+  audit_item: 某公共建筑合同履行审
+  suspicion: 工期延误未按合同约定索赔
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国民法典\",\n    \"法规文号\": \"主席令第45号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五百七十七条\"\
+    ,\n    \"内容概述\": \"当事人一方不履行合同义务或者履行合同义务不符合约定的，应当承担继续履行、采取补救措施或者赔偿损失等违约责任。\"\n  },\n  {\n    \"法规名称\": \"建设工程施工合同（示范文本）\"\
+    ,\n    \"法规文号\": \"GF-2017-0201\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\": \"7.5, 14.2\",\n    \"内容概述\": \"因承包人原因造成工期延误"
+- expression: (审批表.前置条件清单（如环评批复、用地预审、规划许可）及文件编号 > 审批表.审批日期) OR (审批表.前置条件清单（如环评批复、用地预审、规划许可）及文件编号 IS NULL AND 说明文件.必须取得顺序要求)
+    OR (验收报告.实际开工日期 < 审批表.前置条件清单（如环评批复、用地预审、规划许可）及文件编号)
+  description: 条件1：关键前置文件（如环评批复）的批准日期晚于项目立项审批日期；条件2：立项审批表中必填的前置文件编号缺失；条件3：项目实际开工日期早于前置条件取得日期，表明未批先建。三者满足任一即构成违规。
+  audit_item: 违规审批、越权审批建设项目
+  suspicion: 未取得法定前置审批条件违规批准建设项目
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国环境影响评价法\",\n    \"法规文号\": \"中华人民共和国主席令第24号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第二十五条\",\n    \"内容概述\": \"建设项目的环境影响评价文件未依法经审批部门审查或者审查后未予批准的，建设单位不得开工建设。\"\n  },\n  {\n    \"法规名称\": \"政府投资条例\"\
+    ,\n    \"法规文号\": \"国令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十二条\",\n    \"内容概述\": \"项目单位应当依法办理相关审批手续，在取得规定的前置审批文件"
+- expression: (汇总表.批准标准参数（如设计使用年限、材料规格、排放标准） < 标准编号.强制性技术参数（如抗震设防烈度、环保排放浓度、防火等级）) OR (项目合同.合同技术条款中的实际执行标准参数 < 汇总表.批准标准参数（如设计使用年限、材料规格、排放标准）)
+    OR (验收报告.实测质量数据 < 汇总表.批准标准参数（如设计使用年限、材料规格、排放标准）)
+  description: 三重判定：1.审批环节即降低强制性标准（批准值低于国家强制值）；2.合同约定进一步低于批准标准（执行值低于批准值）；3.实际建设成果未达到批准标准（验收实测值低于批准值）。任一环节成立即可认定为降低标准违规。
+  audit_item: 违规审批、越权审批建设项目
+  suspicion: 降低建设标准批准建设项目
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十条\",\n    \"内容概述\": \"建设单位不得明示或者暗示设计单位或者施工单位违反工程建设强制性标准，降低建设工程质量。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国标准化法\",\n\
+    \    \"法规文号\": \"中华人民共和国主席令第78号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十五条\",\n    \"内容概述\": \"不符合强制性标准的产品、服务，不得生产、销售、进口或者提供。"
+- expression: (台账记录.保证金类型 = '履约保证金' AND 台账记录.实际退还日期 IS NULL AND 清单表.竣工日期 IS NOT NULL AND DATEDIFF(NOW(), 清单表.竣工日期) > 0) AND
+    (台账记录.保证金类型 = '工程质量保证金' AND 台账记录.预留开始日期 IS NOT NULL) AND (双方记录所属项目编码相同)
+  description: 在工程竣工验收后，履约保证金即应退还；若此时依旧扣留履约保证金未退，同时新的工程质量保证金已开始预留（或原质量保证金持续存留），形成时间上重叠的双重占用。不论合同是否有“转化”条款，只要竣工后两种保证金均被占用，视为违规双重预留。阈值条件为竣工日期已过且两类保证金均存在未退或留存状态。
+  audit_item: 违规收费-工程建设领域保证金清理规范不到位
+  suspicion: 违规同时预留履约保证金和工程质量保证金
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于清理规范工程建设领域保证金的通知\",\n    \"法规文号\": \"国办发〔2016〕49号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"三、严格规范保证金的收取和使用\",\n    \"内容概述\": \"除依法设立的投标、履约、工程质量和农民工工资保证金外，任何单位不得擅自设立其他保证金；对保留的保证金，要按规定及时退还，不得超期占用。\"\
+    \n  },\n  {\n    \"法规名称\": \"建设工程施工合同（示范文本）\",\n    \"法规文号\": \"GF-2017-0201\",\n    \"效力级别\": \"行业规范\",\n    \"条款"
+- expression: (台账记录.实际退还日期 IS NULL AND 台账记录.约定返还日期 IS NOT NULL AND DATEDIFF(NOW(), 台账记录.约定返还日期) > 0) OR (台账记录.实际退还日期 > 台账记录.约定返还日期)
+    OR (台账记录.保证金类型 = '工程质量保证金' AND 台账记录.实际退还日期 IS NULL AND 验收报告.竣工日期 IS NOT NULL AND DATEDIFF(NOW(), 验收报告.竣工日期) > 730)
+  description: 保证金返还时间超过合同约定或法定最后期限，即构成未及时返还。对于工程质量保证金，法定最长缺陷责任期为24个月（2年），若竣工后超过2年仍未退还，直接判定违规。对于投标保证金、履约保证金，以合同约定时间为准，凡超过一天均违规。退款日期为空且当前日期已超过约定日，也视为逾期。
+  audit_item: 违规收费-工程建设领域保证金清理规范不到位
+  suspicion: 未及时返还保证金
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量保证金管理办法\",\n    \"法规文号\": \"建质〔2017〕138号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十条\",\n    \"内容概述\": \"缺陷责任期届满，承包人向发包人申请返还保证金。发包人接到申请后，应在14天内进行核实，无异议并同意支付的，应将保证金连同利息在核实后14天内返还，逾期未返还的，应承担违约责任。缺陷责任期一般不超过2年。\"\
+    \n  },\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\",\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规"
+- expression: (凭证.实际付款日期 IS NULL OR (凭证.实际付款日期 - 调整后的装修标准.约定付款节点及期限) > 60) AND 分析表.应付金额 > 0
+  description: 逾期天数以实际付款日期与合同约定付款日期的差值计算；若无任何付款记录，则以当前审计日期与约定付款日期的差值为准。逾期超过60天即严重违反《保障中小企业款项支付条例》第八条关于机关、事业单位付款期限最长不得超过60天的规定。
+  audit_item: 违规收费-拖欠工程款和农民工工资
+  suspicion: 国家机关事业单位逾期拖欠工程款
+  regulation: "[\n  {\n    \"法规名称\": \"保障中小企业款项支付条例\",\n    \"法规文号\": \"国务院令第728号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第八条\",\n    \"内容概述\": \"机关、事业单位从中小企业采购货物、工程、服务，应当自货物、工程、服务交付之日起30日内支付款项；合同另有约定的，付款期限最长不得超过60日。\"\n  }\n]"
+- expression: (验收报告.实际建设规模 != 许可证.许可建设规模) || (实际建设指标.层数 > 许可证.层数) || (实际建设指标.面积 > 许可证.面积)
+  description: 比对规划许可指标与实际建成指标，任一关键参数（如建筑高度、层数、总建筑面积）超出许可范围即构成违规；若规划许可证取得日期晚于开工日期，则存在未取得许可擅自开工。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 未取得规划许可或未按许可建设
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国城乡规划法\",\n    \"法规文号\": \"主席令第74号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四十条、第六十四条\",\n    \"内容概述\": \"在城市、镇规划区内进行建筑物、构筑物建设的，建设单位应当申请办理建设工程规划许可证；未取得建设工程规划许可证或者未按照许可证的规定进行建设的，责令停止建设，限期改正，处建设工程造价百分之五以上百分之十以下的罚款。\"\
+    \n  }\n]"
+- expression: 实际投资完成额.实际投资完成额 > 批复概算总投资.批复概算总投资
+  description: 使用财政预算资金或国有资金投资的基本建设项目，其实际投资额超过经批准的初步概算即为超概算。表达式直接比较实际投资与批复概算，未考虑是否已履行调整审批。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 财政资金项目超概算
+  regulation: "[\n  {\n    \"法规名称\": \"中央预算内直接投资项目管理办法\",\n    \"法规文号\": \"国家发展改革委令第7号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第二十六条\",\n    \"内容概述\": \"直接投资项目建设投资超过原核定概算10%的，应当报原概算审批部门重新核定。超过原核定概算的，项目单位应当分析原因，提出改进措施，并按照规定报告有关部门。\"\n  }\n\
+    ]"
+- expression: 使用台账.实际投入使用日期 < 验收报告.竣工验收合格日期
+  description: 建设工程必须经竣工验收合格后方可交付使用。表达式比较实际投入使用日期与竣工验收报告日期，如果投入使用在先，则属于未验先用违规。
+  audit_item: 工程项目管理方面存在的问题
+  suspicion: 项目未经验收违规投入使用
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"建设工程经验收合格的，方可交付使用。\"\n  }\n]"
+- expression: (验收结论及问题记录.竣工验收合格日期 IS NOT NULL && 工程台账.转固日期 IS NULL) || (DATEDIFF(工程台账.转固日期, 验收结论及问题记录.竣工验收合格日期) > 90) || (生产记录.首次投产日期
+    < 工程台账.转固日期)
+  description: 工程已验收合格或已实际投产，但迟迟未转固，延迟超过90天或未转固，即存在通过推迟折旧调节利润的嫌疑。
+  audit_item: 未按规定核算资产
+  suspicion: 在建工程达到预定可使用状态后未及时转固
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第4号——固定资产\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十七条\",\n    \"内容概述\": \"自行建造的固定资产，按照建造该项资产达到预定可使用状态前所发生的必要支出构成入账价值。\"\n  }\n]"
+- expression: （标准文件.应淘汰的设备类型 IN 标准文件.应淘汰的设备类型 AND 设备在 验收报告 或 记录表 中显示“在用”） OR （数据表.是否达标标识 = “不达标” AND 淘汰清单.实际淘汰状态 != “已关停”）
+    AND 当前日期 > 淘汰清单.计划淘汰时间
+  description: 当企业设备属于国家明令淘汰的落后产能但仍在生产运行，或者环保、能耗监测数据持续不达标且该设备未在规定的期限内完成淘汰，即构成违规。表达式通过设备清单与运行记录的匹配以及不达标状态与淘汰状态的矛盾来判定。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 未淘汰不符合环保能耗安全标准的落后产能
+  regulation: "[\n  {\n    \"法规名称\": \"产业结构调整指导目录（2019年本）\",\n    \"法规文号\": \"国家发展改革委令第29号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第一类 鼓励类、第二类 限制类、第三类 淘汰类\",\n    \"内容概述\": \"对限制类项目禁止新建，对淘汰类项目限期淘汰，明确落后生产工艺装备和产品的淘汰期限，逾期未淘汰的依法责令停产或关闭。\"\
+    \n  },\n  {\n    \"法规名称\": \"国务院关于化解产能严重过剩矛盾的指导意见\",\n    \"法规文号\": \"国发〔2013〕41号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\":"
+- expression: （备案表.项目名称 LIKE '%技术改造%' AND 备案表.备案产能 - 验收报告.验收时实际建成产能 > 0 AND 明细表.置换比例 < 政策规定比例） OR （备案表.所属行业 IN 限制类、淘汰类生产工艺和装备条目、禁止类、限制类项目清单.限制类
+    AND 备案表.备案产能 > 0）
+  description: 技术改造项目原则上应不新增产能或在政策允许范围内等量置换。若技改备案产能大于原有产能且未执行产能置换或置换比例不足，即属变相扩产。同时，若项目属于产业结构调整目录限制类而违规备案新增产能，则直接触发违规。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 以技改之名违规扩增落后产能
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于化解产能严重过剩矛盾的指导意见\",\n    \"法规文号\": \"国发〔2013〕41号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、（二）严禁建设新增产能项目\",\n    \"内容概述\": \"严禁各地备案和建设新增产能项目，确有必要新建的必须实行产能等量或减量置换。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"企业投资项目核准和备案管理条例\",\n    \"法规文号\": \"国务院令第673号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十三条\",\n    \"内容概述\": \"\
+    项目应当符合国家产业政策"
+- expression: ( 策略版本缺失=true ) OR ( 验收报告缺失=true ) OR ( 统计表.恢复失败次数 > 0 ) OR ( 记录表.校验完整性状态='异常' )
+  description: 1. 策略文档或验收报告缺失直接判定违规；2. 测试记录中恢复失败次数≥1表明灾难恢复能力不可靠；3. 备份数据完整性校验异常代表备份数据不可用。满足任一条件即触发疑点。
+  audit_item: 网络安全建设方面存在的问题
+  suspicion: 未按规定开展灾难备份建设
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国网络安全法\",\n    \"法规文号\": \"主席令第53号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十一条\",\n    \"内容概述\": \"网络运营者应当采取数据分类、重要数据备份和加密等措施。\"\n  },\n  {\n    \"法规名称\": \"信息安全技术 信息系统灾难恢复规范\",\n    \"法规文号\"\
+    : \"GB/T 20988-2007\",\n    \"效力级别\": \"国家标准\",\n    \"条款号\": \"第6章 灾难恢复需求的确定、第7章 灾难恢复策略的制定\",\n    \"内容概述\": \"信息系统应根据业务影响分析确定"
+- expression: 情况表.是否附评估报告!="是" || 情况表.评估报告审批状态!="通过" || (验收报告.评估预测能耗-项目实际能耗)/评估预测能耗>0.1
+  description: 若项目缺失节能评估报告、审批未通过，或实际能耗超出评估预测值10%以上(可能为虚假评估)，则判定为违规。
+  audit_item: 节能减排方面存在的问题
+  suspicion: 未按规定开展固定资产投资项目节能评估审查
+  regulation: "[\n  {\n    \"法规名称\": \"固定资产投资项目节能审查办法\",\n    \"法规文号\": \"国家发展和改革委员会令第44号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第三条、第九条、第十三条\",\n    \"内容概述\": \"固定资产投资项目投入生产、使用前，应通过节能审查；未按规定进行节能审查或审查未通过的项目，建设单位不得开工建设，已经建成的不得投入生产、使用。\"\
+    \n  }\n]"

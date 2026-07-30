@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>审理复核 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.review-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+@media(max-width:992px){.review-split{grid-template-columns:1fr;}}
+.review-col { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-md); }
+.review-col.ai { border-left: 4px solid var(--color-primary); }
+.review-col.human { border-left: 4px solid var(--color-success); }
+.check-item { display: flex; align-items: center; gap: var(--space-sm); padding: 8px 0; font-size: 14px; }
+.check-item + .check-item { border-top: 1px solid var(--color-border); }
+</style>
+</head>
+<body data-page="review">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content">
+
+<div class="page-header"><div><h1><i class="bi bi-check2-all"></i> 审理复核</h1>
+<div class="breadcrumb">审计疑点复核 · 定性结论审查 · 证据链完整性检查</div></div></div>
+
+<div style="margin-bottom:var(--space-lg);">
+  <div class="form-group"><label class="form-label">选择待复核项目</label>
+    <select class="form-select"><option>教育局2026采购审计 — 2条疑点 (2026-07-04)</option><option>农业农村局补贴核查 — 5条疑点 (2026-07-03)</option></select></div>
+</div>
+
+<div class="review-split">
+  <!-- AI Column -->
+  <div class="review-col ai">
+    <h3 style="color:var(--color-primary);margin-bottom:12px;"><i class="bi bi-robot"></i> AI推理结论</h3>
+    <div class="check-item"><strong>定性结论:</strong> 化整为零规避公开招标</div>
+    <div class="check-item"><strong>适用法规:</strong> 《招标投标法》第4条 / 第49条</div>
+    <div class="check-item"><strong>违规模型匹配:</strong> 97%</div>
+    <div class="check-item"><strong>处罚建议:</strong> 合同金额7.5‰ (¥36,375)</div>
+    <div class="check-item"><strong>证据评估:</strong> 5份合同 + 中标通知 → 证据充分</div>
+    <div class="check-item"><strong>同类案例:</strong> 某市卫健委案(5‰) | 某县交通局案(8‰)</div>
+  </div>
+
+  <!-- Human Column -->
+  <div class="review-col human">
+    <h3 style="color:var(--color-success);margin-bottom:12px;"><i class="bi bi-person-check"></i> 人工复核意见</h3>
+    <div class="check-item">
+      <strong>定性结论:</strong>
+      <select class="form-select form-select-sm" style="width:auto;display:inline;"><option selected>化整为零规避公开招标</option><option>违规采用询价方式采购</option><option>其他</option></select>
+      <span>☑ 同意AI</span>
+    </div>
+    <div class="check-item"><strong>法规适用:</strong>
+      <label style="font-size:13px;"><input type="checkbox" checked> 《招标投标法》第4条 ☑</label>
+      <label style="font-size:13px;"><input type="checkbox" checked> 《招标投标法》第49条 ☑</label>
+      <label style="font-size:13px;"><input type="checkbox"> 建议补充地方法规</label>
+    </div>
+    <div class="check-item"><strong>证据链:</strong>
+      <label style="font-size:13px;"><input type="checkbox" checked> ☑ 充分</label>
+      <label style="font-size:13px;color:var(--color-warning);"><input type="checkbox"> ⚠️ 建议补充评标委员会意见</label>
+    </div>
+    <div class="check-item"><strong>处罚幅度:</strong>
+      <select class="form-select form-select-sm" style="width:auto;display:inline;"><option selected>7.5‰ (中位值)</option><option>5‰</option><option>10‰ (上限)</option></select>
+      <span>☑ 同意AI建议</span>
+    </div>
+    <div class="check-item"><strong>复核意见:</strong> <textarea class="form-textarea" rows="2" style="font-size:13px;" placeholder="补充复核意见...">同意AI定性结论。建议补充该市教育局自行制定的采购管理办法作为地方依据。</textarea></div>
+  </div>
+</div>
+
+<div style="margin-top:var(--space-lg);display:flex;gap:8px;">
+  <button class="btn btn-accent btn-lg"><i class="bi bi-check-lg"></i> 确认复核通过</button>
+  <button class="btn btn-outline btn-lg"><i class="bi bi-arrow-return-left"></i> 退回重审</button>
+  <button class="btn btn-outline"><i class="bi bi-download"></i> 导出复核意见</button>
+</div>
+
+</main></div>
+<script src="js/app.js"></script>
+</body>
+</html>

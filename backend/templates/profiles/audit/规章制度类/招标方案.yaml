@@ -1,0 +1,96 @@
+name: audit/规章制度类/招标方案
+type: model
+description: 从规章制度类类文档（招标方案）中提取结构化元数据。涵盖字段如：估算金额、各标段划分情况。文档范围包括：招标方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 招标方案
+  member_count: 1
+  member_details:
+  - 招标方案
+output:
+  fields:
+  - name: 估算金额
+    type: number
+    description: 提取 估算金额 的数值（含单位，如万元、吨等）
+  - name: 各标段划分情况
+    type: string
+    description: 提取 各标段划分情况 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 对同一项目中，存在多个施工合同且每个合同金额低于必须招标限额，但合计金额超过限额，且各合同施工内容属于同一概算项下的可独立发包单元，即（(合同1.合同金额 + 合同2.合同金额 + ...) > 必须招标限额) &&
+    各合同.施工范围在功能上紧密相连 && 各合同.签约日期相近(30天内) && 中标通知书.招标方式 != '公开招标'
+  description: 必须招标限额通常为施工单项合同估算价400万元（按国家现行规定）。当多个关联合同金额总和超过限额，但均未采用公开招标而是直接发包或邀请招标，且合同签订时间集中、内容关联，即判定为涉嫌肢解工程规避招标。
+  audit_item: 重大工程项目全过程审计
+  suspicion: 通过不合理划分标段或肢解工程规避招标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第86号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第四条、第四十九条\",\n    \"内容概述\": \"任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。违反本法规定，将必须进行招标的项目化整为零或者以其他任何方式规避招标的，责令限期改正，可以处项目合同金额千分之五以上千分之十以下的罚款。\"\
+    \n  },\n  {\n    \"法规名称\": \"必须招标的工程项目规定\",\n    \"法规文号\": \"国家发展改革委令第16号\",\n    \"效力级别\": \"部门"

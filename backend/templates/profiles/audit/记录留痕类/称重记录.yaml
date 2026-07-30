@@ -1,0 +1,59 @@
+name: audit/记录留痕类/称重记录
+type: model
+description: 从记录留痕类类文档（称重记录）中提取结构化元数据。涵盖字段如：抽查点实际称重数据。文档范围包括：称重记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 称重记录
+  member_count: 1
+  member_details:
+  - 称重记录
+output:
+  fields:
+  - name: 抽查点实际称重数据
+    type: string
+    description: 提取 抽查点实际称重数据 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 上报年度实际回收率、年度、目标回收率、实际完成回收率、差异值.实际完成回收率 < 政策要求年度回收率目标值、目标回收率.目标回收率
+  description: 当年实际农膜回收率低于政策文件规定的目标回收率，即触发疑点。若偏差超过10个百分点，视为严重未达标，需重点核查统计真实性及回收体系建设情况。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 农膜回收利用率未达标
+  regulation: "[\n  {\n    \"法规名称\": \"农用薄膜管理办法\",\n    \"法规文号\": \"农业农村部、工业和信息化部、生态环境部、市场监管总局令2020年第4号\",\n    \"效力级别\":\
+    \ \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"地方人民政府应当建立农用薄膜回收利用体系，确定回收目标，促进农用薄膜回收利用。未完成回收目标的，应依法追究相关责任。\"\n  }\n\
+    ]"

@@ -1,0 +1,85 @@
+name: audit/清单名册类/交易清单
+type: model
+description: 从清单名册类类文档（交易清单）中提取结构化元数据。涵盖字段如：交易记录、关联关系、关联方名称。文档范围包括：关联方交易清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 交易清单
+  member_count: 1
+  member_details:
+  - 关联方交易清单
+output:
+  fields:
+  - name: 交易记录
+    type: string
+    description: 提取 交易记录 的文本值
+  - name: 关联关系
+    type: string
+    description: 提取 关联关系 的文本值
+  - name: 关联方名称
+    type: string
+    description: 提取 关联方名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (流向证明.最终收款方名称 != 捐赠协议.受赠方名称) OR (核对表.收款方 IN 捐赠协议.捐赠人名称) OR (捐赠协议.附加商业条款 != '') OR (调查资料.实际控制人 IN 交易清单.关联方名称)
+  description: 资金收款方与协议受赠方不一致，或存在资金闭环回流，均表明捐赠不真实；协议中含有商业回报条款，借捐赠名义获取对价，属于变相交易；若受赠方与捐赠方存在未披露关联关系，构成利益输送；上述任一条件满足即触发疑点。
+  audit_item: 违规对外大额捐赠
+  suspicion: 借捐赠之名从事营利活动或转移资产
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国公益事业捐赠法\",\n    \"法规文号\": \"中华人民共和国主席令第十九号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第四条\",\n    \"内容概述\": \"捐赠应当是自愿和无偿的，不得以捐赠为名从事营利活动。\"\n  },\n  {\n    \"法规名称\": \"关于加强企业对外捐赠财务管理的通知\",\n    \"\
+    法规文号\": \"财企〔2003〕95号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"企业对外捐赠后，不得要求受赠方在融资、市场准入、行政许可、占有其他资源等"

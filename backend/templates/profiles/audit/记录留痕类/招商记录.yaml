@@ -1,0 +1,68 @@
+name: audit/记录留痕类/招商记录
+type: model
+description: 从记录留痕类类文档（招商记录）中提取结构化元数据。涵盖字段如：实际入驻企业数、意向签约企业数、招商推介次数、签约日期与实际入驻间隔天数。文档范围包括：招商记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 招商记录
+  member_count: 1
+  member_details:
+  - 招商记录
+output:
+  fields:
+  - name: 实际入驻企业数
+    type: string
+    description: 提取 实际入驻企业数 的文本值
+  - name: 意向签约企业数
+    type: string
+    description: 提取 意向签约企业数 的文本值
+  - name: 招商推介次数
+    type: string
+    description: 提取 招商推介次数 的文本值
+  - name: 签约日期与实际入驻间隔天数
+    type: date
+    description: 提取 签约日期与实际入驻间隔天数 的日期值，格式 YYYY-MM-DD
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (统计表.空置面积 / 统计表.载体总面积 > 0.5) AND (统计表.连续空置月数 >= 6) AND (监测报告.培训活动次数 < 4) AND (管理表.入驻企业名称 < 认定标准.应入驻企业数 * 0.3)
+  description: 同时满足空置率超过50%、连续空置半年以上、近一年创业服务活动少于4次、实际入驻企业数不足认定基线30%的载体，判定为严重闲置浪费或运营低效。该表达式综合了物理空间使用、服务活跃度、持续周期及入驻规模，避免仅凭单一指标误判。
+  audit_item: 创业载体政策执行不到位
+  suspicion: 创业载体建成后长期闲置或运营低效
+  regulation: "[\n  {\n    \"法规名称\": \"政府投资条例\",\n    \"法规文号\": \"国务院令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三十四条\"\
+    ,\n    \"内容概述\": \"项目单位应当加强政府投资项目资产管理，建立健全项目管理制度，确保项目建成后达到预期效果，不得将项目资产闲置或者低效使用。\"\n  },\n  {\n    \"法规名称\": \"就业补助资金管理办法\"\
+    ,\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三十条\",\n    \"内容概述\": \"各级财政、人力资源社会保障部门应当"

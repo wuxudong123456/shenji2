@@ -1,0 +1,82 @@
+name: audit/清单名册类/场所目录
+type: model
+description: 从清单名册类类文档（场所目录）中提取结构化元数据。涵盖字段如：协议价格、定点场所名称。文档范围包括：会议定点场所目录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 协议
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 场所目录
+  member_count: 1
+  member_details:
+  - 会议定点场所目录
+output:
+  fields:
+  - name: 协议价格
+    type: number
+    description: 提取 协议价格 的数值（含单位，如万元、吨等）
+  - name: 定点场所名称
+    type: string
+    description: 提取 定点场所名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (会议费结算发票.开票单位名称 NOT IN 会议定点场所目录.定点场所名称) && (会议费结算发票.金额/参会天数/参会人数 > 对应类别会议综合定额标准)
+  description: 若会议召开地点非政府采购的定点场所目录内，且人均综合费用超过规定的综合定额标准（如一类会议650元/人天），则视为违规奢侈消费。表达式结合非定点与超标准双重条件，因定点管理是为控制费用，脱离定点且超标则问题严重。如果非定点但费用未超标，需结合其他因素进一步判断。
+  audit_item: 会议费审计
+  suspicion: 在非定点场所召开会议且价格超标
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关会议定点管理办法\",\n    \"法规文号\": \"财行〔2015〕1号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第六条、第十四条\",\n    \"内容概述\": \"各级党政机关举办的会议，除现场会等特殊情况外，均应在定点会议场所召开；会议费开支实行综合定额控制，各项费用之间可以调剂使用。\"\n  }\n]"

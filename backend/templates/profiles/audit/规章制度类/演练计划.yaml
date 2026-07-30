@@ -1,0 +1,101 @@
+name: audit/规章制度类/演练计划
+type: model
+description: 从规章制度类类文档（演练计划）中提取结构化元数据。涵盖字段如：参与范围、演练类型、计划年度、计划时间。文档范围包括：应急演练计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 演练计划
+  member_count: 1
+  member_details:
+  - 应急演练计划
+output:
+  fields:
+  - name: 参与范围
+    type: string
+    description: 提取 参与范围 的文本值
+  - name: 演练类型
+    type: string
+    description: 提取 演练类型 的文本值
+  - name: 计划年度
+    type: date
+    description: 提取 计划年度 的日期值，格式 YYYY-MM-DD
+  - name: 计划时间
+    type: date
+    description: 提取 计划时间 的日期值，格式 YYYY-MM-DD
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: （项目综合应急预案.编制日期 IS NULL） || （DATEDIFF(当前检查日期, 项目综合应急预案.编制日期) > 365 且 版本号 未更新） || （应急演练计划 为空 或 应急演练计划.计划时间 已过期且
+    演练记录及评估报告 无对应记录） || （应急演练记录及评估报告 记录的演练类型 未覆盖 专项应急预案.预案类型 且 年度内至少一次）
+  description: 判定规则：1）无应急预案文本；2）预案超过一年未评估更新，环境变化后预案失效；3）未制定年度演练计划或计划过期未执行；4）演练类型未覆盖主要事故风险，如仅有消防演练而缺失坍塌、触电等专项演练。逻辑用||连接任一触发即判违。
+  audit_item: 重大工程项目风险预警
+  suspicion: 未按规定编制或更新应急预案且未组织演练
+  regulation: "[\n  {\n    \"法规名称\": \"生产安全事故应急预案管理办法\",\n    \"法规文号\": \"应急管理部令第2号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十六条、第三十三条\",\n    \"内容概述\": \"生产经营单位应当制定本单位的应急预案演练计划，根据本单位的事故风险特点，每年至少组织一次综合应急预案演练或者专项应急预案演练，每半年至少组织一次现场处置方案演练。应急预案应当至少每三年修订一次，出现特定情形应及时修订。\"\
+    \n  }\n]"

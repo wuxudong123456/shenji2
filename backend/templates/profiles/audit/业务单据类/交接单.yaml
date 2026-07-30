@@ -1,0 +1,130 @@
+name: audit/业务单据类/交接单
+type: model
+description: 从业务单据类类文档（交接单）中提取结构化元数据。涵盖字段如：交接日期、实际接收方、废弃物数量、接收方、转运GPS轨迹。文档范围包括：农药包装废弃物转运交接单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 交接单
+  member_count: 1
+  member_details:
+  - 农药包装废弃物转运交接单
+output:
+  fields:
+  - name: 交接日期
+    type: date
+    description: 提取 交接日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际接收方
+    type: string
+    description: 提取 实际接收方 的文本值
+  - name: 废弃物数量
+    type: number
+    description: 提取 废弃物数量 的数值（含单位，如万元、吨等）
+  - name: 接收方
+    type: string
+    description: 提取 接收方 的文本值
+  - name: 转运GPS轨迹
+    type: string
+    description: 提取 转运GPS轨迹 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (统计表.农药采购总量 > 0) && (处理方式等字段完整性.记录行数 = 0 或 处理方式等字段完整性.台账是否存在 缺失) || (处理方式等字段完整性.来源字段 为空 的记录数 / 处理方式等字段完整性.记录条数
+    > 0.3) && (处理方式等字段完整性.处理去向字段 为空 的记录数 / 处理方式等字段完整性.记录条数 > 0.3)
+  description: 凡有农药经营活动但回收台账不存在或无任何记录，或已建立的台账中来源、去向等关键字段缺失率超过30%，均判定为未建立或台账严重不完整，丧失追溯功能。
+  audit_item: 农药包装废弃物回收使用管理不符合规定
+  suspicion: 未建立农药包装废弃物回收台账
+  regulation: "[\n  {\n    \"法规名称\": \"《农药管理条例》\",\n    \"法规文号\": \"国务院令第677号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第四十条\",\n    \"内容概述\": \"农药经营者应当建立农药采购、销售台账，并如实记录农药包装废弃物的回收日期、数量、来源和去向等信息。\"\n  }\n]"
+- expression: (记录表.收款方名称 不为空 且 收款方名称 不在 处理合同.合同约定接收单位 列表) && (记录表.金额 > 0) || (交接单.接收方 不在 证明文件.合法资质单位清单 内) || (台账表.处理去向 !=
+    处理合同.合同约定接收单位)
+  description: 存在向非合同约定或非资质的个人/单位支付大额款项，转运接收方与资质单位不符，或台账去向与合同约定不一致，均表明存在违规倒卖或非法转交行为。
+  audit_item: 农药包装废弃物回收使用管理不符合规定
+  suspicion: 违规倒卖农药包装废弃物
+  regulation: "[\n  {\n    \"法规名称\": \"《中华人民共和国固体废物污染环境防治法》\",\n    \"法规文号\": \"主席令第四十三号（2020年修订）\",\n    \"效力级别\": \"法律\"\
+    ,\n    \"条款号\": \"第八十条\",\n    \"内容概述\": \"禁止将危险废物提供或者委托给无许可证的单位或者其他生产经营者从事收集、贮存、利用、处置活动。\"\n  }\n]"

@@ -1,0 +1,105 @@
+name: audit/登记台账类/运量台账
+type: model
+description: 从登记台账类类文档（运量台账）中提取结构化元数据。涵盖字段如：冬季清运重量、月度总清运重量。文档范围包括：清运量台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 运量台账
+  member_count: 1
+  member_details:
+  - 清运量台账
+output:
+  fields:
+  - name: 冬季清运重量
+    type: string
+    description: 提取 冬季清运重量 的文本值
+  - name: 月度总清运重量
+    type: string
+    description: 提取 月度总清运重量 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (操作规范文件缺失) || (灰土收集重量.灰土收集重量 < 理论产生量 * 0.3) || (冬季垃圾清运量中灰土占比估算 > 20% && 无灰土单独收集台账)
+  description: 未制定灰土单独收集规范，或灰土收集率低于理论产生量的30%，或冬季垃圾中灰土占比明显偏高（>20%）却无单独收集记录，均表明灰土未有效分类。
+  audit_item: 农村生活垃圾治理不符合相关规定
+  suspicion: 燃煤地区灰土未单独分类收集
+  regulation: "[\n  {\n    \"法规名称\": \"《农村生活垃圾治理导则》\",\n    \"法规文号\": \"建村〔2018〕101号\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"第4.3.2条\",\n    \"内容概述\": \"在北方以燃煤为主要能源的地区，灰土应实行单独收集，就地就近资源化利用，不得混入生活垃圾。\"\n  }\n]"

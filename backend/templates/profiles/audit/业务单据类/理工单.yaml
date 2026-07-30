@@ -1,0 +1,120 @@
+name: audit/业务单据类/理工单
+type: model
+description: 从业务单据类类文档（理工单）中提取结构化元数据。涵盖字段如：变更内容、回滚方案、审批人、工单编号、测试报告、申请日期。文档范围包括：运维变更管理工单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 审批
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 理工单
+  member_count: 1
+  member_details:
+  - 运维变更管理工单
+output:
+  fields:
+  - name: 变更内容
+    type: string
+    description: 提取 变更内容 的文本值
+  - name: 回滚方案
+    type: string
+    description: 提取 回滚方案 的文本值
+  - name: 审批人
+    type: string
+    description: 提取 审批人 的文本值
+  - name: 工单编号
+    type: string
+    description: 提取 工单编号 的文本值
+  - name: 测试报告
+    type: string
+    description: 提取 测试报告 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ( 相关制度.核心岗位职责分离说明=true ) OR ( 会议纪要.参会人员=0 ) OR ( 预案.演练日期=0 ) OR ( 理工单.审批人='未审批' )
+  description: 1. 缺少信息化系统工作机制相关制度直接判定违规；2. 会议纪要或演练记录为空表明工作机制未实际运行；3. 变更工单中存在未审批即执行的情况代表变更管理缺失。任一条件满足即视为未建立有效工作机制。
+  audit_item: 网络安全建设方面存在的问题
+  suspicion: 未建立有效的信息化系统工作机制
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国网络安全法\",\n    \"法规文号\": \"主席令第53号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十一条\",\n    \"内容概述\": \"网络运营者应当制定内部安全管理制度和操作规程，确定网络安全负责人，落实网络安全保护责任。\"\n  },\n  {\n    \"法规名称\": \"信息安全技术 网络安全等级保护基本要求\"\
+    ,\n    \"法规文号\": \"GB/T 22239-2019\",\n    \"效力级别\": \"国家标准\",\n    \"条款号\": \"安全管理制度要求（管理要求部分）\",\n    \"内容概述\": \"应建立日常管理"

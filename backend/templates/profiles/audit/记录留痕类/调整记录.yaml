@@ -1,0 +1,108 @@
+name: audit/记录留痕类/调整记录
+type: model
+description: 从记录留痕类类文档（调整记录）中提取结构化元数据。涵盖字段如：借方科目、凭证日期、对方单位名称、摘要、收入确认期间、整改意见、纳税调整金额、调整/退出原因。文档范围包括：专家评审意见调整记录、相关财务凭证的账务调整记录、税务申报表纳税调整记录、项目库动态调整记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 凭证
+- 整改
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 调整记录
+  member_count: 1
+  member_details:
+  - 专家评审意见调整记录
+  - 相关财务凭证的账务调整记录
+  - 税务申报表纳税调整记录
+  - 项目库动态调整记录
+output:
+  fields:
+  - name: 借方科目
+    type: string
+    description: 提取 借方科目 的文本值
+  - name: 凭证日期
+    type: date
+    description: 提取 凭证日期 的日期值，格式 YYYY-MM-DD
+  - name: 对方单位名称
+    type: string
+    description: 提取 对方单位名称 的文本值
+  - name: 摘要
+    type: string
+    description: 提取 摘要 的文本值
+  - name: 收入确认期间
+    type: number
+    description: 提取 收入确认期间 的数值（含单位，如万元、吨等）
+  - name: 整改意见
+    type: string
+    description: 提取 整改意见 的文本值
+  - name: 纳税调整金额
+    type: number
+    description: 提取 纳税调整金额 的数值（含单位，如万元、吨等）
+  - name: 调整-退出原因
+    type: string
+    description: 提取 调整-退出原因 的文本值
+  - name: 贷方科目
+    type: string
+    description: 提取 贷方科目 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 闭环状态
+    type: boolean
+    description: 提取 闭环状态 的布尔值（是/否）
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (项目可行性研究报告.论证结论 IS NULL OR 项目可行性研究报告.关键论证要素缺失) && 预算执行进度跟踪表.预算金额 > 0 && 预算执行进度跟踪表.执行率 < 0.2
+  description: 当项目申报了预算（金额大于0），但缺少可行性研究报告或报告未对技术、经济、实施条件等关键要素进行充分论证（如无专家评审意见、未分析土地性质等），且该项目预算执行率低于20%时，判定为论证不充分导致项目无法实施，资金闲置。
+  audit_item: 预算编制不科学
+  suspicion: 项目支出可行性论证缺失或流于形式
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"主席令第22号（2018年修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第三十二条\",\n    \"内容概述\": \"各部门、各单位应当按照规定编制本部门、本单位预算草案，参考上一年预算执行情况、有关支出绩效评价结果和本年度收支预测，确保预算编制科学准确。\"\n  },\n  {\n   \
+    \ \"法规名称\": \"中央本级项目支出预算管理办法\",\n    \"法规文号\": \"财预〔2020〕4号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第五条、第六条\",\n \
+    \   \"内容"
+- expression: EXISTS (整改验收报告或证明材料.整改完成情况='已退回' AND 相关财务凭证的账务调整记录.借方科目 IN ('其他补贴','劳务费','福利费','加班费') AND ABS(相关财务凭证的账务调整记录.金额
+    - 以往审计报告.涉及金额) / 以往审计报告.涉及金额 <= 0.1 AND 相关财务凭证的账务调整记录.凭证日期 BETWEEN 整改验收报告或证明材料.退回到账日期 AND 整改验收报告或证明材料.退回到账日期+60 AND (相关财务凭证的账务调整记录.摘要
+    LIKE '%补贴%' OR 相关财务凭证的账务调整记录.摘要 LIKE '%发放%'))
+  description: 比对已退回资金问题，检查退款后60天内是否存在科目为敏感补贴类、金额与原违规金额偏差不超过10%的新支出，且摘要含补贴发放等关键词，若存在则高度涉嫌以新科目变相重发资金，属于虚假整改。
+  audit_item: 以往审计发现问题整改情况存在的问题
+  suspicion: 通过重列支出科目虚假整改已退回资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"主席令第48号（2021修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十二条\",\n    \"内容概述\": \"被审计单位应当按照规定时间整改审计查出的问题，将整改情况报告审计机关。审计机关应当对整改情况进行跟踪检查。\"\n  }\n]"

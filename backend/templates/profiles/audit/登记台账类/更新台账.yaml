@@ -1,0 +1,125 @@
+name: audit/登记台账类/更新台账
+type: model
+description: 从登记台账类类文档（更新台账）中提取结构化元数据。涵盖字段如：入库日期、出版年份、新增书籍ISBN/书名、最后一次图书入库日期、淘汰书籍记录、近三年新入库图书数量。文档范围包括：图书更新台账、图书补充更新台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 更新台账
+  member_count: 1
+  member_details:
+  - 图书更新台账
+  - 图书补充更新台账
+output:
+  fields:
+  - name: 入库日期
+    type: date
+    description: 提取 入库日期 的日期值，格式 YYYY-MM-DD
+  - name: 出版年份
+    type: string
+    description: 提取 出版年份 的文本值
+  - name: 新增书籍ISBN-书名
+    type: string
+    description: 提取 新增书籍ISBN-书名 的文本值
+  - name: 最后一次图书入库日期
+    type: date
+    description: 提取 最后一次图书入库日期 的日期值，格式 YYYY-MM-DD
+  - name: 淘汰书籍记录
+    type: string
+    description: 提取 淘汰书籍记录 的文本值
+  - name: 近三年新入库图书数量
+    type: number
+    description: 提取 近三年新入库图书数量 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (DATEDIFF(CURRENT_DATE, 图书更新台账.MAX(入库日期)) > 365) || (图书配备清单.COUNT(出版年份 >= (YEAR(CURRENT_DATE)-3)) / 图书配备清单.COUNT(*)
+    < 0.10) || (SUM(专项资金收支明细表.图书采购支出金额) > 0 AND COUNT(图书更新台账.新增书籍ISBN/书名) == 0)
+  description: 判定更新不及时：最近一次入库日期距今超过1年（更新周期默认1年）；近3年出版图书占总藏书量比例低于10%（更新比例标准）；有专项资金支出但无新增书籍记录，或专项资金未支出但台账显示更新，存在虚假更新。任意一条满足即为疑点。
+  audit_item: 农家书屋建设运营管护不合规
+  suspicion: 农家书屋图书更新不及时
+  regulation: "[\n  {\n    \"法规名称\": \"农家书屋工程建设管理暂行办法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十七条\"\
+    ,\n    \"内容概述\": \"农家书屋应当建立图书更新机制，每年更新率不低于10%，确保出版物时效性。\"\n  }\n]"
+- expression: (MAX(登记台账.图书出版年份列表) - 当前年份 > 3) || (登记台账.近三年新入库图书数量 / 登记台账.藏书总量 < 0.1) || (明细表.图书更新专项资金实际支出金额 = 0 && 账面无结转说明)
+  description: 所有在架图书中最迟出版年份距今超过3年，则视为严重更新不及时；近3年新增图书数量占当前藏书总量的比例低于10%，未达到年度更新要求（参照《农家书屋工程建设管理暂行办法》第十条）；或上级拨付的图书更新专项资金长期未使用且无合理结转依据。
+  audit_item: 农家书屋建设运营管护不符合相关规定
+  suspicion: 农家书屋出版物长期未更新
+  regulation: "[\n  {\n    \"法规名称\": \"农家书屋工程建设管理暂行办法\",\n    \"法规文号\": \"新出印发〔2007〕2号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十条\",\n    \"内容概述\": \"农家书屋的出版物根据村民阅读需求适当更新，每年更新补充的出版物一般不少于图书总量的10%。\"\n  }\n]"

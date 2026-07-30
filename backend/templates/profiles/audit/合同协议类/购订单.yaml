@@ -1,0 +1,113 @@
+name: audit/合同协议类/购订单
+type: model
+description: 从合同协议类类文档（购订单）中提取结构化元数据。涵盖字段如：供应商、合同标的、合同金额、签订日期。文档范围包括：合同或采购订单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 购订单
+  member_count: 1
+  member_details:
+  - 合同或采购订单
+output:
+  fields:
+  - name: 供应商
+    type: string
+    description: 提取 供应商 的文本值
+  - name: 合同标的
+    type: string
+    description: 提取 合同标的 的文本值
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 签订日期
+    type: date
+    description: 提取 签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: 购订单.合同金额 > 企业内部三重一大上会标准金额 && 企业“三重一大”决策会议记录 IS NULL
+  description: 企业的合同或采购订单金额超过了制度规定的必须经领导班子集体研究决策的起点金额，但在三重一大会议记录中未找到相应议题记录，即存在拆分合同或故意规避集体决策，由个人或少数人决断的嫌疑。
+  audit_item: 违反廉洁从业有关规定问题
+  suspicion: 决策事项故意规避集体决策程序
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步推进国有企业贯彻落实“三重一大”决策制度的意见\",\n    \"法规文号\": \"中办发〔2010〕17号\",\n    \"效力级别\": \"\
+    党内法规\",\n    \"条款号\": \"第三条\",\n    \"内容概述\": \"凡属重大决策、重要人事任免、重大项目安排和大额度资金运作事项必须由领导班子集体作出决定。\"\n  }\n]"

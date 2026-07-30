@@ -1,0 +1,81 @@
+name: audit/清单名册类/议题清单
+type: model
+description: 从清单名册类类文档（议题清单）中提取结构化元数据。涵盖字段如：上会日期、涉及金额、议题名称。文档范围包括：三重一大决策事项的会议议题清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 议题清单
+  member_count: 1
+  member_details:
+  - 三重一大决策事项的会议议题清单
+output:
+  fields:
+  - name: 上会日期
+    type: date
+    description: 提取 上会日期 的日期值，格式 YYYY-MM-DD
+  - name: 涉及金额
+    type: number
+    description: 提取 涉及金额 的数值（含单位，如万元、吨等）
+  - name: 议题名称
+    type: string
+    description: 提取 议题名称 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: SUM(大额资金支出台账.支出金额) FILTER BY (供应商名称相同 AND 支出日期相差 < 60天) > 三重一大决策事项.单笔上会阈值
+  description: 对相同供应商在短期内（如60天内）多笔支出金额进行汇总，若累计超过单位规定的“三重一大”大额资金上会标准，且该供应商相关事项未列入会议议题清单，则判定存在拆分规避嫌疑；拆分笔数≥3笔且累计金额超出阈值20%以上为高风险。
+  audit_item: 重大决策不健全方面的问题
+  suspicion: 化整为零拆分合同规避三重一大决策
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步推进国有企业贯彻落实“三重一大”决策制度的意见\",\n    \"法规文号\": \"中办发〔2010〕17号\",\n    \"效力级别\": \"\
+    制度文件\",\n    \"条款号\": \"二、主要范围\",\n    \"内容概述\": \"重大决策事项、重要人事任免事项、重大项目安排事项、大额度资金运作事项必须经集体讨论作出决定，不得故意拆分规避。\"\n  }\n]"

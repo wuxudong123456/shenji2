@@ -1,0 +1,124 @@
+name: audit/规章制度类/建设方案
+type: model
+description: 从规章制度类类文档（建设方案）中提取结构化元数据。涵盖字段如：功能模块、建设状态、系统名称、规划建设区、设备型号及功能要求、设施选址坐标、设计建设标准。文档范围包括：专项建设方案、农村房屋综合信息管理平台建设方案、惠农财政补贴信息管理系统建设方案、清洁能源基础设施建设方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 建设方案
+  member_count: 1
+  member_details:
+  - 专项建设方案
+  - 农村房屋综合信息管理平台建设方案
+  - 惠农财政补贴信息管理系统建设方案
+  - 清洁能源基础设施建设方案
+output:
+  fields:
+  - name: 功能模块
+    type: string
+    description: 提取 功能模块 的文本值
+  - name: 建设状态
+    type: boolean
+    description: 提取 建设状态 的布尔值（是/否）
+  - name: 系统名称
+    type: string
+    description: 提取 系统名称 的文本值
+  - name: 规划建设区
+    type: string
+    description: 提取 规划建设区 的文本值
+  - name: 设备型号及功能要求
+    type: string
+    description: 提取 设备型号及功能要求 的文本值
+  - name: 设施选址坐标
+    type: string
+    description: 提取 设施选址坐标 的文本值
+  - name: 设计建设标准
+    type: string
+    description: 提取 设计建设标准 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (功能模块.验收通过结论 IS NULL) || (功能模块.验收通过结论 = '未通过') || (核验表.关键字段完整率 < 90%) || (核验表.与普查数据库一致性比例 < 85%)
+  description: 建设方案缺失或未通过验收，即视为未建设平台；平台数据完整率低于90%或与底层普查数据库关键信息匹配率低于85%，说明平台未有效运行，形成“空壳”或数据孤岛，存在监管盲区。
+  audit_item: 农村危房改造（含农房改善、撤村并居）不符合相关规定
+  suspicion: 未建设农村房屋综合信息管理平台
+  regulation: "[\n  {\n    \"法规名称\": \"住房城乡建设部关于进一步加强农村危房改造工作的通知\",\n    \"法规文号\": \"建村〔2018〕63号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"各地要加快农村危房改造信息化建设，建立农户档案信息系统，实现危房改造全过程监管和数据动态更新。\"\n  }\n]"
+- expression: 建设状态.验收结论 缺失 || (建设状态.验收结论 != '通过')
+  description: 各地应建立统一的惠农财政补贴“一卡通”信息管理系统，实现补贴申报、审核、发放、监管全流程线上运行。若无法提供系统建设方案或验收报告，或者系统未通过验收、未投入使用，即属违规。
+  audit_item: 惠农财政补贴“一卡通”管理不规范
+  suspicion: 未建立惠农补贴一卡通信息管理系统
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步加强惠民惠农财政补贴资金“一卡通”管理的指导意见\",\n    \"法规文号\": \"财农〔2020〕17号\",\n    \"效力级别\": \"\
+    部门规范性文件\",\n    \"条款号\": \"二（七）\",\n    \"内容概述\": \"各地区要依托现有信息管理系统，建设完善‘一卡通’发放管理系统，实现补贴项目全覆盖和发放过程全监控。\"\n  }\n]"
+- expression: 采购合同.实际采购设备品牌型号 NOT IN 设计建设标准及设备型号及功能要求.设备型号及功能要求 OR 使用表.实际完成进度<使用表.计划完成进度*80% OR 维修记录.故障次数>同类型设施行业平均故障次数*3
+    OR 资金支付流向缺乏对应采购合同
+  description: 完工进度严重滞后、设备以普通充智能、质量缺陷导致异常高故障率，或资金支付与建设内容不匹配，均构成疑点。故障倍数及进度偏差阈值参考建设项目管理常规审计指标。
+  audit_item: 现代农业产业园（集群、强镇）规划、设计、立项不科学
+  suspicion: 现代农业产业园基础设施虚报或建设不达标
+  regulation: "[\n  {\n    \"法规名称\": \"政府投资条例\",\n    \"法规文号\": \"国务院令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三十四条\"\
+    ,\n    \"内容概述\": \"项目单位应当按照有关规定和批复的建设内容、建设规模、建设标准等进行建设，不得擅自增加或减少建设内容。\"\n  }\n]"

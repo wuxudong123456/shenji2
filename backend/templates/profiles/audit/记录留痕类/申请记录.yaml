@@ -1,0 +1,144 @@
+name: audit/记录留痕类/申请记录
+type: model
+description: 从记录留痕类类文档（申请记录）中提取结构化元数据。涵盖字段如：参与时间、受理状态、投标/申请企业名称、拒绝原因、申请日期。文档范围包括：供应商/客户投标或业务申请记录、电网接入申请记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 申请记录
+  member_count: 1
+  member_details:
+  - 供应商/客户投标或业务申请记录
+  - 电网接入申请记录
+output:
+  fields:
+  - name: 参与时间
+    type: date
+    description: 提取 参与时间 的日期值，格式 YYYY-MM-DD
+  - name: 受理状态
+    type: boolean
+    description: 提取 受理状态 的布尔值（是/否）
+  - name: 投标-申请企业名称
+    type: string
+    description: 提取 投标-申请企业名称 的文本值
+  - name: 拒绝原因
+    type: string
+    description: 提取 拒绝原因 的文本值
+  - name: 申请日期
+    type: date
+    description: 提取 申请日期 的日期值，格式 YYYY-MM-DD
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 申请单位
+    type: string
+    description: 申请单位全称
+    required: false
+  - name: 申请人
+    type: string
+    description: 申请人姓名
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 审批意见
+    type: string
+    description: 审批意见/结果
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (会议记录.参会人员 IN (应回避人员)) && (会议记录.议题涉及的企业名称 IN (该人员亲属控制企业)) && (会议记录.主动回避记录 == NULL)
+  description: 筛查在涉及特定关系人企业的经营决策会议中，相关领导人员未进行回避，直接参与表决或审批。缺乏主动回避记录即为违规。
+  audit_item: 国有企业领导人员不正确行使经营管理权，可能侵害公共利益、企业利益的行为
+  suspicion: 未按规定执行任职回避和公务回避
+  regulation: "[\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\": \"中办发〔2009〕26号\",\n    \"效力级别\": \"党内法规/制度文件\",\n\
+    \    \"条款号\": \"第六条第六项\",\n    \"内容概述\": \"按照规定应当实行任职回避和公务回避而没有回避。\"\n  }\n]"
+- expression: 使用柴油发电机的机井清单.柴油发电机使用状态 == '在用' && （使用柴油发电机的机井清单.改造计划完成日期 < 当前日期 || 使用柴油发电机的机井清单.改造计划完成日期 IS NULL） && 国家和地方农业生产电价政策文件.柴油机井改造最后期限
+    < 当前日期 && （电网接入申请记录.受理状态 == '已拒绝' && 电网接入申请记录.拒绝原因 NOT IN ('客观技术限制','安全风险不可消除')）
+  description: 当前日期已超过政策规定的柴油机井强制改造截止日期，但机井仍在用柴油发电机且没有有效的改造计划，或者供电公司无理拒绝农户电网接入申请，均构成未改造。需排除因地理条件极端受限、供电半径过长等技术不可行情况。
+  audit_item: 农业生产电价政策执行不到位
+  suspicion: 利用柴油发电机通电的机井未改造
+  regulation: "[\n  {\n    \"法规名称\": \"关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"国务院规范性文件\",\n \
+    \   \"条款号\": \"第三条第（三）款\",\n    \"内容概述\": \"加快完善农田水利基础设施，推进机井通电改造，降低农业生产用电成本，禁止违规向农民收取额外费用。\"\n  },\n  {\n    \"法规名称\"\
+    : \"国家发展改革委关于调整销售电价分类结构有关问题的通知\",\n    \"法规文号\": \"发改价格[2013]973号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第一条\",\n\
+    \    \"内容概"

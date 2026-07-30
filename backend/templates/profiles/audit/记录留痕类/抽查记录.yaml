@@ -1,0 +1,61 @@
+name: audit/记录留痕类/抽查记录
+type: model
+description: 从记录留痕类类文档（抽查记录）中提取结构化元数据。涵盖字段如：仍用散煤户数比例、实际通气率。文档范围包括：居民用气情况抽查记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 抽查记录
+  member_count: 1
+  member_details:
+  - 居民用气情况抽查记录
+output:
+  fields:
+  - name: 仍用散煤户数比例
+    type: number
+    description: 提取 仍用散煤户数比例 的数值（含单位，如万元、吨等）
+  - name: 实际通气率
+    type: string
+    description: 提取 实际通气率 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (保供量 < 需求量 * 1.1) || (应急储备天数 < 3) || (照付不议条款 == '无' ) || (实际通气率 < 0.8 && 散煤复烧率 > 0.3)
+  description: 气源协议保供量未达需求量的110%，或应急储备不足3天，或未签订照付不议合同，均视为气源保障不足；管道已通但实际通气率低于80%且散煤复烧率超30%，反映气源或气价问题导致弃用。
+  audit_item: 项目规划统筹衔接不到位
+  suspicion: 煤改气工程气源保障存在断供风险
+  regulation: "[\n  {\n    \"法规名称\": \"城镇燃气管理条例\",\n    \"法规文号\": \"国务院令第583号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十四条、第十八条\",\n    \"内容概述\": \"县级以上地方人民政府应当建立健全燃气应急储备制度；燃气经营者应当保障燃气稳定供应，不得擅自停气、换气。\"\n  }\n]"

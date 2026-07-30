@@ -1,0 +1,182 @@
+name: audit/财务凭证类/使用凭证
+type: model
+description: 从财务凭证类类文档（使用凭证）中提取结构化元数据。涵盖字段如：交易方向、交易时间、交易金额、付款时间、付款金额、刷卡商户、刷卡金额、发放明细。文档范围包括：债务资金使用凭证、公务卡使用凭证、农村物流基础设施财政资金使用凭证、财政资金使用凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 付款
+- 明细
+- 票据
+- 补贴
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 使用凭证
+  member_count: 1
+  member_details:
+  - 债务资金使用凭证
+  - 公务卡使用凭证
+  - 农村物流基础设施财政资金使用凭证
+  - 财政资金使用凭证
+output:
+  fields:
+  - name: 交易方向
+    type: string
+    description: 提取 交易方向 的文本值
+  - name: 交易时间
+    type: date
+    description: 提取 交易时间 的日期值，格式 YYYY-MM-DD
+  - name: 交易金额
+    type: number
+    description: 提取 交易金额 的数值（含单位，如万元、吨等）
+  - name: 付款时间
+    type: date
+    description: 提取 付款时间 的日期值，格式 YYYY-MM-DD
+  - name: 付款金额
+    type: number
+    description: 提取 付款金额 的数值（含单位，如万元、吨等）
+  - name: 刷卡商户
+    type: string
+    description: 提取 刷卡商户 的文本值
+  - name: 刷卡金额
+    type: number
+    description: 提取 刷卡金额 的数值（含单位，如万元、吨等）
+  - name: 发放明细
+    type: string
+    description: 提取 发放明细 的文本值
+  - name: 发票金额
+    type: number
+    description: 提取 发票金额 的数值（含单位，如万元、吨等）
+  - name: 回收补贴资金拨付金额
+    type: number
+    description: 提取 回收补贴资金拨付金额 的数值（含单位，如万元、吨等）
+  - name: 实际到账日期
+    type: date
+    description: 提取 实际到账日期 的日期值，格式 YYYY-MM-DD
+  - name: 对方户名
+    type: string
+    description: 提取 对方户名 的文本值
+  - name: 拨付项目名称
+    type: string
+    description: 提取 拨付项目名称 的文本值
+  - name: 支付方式
+    type: string
+    description: 提取 支付方式 的文本值
+  - name: 收款单位
+    type: number
+    description: 提取 收款单位 的数值（含单位，如万元、吨等）
+  - name: 收款户名
+    type: number
+    description: 提取 收款户名 的数值（含单位，如万元、吨等）
+  - name: 收款方名称
+    type: number
+    description: 提取 收款方名称 的数值（含单位，如万元、吨等）
+  - name: 收款方账号
+    type: number
+    description: 提取 收款方账号 的数值（含单位，如万元、吨等）
+  - name: 收款账号
+    type: number
+    description: 提取 收款账号 的数值（含单位，如万元、吨等）
+  - name: 是否含运营补贴
+    type: boolean
+    description: 提取 是否含运营补贴 的布尔值（是/否）
+  - name: 清掏服务补贴发放记录
+    type: string
+    description: 提取 清掏服务补贴发放记录 的文本值
+  - name: 用途摘要
+    type: string
+    description: 提取 用途摘要 的文本值
+  - name: 用途说明
+    type: string
+    description: 提取 用途说明 的文本值
+  - name: 维修类支出金额
+    type: number
+    description: 提取 维修类支出金额 的数值（含单位，如万元、吨等）
+  - name: 补贴对象
+    type: string
+    description: 提取 补贴对象 的文本值
+  - name: 补贴标准
+    type: string
+    description: 提取 补贴标准 的文本值
+  - name: 补贴金额
+    type: number
+    description: 提取 补贴金额 的数值（含单位，如万元、吨等）
+  - name: 购置金额
+    type: number
+    description: 提取 购置金额 的数值（含单位，如万元、吨等）
+  - name: 采购设备名称
+    type: string
+    description: 提取 采购设备名称 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 银行流水单号
+    type: string
+    description: 提取 银行流水单号 的文本值
+  - name: 验收记录
+    type: string
+    description: 提取 验收记录 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (财务报销凭证.支付方式 = '现金' AND 财务报销凭证.报销金额 > 1000) OR (财务报销凭证.支付方式 NOT IN ('公务卡','对公转账') AND 财务报销凭证.报销金额 > 2000) OR
+    (公务卡消费明细表.消费金额 <> 财务报销凭证.报销金额)
+  description: 单笔1000元以上的公务支出未使用公务卡而用现金，或2000元以上未采用公务卡或对公转账，或公务卡消费记录与报销金额不一致，即违规。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 未按规定使用公务卡结算
+  regulation: "[\n  {\n    \"法规名称\": \"关于实施中央预算单位公务卡强制结算目录的通知\",\n    \"法规文号\": \"财库〔2011〕160号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第一条、第二条\",\n    \"内容概述\": \"中央预算单位必须严格执行公务卡强制结算目录，凡目录规定的公务支出项目，应使用公务卡结算，原则上不再使用现金。\"\n  }\n]"
+- expression: ( NOT EXISTS (SELECT 1 FROM 债务编号、债权人名称、债务金额、债务类型、入账日期) ) OR ( EXISTS ( SELECT 1 FROM 合同协议 WHERE ABS(合同协议.合同金额
+    - (SELECT SUM(债务金额) FROM 债务编号、债权人名称、债务金额、债务类型、入账日期 WHERE 债权人名称 = 合同协议.债权人)) > 0.05 * 合同协议.合同金额 ) ) OR ( EXISTS ( SELECT
+    1 FROM 使用凭证 LEFT JOIN 债务编号、债权人名称、债务金额、债务类型、入账日期 ON 使用凭证.对方户名 = 债务编号、债权
+  description: 触发条件：1. 债权债务台账缺失或无记录；2. 抽样比对合同金额与台账记录的债务金额偏差超过5%；3. 筛选银行流水中单笔支出超5万元，且对方户名不在台账债权人清单中，表示可能存在未入账的隐性债务。满足任一条件即生成疑点。
+  audit_item: 村级债务管理不规范
+  suspicion: 村级债权债务台账数据账实不符
+  regulation: "[\n  {\n    \"法规名称\": \"农业部关于进一步加强村级债务管理工作的通知\",\n    \"法规文号\": \"农经发〔2011〕3号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第二条\",\n    \"内容概述\": \"要全面清理核实村级债务，摸清债务底数，建立台账，实行动态管理，确保债务数据真实完整。\"\n  }\n]"
+- expression: (明细表.审批文件编号 IS NULL) OR (明细表.审批文件编号 IS NOT NULL AND 明细表.举债金额 > (SELECT MAX(单个项目审批限额) FROM 政策文件 WHERE 政策文件.审批权限要求
+    = '村')) OR (合同协议.年利率 > (SELECT 利率上限 FROM 政策文件)) OR (EXISTS (SELECT 1 FROM 使用凭证 WHERE 使用凭证.债务编号 = 明细表.债务编号 AND 使用凭证.用途摘要
+    NOT LIKE 明细表.举债用途))
+  description: 违反新增债务管理规定的情形：1. 明细表中审批文件编号为空的，即无任何审批程序；2. 举债金额超过本级审批权限限额且未见上级批复；3. 借款合同年利率超过地方政府规定的上限（如12%）；4. 资金实际用途与申报用途明显不一致，通过比对银行流水摘要和审批用途字段，当相似度低于80%或出现大额公积金向个人账户转移时触发。满足任一条件即构成违规新增债务疑点。
+  audit_item: 村级债务管理不规范
+  suspicion: 未经审批程序违规新增村级债务
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于坚决制止发生新的乡村债务有关问题的通知\",\n    \"法规文号\": \"国办发〔2005〕39号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第一条、第三条\",\n    \"内容概述\": \"严禁发生新的乡村债务，特殊情况确需举债的必须经村民会议或村民代表会议讨论决定，并报乡镇政府审核；严禁高息借债。\"\n  },\n  {\n \
+    \   \"法规名称\": \"中华人民共和国村民委员会组织法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十四条\",\n    \"内容概述\"\
+    : \"涉及村"
+- expression: ( (进度表.计划还款金额 - 进度表.实际还款金额) / 进度表.计划还款金额 > 0.2 ) OR (进度表.化解状态 = '已化解' AND NOT EXISTS (SELECT 1 FROM 使用凭证 WHERE
+    使用凭证.收款户名 = 进度表.债权人 AND 使用凭证.付款金额 >= 进度表.实际还款金额 AND 使用凭证.付款时间 <= 进度表.还款日期)) OR ( ABS(进度表.实际还款金额 - (SELECT SUM(付款金额) FROM
+    使用凭证 WHERE 收款户名 = 进度表.债权人 AND 用途摘要 LIKE '%化债%')) > 1000 )
+  description: 判定逻辑：1. 当期（或累计）还款计划完成率低于80%即视为化解进度严重滞后；2. 台账标记“已化解”但在债务人银行流水中找不到向原债权人支付化债资金记录，构成虚假化债；3. 实际支付金额与台账记录还款额偏差超过1000元且无法提供正当理由，疑似化债资金被截留或挪用。满足任一条件视为化债不到位。
+  audit_item: 村级债务管理不规范
+  suspicion: 旧债化解进度缓慢或虚假化债
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于坚决制止发生新的乡村债务有关问题的通知\",\n    \"法规文号\": \"国办发〔2005〕39号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"要积极稳妥地化解乡村债务，建立偿债机制，逐年消化旧债，严禁借新债还旧债。\"\n  },\n  {\n    \"法规名称\": \"农业部关于进一步加强村级债务管理工作的通知\"\
+    ,\n    \"法规文号\": \"农经发〔2011〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第三条\",\n    \"内容概述\": \"要制定切实可行的化债"

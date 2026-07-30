@@ -1,0 +1,2594 @@
+name: audit/数据表格类/统计表
+type: model
+description: 从数据表格类类文档（统计表）中提取结构化元数据。涵盖字段如：500米服务半径覆盖率、GPS定位记录、一般性转移支付占比、上年度收入额、上年度覆盖率、上年末结转余额、上报企业利用量、上报参与人数。文档范围包括：三公经费支出统计表、三无船舶查扣处置统计表、不足100人小规模学校学生人数统计表、业务区域覆盖统计表、中方陪同人员职务统计表、临时救助资金使用情况统计表、为农服务创新举措实施统计表、主业与非主业投资项目分类统计表、乡村医生人员配备统计表、乡村医生待遇发放异常情况统计表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 统计表
+  member_count: 1
+  member_details:
+  - 三公经费支出统计表
+  - 三无船舶查扣处置统计表
+  - 不足100人小规模学校学生人数统计表
+  - 业务区域覆盖统计表
+  - 中方陪同人员职务统计表
+  - 临时救助资金使用情况统计表
+  - 为农服务创新举措实施统计表
+  - 主业与非主业投资项目分类统计表
+  - 乡村医生人员配备统计表
+  - 乡村医生待遇发放异常情况统计表
+  - 乡镇卫生院/村卫生室人员配备统计表
+  - 产品销售量统计表
+  - 产权制度改革进度统计表
+  - 产能利用率统计表
+  - 产量统计表
+  - 人员配备统计表
+  - 代偿追偿情况统计表
+  - 以工代赈项目劳务报酬发放比例统计表
+  - 会议地点统计表
+  - 会议费结算方式统计表
+  - 传统建筑损毁情况统计表
+  - 作物种植结构统计表
+  - 作物种植非粮化情况统计表
+  - 使用情况统计表
+  - 供应商地域/行业分布统计表
+  - 供应商质疑投诉统计表
+  - 供水单位运营管理情况统计表
+  - 供电可靠性指标完成情况统计表
+  - 供电可靠性指标统计表
+  - 供电可靠率季度统计表
+  - 供电可靠率年度统计表
+  - 侵蚀沟治理任务完成情况统计表
+  - 保种场地理分布坐标统计表
+  - 保险理赔数据统计表
+  - 信息化平台功能使用频率统计表
+  - 信息化平台访问量统计表
+  - 信息化设备配置与使用情况统计表
+  - 债务分类统计表
+  - 公司制改制进度统计表
+  - 农业/非农企业类型及产值占比统计表
+  - 农业保险密度统计表
+  - 农业保险深度统计表
+  - 农业保险覆盖率统计表
+  - 农业加工企业用电需求调查统计表
+  - 农业用电执行统计表
+  - 农业设施用地审批情况统计表
+  - 农业部门种植/养殖面积统计表
+  - 农产品市场网络节点布局统计表
+  - 农机企业收费统计表
+  - 农村公路里程统计表
+  - 农村客运班线运营数据统计表
+  - 农村客运站点覆盖率统计表
+  - 农村快递网点覆盖率统计表
+  - 农村户均配变容量统计表
+  - 农村物流网点覆盖统计表
+  - 农民工工资发放统计表
+  - 农民工返乡创业人员基础信息统计表
+  - 农民集资摊派金额统计表
+  - 农田实际种植作物类型统计表
+  - 农膜回收利用年度目标完成情况统计表
+  - 农膜回收处理量月度统计表
+  - 农药使用量统计表
+  - 农药包装废弃物回收率与处理率统计表
+  - 农药采购统计表
+  - 出版物需求调研统计表
+  - 创业贷款发放及还款情况统计表
+  - 募捐活动统计表
+  - 历年结余结转资金统计表
+  - 去产能任务完成情况统计表
+  - 参训人员名单统计表
+  - 取水点覆盖区域用水需求统计表
+  - 同一受益人跨年度/跨项目领取补贴统计表
+  - 员工人数及薪酬统计表
+  - 四大流通网络建设进度统计表
+  - 团组成员单位分布统计表
+  - 国库集中支付执行情况统计表
+  - 国有资本行业分布统计表
+  - 土地利用现状分类统计表
+  - 土地利用现状统计表
+  - 在保客户分类统计表
+  - 在用设备能效检测结果统计表
+  - 地方财政经常性收入统计表
+  - 垃圾分类减量工作进度统计表
+  - 城乡教师职称结构对比统计表
+  - 培训签到与效果评估统计表
+  - 培训覆盖情况统计表
+  - 备份恢复测试结果统计表
+  - 存货分类周转统计表
+  - 学校设施设备配置达标情况统计表
+  - 学生营养改善计划实施情况统计表
+  - 学科教学与信息技术融合应用案例统计表
+  - 实际在岗人员统计表
+  - 审批统计表
+  - 家庭农场档案建立情况统计表
+  - 家长或学生满意度调查结果统计表
+  - 对外借款回收情况统计表
+  - 对外借款统计表
+  - 就业见习资金使用情况统计表
+  - 巡查记录统计表
+  - 工程量完成情况统计表
+  - 帮扶产业市场销售数据统计表
+  - 帮扶产品滞销情况统计表
+  - 年度用水量统计表
+  - 延迟发放情况统计表
+  - 建设情况统计表
+  - 成员构成统计表
+  - 房屋空置情况统计表
+  - 所属单位预算批复时间节点统计表
+  - 执行统计表
+  - 投标人信息统计表
+  - 投标人质疑投诉统计表
+  - 投标保证金缴纳情况统计表
+  - 投标被否决原因统计表
+  - 支付方式合规性统计表
+  - 政策性保险覆盖率统计表
+  - 教师年度培训学时统计表（分城乡）
+  - 教育信息化平台访问量及功能使用频次统计表
+  - 数据共享交换统计表
+  - 整治项目进度统计表
+  - 文化活动开展统计表（含参与人数、频次）
+  - 新型肥料/高效农药推广覆盖率统计表
+  - 无偿使用国有资产情况统计表
+  - 时效统计表
+  - 服务对象分类统计表
+  - 服务覆盖人口与频次统计表
+  - 服务覆盖情况统计表
+  - 未完成目标原因分析统计表
+  - 未纳入预算采购项目统计表
+  - 未通过补贴申领人员原因分类统计表
+  - 村庄类型划分统计表
+  - 村庄绿化现状调查统计表
+  - 村民安置情况统计表
+  - 村民意见征集与采纳情况统计表
+  - 村民意见征集情况统计表
+  - 村民意见采纳情况统计表
+  - 村民满意度调查问卷统计表
+  - 村民迁出情况统计表
+  - 村级信息站人员配备情况统计表
+  - 欠交/未续交维修资金的欠费周期统计表
+  - 殡葬政策宣传覆盖区域及效果统计表
+  - 水厕/旱厕改造类型分类统计表
+  - 水电燃气用量统计表
+  - 水质检测结果年度统计表
+  - 水费收缴情况统计表
+  - 永久基本农田划入情况统计表
+  - 永久基本农田项目覆盖统计表
+  - 沼气发电项目上网电量统计表
+  - 涉农贷款发放统计表
+  - 混合所有制改革进展统计表
+  - 清洁取暖率统计表
+  - 清运量统计表
+  - 渔船封存实施进度统计表
+  - 物资分配时效统计表
+  - 用人单位退役军人岗位招录统计表
+  - 用水量统计表
+  - 用电报装业务办理时效统计表
+  - 电压质量监测点数据统计表
+  - 电商配送服务覆盖情况统计表
+  - 畜禽养殖粪污资源化利用统计表
+  - 畜禽粪污综合利用率统计表
+  - 病害统计表
+  - 禁捕工作月度进度统计表
+  - 种业企业商业化育种需求调研统计表
+  - 种养循环合作协议执行情况统计表
+  - 种子生产经营主体监管覆盖率统计表
+  - 种子违法案件分类统计表
+  - 科技成果转化效益统计表
+  - 秸秆综合利用量统计表
+  - 空置房源统计表
+  - 管护人员配置统计表
+  - 系统使用频率与功能利用率统计表
+  - 经营数据统计表
+  - 结余结转资金统计表
+  - 结转结余资金统计表
+  - 绩效自评覆盖率统计表
+  - 编制使用情况统计表
+  - 耕作层土壤剥离利用量统计表
+  - 董事会/监事会成员统计表
+  - 融资担保情况统计表
+  - 规划备案情况统计表
+  - 设备损坏报修统计表
+  - 设施使用统计表
+  - 设施设备闲置/毁损情况统计表
+  - 设施设备闲置情况统计表
+  - 设施设备闲置率统计表
+  - 课程实际执行时长统计表
+  - 财政结余资金分类统计表
+  - 贷款统计表
+  - 资源信息开放查询日志统计表
+  - 资源库容量利用率统计表
+  - 资金分布统计表
+  - 资金拨付流向统计表
+  - 资金流向统计表（按行业领域分类）
+  - 超标准分配情况统计表
+  - 跨年度结转资金统计表（两年以上）
+  - 跨年度资金结转结余统计表
+  - 跨部门/单位费用分摊统计表
+  - 跨部门协作任务统计表
+  - 载体服务成效统计表
+  - 载体闲置率统计表
+  - 近3年化肥农药使用量分区域统计表
+  - 近5年转移支付资金分配结构统计表
+  - 近三年床位利用率统计表
+  - 返乡创业就业人员统计表
+  - 违规投资损失量化统计表
+  - 退役士兵接收安置统计表
+  - 逾期利息支付统计表
+  - 配套设施设备使用效率统计表
+  - 量化管理指标执行情况统计表
+  - 金融扶持政策落实情况统计表
+  - 金融机构服务实体经济成效统计表
+  - 销售业绩统计表
+  - 闲置资产盘活情况统计表
+  - 闲置项目利用率统计表
+  - 隐性债务风险排查统计表
+  - 集团内外企业担保分类统计表
+  - 需求满足统计表
+  - 非贫困县涉农资金统筹整合情况统计表
+  - 面积统计表
+  - 项目绩效指标完成情况统计表
+  - 项目资本金到位情况统计表
+  - 预算执行进度统计表
+  - 频次统计表
+output:
+  fields:
+  - name: 500米服务半径覆盖率
+    type: string
+    description: 提取 500米服务半径覆盖率 的文本值
+  - name: GPS定位记录
+    type: string
+    description: 提取 GPS定位记录 的文本值
+  - name: 一般性转移支付占比
+    type: string
+    description: 提取 一般性转移支付占比 的文本值
+  - name: 上年度收入额
+    type: date
+    description: 提取 上年度收入额 的日期值，格式 YYYY-MM-DD
+  - name: 上年度覆盖率
+    type: date
+    description: 提取 上年度覆盖率 的日期值，格式 YYYY-MM-DD
+  - name: 上年末结转余额
+    type: number
+    description: 提取 上年末结转余额 的数值（含单位，如万元、吨等）
+  - name: 上报企业利用量
+    type: string
+    description: 提取 上报企业利用量 的文本值
+  - name: 上报参与人数
+    type: number
+    description: 提取 上报参与人数 的数值（含单位，如万元、吨等）
+  - name: 上报年度实际回收率
+    type: date
+    description: 提取 上报年度实际回收率 的日期值，格式 YYYY-MM-DD
+  - name: 上报活动次数
+    type: string
+    description: 提取 上报活动次数 的文本值
+  - name: 上报综合利用率
+    type: string
+    description: 提取 上报综合利用率 的文本值
+  - name: 上报还田利用量
+    type: string
+    description: 提取 上报还田利用量 的文本值
+  - name: 上级批复文件编号
+    type: string
+    description: 提取 上级批复文件编号 的文本值
+  - name: 不满意的核心问题
+    type: string
+    description: 提取 不满意的核心问题 的文本值
+  - name: 与上年纯收入对比
+    type: number
+    description: 提取 与上年纯收入对比 的数值（含单位，如万元、吨等）
+  - name: 与主业的关联度描述
+    type: string
+    description: 提取 与主业的关联度描述 的文本值
+  - name: 专兼职标识
+    type: string
+    description: 提取 专兼职标识 的文本值
+  - name: 专项转移支付分类占比
+    type: string
+    description: 提取 专项转移支付分类占比 的文本值
+  - name: 中标供应商地域分布
+    type: string
+    description: 提取 中标供应商地域分布 的文本值
+  - name: 主要不满原因
+    type: string
+    description: 提取 主要不满原因 的文本值
+  - name: 主要未采纳理由
+    type: string
+    description: 提取 主要未采纳理由 的文本值
+  - name: 乡村医生数量
+    type: number
+    description: 提取 乡村医生数量 的数值（含单位，如万元、吨等）
+  - name: 乡道
+    type: string
+    description: 提取 乡道 的文本值
+  - name: 争议事项数量
+    type: number
+    description: 提取 争议事项数量 的数值（含单位，如万元、吨等）
+  - name: 五化利用分项利用量
+    type: string
+    description: 提取 五化利用分项利用量 的文本值
+  - name: 交换频次
+    type: string
+    description: 提取 交换频次 的文本值
+  - name: 产品实际销售量
+    type: string
+    description: 提取 产品实际销售量 的文本值
+  - name: 产品的单位成本
+    type: string
+    description: 提取 产品的单位成本 的文本值
+  - name: 产能利用率
+    type: string
+    description: 提取 产能利用率 的文本值
+  - name: 享受优惠户数
+    type: string
+    description: 提取 享受优惠户数 的文本值
+  - name: 人口流失率
+    type: string
+    description: 提取 人口流失率 的文本值
+  - name: 人员ID
+    type: string
+    description: 提取 人员ID 的文本值
+  - name: 人员姓名
+    type: string
+    description: 提取 人员姓名 的文本值
+  - name: 人员类型
+    type: string
+    description: 提取 人员类型 的文本值
+  - name: 人员身份信息
+    type: string
+    description: 提取 人员身份信息 的文本值
+  - name: 人均实际费用
+    type: number
+    description: 提取 人均实际费用 的数值（含单位，如万元、吨等）
+  - name: 人均薪酬
+    type: string
+    description: 提取 人均薪酬 的文本值
+  - name: 人均金额
+    type: number
+    description: 提取 人均金额 的数值（含单位，如万元、吨等）
+  - name: 人数
+    type: number
+    description: 提取 人数 的数值（含单位，如万元、吨等）
+  - name: 代偿日期
+    type: date
+    description: 提取 代偿日期 的日期值，格式 YYYY-MM-DD
+  - name: 代偿金额
+    type: number
+    description: 提取 代偿金额 的数值（含单位，如万元、吨等）
+  - name: 任务项完成率
+    type: string
+    description: 提取 任务项完成率 的文本值
+  - name: 企业名称
+    type: string
+    description: 提取 企业名称 的文本值
+  - name: 优惠电量
+    type: string
+    description: 提取 优惠电量 的文本值
+  - name: 会议名称
+    type: string
+    description: 提取 会议名称 的文本值
+  - name: 会议次数
+    type: string
+    description: 提取 会议次数 的文本值
+  - name: 位置
+    type: string
+    description: 提取 位置 的文本值
+  - name: 作物类型
+    type: string
+    description: 提取 作物类型 的文本值
+  - name: 使用方
+    type: string
+    description: 提取 使用方 的文本值
+  - name: 使用期限
+    type: string
+    description: 提取 使用期限 的文本值
+  - name: 使用状态
+    type: boolean
+    description: 提取 使用状态 的布尔值（是/否）
+  - name: 便民服务月次数
+    type: string
+    description: 提取 便民服务月次数 的文本值
+  - name: 保护对象
+    type: string
+    description: 提取 保护对象 的文本值
+  - name: 借款主体名称
+    type: number
+    description: 提取 借款主体名称 的数值（含单位，如万元、吨等）
+  - name: 借款主体类型
+    type: number
+    description: 提取 借款主体类型 的数值（含单位，如万元、吨等）
+  - name: 借款人名称
+    type: number
+    description: 提取 借款人名称 的数值（含单位，如万元、吨等）
+  - name: 借款余额
+    type: number
+    description: 提取 借款余额 的数值（含单位，如万元、吨等）
+  - name: 债务类别
+    type: string
+    description: 提取 债务类别 的文本值
+  - name: 债权人数量
+    type: number
+    description: 提取 债权人数量 的数值（含单位，如万元、吨等）
+  - name: 停电时长
+    type: string
+    description: 提取 停电时长 的文本值
+  - name: 停电次数
+    type: string
+    description: 提取 停电次数 的文本值
+  - name: 公益服务月次数
+    type: string
+    description: 提取 公益服务月次数 的文本值
+  - name: 关键岗位人员持证情况
+    type: string
+    description: 提取 关键岗位人员持证情况 的文本值
+  - name: 养殖场名称
+    type: string
+    description: 提取 养殖场名称 的文本值
+  - name: 养殖场户数
+    type: string
+    description: 提取 养殖场户数 的文本值
+  - name: 农业产值占比
+    type: string
+    description: 提取 农业产值占比 的文本值
+  - name: 农业企业产值
+    type: string
+    description: 提取 农业企业产值 的文本值
+  - name: 农业加工企业产值
+    type: string
+    description: 提取 农业加工企业产值 的文本值
+  - name: 农业总用户数
+    type: string
+    description: 提取 农业总用户数 的文本值
+  - name: 农业用户数
+    type: string
+    description: 提取 农业用户数 的文本值
+  - name: 农户直接交易额
+    type: string
+    description: 提取 农户直接交易额 的文本值
+  - name: 农田周边林带现状林木数量
+    type: number
+    description: 提取 农田周边林带现状林木数量 的数值（含单位，如万元、吨等）
+  - name: 农药使用量
+    type: string
+    description: 提取 农药使用量 的文本值
+  - name: 农药采购总量
+    type: string
+    description: 提取 农药采购总量 的文本值
+  - name: 农药采购量
+    type: string
+    description: 提取 农药采购量 的文本值
+  - name: 冲突图斑
+    type: string
+    description: 提取 冲突图斑 的文本值
+  - name: 分乡镇面积
+    type: string
+    description: 提取 分乡镇面积 的文本值
+  - name: 分区标识完成情况
+    type: string
+    description: 提取 分区标识完成情况 的文本值
+  - name: 分摊金额
+    type: number
+    description: 提取 分摊金额 的数值（含单位，如万元、吨等）
+  - name: 分类总金额
+    type: number
+    description: 提取 分类总金额 的数值（含单位，如万元、吨等）
+  - name: 分类收集覆盖率
+    type: string
+    description: 提取 分类收集覆盖率 的文本值
+  - name: 分配方案制定日期
+    type: date
+    description: 提取 分配方案制定日期 的日期值，格式 YYYY-MM-DD
+  - name: 分项支出金额
+    type: number
+    description: 提取 分项支出金额 的数值（含单位，如万元、吨等）
+  - name: 划入状态
+    type: boolean
+    description: 提取 划入状态 的布尔值（是/否）
+  - name: 划分类型
+    type: string
+    description: 提取 划分类型 的文本值
+  - name: 创业时间
+    type: date
+    description: 提取 创业时间 的日期值，格式 YYYY-MM-DD
+  - name: 创业状态
+    type: boolean
+    description: 提取 创业状态 的布尔值（是/否）
+  - name: 创业行业
+    type: string
+    description: 提取 创业行业 的文本值
+  - name: 创业行业类别
+    type: string
+    description: 提取 创业行业类别 的文本值
+  - name: 创业起始日期
+    type: date
+    description: 提取 创业起始日期 的日期值，格式 YYYY-MM-DD
+  - name: 利润总额
+    type: number
+    description: 提取 利润总额 的数值（含单位，如万元、吨等）
+  - name: 利率
+    type: string
+    description: 提取 利率 的文本值
+  - name: 利用率
+    type: string
+    description: 提取 利用率 的文本值
+  - name: 办结日期
+    type: date
+    description: 提取 办结日期 的日期值，格式 YYYY-MM-DD
+  - name: 功能区划
+    type: string
+    description: 提取 功能区划 的文本值
+  - name: 功能名称
+    type: string
+    description: 提取 功能名称 的文本值
+  - name: 功能模块使用次数
+    type: string
+    description: 提取 功能模块使用次数 的文本值
+  - name: 劳务报酬总额
+    type: number
+    description: 提取 劳务报酬总额 的数值（含单位，如万元、吨等）
+  - name: 募捐主体
+    type: string
+    description: 提取 募捐主体 的文本值
+  - name: 募集金额
+    type: number
+    description: 提取 募集金额 的数值（含单位，如万元、吨等）
+  - name: 包装规格
+    type: string
+    description: 提取 包装规格 的文本值
+  - name: 化肥使用量
+    type: string
+    description: 提取 化肥使用量 的文本值
+  - name: 区位条件
+    type: string
+    description: 提取 区位条件 的文本值
+  - name: 区县名称
+    type: string
+    description: 提取 区县名称 的文本值
+  - name: 区域
+    type: string
+    description: 提取 区域 的文本值
+  - name: 医生姓名
+    type: string
+    description: 提取 医生姓名 的文本值
+  - name: 协议约定量
+    type: string
+    description: 提取 协议约定量 的文本值
+  - name: 单位名称
+    type: string
+    description: 提取 单位名称 的文本值
+  - name: 单位所属地区-部门
+    type: string
+    description: 提取 单位所属地区-部门 的文本值
+  - name: 占比
+    type: string
+    description: 提取 占比 的文本值
+  - name: 占用面积
+    type: string
+    description: 提取 占用面积 的文本值
+  - name: 原因说明
+    type: string
+    description: 提取 原因说明 的文本值
+  - name: 县道
+    type: string
+    description: 提取 县道 的文本值
+  - name: 参与率
+    type: string
+    description: 提取 参与率 的文本值
+  - name: 参训人员
+    type: string
+    description: 提取 参训人员 的文本值
+  - name: 发放对象名单
+    type: string
+    description: 提取 发放对象名单 的文本值
+  - name: 发放总额
+    type: number
+    description: 提取 发放总额 的数值（含单位，如万元、吨等）
+  - name: 发放户数
+    type: string
+    description: 提取 发放户数 的文本值
+  - name: 发放金额
+    type: number
+    description: 提取 发放金额 的数值（含单位，如万元、吨等）
+  - name: 发电量
+    type: string
+    description: 提取 发电量 的文本值
+  - name: 受理日期
+    type: date
+    description: 提取 受理日期 的日期值，格式 YYYY-MM-DD
+  - name: 受益农户数
+    type: string
+    description: 提取 受益农户数 的文本值
+  - name: 可归集资金
+    type: string
+    description: 提取 可归集资金 的文本值
+  - name: 各产品产量
+    type: string
+    description: 提取 各产品产量 的文本值
+  - name: 各产品完工产量
+    type: string
+    description: 提取 各产品完工产量 的文本值
+  - name: 各产品销售量
+    type: string
+    description: 提取 各产品销售量 的文本值
+  - name: 各农户实际用水量及种植面积
+    type: string
+    description: 提取 各农户实际用水量及种植面积 的文本值
+  - name: 各出资方认缴及实缴比例
+    type: number
+    description: 提取 各出资方认缴及实缴比例 的数值（含单位，如万元、吨等）
+  - name: 各功能模块访问次数
+    type: string
+    description: 提取 各功能模块访问次数 的文本值
+  - name: 各区域实际供电可靠率
+    type: string
+    description: 提取 各区域实际供电可靠率 的文本值
+  - name: 各区域支小支农业务笔数及金额
+    type: number
+    description: 提取 各区域支小支农业务笔数及金额 的数值（含单位，如万元、吨等）
+  - name: 各户实际用水量
+    type: string
+    description: 提取 各户实际用水量 的文本值
+  - name: 各投标人保证金缴纳金额
+    type: number
+    description: 提取 各投标人保证金缴纳金额 的数值（含单位，如万元、吨等）
+  - name: 各月关键指标值
+    type: string
+    description: 提取 各月关键指标值 的文本值
+  - name: 各环节耗时
+    type: string
+    description: 提取 各环节耗时 的文本值
+  - name: 各环节间隔天数
+    type: number
+    description: 提取 各环节间隔天数 的数值（含单位，如万元、吨等）
+  - name: 各班级应补助人数
+    type: number
+    description: 提取 各班级应补助人数 的数值（含单位，如万元、吨等）
+  - name: 各用水户实际用水量
+    type: string
+    description: 提取 各用水户实际用水量 的文本值
+  - name: 各类设备实配数量
+    type: number
+    description: 提取 各类设备实配数量 的数值（含单位，如万元、吨等）
+  - name: 各账户日均余额
+    type: number
+    description: 提取 各账户日均余额 的数值（含单位，如万元、吨等）
+  - name: 各部门人数
+    type: number
+    description: 提取 各部门人数 的数值（含单位，如万元、吨等）
+  - name: 合作社名称
+    type: string
+    description: 提取 合作社名称 的文本值
+  - name: 合同起止日期
+    type: date
+    description: 提取 合同起止日期 的日期值，格式 YYYY-MM-DD
+  - name: 同比变化率
+    type: string
+    description: 提取 同比变化率 的文本值
+  - name: 否决原因
+    type: string
+    description: 提取 否决原因 的文本值
+  - name: 否决投标人名称
+    type: string
+    description: 提取 否决投标人名称 的文本值
+  - name: 周配送频次
+    type: string
+    description: 提取 周配送频次 的文本值
+  - name: 团组编号
+    type: string
+    description: 提取 团组编号 的文本值
+  - name: 国有资本分布金额
+    type: number
+    description: 提取 国有资本分布金额 的数值（含单位，如万元、吨等）
+  - name: 在岗人员姓名
+    type: string
+    description: 提取 在岗人员姓名 的文本值
+  - name: 在岗医生姓名
+    type: string
+    description: 提取 在岗医生姓名 的文本值
+  - name: 在用设备数量
+    type: number
+    description: 提取 在用设备数量 的数值（含单位，如万元、吨等）
+  - name: 地区
+    type: string
+    description: 提取 地区 的文本值
+  - name: 地块状态
+    type: boolean
+    description: 提取 地块状态 的布尔值（是/否）
+  - name: 地块编号
+    type: string
+    description: 提取 地块编号 的文本值
+  - name: 地块编码
+    type: string
+    description: 提取 地块编码 的文本值
+  - name: 地类
+    type: string
+    description: 提取 地类 的文本值
+  - name: 坐标
+    type: string
+    description: 提取 坐标 的文本值
+  - name: 城乡各级职称教师人数
+    type: number
+    description: 提取 城乡各级职称教师人数 的数值（含单位，如万元、吨等）
+  - name: 培训体验月次数
+    type: string
+    description: 提取 培训体验月次数 的文本值
+  - name: 培训前后项目单位面积产量或销量
+    type: string
+    description: 提取 培训前后项目单位面积产量或销量 的文本值
+  - name: 基地地块坐标
+    type: string
+    description: 提取 基地地块坐标 的文本值
+  - name: 基层单位实有人数
+    type: number
+    description: 提取 基层单位实有人数 的数值（含单位，如万元、吨等）
+  - name: 填报单位
+    type: string
+    description: 提取 填报单位 的文本值
+  - name: 填报日期
+    type: date
+    description: 提取 填报日期 的日期值，格式 YYYY-MM-DD
+  - name: 处理结果
+    type: boolean
+    description: 提取 处理结果 的布尔值（是/否）
+  - name: 处理量
+    type: string
+    description: 提取 处理量 的文本值
+  - name: 备案日期
+    type: date
+    description: 提取 备案日期 的日期值，格式 YYYY-MM-DD
+  - name: 备案机关
+    type: string
+    description: 提取 备案机关 的文本值
+  - name: 备案状态
+    type: boolean
+    description: 提取 备案状态 的布尔值（是/否）
+  - name: 大额现金金额
+    type: number
+    description: 提取 大额现金金额 的数值（含单位，如万元、吨等）
+  - name: 失败原因
+    type: string
+    description: 提取 失败原因 的文本值
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 存活企业数
+    type: string
+    description: 提取 存活企业数 的文本值
+  - name: 存货余额
+    type: number
+    description: 提取 存货余额 的数值（含单位，如万元、吨等）
+  - name: 存货周转天数
+    type: number
+    description: 提取 存货周转天数 的数值（含单位，如万元、吨等）
+  - name: 存货类别
+    type: string
+    description: 提取 存货类别 的文本值
+  - name: 学校ID
+    type: string
+    description: 提取 学校ID 的文本值
+  - name: 学校名称
+    type: string
+    description: 提取 学校名称 的文本值
+  - name: 安置介绍信开出日期
+    type: date
+    description: 提取 安置介绍信开出日期 的日期值，格式 YYYY-MM-DD
+  - name: 安置状态
+    type: boolean
+    description: 提取 安置状态 的布尔值（是/否）
+  - name: 完好状态
+    type: boolean
+    description: 提取 完好状态 的布尔值（是/否）
+  - name: 完成情况
+    type: string
+    description: 提取 完成情况 的文本值
+  - name: 完成日期
+    type: date
+    description: 提取 完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 完成比例
+    type: number
+    description: 提取 完成比例 的数值（含单位，如万元、吨等）
+  - name: 完成率
+    type: string
+    description: 提取 完成率 的文本值
+  - name: 实保面积
+    type: string
+    description: 提取 实保面积 的文本值
+  - name: 实发工资
+    type: string
+    description: 提取 实发工资 的文本值
+  - name: 实收总额
+    type: number
+    description: 提取 实收总额 的数值（含单位，如万元、吨等）
+  - name: 实有人数
+    type: number
+    description: 提取 实有人数 的数值（含单位，如万元、吨等）
+  - name: 实有数
+    type: string
+    description: 提取 实有数 的文本值
+  - name: 实有行政编制人数
+    type: number
+    description: 提取 实有行政编制人数 的数值（含单位，如万元、吨等）
+  - name: 实配人数
+    type: number
+    description: 提取 实配人数 的数值（含单位，如万元、吨等）
+  - name: 实际上网电量
+    type: string
+    description: 提取 实际上网电量 的文本值
+  - name: 实际上课总时长
+    type: string
+    description: 提取 实际上课总时长 的文本值
+  - name: 实际举办地点
+    type: string
+    description: 提取 实际举办地点 的文本值
+  - name: 实际产量
+    type: string
+    description: 提取 实际产量 的文本值
+  - name: 实际亩均用水量
+    type: string
+    description: 提取 实际亩均用水量 的文本值
+  - name: 实际使用天数
+    type: number
+    description: 提取 实际使用天数 的数值（含单位，如万元、吨等）
+  - name: 实际使用小时数
+    type: string
+    description: 提取 实际使用小时数 的文本值
+  - name: 实际供电可靠率
+    type: string
+    description: 提取 实际供电可靠率 的文本值
+  - name: 实际值
+    type: string
+    description: 提取 实际值 的文本值
+  - name: 实际出访总人次
+    type: string
+    description: 提取 实际出访总人次 的文本值
+  - name: 实际出访总天数
+    type: number
+    description: 提取 实际出访总天数 的数值（含单位，如万元、吨等）
+  - name: 实际分配金额
+    type: number
+    description: 提取 实际分配金额 的数值（含单位，如万元、吨等）
+  - name: 实际利用量
+    type: string
+    description: 提取 实际利用量 的文本值
+  - name: 实际剥离量
+    type: string
+    description: 提取 实际剥离量 的文本值
+  - name: 实际占用范围红线坐标
+    type: string
+    description: 提取 实际占用范围红线坐标 的文本值
+  - name: 实际参训总人数
+    type: number
+    description: 提取 实际参训总人数 的数值（含单位，如万元、吨等）
+  - name: 实际发放日期
+    type: date
+    description: 提取 实际发放日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际回收率
+    type: string
+    description: 提取 实际回收率 的文本值
+  - name: 实际在任监事人数
+    type: number
+    description: 提取 实际在任监事人数 的数值（含单位，如万元、吨等）
+  - name: 实际在任董事人数
+    type: number
+    description: 提取 实际在任董事人数 的数值（含单位，如万元、吨等）
+  - name: 实际在岗人数
+    type: number
+    description: 提取 实际在岗人数 的数值（含单位，如万元、吨等）
+  - name: 实际在校学生数
+    type: string
+    description: 提取 实际在校学生数 的文本值
+  - name: 实际地类
+    type: string
+    description: 提取 实际地类 的文本值
+  - name: 实际完成值
+    type: string
+    description: 提取 实际完成值 的文本值
+  - name: 实际完成回收率
+    type: string
+    description: 提取 实际完成回收率 的文本值
+  - name: 实际完成工程量
+    type: string
+    description: 提取 实际完成工程量 的文本值
+  - name: 实际完成数值
+    type: string
+    description: 提取 实际完成数值 的文本值
+  - name: 实际完成日期
+    type: date
+    description: 提取 实际完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际完成比例
+    type: number
+    description: 提取 实际完成比例 的数值（含单位，如万元、吨等）
+  - name: 实际完成状态
+    type: boolean
+    description: 提取 实际完成状态 的布尔值（是/否）
+  - name: 实际完成进度
+    type: string
+    description: 提取 实际完成进度 的文本值
+  - name: 实际完成量
+    type: string
+    description: 提取 实际完成量 的文本值
+  - name: 实际完成面积
+    type: string
+    description: 提取 实际完成面积 的文本值
+  - name: 实际密度
+    type: string
+    description: 提取 实际密度 的文本值
+  - name: 实际已实施绿化项目名称
+    type: string
+    description: 提取 实际已实施绿化项目名称 的文本值
+  - name: 实际建成节点数
+    type: string
+    description: 提取 实际建成节点数 的文本值
+  - name: 实际建设面积
+    type: string
+    description: 提取 实际建设面积 的文本值
+  - name: 实际开工条数
+    type: string
+    description: 提取 实际开工条数 的文本值
+  - name: 实际归集金额
+    type: number
+    description: 提取 实际归集金额 的数值（含单位，如万元、吨等）
+  - name: 实际批复时间
+    type: date
+    description: 提取 实际批复时间 的日期值，格式 YYYY-MM-DD
+  - name: 实际批复用电容量
+    type: string
+    description: 提取 实际批复用电容量 的文本值
+  - name: 实际支付利息金额
+    type: number
+    description: 提取 实际支付利息金额 的数值（含单位，如万元、吨等）
+  - name: 实际支出资金
+    type: number
+    description: 提取 实际支出资金 的数值（含单位，如万元、吨等）
+  - name: 实际收取金额
+    type: number
+    description: 提取 实际收取金额 的数值（含单位，如万元、吨等）
+  - name: 实际深度
+    type: string
+    description: 提取 实际深度 的文本值
+  - name: 实际现状用途
+    type: string
+    description: 提取 实际现状用途 的文本值
+  - name: 实际电压合格率
+    type: string
+    description: 提取 实际电压合格率 的文本值
+  - name: 实际粪肥使用量
+    type: string
+    description: 提取 实际粪肥使用量 的文本值
+  - name: 实际股权结构
+    type: string
+    description: 提取 实际股权结构 的文本值
+  - name: 实际补助人数
+    type: number
+    description: 提取 实际补助人数 的数值（含单位，如万元、吨等）
+  - name: 实际覆盖率
+    type: string
+    description: 提取 实际覆盖率 的文本值
+  - name: 实际贴息额
+    type: string
+    description: 提取 实际贴息额 的文本值
+  - name: 实际迁出户数
+    type: string
+    description: 提取 实际迁出户数 的文本值
+  - name: 实际运营站点数
+    type: string
+    description: 提取 实际运营站点数 的文本值
+  - name: 实际运营线路条数
+    type: string
+    description: 提取 实际运营线路条数 的文本值
+  - name: 实际销售额
+    type: string
+    description: 提取 实际销售额 的文本值
+  - name: 审批意见
+    type: string
+    description: 提取 审批意见 的文本值
+  - name: 审批文号
+    type: string
+    description: 提取 审批文号 的文本值
+  - name: 审批状态
+    type: boolean
+    description: 提取 审批状态 的布尔值（是/否）
+  - name: 审批用途
+    type: string
+    description: 提取 审批用途 的文本值
+  - name: 审批结果
+    type: boolean
+    description: 提取 审批结果 的布尔值（是/否）
+  - name: 客户名称
+    type: string
+    description: 提取 客户名称 的文本值
+  - name: 客户类型分布
+    type: string
+    description: 提取 客户类型分布 的文本值
+  - name: 宣传覆盖率
+    type: string
+    description: 提取 宣传覆盖率 的文本值
+  - name: 家长知晓率
+    type: string
+    description: 提取 家长知晓率 的文本值
+  - name: 对开放时间的满意度
+    type: date
+    description: 提取 对开放时间的满意度 的日期值，格式 YYYY-MM-DD
+  - name: 封存完成时间
+    type: date
+    description: 提取 封存完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 封存率
+    type: string
+    description: 提取 封存率 的文本值
+  - name: 岗位状态
+    type: boolean
+    description: 提取 岗位状态 的布尔值（是/否）
+  - name: 岗位类型
+    type: string
+    description: 提取 岗位类型 的文本值
+  - name: 巡查日期
+    type: date
+    description: 提取 巡查日期 的日期值，格式 YYYY-MM-DD
+  - name: 工商登记类型
+    type: string
+    description: 提取 工商登记类型 的文本值
+  - name: 差异值
+    type: string
+    description: 提取 差异值 的文本值
+  - name: 差异率
+    type: string
+    description: 提取 差异率 的文本值
+  - name: 已修缮建筑数量
+    type: number
+    description: 提取 已修缮建筑数量 的数值（含单位，如万元、吨等）
+  - name: 已回收金额
+    type: number
+    description: 提取 已回收金额 的数值（含单位，如万元、吨等）
+  - name: 已封存数量
+    type: number
+    description: 提取 已封存数量 的数值（含单位，如万元、吨等）
+  - name: 已建成配送站点数
+    type: string
+    description: 提取 已建成配送站点数 的文本值
+  - name: 已建档数量
+    type: number
+    description: 提取 已建档数量 的数值（含单位，如万元、吨等）
+  - name: 已建站点数
+    type: string
+    description: 提取 已建站点数 的文本值
+  - name: 已改造使用户数
+    type: string
+    description: 提取 已改造使用户数 的文本值
+  - name: 已申请享受优惠户数
+    type: string
+    description: 提取 已申请享受优惠户数 的文本值
+  - name: 已盘活数量
+    type: number
+    description: 提取 已盘活数量 的数值（含单位，如万元、吨等）
+  - name: 已覆盖行政村数
+    type: string
+    description: 提取 已覆盖行政村数 的文本值
+  - name: 已认定家庭农场总数
+    type: string
+    description: 提取 已认定家庭农场总数 的文本值
+  - name: 已认定数量
+    type: number
+    description: 提取 已认定数量 的数值（含单位，如万元、吨等）
+  - name: 已转化成果数量
+    type: number
+    description: 提取 已转化成果数量 的数值（含单位，如万元、吨等）
+  - name: 带动就业人数
+    type: number
+    description: 提取 带动就业人数 的数值（含单位，如万元、吨等）
+  - name: 带动的农户数
+    type: string
+    description: 提取 带动的农户数 的文本值
+  - name: 常住人口比例
+    type: number
+    description: 提取 常住人口比例 的数值（含单位，如万元、吨等）
+  - name: 平均使用时长
+    type: string
+    description: 提取 平均使用时长 的文本值
+  - name: 平均结案周期
+    type: string
+    description: 提取 平均结案周期 的文本值
+  - name: 平均行驶时速
+    type: string
+    description: 提取 平均行驶时速 的文本值
+  - name: 年-月用量
+    type: string
+    description: 提取 年-月用量 的文本值
+  - name: 年产量
+    type: string
+    description: 提取 年产量 的文本值
+  - name: 年份
+    type: string
+    description: 提取 年份 的文本值
+  - name: 年初结转余额
+    type: number
+    description: 提取 年初结转余额 的数值（含单位，如万元、吨等）
+  - name: 年均入住人数
+    type: number
+    description: 提取 年均入住人数 的数值（含单位，如万元、吨等）
+  - name: 年均床位利用率
+    type: string
+    description: 提取 年均床位利用率 的文本值
+  - name: 年度
+    type: date
+    description: 提取 年度 的日期值，格式 YYYY-MM-DD
+  - name: 年度垃圾清运总量
+    type: date
+    description: 提取 年度垃圾清运总量 的日期值，格式 YYYY-MM-DD
+  - name: 年度培训学时
+    type: date
+    description: 提取 年度培训学时 的日期值，格式 YYYY-MM-DD
+  - name: 年度案件数量
+    type: date
+    description: 提取 年度案件数量 的日期值，格式 YYYY-MM-DD
+  - name: 年度案例数量
+    type: date
+    description: 提取 年度案例数量 的日期值，格式 YYYY-MM-DD
+  - name: 年度检查主体数量
+    type: date
+    description: 提取 年度检查主体数量 的日期值，格式 YYYY-MM-DD
+  - name: 年度检测总次数
+    type: date
+    description: 提取 年度检测总次数 的日期值，格式 YYYY-MM-DD
+  - name: 年度盈余总额
+    type: date
+    description: 提取 年度盈余总额 的日期值，格式 YYYY-MM-DD
+  - name: 年度覆盖率
+    type: date
+    description: 提取 年度覆盖率 的日期值，格式 YYYY-MM-DD
+  - name: 年度计划淘汰量
+    type: date
+    description: 提取 年度计划淘汰量 的日期值，格式 YYYY-MM-DD
+  - name: 年度访问量
+    type: date
+    description: 提取 年度访问量 的日期值，格式 YYYY-MM-DD
+  - name: 年度预算资金
+    type: date
+    description: 提取 年度预算资金 的日期值，格式 YYYY-MM-DD
+  - name: 年末结余金额
+    type: number
+    description: 提取 年末结余金额 的数值（含单位，如万元、吨等）
+  - name: 年末结转余额
+    type: number
+    description: 提取 年末结转余额 的数值（含单位，如万元、吨等）
+  - name: 年租金收入
+    type: number
+    description: 提取 年租金收入 的数值（含单位，如万元、吨等）
+  - name: 床位总数
+    type: string
+    description: 提取 床位总数 的文本值
+  - name: 应保面积
+    type: string
+    description: 提取 应保面积 的文本值
+  - name: 应发工资
+    type: string
+    description: 提取 应发工资 的文本值
+  - name: 应封存数量
+    type: number
+    description: 提取 应封存数量 的数值（含单位，如万元、吨等）
+  - name: 应建站点数
+    type: string
+    description: 提取 应建站点数 的文本值
+  - name: 应收总额
+    type: number
+    description: 提取 应收总额 的数值（含单位，如万元、吨等）
+  - name: 应改造总户数
+    type: string
+    description: 提取 应改造总户数 的文本值
+  - name: 应计利息金额
+    type: number
+    description: 提取 应计利息金额 的数值（含单位，如万元、吨等）
+  - name: 应贴息金额
+    type: number
+    description: 提取 应贴息金额 的数值（含单位，如万元、吨等）
+  - name: 应贴息额
+    type: string
+    description: 提取 应贴息额 的文本值
+  - name: 应配人数
+    type: number
+    description: 提取 应配人数 的数值（含单位，如万元、吨等）
+  - name: 应配数
+    type: string
+    description: 提取 应配数 的文本值
+  - name: 延期付款项目金额
+    type: number
+    description: 提取 延期付款项目金额 的数值（含单位，如万元、吨等）
+  - name: 延迟天数
+    type: number
+    description: 提取 延迟天数 的数值（含单位，如万元、吨等）
+  - name: 建制村总数
+    type: string
+    description: 提取 建制村总数 的文本值
+  - name: 建档完成率
+    type: string
+    description: 提取 建档完成率 的文本值
+  - name: 建筑名称
+    type: string
+    description: 提取 建筑名称 的文本值
+  - name: 建设地址
+    type: string
+    description: 提取 建设地址 的文本值
+  - name: 建设进度
+    type: string
+    description: 提取 建设进度 的文本值
+  - name: 异常中断时长
+    type: string
+    description: 提取 异常中断时长 的文本值
+  - name: 异常波动标识
+    type: string
+    description: 提取 异常波动标识 的文本值
+  - name: 异常类型
+    type: string
+    description: 提取 异常类型 的文本值
+  - name: 弃电量
+    type: string
+    description: 提取 弃电量 的文本值
+  - name: 当前育种研发投入占销售收入比重
+    type: number
+    description: 提取 当前育种研发投入占销售收入比重 的数值（含单位，如万元、吨等）
+  - name: 当地市场均价或收购价
+    type: string
+    description: 提取 当地市场均价或收购价 的文本值
+  - name: 当期完工产量
+    type: string
+    description: 提取 当期完工产量 的文本值
+  - name: 当期销售量
+    type: string
+    description: 提取 当期销售量 的文本值
+  - name: 录用时点编制实有人数
+    type: number
+    description: 提取 录用时点编制实有人数 的数值（含单位，如万元、吨等）
+  - name: 征集意见总数
+    type: string
+    description: 提取 征集意见总数 的文本值
+  - name: 待修缮建筑数量
+    type: number
+    description: 提取 待修缮建筑数量 的数值（含单位，如万元、吨等）
+  - name: 快递企业
+    type: string
+    description: 提取 快递企业 的文本值
+  - name: 快递品牌对应的服务站名称
+    type: string
+    description: 提取 快递品牌对应的服务站名称 的文本值
+  - name: 总产值
+    type: string
+    description: 提取 总产值 的文本值
+  - name: 总人数
+    type: number
+    description: 提取 总人数 的数值（含单位，如万元、吨等）
+  - name: 总建设面积
+    type: string
+    description: 提取 总建设面积 的文本值
+  - name: 总设备原值
+    type: string
+    description: 提取 总设备原值 的文本值
+  - name: 总设备数量
+    type: number
+    description: 提取 总设备数量 的数值（含单位，如万元、吨等）
+  - name: 总闲置率
+    type: string
+    description: 提取 总闲置率 的文本值
+  - name: 恢复失败次数
+    type: string
+    description: 提取 恢复失败次数 的文本值
+  - name: 成功-失败次数
+    type: string
+    description: 提取 成功-失败次数 的文本值
+  - name: 成功恢复次数
+    type: string
+    description: 提取 成功恢复次数 的文本值
+  - name: 成员姓名
+    type: string
+    description: 提取 成员姓名 的文本值
+  - name: 成果总量
+    type: string
+    description: 提取 成果总量 的文本值
+  - name: 户均配变容量
+    type: string
+    description: 提取 户均配变容量 的文本值
+  - name: 户均金额
+    type: number
+    description: 提取 户均金额 的数值（含单位，如万元、吨等）
+  - name: 户籍人口数
+    type: string
+    description: 提取 户籍人口数 的文本值
+  - name: 户籍总户数
+    type: string
+    description: 提取 户籍总户数 的文本值
+  - name: 房号
+    type: string
+    description: 提取 房号 的文本值
+  - name: 所在行政村
+    type: string
+    description: 提取 所在行政村 的文本值
+  - name: 所在部门
+    type: string
+    description: 提取 所在部门 的文本值
+  - name: 所属学校类型
+    type: string
+    description: 提取 所属学校类型 的文本值
+  - name: 所属行政村
+    type: string
+    description: 提取 所属行政村 的文本值
+  - name: 所属部门
+    type: string
+    description: 提取 所属部门 的文本值
+  - name: 所属馈线
+    type: string
+    description: 提取 所属馈线 的文本值
+  - name: 执行进度金额
+    type: number
+    description: 提取 执行进度金额 的数值（含单位，如万元、吨等）
+  - name: 批复数量
+    type: number
+    description: 提取 批复数量 的数值（含单位，如万元、吨等）
+  - name: 批复日期
+    type: date
+    description: 提取 批复日期 的日期值，格式 YYYY-MM-DD
+  - name: 批复面积
+    type: string
+    description: 提取 批复面积 的文本值
+  - name: 承载容量
+    type: string
+    description: 提取 承载容量 的文本值
+  - name: 投入产出比
+    type: string
+    description: 提取 投入产出比 的文本值
+  - name: 投标人名称
+    type: string
+    description: 提取 投标人名称 的文本值
+  - name: 投标保证金比例
+    type: number
+    description: 提取 投标保证金比例 的数值（含单位，如万元、吨等）
+  - name: 投标保证金金额
+    type: number
+    description: 提取 投标保证金金额 的数值（含单位，如万元、吨等）
+  - name: 投诉供应商所在地
+    type: string
+    description: 提取 投诉供应商所在地 的文本值
+  - name: 投诉原因
+    type: string
+    description: 提取 投诉原因 的文本值
+  - name: 投诉次数
+    type: string
+    description: 提取 投诉次数 的文本值
+  - name: 投诉类型
+    type: string
+    description: 提取 投诉类型 的文本值
+  - name: 投资标的
+    type: string
+    description: 提取 投资标的 的文本值
+  - name: 报修日期
+    type: date
+    description: 提取 报修日期 的日期值，格式 YYYY-MM-DD
+  - name: 报名时间
+    type: date
+    description: 提取 报名时间 的日期值，格式 YYYY-MM-DD
+  - name: 报酬比例
+    type: number
+    description: 提取 报酬比例 的数值（含单位，如万元、吨等）
+  - name: 抵押物价值
+    type: string
+    description: 提取 抵押物价值 的文本值
+  - name: 抵押物要求
+    type: string
+    description: 提取 抵押物要求 的文本值
+  - name: 担保对象名称
+    type: string
+    description: 提取 担保对象名称 的文本值
+  - name: 担保总额
+    type: number
+    description: 提取 担保总额 的数值（含单位，如万元、吨等）
+  - name: 担保方式
+    type: string
+    description: 提取 担保方式 的文本值
+  - name: 拒绝原因类别
+    type: string
+    description: 提取 拒绝原因类别 的文本值
+  - name: 拒贷原因
+    type: string
+    description: 提取 拒贷原因 的文本值
+  - name: 拒赔笔数
+    type: string
+    description: 提取 拒赔笔数 的文本值
+  - name: 招录企业名称
+    type: string
+    description: 提取 招录企业名称 的文本值
+  - name: 招录退役军人数
+    type: number
+    description: 提取 招录退役军人数 的数值（含单位，如万元、吨等）
+  - name: 拨付总金额
+    type: number
+    description: 提取 拨付总金额 的数值（含单位，如万元、吨等）
+  - name: 拨款依据
+    type: number
+    description: 提取 拨款依据 的数值（含单位，如万元、吨等）
+  - name: 拨款金额
+    type: number
+    description: 提取 拨款金额 的数值（含单位，如万元、吨等）
+  - name: 指标目标值
+    type: string
+    description: 提取 指标目标值 的文本值
+  - name: 按时结案量
+    type: string
+    description: 提取 按时结案量 的文本值
+  - name: 按项目统计的自评数量
+    type: number
+    description: 提取 按项目统计的自评数量 的数值（含单位，如万元、吨等）
+  - name: 损坏描述
+    type: string
+    description: 提取 损坏描述 的文本值
+  - name: 损失率
+    type: string
+    description: 提取 损失率 的文本值
+  - name: 损毁程度
+    type: string
+    description: 提取 损毁程度 的文本值
+  - name: 接收地块编号
+    type: string
+    description: 提取 接收地块编号 的文本值
+  - name: 接收日期
+    type: date
+    description: 提取 接收日期 的日期值，格式 YYYY-MM-DD
+  - name: 接收退役士兵数
+    type: string
+    description: 提取 接收退役士兵数 的文本值
+  - name: 接电日期
+    type: date
+    description: 提取 接电日期 的日期值，格式 YYYY-MM-DD
+  - name: 搬迁自愿性评价
+    type: string
+    description: 提取 搬迁自愿性评价 的文本值
+  - name: 支付凭证号
+    type: string
+    description: 提取 支付凭证号 的文本值
+  - name: 支付笔数
+    type: string
+    description: 提取 支付笔数 的文本值
+  - name: 支出科目合计金额
+    type: number
+    description: 提取 支出科目合计金额 的数值（含单位，如万元、吨等）
+  - name: 支小支农分类明细
+    type: string
+    description: 提取 支小支农分类明细 的文本值
+  - name: 支小支农担保金额
+    type: number
+    description: 提取 支小支农担保金额 的数值（含单位，如万元、吨等）
+  - name: 收取的中间业务费用
+    type: number
+    description: 提取 收取的中间业务费用 的数值（含单位，如万元、吨等）
+  - name: 收款协会
+    type: number
+    description: 提取 收款协会 的数值（含单位，如万元、吨等）
+  - name: 收费依据
+    type: number
+    description: 提取 收费依据 的数值（含单位，如万元、吨等）
+  - name: 收费标准
+    type: number
+    description: 提取 收费标准 的数值（含单位，如万元、吨等）
+  - name: 收费项目
+    type: number
+    description: 提取 收费项目 的数值（含单位，如万元、吨等）
+  - name: 改革前及改革后各灌区逐月用水量
+    type: string
+    description: 提取 改革前及改革后各灌区逐月用水量 的文本值
+  - name: 政府负责人人数
+    type: number
+    description: 提取 政府负责人人数 的数值（含单位，如万元、吨等）
+  - name: 政府负责人占比
+    type: string
+    description: 提取 政府负责人占比 的文本值
+  - name: 政策规定标准上限
+    type: string
+    description: 提取 政策规定标准上限 的文本值
+  - name: 救助批次名
+    type: string
+    description: 提取 救助批次名 的文本值
+  - name: 教师姓名
+    type: string
+    description: 提取 教师姓名 的文本值
+  - name: 数据更新日期
+    type: date
+    description: 提取 数据更新日期 的日期值，格式 YYYY-MM-DD
+  - name: 数据生成日期
+    type: date
+    description: 提取 数据生成日期 的日期值，格式 YYYY-MM-DD
+  - name: 数据类型
+    type: string
+    description: 提取 数据类型 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 整体满意度评分
+    type: string
+    description: 提取 整体满意度评分 的文本值
+  - name: 整合资金总额
+    type: number
+    description: 提取 整合资金总额 的数值（含单位，如万元、吨等）
+  - name: 整合起始年度
+    type: date
+    description: 提取 整合起始年度 的日期值，格式 YYYY-MM-DD
+  - name: 整治内容描述
+    type: string
+    description: 提取 整治内容描述 的文本值
+  - name: 断带长度
+    type: string
+    description: 提取 断带长度 的文本值
+  - name: 新型肥料施用面积
+    type: string
+    description: 提取 新型肥料施用面积 的文本值
+  - name: 新增客户数
+    type: string
+    description: 提取 新增客户数 的文本值
+  - name: 新增税收
+    type: string
+    description: 提取 新增税收 的文本值
+  - name: 日发班次
+    type: string
+    description: 提取 日发班次 的文本值
+  - name: 日均业务量
+    type: string
+    description: 提取 日均业务量 的文本值
+  - name: 日均投放次数
+    type: string
+    description: 提取 日均投放次数 的文本值
+  - name: 日均载客量
+    type: string
+    description: 提取 日均载客量 的文本值
+  - name: 日均需水量
+    type: string
+    description: 提取 日均需水量 的文本值
+  - name: 日期
+    type: date
+    description: 提取 日期 的日期值，格式 YYYY-MM-DD
+  - name: 旱厕数量
+    type: number
+    description: 提取 旱厕数量 的数值（含单位，如万元、吨等）
+  - name: 是否上缴
+    type: boolean
+    description: 提取 是否上缴 的布尔值（是/否）
+  - name: 是否为建档立卡贫困户
+    type: boolean
+    description: 提取 是否为建档立卡贫困户 的布尔值（是/否）
+  - name: 是否享受优惠
+    type: boolean
+    description: 提取 是否享受优惠 的布尔值（是/否）
+  - name: 是否共享
+    type: boolean
+    description: 提取 是否共享 的布尔值（是/否）
+  - name: 是否列入保护名录
+    type: boolean
+    description: 提取 是否列入保护名录 的布尔值（是/否）
+  - name: 是否在岗
+    type: boolean
+    description: 提取 是否在岗 的布尔值（是/否）
+  - name: 是否完成改制
+    type: boolean
+    description: 提取 是否完成改制 的布尔值（是/否）
+  - name: 是否定点场所标注
+    type: boolean
+    description: 提取 是否定点场所标注 的布尔值（是/否）
+  - name: 是否已享受优惠政策标记
+    type: boolean
+    description: 提取 是否已享受优惠政策标记 的布尔值（是/否）
+  - name: 是否电压合格
+    type: boolean
+    description: 提取 是否电压合格 的布尔值（是/否）
+  - name: 是否纳入中期财政规划
+    type: boolean
+    description: 提取 是否纳入中期财政规划 的布尔值（是/否）
+  - name: 是否缺失核心要素
+    type: boolean
+    description: 提取 是否缺失核心要素 的布尔值（是/否）
+  - name: 是否设立独立发热诊室
+    type: boolean
+    description: 提取 是否设立独立发热诊室 的布尔值（是/否）
+  - name: 是否集团内企业标识
+    type: boolean
+    description: 提取 是否集团内企业标识 的布尔值（是/否）
+  - name: 智能设备日均扫码次数
+    type: string
+    description: 提取 智能设备日均扫码次数 的文本值
+  - name: 最后使用时间
+    type: date
+    description: 提取 最后使用时间 的日期值，格式 YYYY-MM-DD
+  - name: 最大存储量
+    type: string
+    description: 提取 最大存储量 的文本值
+  - name: 最新测绘日期
+    type: date
+    description: 提取 最新测绘日期 的日期值，格式 YYYY-MM-DD
+  - name: 月份
+    type: string
+    description: 提取 月份 的文本值
+  - name: 月均使用频次
+    type: string
+    description: 提取 月均使用频次 的文本值
+  - name: 月均服务人次
+    type: string
+    description: 提取 月均服务人次 的文本值
+  - name: 月度处理总重量
+    type: string
+    description: 提取 月度处理总重量 的文本值
+  - name: 月活跃用户数
+    type: string
+    description: 提取 月活跃用户数 的文本值
+  - name: 月用量
+    type: string
+    description: 提取 月用量 的文本值
+  - name: 有机肥替代面积
+    type: string
+    description: 提取 有机肥替代面积 的文本值
+  - name: 服务人口数
+    type: string
+    description: 提取 服务人口数 的文本值
+  - name: 服务内容
+    type: string
+    description: 提取 服务内容 的文本值
+  - name: 服务区域
+    type: string
+    description: 提取 服务区域 的文本值
+  - name: 服务类型
+    type: string
+    description: 提取 服务类型 的文本值
+  - name: 服务能力
+    type: string
+    description: 提取 服务能力 的文本值
+  - name: 服务面积
+    type: string
+    description: 提取 服务面积 的文本值
+  - name: 期初周转天数
+    type: number
+    description: 提取 期初周转天数 的数值（含单位，如万元、吨等）
+  - name: 期望支持额度
+    type: string
+    description: 提取 期望支持额度 的文本值
+  - name: 期末结余金额
+    type: number
+    description: 提取 期末结余金额 的数值（含单位，如万元、吨等）
+  - name: 未修复原因
+    type: string
+    description: 提取 未修复原因 的文本值
+  - name: 未划入面积
+    type: string
+    description: 提取 未划入面积 的文本值
+  - name: 未发放月份
+    type: string
+    description: 提取 未发放月份 的文本值
+  - name: 未完成原因说明
+    type: string
+    description: 提取 未完成原因说明 的文本值
+  - name: 未完成项目名称
+    type: string
+    description: 提取 未完成项目名称 的文本值
+  - name: 未申请户数
+    type: string
+    description: 提取 未申请户数 的文本值
+  - name: 未采纳理由说明
+    type: string
+    description: 提取 未采纳理由说明 的文本值
+  - name: 本地-外地企业中标数量及金额
+    type: number
+    description: 提取 本地-外地企业中标数量及金额 的数值（含单位，如万元、吨等）
+  - name: 本年度收入额
+    type: date
+    description: 提取 本年度收入额 的日期值，格式 YYYY-MM-DD
+  - name: 机构名称
+    type: string
+    description: 提取 机构名称 的文本值
+  - name: 村庄名称
+    type: string
+    description: 提取 村庄名称 的文本值
+  - name: 村民合理意见数量
+    type: number
+    description: 提取 村民合理意见数量 的数值（含单位，如万元、吨等）
+  - name: 村民意见数
+    type: string
+    description: 提取 村民意见数 的文本值
+  - name: 村民需求图书种类分布
+    type: string
+    description: 提取 村民需求图书种类分布 的文本值
+  - name: 村落名称
+    type: string
+    description: 提取 村落名称 的文本值
+  - name: 村道里程
+    type: string
+    description: 提取 村道里程 的文本值
+  - name: 构件病害类型
+    type: string
+    description: 提取 构件病害类型 的文本值
+  - name: 查获地点
+    type: string
+    description: 提取 查获地点 的文本值
+  - name: 查询关键词
+    type: string
+    description: 提取 查询关键词 的文本值
+  - name: 标准要求最低值
+    type: string
+    description: 提取 标准要求最低值 的文本值
+  - name: 标度分值
+    type: string
+    description: 提取 标度分值 的文本值
+  - name: 核定编制数
+    type: string
+    description: 提取 核定编制数 的文本值
+  - name: 核实状态
+    type: boolean
+    description: 提取 核实状态 的布尔值（是/否）
+  - name: 案件类型
+    type: string
+    description: 提取 案件类型 的文本值
+  - name: 档案数量
+    type: number
+    description: 提取 档案数量 的数值（含单位，如万元、吨等）
+  - name: 档案最后更新时间
+    type: date
+    description: 提取 档案最后更新时间 的日期值，格式 YYYY-MM-DD
+  - name: 检测能效值
+    type: string
+    description: 提取 检测能效值 的文本值
+  - name: 欠发金额
+    type: number
+    description: 提取 欠发金额 的数值（含单位，如万元、吨等）
+  - name: 欠薪月份
+    type: string
+    description: 提取 欠薪月份 的文本值
+  - name: 欠薪金额
+    type: number
+    description: 提取 欠薪金额 的数值（含单位，如万元、吨等）
+  - name: 欠费状态
+    type: number
+    description: 提取 欠费状态 的数值（含单位，如万元、吨等）
+  - name: 欠费起始时间
+    type: date
+    description: 提取 欠费起始时间 的日期值，格式 YYYY-MM-DD
+  - name: 欠费金额
+    type: number
+    description: 提取 欠费金额 的数值（含单位，如万元、吨等）
+  - name: 次年退回金额
+    type: number
+    description: 提取 次年退回金额 的数值（含单位，如万元、吨等）
+  - name: 民营快递独自覆盖村数
+    type: string
+    description: 提取 民营快递独自覆盖村数 的文本值
+  - name: 水厕数量
+    type: number
+    description: 提取 水厕数量 的数值（含单位，如万元、吨等）
+  - name: 永久基本农田内建设面积
+    type: string
+    description: 提取 永久基本农田内建设面积 的文本值
+  - name: 永久基本农田占耕地比例
+    type: number
+    description: 提取 永久基本农田占耕地比例 的数值（含单位，如万元、吨等）
+  - name: 注册用户总数
+    type: string
+    description: 提取 注册用户总数 的文本值
+  - name: 活动名称
+    type: string
+    description: 提取 活动名称 的文本值
+  - name: 活动时间
+    type: date
+    description: 提取 活动时间 的日期值，格式 YYYY-MM-DD
+  - name: 活跃用户数
+    type: string
+    description: 提取 活跃用户数 的文本值
+  - name: 测试周期
+    type: string
+    description: 提取 测试周期 的文本值
+  - name: 涉及投标人
+    type: string
+    description: 提取 涉及投标人 的文本值
+  - name: 清理状态
+    type: boolean
+    description: 提取 清理状态 的布尔值（是/否）
+  - name: 滞后原因
+    type: string
+    description: 提取 滞后原因 的文本值
+  - name: 滞留起始月份
+    type: string
+    description: 提取 滞留起始月份 的文本值
+  - name: 滞销或损耗数量
+    type: number
+    description: 提取 滞销或损耗数量 的数值（含单位，如万元、吨等）
+  - name: 滞销比例
+    type: number
+    description: 提取 滞销比例 的数值（含单位，如万元、吨等）
+  - name: 满意度评分
+    type: string
+    description: 提取 满意度评分 的文本值
+  - name: 现状地类
+    type: string
+    description: 提取 现状地类 的文本值
+  - name: 现状面积
+    type: string
+    description: 提取 现状面积 的文本值
+  - name: 现金支付笔数
+    type: string
+    description: 提取 现金支付笔数 的文本值
+  - name: 现金金额占比
+    type: number
+    description: 提取 现金金额占比 的数值（含单位，如万元、吨等）
+  - name: 理赔申请笔数
+    type: string
+    description: 提取 理赔申请笔数 的文本值
+  - name: 理赔申请量
+    type: string
+    description: 提取 理赔申请量 的文本值
+  - name: 用户平均停电次数
+    type: string
+    description: 提取 用户平均停电次数 的文本值
+  - name: 用户数
+    type: string
+    description: 提取 用户数 的文本值
+  - name: 用户类型
+    type: string
+    description: 提取 用户类型 的文本值
+  - name: 用户编号
+    type: string
+    description: 提取 用户编号 的文本值
+  - name: 用水类型分类
+    type: string
+    description: 提取 用水类型分类 的文本值
+  - name: 用电类别
+    type: string
+    description: 提取 用电类别 的文本值
+  - name: 申报年度
+    type: date
+    description: 提取 申报年度 的日期值，格式 YYYY-MM-DD
+  - name: 申报空置截止日期
+    type: date
+    description: 提取 申报空置截止日期 的日期值，格式 YYYY-MM-DD
+  - name: 申报空置起始日期
+    type: date
+    description: 提取 申报空置起始日期 的日期值，格式 YYYY-MM-DD
+  - name: 申请企业数
+    type: string
+    description: 提取 申请企业数 的文本值
+  - name: 申请单位
+    type: string
+    description: 提取 申请单位 的文本值
+  - name: 申请数量
+    type: number
+    description: 提取 申请数量 的数值（含单位，如万元、吨等）
+  - name: 申请日期
+    type: date
+    description: 提取 申请日期 的日期值，格式 YYYY-MM-DD
+  - name: 申请用电容量
+    type: string
+    description: 提取 申请用电容量 的文本值
+  - name: 电压值
+    type: string
+    description: 提取 电压值 的文本值
+  - name: 电商交易月笔数
+    type: string
+    description: 提取 电商交易月笔数 的文本值
+  - name: 登录账号
+    type: string
+    description: 提取 登录账号 的文本值
+  - name: 登录频次
+    type: string
+    description: 提取 登录频次 的文本值
+  - name: 监测时间
+    type: date
+    description: 提取 监测时间 的日期值，格式 YYYY-MM-DD
+  - name: 监测点ID
+    type: string
+    description: 提取 监测点ID 的文本值
+  - name: 监测点位置
+    type: string
+    description: 提取 监测点位置 的文本值
+  - name: 盘活方式
+    type: string
+    description: 提取 盘活方式 的文本值
+  - name: 盘活率
+    type: string
+    description: 提取 盘活率 的文本值
+  - name: 目标回收率
+    type: string
+    description: 提取 目标回收率 的文本值
+  - name: 直排量
+    type: string
+    description: 提取 直排量 的文本值
+  - name: 直接支付比例
+    type: number
+    description: 提取 直接支付比例 的数值（含单位，如万元、吨等）
+  - name: 知识产权数量
+    type: number
+    description: 提取 知识产权数量 的数值（含单位，如万元、吨等）
+  - name: 种植作物名称
+    type: string
+    description: 提取 种植作物名称 的文本值
+  - name: 种植地块坐标
+    type: string
+    description: 提取 种植地块坐标 的文本值
+  - name: 种植面积
+    type: string
+    description: 提取 种植面积 的文本值
+  - name: 移交延迟天数
+    type: number
+    description: 提取 移交延迟天数 的数值（含单位，如万元、吨等）
+  - name: 移交日期
+    type: date
+    description: 提取 移交日期 的日期值，格式 YYYY-MM-DD
+  - name: 空缺人数
+    type: number
+    description: 提取 空缺人数 的数值（含单位，如万元、吨等）
+  - name: 空置率
+    type: string
+    description: 提取 空置率 的文本值
+  - name: 空置起始日期
+    type: date
+    description: 提取 空置起始日期 的日期值，格式 YYYY-MM-DD
+  - name: 空置起始月份
+    type: string
+    description: 提取 空置起始月份 的文本值
+  - name: 空置面积
+    type: string
+    description: 提取 空置面积 的文本值
+  - name: 站点ID
+    type: string
+    description: 提取 站点ID 的文本值
+  - name: 站点名称
+    type: string
+    description: 提取 站点名称 的文本值
+  - name: 站点数量
+    type: number
+    description: 提取 站点数量 的数值（含单位，如万元、吨等）
+  - name: 竣工日期
+    type: date
+    description: 提取 竣工日期 的日期值，格式 YYYY-MM-DD
+  - name: 竣工条数
+    type: string
+    description: 提取 竣工条数 的文本值
+  - name: 签到次数
+    type: string
+    description: 提取 签到次数 的文本值
+  - name: 管护人员数量
+    type: number
+    description: 提取 管护人员数量 的数值（含单位，如万元、吨等）
+  - name: 管网漏损率
+    type: string
+    description: 提取 管网漏损率 的文本值
+  - name: 粪污产生总量
+    type: string
+    description: 提取 粪污产生总量 的文本值
+  - name: 粪污产生量
+    type: string
+    description: 提取 粪污产生量 的文本值
+  - name: 粪污处理利用总量
+    type: string
+    description: 提取 粪污处理利用总量 的文本值
+  - name: 粪污处理方式
+    type: string
+    description: 提取 粪污处理方式 的文本值
+  - name: 累计周期学时
+    type: string
+    description: 提取 累计周期学时 的文本值
+  - name: 累计孵化企业数
+    type: string
+    description: 提取 累计孵化企业数 的文本值
+  - name: 累计完成量
+    type: string
+    description: 提取 累计完成量 的文本值
+  - name: 累计损失金额
+    type: number
+    description: 提取 累计损失金额 的数值（含单位，如万元、吨等）
+  - name: 累计未修天数
+    type: number
+    description: 提取 累计未修天数 的数值（含单位，如万元、吨等）
+  - name: 累计空置时长
+    type: string
+    description: 提取 累计空置时长 的文本值
+  - name: 累计结转金额
+    type: number
+    description: 提取 累计结转金额 的数值（含单位，如万元、吨等）
+  - name: 线路营收
+    type: string
+    description: 提取 线路营收 的文本值
+  - name: 线路长度
+    type: string
+    description: 提取 线路长度 的文本值
+  - name: 经纬度
+    type: string
+    description: 提取 经纬度 的文本值
+  - name: 经营状态
+    type: boolean
+    description: 提取 经营状态 的布尔值（是/否）
+  - name: 经营规模
+    type: string
+    description: 提取 经营规模 的文本值
+  - name: 结余金额
+    type: number
+    description: 提取 结余金额 的数值（含单位，如万元、吨等）
+  - name: 结算方式
+    type: string
+    description: 提取 结算方式 的文本值
+  - name: 结转年度
+    type: date
+    description: 提取 结转年度 的日期值，格式 YYYY-MM-DD
+  - name: 结转年限
+    type: string
+    description: 提取 结转年限 的文本值
+  - name: 结转项目名称
+    type: string
+    description: 提取 结转项目名称 的文本值
+  - name: 统计上报清洁取暖率
+    type: string
+    description: 提取 统计上报清洁取暖率 的文本值
+  - name: 统计年度
+    type: date
+    description: 提取 统计年度 的日期值，格式 YYYY-MM-DD
+  - name: 统计时段
+    type: string
+    description: 提取 统计时段 的文本值
+  - name: 统计期间
+    type: string
+    description: 提取 统计期间 的文本值
+  - name: 统计面积
+    type: string
+    description: 提取 统计面积 的文本值
+  - name: 统计面积-数量
+    type: number
+    description: 提取 统计面积-数量 的数值（含单位，如万元、吨等）
+  - name: 维修完成日期
+    type: date
+    description: 提取 维修完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 维护保养记录
+    type: string
+    description: 提取 维护保养记录 的文本值
+  - name: 综合利用量
+    type: string
+    description: 提取 综合利用量 的文本值
+  - name: 编制种类数
+    type: string
+    description: 提取 编制种类数 的文本值
+  - name: 缴款企业名称
+    type: number
+    description: 提取 缴款企业名称 的数值（含单位，如万元、吨等）
+  - name: 缴费户名
+    type: number
+    description: 提取 缴费户名 的数值（含单位，如万元、吨等）
+  - name: 缺口数量
+    type: number
+    description: 提取 缺口数量 的数值（含单位，如万元、吨等）
+  - name: 缺口量
+    type: string
+    description: 提取 缺口量 的文本值
+  - name: 缺课节次
+    type: string
+    description: 提取 缺课节次 的文本值
+  - name: 网点名称
+    type: string
+    description: 提取 网点名称 的文本值
+  - name: 网点类型
+    type: string
+    description: 提取 网点类型 的文本值
+  - name: 群众知晓率
+    type: string
+    description: 提取 群众知晓率 的文本值
+  - name: 考核周期
+    type: string
+    description: 提取 考核周期 的文本值
+  - name: 考核成绩
+    type: string
+    description: 提取 考核成绩 的文本值
+  - name: 职务
+    type: string
+    description: 提取 职务 的文本值
+  - name: 船号
+    type: string
+    description: 提取 船号 的文本值
+  - name: 节点任务完成时间
+    type: date
+    description: 提取 节点任务完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 节点类型
+    type: string
+    description: 提取 节点类型 的文本值
+  - name: 获得贷款企业数
+    type: number
+    description: 提取 获得贷款企业数 的数值（含单位，如万元、吨等）
+  - name: 获贷金额
+    type: number
+    description: 提取 获贷金额 的数值（含单位，如万元、吨等）
+  - name: 营业收入
+    type: number
+    description: 提取 营业收入 的数值（含单位，如万元、吨等）
+  - name: 董事会成员构成及席位
+    type: string
+    description: 提取 董事会成员构成及席位 的文本值
+  - name: 行业分类
+    type: string
+    description: 提取 行业分类 的文本值
+  - name: 行业名称
+    type: string
+    description: 提取 行业名称 的文本值
+  - name: 行业类别
+    type: string
+    description: 提取 行业类别 的文本值
+  - name: 行政村
+    type: string
+    description: 提取 行政村 的文本值
+  - name: 行政村名称
+    type: string
+    description: 提取 行政村名称 的文本值
+  - name: 行政村总数
+    type: string
+    description: 提取 行政村总数 的文本值
+  - name: 行政村是否通快递
+    type: boolean
+    description: 提取 行政村是否通快递 的布尔值（是/否）
+  - name: 补偿满意度
+    type: string
+    description: 提取 补偿满意度 的文本值
+  - name: 补助对象的经营规模
+    type: string
+    description: 提取 补助对象的经营规模 的文本值
+  - name: 补贴金额
+    type: number
+    description: 提取 补贴金额 的数值（含单位，如万元、吨等）
+  - name: 补贴项目名称
+    type: string
+    description: 提取 补贴项目名称 的文本值
+  - name: 表头字段
+    type: string
+    description: 提取 表头字段 的文本值
+  - name: 被否决投标人数量
+    type: number
+    description: 提取 被否决投标人数量 的数值（含单位，如万元、吨等）
+  - name: 覆盖率
+    type: string
+    description: 提取 覆盖率 的文本值
+  - name: 覆盖环节
+    type: string
+    description: 提取 覆盖环节 的文本值
+  - name: 覆盖范围
+    type: string
+    description: 提取 覆盖范围 的文本值
+  - name: 规划供水户数
+    type: string
+    description: 提取 规划供水户数 的文本值
+  - name: 规划用途
+    type: string
+    description: 提取 规划用途 的文本值
+  - name: 规定时限
+    type: string
+    description: 提取 规定时限 的文本值
+  - name: 计划人数上限
+    type: number
+    description: 提取 计划人数上限 的数值（含单位，如万元、吨等）
+  - name: 计划值
+    type: string
+    description: 提取 计划值 的文本值
+  - name: 计划天数上限
+    type: number
+    description: 提取 计划天数上限 的数值（含单位，如万元、吨等）
+  - name: 计划完成日期
+    type: date
+    description: 提取 计划完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 计划完成量
+    type: string
+    description: 提取 计划完成量 的文本值
+  - name: 计划预算上限
+    type: number
+    description: 提取 计划预算上限 的数值（含单位，如万元、吨等）
+  - name: 设备利用率
+    type: string
+    description: 提取 设备利用率 的文本值
+  - name: 设备原值
+    type: string
+    description: 提取 设备原值 的文本值
+  - name: 设备名称
+    type: string
+    description: 提取 设备名称 的文本值
+  - name: 设备清单
+    type: string
+    description: 提取 设备清单 的文本值
+  - name: 设备种类
+    type: string
+    description: 提取 设备种类 的文本值
+  - name: 设备类型
+    type: string
+    description: 提取 设备类型 的文本值
+  - name: 设备达标情况
+    type: string
+    description: 提取 设备达标情况 的文本值
+  - name: 设备运转小时数
+    type: string
+    description: 提取 设备运转小时数 的文本值
+  - name: 设备配置种类与数量
+    type: number
+    description: 提取 设备配置种类与数量 的数值（含单位，如万元、吨等）
+  - name: 设施编号
+    type: string
+    description: 提取 设施编号 的文本值
+  - name: 设施闲置率
+    type: string
+    description: 提取 设施闲置率 的文本值
+  - name: 设计产能
+    type: string
+    description: 提取 设计产能 的文本值
+  - name: 设计产能利用率
+    type: string
+    description: 提取 设计产能利用率 的文本值
+  - name: 设计使用小时数
+    type: string
+    description: 提取 设计使用小时数 的文本值
+  - name: 设计容量
+    type: string
+    description: 提取 设计容量 的文本值
+  - name: 访问次数
+    type: string
+    description: 提取 访问次数 的文本值
+  - name: 试点村庄数
+    type: string
+    description: 提取 试点村庄数 的文本值
+  - name: 贫困村与非贫困村差异率
+    type: string
+    description: 提取 贫困村与非贫困村差异率 的文本值
+  - name: 贷款主体类型
+    type: number
+    description: 提取 贷款主体类型 的数值（含单位，如万元、吨等）
+  - name: 贷款余额
+    type: number
+    description: 提取 贷款余额 的数值（含单位，如万元、吨等）
+  - name: 贷款利率
+    type: number
+    description: 提取 贷款利率 的数值（含单位，如万元、吨等）
+  - name: 贷款申请金额
+    type: number
+    description: 提取 贷款申请金额 的数值（含单位，如万元、吨等）
+  - name: 贷款笔数
+    type: number
+    description: 提取 贷款笔数 的数值（含单位，如万元、吨等）
+  - name: 贷款类型
+    type: number
+    description: 提取 贷款类型 的数值（含单位，如万元、吨等）
+  - name: 贷款金额
+    type: number
+    description: 提取 贷款金额 的数值（含单位，如万元、吨等）
+  - name: 贷款银行
+    type: number
+    description: 提取 贷款银行 的数值（含单位，如万元、吨等）
+  - name: 费用转出单位
+    type: number
+    description: 提取 费用转出单位 的数值（含单位，如万元、吨等）
+  - name: 资产周转率
+    type: string
+    description: 提取 资产周转率 的文本值
+  - name: 资产编号
+    type: string
+    description: 提取 资产编号 的文本值
+  - name: 资源下载量
+    type: string
+    description: 提取 资源下载量 的文本值
+  - name: 资源化利用率
+    type: string
+    description: 提取 资源化利用率 的文本值
+  - name: 资质状态
+    type: boolean
+    description: 提取 资质状态 的布尔值（是/否）
+  - name: 资金下达年度
+    type: date
+    description: 提取 资金下达年度 的日期值，格式 YYYY-MM-DD
+  - name: 资金使用率
+    type: string
+    description: 提取 资金使用率 的文本值
+  - name: 资金投入与达标改善关联度
+    type: string
+    description: 提取 资金投入与达标改善关联度 的文本值
+  - name: 资金拨付批次日期
+    type: date
+    description: 提取 资金拨付批次日期 的日期值，格式 YYYY-MM-DD
+  - name: 资金文号
+    type: string
+    description: 提取 资金文号 的文本值
+  - name: 资金来源
+    type: string
+    description: 提取 资金来源 的文本值
+  - name: 资金金额
+    type: number
+    description: 提取 资金金额 的数值（含单位，如万元、吨等）
+  - name: 资金项目名称
+    type: string
+    description: 提取 资金项目名称 的文本值
+  - name: 超出金额
+    type: number
+    description: 提取 超出金额 的数值（含单位，如万元、吨等）
+  - name: 超时未结量
+    type: string
+    description: 提取 超时未结量 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 转入单位
+    type: string
+    description: 提取 转入单位 的文本值
+  - name: 转化率
+    type: string
+    description: 提取 转化率 的文本值
+  - name: 转拨记录
+    type: string
+    description: 提取 转拨记录 的文本值
+  - name: 转移支付总额增长率
+    type: number
+    description: 提取 转移支付总额增长率 的数值（含单位，如万元、吨等）
+  - name: 载体总面积
+    type: string
+    description: 提取 载体总面积 的文本值
+  - name: 辖区实际回收率
+    type: string
+    description: 提取 辖区实际回收率 的文本值
+  - name: 辖区登记主体总数
+    type: string
+    description: 提取 辖区登记主体总数 的文本值
+  - name: 达标数量
+    type: number
+    description: 提取 达标数量 的数值（含单位，如万元、吨等）
+  - name: 达标状态
+    type: boolean
+    description: 提取 达标状态 的布尔值（是/否）
+  - name: 运输成本
+    type: string
+    description: 提取 运输成本 的文本值
+  - name: 连续空置月数
+    type: string
+    description: 提取 连续空置月数 的文本值
+  - name: 退还情况
+    type: string
+    description: 提取 退还情况 的文本值
+  - name: 逾期情况
+    type: string
+    description: 提取 逾期情况 的文本值
+  - name: 逾期时长
+    type: string
+    description: 提取 逾期时长 的文本值
+  - name: 邮政网点行政村覆盖率
+    type: string
+    description: 提取 邮政网点行政村覆盖率 的文本值
+  - name: 配置率
+    type: string
+    description: 提取 配置率 的文本值
+  - name: 采样点数量
+    type: number
+    description: 提取 采样点数量 的数值（含单位，如万元、吨等）
+  - name: 采纳数
+    type: string
+    description: 提取 采纳数 的文本值
+  - name: 采纳数量
+    type: number
+    description: 提取 采纳数量 的数值（含单位，如万元、吨等）
+  - name: 采纳率
+    type: string
+    description: 提取 采纳率 的文本值
+  - name: 采购金额
+    type: number
+    description: 提取 采购金额 的数值（含单位，如万元、吨等）
+  - name: 采集时间
+    type: date
+    description: 提取 采集时间 的日期值，格式 YYYY-MM-DD
+  - name: 重复停电率
+    type: string
+    description: 提取 重复停电率 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 金额覆盖率
+    type: number
+    description: 提取 金额覆盖率 的数值（含单位，如万元、吨等）
+  - name: 销售增长率
+    type: string
+    description: 提取 销售增长率 的文本值
+  - name: 销售量
+    type: string
+    description: 提取 销售量 的文本值
+  - name: 闲置原因
+    type: string
+    description: 提取 闲置原因 的文本值
+  - name: 闲置年限
+    type: string
+    description: 提取 闲置年限 的文本值
+  - name: 闲置时长
+    type: string
+    description: 提取 闲置时长 的文本值
+  - name: 闲置设备清单及原值
+    type: string
+    description: 提取 闲置设备清单及原值 的文本值
+  - name: 闲置起始时间
+    type: date
+    description: 提取 闲置起始时间 的日期值，格式 YYYY-MM-DD
+  - name: 陪同人员姓名
+    type: string
+    description: 提取 陪同人员姓名 的文本值
+  - name: 需求人群类别
+    type: string
+    description: 提取 需求人群类别 的文本值
+  - name: 需求满足率
+    type: string
+    description: 提取 需求满足率 的文本值
+  - name: 需求育种方向
+    type: string
+    description: 提取 需求育种方向 的文本值
+  - name: 面积
+    type: string
+    description: 提取 面积 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目总投资
+    type: string
+    description: 提取 项目总投资 的文本值
+  - name: 预估人数
+    type: number
+    description: 提取 预估人数 的数值（含单位，如万元、吨等）
+  - name: 首次拨付年度
+    type: date
+    description: 提取 首次拨付年度 的日期值，格式 YYYY-MM-DD
+  - name: 验收状态
+    type: boolean
+    description: 提取 验收状态 的布尔值（是/否）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 会议费结算方式统计表.现金金额占比 > 0 && (会议费结算方式统计表.现金金额占比 > 0.05 || 会议费报销明细表.金额 >= 1000)
+  description: 根据规定，会议费应使用银行转账或公务卡结算，禁止现金方式。凡存在现金结算且现金总额占总费用比例超过5%，或单笔现金支付达到1000元及以上，均构成违规。特殊情况下确需现金支付的应提供书面说明，若无合理说明则判定违规。
+  audit_item: 会议费预算编制和执行不规范，转嫁、摊派会议费
+  suspicion: 违规以现金方式结算会议费
+  regulation: "[\n  {\n    \"法规名称\": \"中央和国家机关会议费管理办法\",\n    \"法规文号\": \"财行〔2016〕214号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第三十一条\",\n    \"内容概述\": \"会议费支付，应当严格按照国库集中支付制度和公务卡管理制度的有关规定执行，以银行转账或公务卡方式结算，禁止以现金方式结算。\"\n  }\n]"
+- expression: (SUM(明细表.金额) / COUNT(统计表.人员身份信息) > 综合定额标准（元/人天）.综合定额标准（元/人天）) || (签到表.实际签到人数 > 培训通知.批准培训人数 * 1.1) || (租赁协议.最大容纳人数
+    < 签到表.实际签到人数)
+  description: 人均综合培训费超出管理制度规定的定额标准；或实际签到参训人数超过审批人数的10%以上；或培训场地最大容纳人数低于实际签到人数，三个条件满足其一即视为超标准或超人数违规。
+  audit_item: 向所属单位转嫁、摊派培训费，挪用、套取培训费
+  suspicion: 超标准、超人数举办培训
+  regulation: "[\n  {\n    \"法规名称\": \"中央和国家机关培训费管理办法\",\n    \"法规文号\": \"财行〔2016〕540号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第九条、第十条\",\n    \"内容概述\": \"培训费实行综合定额标准控制，分项核定、总额控制；组织培训的工作人员人数不得超过参训人员数量的10%。\"\n  }\n]"
+- expression: 明细表.金额 > 0 && (COALESCE(签到表.实际签到人数,0) < 统计表.人数 * 0.3 OR 核查表.异常特征标记（四要件缺失、笔迹雷同、场地矛盾等） == 1) && (明细表.收款方户名 !=
+    原始凭证.合同供应商 OR 明细表.收款方户名 LIKE '%个人%')
+  description: 培训项目有支出但实际签到人数严重不足（低于应参训人数的30%），或异常特征表标记为1（如通知、签到、日程、照片四要件缺失），且资金支付对象与合同供应商不一致或支付给个人账户，则高度疑为虚构培训套取资金。
+  audit_item: 向所属单位转嫁、摊派培训费，挪用、套取培训费
+  suspicion: 虚列培训费套取财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条第（一）项\",\n    \"内容概述\": \"以虚报、冒领等手段骗取财政资金的，责令改正，追回有关财政资金，对单位给予警告或者通报批评，对直接负责的主管人员和其他直接责任人员给予记大过处分。\"\n  }\n]"
+- expression: (单据.支付方式（转账/现金） = '现金' AND 单据.金额 > 管理制度.公务卡强制结算起点金额) OR (单据.收款方类型（对公/个人） = '个人' AND 单据.金额 > 对公支付起点 AND 无合同约定付个人)
+  description: 大额出国费用（如超过公务卡强制结算起点1000元或单位规定阈值）通过现金支付，或直接转账至个人账户而非服务提供方对公账户，均违反支付管理规定，存在资金被挪用或虚报风险。
+  audit_item: 因公出国（境）经费预算执行不合规
+  suspicion: 出国费用支付方式不合规
+  regulation: "[\n  {\n    \"法规名称\": \"公务卡强制结算目录\",\n    \"法规文号\": \"财库〔2011〕160号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"全文\",\n    \"内容概述\": \"预算单位因公出国（境）费用等大额支出，应当使用公务卡结算，不得使用现金支付，强制结算起点一般为1000元。\"\n  },\n  {\n    \"法规名称\": \"现金管理暂行条例\"\
+    ,\n    \"法规文号\": \"国务院令第12号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第六条\",\n    \"内容概述\": \"开户单位之间的经济往来，除按条例规定的范围可以使用现金外"
+- expression: 异常操作日志记录表.操作描述 CONTAINS ('投标人名单'、'导出报名表') && (访问时间 NOT BETWEEN '09:00:00' AND '18:00:00' || 操作人 NOT IN (可访问标底人员列表、授权人员账号及姓名.授权人员账号及姓名))
+  description: 检出非工作时间或非授权人员对投标人名单数据进行查看、导出的异常记录，符合条件的即为涉嫌泄露投标人名称、数量的高疑点行为。
+  audit_item: 招标人违法泄漏招标秘密
+  suspicion: 向他人透露潜在投标人名称及数量
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第五十二条\",\n    \"内容概述\": \"招标人向他人透露已获取招标文件的潜在投标人的名称、数量或者可能影响公平竞争的有关招标投标的其他情况的，或者泄露标底的，给予警告，可以并处一万元以上十万元以下的罚款；对单位直接负责的主管人员和其他直接责任人员依法给予处分；构成犯罪的，依法追究刑事责任。\"\
+    \n  }\n]"
+- expression: 涉及服务不及时、无人照护的投诉内容及次数、投诉人名称、投诉事由（乱收费/乱收保证金）、涉事部门、关于推诿扯皮的投诉内容.投诉类型 = '信息泄露' AND 涉及服务不及时、无人照护的投诉内容及次数、投诉人名称、投诉事由（乱收费/乱收保证金）、涉事部门、关于推诿扯皮的投诉内容.处理结果
+    = '成立'
+  description: 若投诉统计中明确存在信息泄露类投诉且经查属实，即可判定为招标人向特定投标人泄露应当保密的招标信息。如能获得技术方案相似度数据，可补充‘中标人技术方案与招标人内部资料相似度>90%’作为辅助判定。
+  audit_item: 招标人非法限制投标人竞争
+  suspicion: 招标人向特定投标人泄露招标信息
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十二条\",\n    \"内容概述\": \"招标人不得向他人透露已获取招标文件的潜在投标人的名称、数量以及可能影响公平竞争的有关招标投标的其他情况。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\"\
+    ,\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四十一条\",\n    \"内容概述\": \"禁止招标人与投标人串通投标，包括招标人"
+- expression: COUNT(DISTINCT 投标保证金缴纳情况统计表.投标保证金比例) > 1
+  description: 若不同投标人实际缴纳保证金的金额比例不一致（如本地企业5%，外地企业10%），统计表中出现两个及以上不同比例，即构成歧视待遇。
+  audit_item: 招标人非法限制投标人竞争
+  suspicion: 对投标人实行差别化保证金待遇
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法实施条例\",\n    \"法规文号\": \"国务院令第613号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第二十六条\",\n    \"内容概述\": \"招标人在招标文件中要求投标人提交投标保证金的，投标保证金不得超过招标项目估算价的2%。……不得挪用投标保证金。法律并未授权歧视性设置不同比例。\"\n  },\n \
+    \ {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第十八条\",\n    \"\
+    内容概述\": \"招"
+- expression: (公告.业绩要求 / 限价文件.招标控制价金额 > 2) || (INSTR(公告.资格条件（资质、业绩金额、注册资本、地域要求、认证要求）,'本地')>0 || INSTR(公告.资格条件（资质、业绩金额、注册资本、地域要求、认证要求）,'本市')>0
+    || INSTR(公告.资格条件（资质、业绩金额、注册资本、地域要求、认证要求）,'本省')>0) || (INSTR(公告.资格条件（资质、业绩金额、注册资本、地域要求、认证要求）,'特定行业协会')>0)
+  description: 判定规则：1. 业绩合同金额门槛超过招标控制价2倍以上，构成明显过高要求；2. 资格条件中包含地域关键词（本地、本市、本省）即构成地域歧视；3. 要求特定行业协会认证等非通用行业认证，指向个别企业。任一条件满足即触发违规疑点。
+  audit_item: 招标人非法限制投标人竞争
+  suspicion: 以不合理的条件限制或排斥潜在投标人
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十八条\",\n    \"内容概述\": \"招标人不得以不合理的条件限制或者排斥潜在投标人，不得对潜在投标人实行歧视待遇。\"\n  }\n]"
+- expression: COUNT(DISTINCT(统计表.各投标人保证金缴纳金额 / 对比表.投标总报价)) > 1 && 招标文件保证金比例统一
+  description: 同一标段内，各投标人实际缴纳保证金的比例（保证金金额/投标报价）应一致；若出现不同比例，且招标文件规定了统一比例，即存在差别对待，构成歧视待遇。差异超过2个百分点为严重违规。
+  audit_item: 招标人非法限制投标人竞争
+  suspicion: 对潜在投标人实行歧视待遇
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十八条\",\n    \"内容概述\": \"招标人不得以不合理的条件限制或者排斥潜在投标人，不得对潜在投标人实行歧视待遇。\"\n  }\n]"
+- expression: (统计表.借款余额 > 0) AND (借款合同.审批环节缺失 == TRUE OR 借款合同.审批层级 < 政府常务会议) AND (借款合同.借款对象性质 != '预算单位') AND (行对账单.资金来源于财政国库或专户
+    == TRUE)
+  description: 当存在未清偿借款，且借款审批程序不完整（如无政府常务会议决议），借款对象为非预算单位企业或个人，且资金来源为财政性资金时，判定为违规。许可阈值：审批文件缺失或借款对象非预算单位即直接触发疑点。
+  audit_item: 挤占挪用套取财政资金
+  suspicion: 违规对外出借财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"主席令第十二号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五十九条\"\
+    ,\n    \"内容概述\": \"各级政府不得向非预算单位出借财政资金。\"\n  },\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n \
+    \   \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"财政收入执收单位及其工作人员……隐瞒应当上缴的财政收入，截留代收的财政收入，其他不缴或者少缴财政收入的行为……\"\
+    \n  }"
+- expression: (对比表.预算标识='未纳入' OR 统计表.采购金额 > 0) && 采购合同及验收文件.合同金额 > 0
+  description: 通过实际采购执行对比表的预算标识字段直接筛选无预算项目，或从未纳入预算采购项目统计表中存在记录，结合采购合同确认实际发生，即判定为无预算采购。
+  audit_item: 政府采购预算编制和实施不规范
+  suspicion: 未纳入政府采购预算而实施采购
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府采购法\",\n    \"法规文号\": \"中华人民共和国主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第六条、第三十三条\",\n    \"内容概述\": \"政府采购应当严格按照批准的预算执行，未编制预算的项目不得实施采购。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"\
+    法规文号\": \"中华人民共和国主席令第12号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五十七条\",\n    \"内容概述\": \"各级政府、各部门、各单位应当对预算支出情况开展绩效评价，无预"
+- expression: 统计表.收款协会 IN 行业协会商会名单 AND (统计表.拨款依据 LIKE '%行业管理%' OR 预算文件.预算科目 IN ('行政事业经费', '专项业务费', '行业管理专项经费')) AND 统计表.拨款金额
+    > 0 AND (服务合同 IS NULL OR 服务合同.服务内容 NOT IN 政府购买服务目录)
+  description: 财政部门直接向协会拨款，拨款用途或预算科目涉及行政管理、行业管理，且无规范的政府购买服务合同或服务不在目录内，即属违规。金额阈值>0。
+  audit_item: 未按规定与行业协会商会脱钩
+  suspicion: 违规为行业协会商会安排财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"行业协会商会与行政机关脱钩总体方案\",\n    \"法规文号\": \"中办发〔2015〕39号\",\n    \"效力级别\": \"党内法规/规范性文件\"\
+    ,\n    \"条款号\": \"第三条配套政策（三）财政支持\",\n    \"内容概述\": \"财政部门不得向行业协会商会安排财政资金。确需委托其提供的服务，可通过政府购买服务方式实施。\"\n  }\n]"
+- expression: (会议名称实际举办地点是否定点场所标注统计表.实际举办地点 NOT IN (定点场所名称地址协议有效期合作采购方式清单.定点场所名称)) && (报销会议名称费用发生日期金额发票号码按人结算费用总额报销人员名单人均费用报销总金额报销金额日期开票方名称场地地址费用金额报销凭证.场地地址
+    != 定点场所名称地址协议有效期合作采购方式清单.地址) && (报销会议名称费用发生日期金额发票号码按人结算费用总额报销人员名单人均费用报销总金额报销金额日期开票方名称场地地址费用金额报销凭证.开票方名称 NOT IN (定点场所名称地址协议有效期合作采购方式清单.定点场所名称))
+  description: 将实际会议地点与定点场所清单进行比对。若会议地点不在定点清单内，且场地租赁发票的开票方或地址与定点场所不匹配，则判定为在非定点场所举办会议。同时关注无场地发票但存在大额餐饮等关联消费的异常情况。
+  audit_item: 未按规定举办会议
+  suspicion: 在非定点场所举办会议
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关厉行节约反对浪费条例\",\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"党内法规\",\n    \"\
+    条款号\": \"第三十一条\",\n    \"内容概述\": \"会议召开场所实行政府定点管理。党政机关会议应当到定点饭店召开，按照协议价格结算费用。\"\n  },\n  {\n    \"法规名称\": \"中央和国家机关会议费管理办法\"\
+    ,\n    \"法规文号\": \"财行〔2016〕214号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"各单位召开会议应当到定点会议场所召开，按照"
+- expression: 车辆费用汇总表.实际使用单位 = '本单位' AND (费用分摊协议.协议存在性 = '否' OR 费用凭证.付款单位 = '下属单位' AND 费用凭证.费用摘要 LIKE '%车辆%' AND 费用分摊统计表.费用转出单位
+    = '下属单位' AND 费用分摊统计表.转入单位 = '本单位' AND 费用分摊统计表.分摊金额 > 0)
+  description: 下属单位账上列支的车辆费用，实际用于本单位，且不存在合规分摊协议，或者本单位收到下属单位转入的车辆费用分摊，表明存在费用转嫁。
+  audit_item: 未按规定编制和执行公务用车购置和运行费预算
+  suspicion: 向外单位或下属单位转嫁公务用车费用
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\"\
+    : \"第十五条\",\n    \"内容概述\": \"党政机关不得以任何方式换用、借用、占用下属单位或者其他单位的车辆，不得接受企事业单位和个人赠送的车辆，不得向下属单位摊派、报销公务用车费用。\"\n  },\n  {\n   \
+    \ \"法规名称\": \"中华人民共和国预算法实施条例\",\n    \"法规文号\": \"国务院令第729号（2020年修订）\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第七十条\"\
+    ,\n  "
+- expression: (其他.一般性转移支付金额/其他.转移支付总额)<0.6 || (统计表.转移支付总额增长率-其他.财政支出总额)>0.15 && (统计表.一般性转移支付占比<-0.05)
+  description: 条件一：一般性转移支付占转移支付总额比重低于60%的硬性要求（依据国发〔2014〕71号），触发表明结构失衡；条件二：任一类专项转移支付增长率超过同期地方财政支出增长率15个百分点以上，且一般性转移支付占比出现负向变动5%以上，反映规模与趋势背离政策导向。两者满足任一即生成疑点。
+  audit_item: 财政转移支付体系建设不健全
+  suspicion: 转移支付规模结构趋势不合理
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于改革和完善中央对地方转移支付制度的意见\",\n    \"法规文号\": \"国发〔2014〕71号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"三、（一）\",\n    \"内容概述\": \"增加一般性转移支付规模和比例，逐步将一般性转移支付占比提高到60%以上；清理、整合、规范专项转移支付，严控新增项目和资金规模。\"\n  },\n\
+    \  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第22号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第十六条\",\n\
+    \    \"内容"
+- expression: ({配总表.分配金额} > {管理办法.资金上限}) || ({配总表.项目类别} NOT IN ({管理办法.补助范围}) && {配总表.分配金额} > 0) || ({统计表.超出金额} > 0)
+  description: 实际分配金额超出管理办法明确的同类别资金上限即为超标准；项目类别不属于管理办法划定的补助范围却获得资金即为超范围；超标准分配情况统计表中有记录直接判定违规。
+  audit_item: 财政转移支付预算分配不科学
+  suspicion: 超标准或超范围分配资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员擅自提高支出标准、扩大支出范围的，责令改正，追回资金，并予处罚。\"\n  }\n]"
+- expression: 统计表.实有人数 > 统计表.核定编制数
+  description: 单位实际在岗人数超过机构编制部门核定的编制总数，即触发超编使用疑点，差值大于0均属违规。
+  audit_item: 超编制使用工作人员或配备领导干部
+  suspicion: 擅自超编使用工作人员
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第二十八条\",\n    \"内容概述\": \"地方各级人民政府行政机构应当严格执行机构编制管理规定，不得在核定的编制外使用工作人员。\"\n  }\n]"
+- expression: 存在 信息表.编制类型 NOT IN (核定编制总数.批准编制种类)
+  description: 若在岗人员所登记的编制类型不在编办正式批准的编制种类范围内，则认定为擅自增加编制种类。
+  audit_item: 超编制使用工作人员或配备领导干部
+  suspicion: 擅自增加编制种类
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第二十六条\",\n    \"内容概述\": \"机构编制管理机关应当按照编制的不同类别和使用范围审批编制。地方各级人民政府行政机构应当使用行政编制，事业单位应当使用事业编制，不得混用、挤占、挪用或者自行设定其他类别的编制。\"\
+    \n  }\n]"
+- expression: SUM(统计表.实有人数 WHERE 编制类型='行政编制') > 编制文件.行政编制总额
+  description: 单位实际占用的行政编制人员总数超过上级核定的行政编制总额，即构成突破编制总额的违规行为。
+  audit_item: 超编制使用工作人员或配备领导干部
+  suspicion: 突破行政编制总额增加编制
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第二十七条\",\n    \"内容概述\": \"机构编制管理机关应当根据工作需要和精干的原则，在规定的编制限额内，及时审批编制。地方各级人民政府行政机构不得超出编制限额使用工作人员。\"\n  }\n]"
+- expression: 存在 信息表.编制归属单位 != 信息表.现工作单位 && (专项台账.批准手续 || 专项台账.借调期限 > 规范期限)
+  description: 人员编制在基层单位但实际在上级单位工作，且存在无审批借调或超出规定借调期限的，即构成挤占挪用基层编制。规范期限可参照有关借调文件规定，通常为6个月或1年。
+  audit_item: 超编制使用工作人员或配备领导干部
+  suspicion: 挤占挪用基层编制
+  regulation: "[\n  {\n    \"法规名称\": \"地方各级人民政府机构设置和编制管理条例\",\n    \"法规文号\": \"国务院令第486号\",\n    \"效力级别\": \"行政法规\",\n   \
+    \ \"条款号\": \"第二十八条\",\n    \"内容概述\": \"地方各级人民政府行政机构不得混用、挤占、挪用编制。\"\n  }\n]"

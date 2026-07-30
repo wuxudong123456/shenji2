@@ -1,0 +1,127 @@
+name: audit/规章制度类/安置方案
+type: model
+description: 从规章制度类类文档（安置方案）中提取结构化元数据。涵盖字段如：住房保障措施类型、安置方式、对接产业、方案内容、渔民ID、补偿标准、转产方向、迁出范围。文档范围包括：拆迁安置方案、渔民转产安置方案、转产安置方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 安置方案
+  member_count: 1
+  member_details:
+  - 拆迁安置方案
+  - 渔民转产安置方案
+  - 转产安置方案
+output:
+  fields:
+  - name: 住房保障措施类型
+    type: string
+    description: 提取 住房保障措施类型 的文本值
+  - name: 安置方式
+    type: string
+    description: 提取 安置方式 的文本值
+  - name: 对接产业
+    type: string
+    description: 提取 对接产业 的文本值
+  - name: 方案内容
+    type: string
+    description: 提取 方案内容 的文本值
+  - name: 渔民ID
+    type: string
+    description: 提取 渔民ID 的文本值
+  - name: 补偿标准
+    type: string
+    description: 提取 补偿标准 的文本值
+  - name: 转产方向
+    type: string
+    description: 提取 转产方向 的文本值
+  - name: 迁出范围
+    type: string
+    description: 提取 迁出范围 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (统计表.实际迁出户数 / 统计表.户籍总户数 = 1) && (会议记录.会议表决结果 = '不同意' || 安置方案.补偿标准 < 安置方案.补偿标准 * 0.8)
+  description: 整村迁出比例达到100%且缺乏有效民主决策记录，或补偿显著偏低，均构成以保护为名的强制迁出违规。
+  audit_item: 违反传统村落保护相关政策的行为
+  suspicion: 以保护传统村落名义违规整村迁出村民
+  regulation: "[\n  {\n    \"法规名称\": \"《关于切实加强中国传统村落保护的指导意见》\",\n    \"法规文号\": \"建村〔2014〕61号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"四、保护措施（四）\",\n    \"内容概述\": \"严禁以保护为名将原住民全部迁出，实施“空村”式保护。\"\n  }\n]"
+- expression: 渔民名单.住房安全等级 IN ('C级','D级') && (LEFT JOIN 申请 ON 渔民名单.渔民ID = 申请.申请人ID && (申请.审批状态!='已审批' || 申请.改造完成日期 IS NULL))
+  description: 筛选退捕渔民资格审核表中住房安全等级为C级或D级（即房屋存在安全隐患）的记录，并与危房改造审批记录比对，若该渔民未在任何一次危房改造审批中通过审批，或已审批但无完工日期，表明未实际享受危房改造政策。
+  audit_item: 退捕渔民安置不符合规定
+  suspicion: 符合条件的退捕渔民未享受危房改造政策
+  regulation: "[\n  {\n    \"法规名称\": \"住房和城乡建设部、财政部、国务院扶贫办关于决战决胜脱贫攻坚 进一步做好农村危房改造工作的通知\",\n    \"法规文号\": \"建村〔2019〕83号\",\n\
+    \    \"效力级别\": \"部门规章\",\n    \"条款号\": \"一、二\",\n    \"内容概述\": \"明确危房改造对象认定标准，要求精准认定危房改造对象，及时将符合条件的建档立卡贫困户等4类重点对象纳入改造范围，实现应改尽改。退捕渔民中符合条件的应同步纳入。\"\
+    \n  }\n]"
+- expression: 渔民ID、方案内容、转产方向、对接产业.方案内容 NOT CONTAINS ANY('水产养殖','休闲渔业','物流运输','农产品加工','生态管护','电商销售') && (渔民ID、方案内容、转产方向、对接产业.就业状态
+    != '已就业')
+  description: 检查每个渔民的转产安置方案内容，如果方案中未包含任何与本地水乡特色、退捕渔民适配的产业关键词，并且该渔民目前处于未就业状态，则判定为方案缺乏针对性。关键词可根据地方实际产业目录调整。
+  audit_item: 退捕渔民安置不符合规定
+  suspicion: 渔民转产安置方案缺乏针对性
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于切实做好长江流域禁捕有关工作的通知\",\n    \"法规文号\": \"国办发明电〔2020〕21号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"四、精准帮扶退捕渔民转产转业\",\n    \"内容概述\": \"要求根据退捕渔民的年龄、技能、意愿，结合当地资源禀赋和产业基础，分类施策，制定有针对性的转产转业安置方案。\"\n  }\n]"

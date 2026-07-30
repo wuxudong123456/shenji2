@@ -1,0 +1,160 @@
+name: audit/登记台账类/支出台账
+type: model
+description: 从登记台账类类文档（支出台账）中提取结构化元数据。涵盖字段如：供应商名称、合同编号、支付日期、支付金额、支出事由、支出日期、支出金额、收款单位。文档范围包括：大额资金支出台账、楼堂馆所建设资金支出台账、研发支出台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 合同
+- 采购
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 支出台账
+  member_count: 1
+  member_details:
+  - 大额资金支出台账
+  - 楼堂馆所建设资金支出台账
+  - 研发支出台账
+output:
+  fields:
+  - name: 供应商名称
+    type: string
+    description: 提取 供应商名称 的文本值
+  - name: 合同编号
+    type: string
+    description: 提取 合同编号 的文本值
+  - name: 支付日期
+    type: date
+    description: 提取 支付日期 的日期值，格式 YYYY-MM-DD
+  - name: 支付金额
+    type: number
+    description: 提取 支付金额 的数值（含单位，如万元、吨等）
+  - name: 支出事由
+    type: number
+    description: 提取 支出事由 的数值（含单位，如万元、吨等）
+  - name: 支出日期
+    type: date
+    description: 提取 支出日期 的日期值，格式 YYYY-MM-DD
+  - name: 支出金额
+    type: number
+    description: 提取 支出金额 的数值（含单位，如万元、吨等）
+  - name: 收款单位
+    type: number
+    description: 提取 收款单位 的数值（含单位，如万元、吨等）
+  - name: 紧急采购标记
+    type: string
+    description: 提取 紧急采购标记 的文本值
+  - name: 资本化节点
+    type: string
+    description: 提取 资本化节点 的文本值
+  - name: 资本化金额
+    type: number
+    description: 提取 资本化金额 的数值（含单位，如万元、吨等）
+  - name: 资金来源科目
+    type: string
+    description: 提取 资金来源科目 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (资产类别、原值、开始摊销日期、年限、月摊销额.年限 < 资产清单.法律保护期限 且 无合理技术更新依据) || (资产类别、原值、开始摊销日期、年限、月摊销额.开始摊销日期 < 达到预定用途日期) || (支出台账.资本化金额对应的无形资产未在摊销表中出现)
+  description: 摊销年限短于法律年限且无依据，缩短年限多摊费用；开始摊销时间早于可使用状态提前摊销；已形成无形资产却未摊销，均属错误。
+  audit_item: 未按规定确认成本费用
+  suspicion: 无形资产摊销不正确
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第6号——无形资产\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十七条、第十八条\",\n    \"内容概述\": \"使用寿命有限的无形资产，其应摊销金额应在使用寿命内系统合理摊销；企业应至少每年终了对使用寿命进行复核。\"\n  }\n]"
+- expression: SUM(大额资金支出台账.支出金额) FILTER BY (供应商名称相同 AND 支出日期相差 < 60天) > 三重一大决策事项.单笔上会阈值
+  description: 对相同供应商在短期内（如60天内）多笔支出金额进行汇总，若累计超过单位规定的“三重一大”大额资金上会标准，且该供应商相关事项未列入会议议题清单，则判定存在拆分规避嫌疑；拆分笔数≥3笔且累计金额超出阈值20%以上为高风险。
+  audit_item: 重大决策不健全方面的问题
+  suspicion: 化整为零拆分合同规避三重一大决策
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步推进国有企业贯彻落实“三重一大”决策制度的意见\",\n    \"法规文号\": \"中办发〔2010〕17号\",\n    \"效力级别\": \"\
+    制度文件\",\n    \"条款号\": \"二、主要范围\",\n    \"内容概述\": \"重大决策事项、重要人事任免事项、重大项目安排事项、大额度资金运作事项必须经集体讨论作出决定，不得故意拆分规避。\"\n  }\n]"
+- expression: (大额资金支出台账.事由 LIKE '%紧急%' AND 大额资金支出台账.金额 > 三重一大制度.紧急采购授权限额) AND (董事会会议记录.对该事项的补议记录 IS NULL)
+  description: 当一笔大额支出被标注为紧急采购，但金额超出制度规定的紧急授权上限，且事后没有在最近一次董事会或办公会上补议记录，则认定为滥用紧急条款越权决策；紧急采购金额占比同类支出超过30%为系统性规避风险。
+  audit_item: 重大决策不健全方面的问题
+  suspicion: 滥用紧急采购名义规避决策程序
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步推进国有企业贯彻落实“三重一大”决策制度的意见\",\n    \"法规文号\": \"中办发〔2010〕17号\",\n    \"效力级别\": \"\
+    制度文件\",\n    \"条款号\": \"三、基本程序\",\n    \"内容概述\": \"决策事项应当提前告知所有参与决策人员，不得以任何理由规避集体决策；特殊紧急情况不能召开会议的，应当事后及时追认。\"\n  }\n]"
+- expression: (管理费用支出明细表.支出用途摘要.包含('购建'|'楼'|'堂'|'馆'|'所'|'装修'|'基建'|'维修') || 固定资产购置登记表.资产名称.包含('楼'|'房屋') || 大额资金支付审批记录表.支付用途.包含('工程'|'建设'))
+    && (管理费用支出明细表.收款方名称 == 楼堂馆所建设资金支出台账.收款单位 || 银行账户流水.收款方名称 == 楼堂馆所建设资金支出台账.收款单位 || 管理费用支出明细表.支出金额 == 楼堂馆所建设资金支出台账.支付金额)
+    && 楼堂馆所建设项目立项批复文件.批复资金来源 != '管理费用'
+  description: 该表达式筛查三组违规特征：1）管理费支出账目摘要或资产登记中疑似存在基础建设或购房支出；2）管理费的资金流向（收款方、账户、金额）与楼堂馆所建设台账的记录发生重合；3）同时，建设项目批复的合法资金来源中明确不包含管理费用。同时满足以上条件，则高度疑似挪用管理费用违规购建楼堂馆所。
+  audit_item: 住房公积金管理费用支出不合规
+  suspicion: 管理费用违规用于购建楼堂馆所
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金财务管理办法\",\n    \"法规文号\": \"财综字〔1999〕59号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十一条\",\n    \"内容概述\": \"住房公积金管理机构的经费，不得用于楼堂馆所等基本建设支出。\"\n  },\n  {\n    \"法规名称\": \"党政机关办公用房管理办法\",\n    \"法规文号\"\
+    : \"中办发〔2017〕70号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第十条\",\n    \"内容概述\": \"严禁将业务专项经费用于建设、购置办公用房。\"\n  }\n]"

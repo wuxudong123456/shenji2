@@ -1,0 +1,108 @@
+name: audit/清单名册类/对象名单
+type: model
+description: 从清单名册类类文档（对象名单）中提取结构化元数据。涵盖字段如：保障状态、受益人数、最后复核日期、缴费日期、缴费项目、身份证号、金额。文档范围包括：受益对象名单、社会救助对象名单（表1）、缴费对象名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 对象名单
+  member_count: 1
+  member_details:
+  - 受益对象名单
+  - 社会救助对象名单（表1）
+  - 缴费对象名单
+output:
+  fields:
+  - name: 保障状态
+    type: boolean
+    description: 提取 保障状态 的布尔值（是/否）
+  - name: 受益人数
+    type: number
+    description: 提取 受益人数 的数值（含单位，如万元、吨等）
+  - name: 最后复核日期
+    type: date
+    description: 提取 最后复核日期 的日期值，格式 YYYY-MM-DD
+  - name: 缴费日期
+    type: date
+    description: 提取 缴费日期 的日期值，格式 YYYY-MM-DD
+  - name: 缴费项目
+    type: number
+    description: 提取 缴费项目 的数值（含单位，如万元、吨等）
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 收费项目明细台账.收费项目名称 IN ['房屋转让手续费','地质成果资料费','河道工程修建维护管理费','河道采砂管理费','测绘成果成图资料费'] && 收费项目明细台账.收费日期 >= '对应政策取消生效日期'
+  description: 根据财税〔2017〕20号、发改价格〔2018〕370号等文件，上述收费项目已被明令取消或停征。表达式以收费项目名称匹配国家公布取消清单，且收费日期晚于或等于政策生效日期，即可判定为违规征收。具体取消生效日期视不同项目分别设定，如房屋转让手续费自2017年4月1日起取消。需注意地方试点或特殊豁免情形应单独排除。
+  audit_item: 违规收费-违规征收国家已取消或停征的行政事业性收费
+  suspicion: 违规征收国家已取消或停征的行政事业性收费
+  regulation: "[\n  {\n    \"法规名称\": \"财政部 国家发展改革委关于清理规范一批行政事业性收费有关政策的通知\",\n    \"法规文号\": \"财税〔2017〕20号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"全文，尤其附件《取消或停征的行政事业性收费项目》\",\n    \"内容概述\": \"自2017年4月1日起，取消或停征41项中央设立的行政事业性收费，将房屋转让手续费、地质成果资料费等列为取消项目，相关部门和单位不得以任何理由拖延或拒绝执行，不得以其他名目变相继续收费。\"\
+    \n  }\n]"
+- expression: (统计表.结转年限 >= 2) && (说明文件.是否报备 != '是' || 实施方案.项目状态（完成/停滞/撤销） == '停滞' || 对比表.执行率 < 50%)
+  description: 结转两年以上且未报财政部门备案，或对应项目已停滞，或预算执行率低于50%但资金继续闲置而未盘活，判定为严重闲置违规。不同条件组合反映资金未有效利用的多类情形。
+  audit_item: 就业补助资金滞留闲置
+  suspicion: 就业补助资金结余或结转两年以上未使用
+  regulation: "[\n  {\n    \"法规名称\": \"财政部 人力资源社会保障部关于印发《就业补助资金管理办法》的通知\",\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"第二十四条\",\n    \"内容概述\": \"各级财政、人社部门应建立就业补助资金结余结转清理机制，对结余资金和连续两年未使用完的结转资金，要按规定盘活使用，不按规定使用结余结转资金的，财政部门将相应扣减其下一年度就业补助资金。\"\
+    \n  }\n]"

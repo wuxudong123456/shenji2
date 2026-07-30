@@ -1,0 +1,841 @@
+name: audit/规章制度类/实施方案
+type: model
+description: 从规章制度类类文档（实施方案）中提取结构化元数据。涵盖字段如：三通工程建设完成时限、两工程协同推进的顶层设计要求、产业布局指标、产值目标分解、任务分解区域分布、任务属性说明、任务清单、保护目标。文档范围包括：上级实施方案、两金压控工作实施方案、乡村教师信息化培训计划与实施方案、乡村教师生活补助政策实施方案、乡村绿化美化专项规划实施方案、产业项目实施方案、传统村落保护整体实施方案、传统村落保护项目实施方案、信息进村入户工程实施方案、修复实施方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 台账
+- 工程
+- 明细
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 实施方案
+  member_count: 1
+  member_details:
+  - 上级实施方案
+  - 两金压控工作实施方案
+  - 乡村教师信息化培训计划与实施方案
+  - 乡村教师生活补助政策实施方案
+  - 乡村绿化美化专项规划实施方案
+  - 产业项目实施方案
+  - 传统村落保护整体实施方案
+  - 传统村落保护项目实施方案
+  - 信息进村入户工程实施方案
+  - 修复实施方案
+  - 农业社会化服务实施方案
+  - 农产品市场网络建设实施方案
+  - 农村厕所改造项目实施方案
+  - 农村生活垃圾治理年度实施方案
+  - 农村电子商务系统建设实施方案
+  - 农村电网改造升级实施方案
+  - 农村集体产权制度改革实施方案
+  - 农村黑臭水体治理实施方案
+  - 各部门项目实施方案
+  - 国有企业混合所有制改革实施方案
+  - 地方政府或农业农村部门发布的农机购置补贴实施方案
+  - 地方政府排查整治实施方案
+  - 地级市传统村落保护整体实施方案（含审批文件）
+  - 培训计划实施方案
+  - 增殖放流活动实施方案
+  - 大班额专项化解实施方案
+  - 实施方案
+  - 审计实施方案
+  - 工业园区供电配套建设专项实施方案
+  - 差异化帮扶措施实施方案
+  - 市县两级任务分解实施方案
+  - 市级乡村学校薄弱环节改善实施方案
+  - 改厕实施方案
+  - 改厕项目实施方案
+  - 政府清洁取暖改造实施方案
+  - 教育医疗机构改革实施方案
+  - 整县推进实施方案
+  - 新型职业农民培育实施方案
+  - 村村通客车实施方案
+  - 棚改项目实施方案
+  - 活动实施方案
+  - 涉农资金统筹整合实施方案
+  - 渔民职业技能培训实施方案
+  - 灌区建设实施方案
+  - 电子商务进农村与信息进村入户工程实施方案
+  - 省级乡村学校薄弱环节改善实施方案
+  - 省级农业社会化服务绩效评价实施方案
+  - 种质资源普查与收集任务实施方案
+  - 综合电压合格率实施方案
+  - 耕作层土壤剥离实施方案
+  - 职业技能培训相关实施方案
+  - 订单定向培养政策实施方案
+  - 试点县工作实施方案
+  - 调查实施方案
+  - 送戏曲（电影）下乡活动实施方案
+  - 长江全面禁捕工作的实施方案
+  - 长江禁捕分阶段实施方案
+  - 项目实施方案
+  - 项目建设实施方案
+  - 黑土地保护实施方案
+  - 黑土地保护治理实施方案
+  - 黑臭水体治理实施方案
+output:
+  fields:
+  - name: 三通工程建设完成时限
+    type: string
+    description: 提取 三通工程建设完成时限 的文本值
+  - name: 两工程协同推进的顶层设计要求
+    type: string
+    description: 提取 两工程协同推进的顶层设计要求 的文本值
+  - name: 产业布局指标
+    type: string
+    description: 提取 产业布局指标 的文本值
+  - name: 产值目标分解
+    type: string
+    description: 提取 产值目标分解 的文本值
+  - name: 任务分解区域分布
+    type: string
+    description: 提取 任务分解区域分布 的文本值
+  - name: 任务属性说明
+    type: string
+    description: 提取 任务属性说明 的文本值
+  - name: 任务清单
+    type: string
+    description: 提取 任务清单 的文本值
+  - name: 保护目标
+    type: string
+    description: 提取 保护目标 的文本值
+  - name: 保护策略
+    type: string
+    description: 提取 保护策略 的文本值
+  - name: 保护范围
+    type: string
+    description: 提取 保护范围 的文本值
+  - name: 保护面积总目标
+    type: string
+    description: 提取 保护面积总目标 的文本值
+  - name: 公司治理改革任务
+    type: string
+    description: 提取 公司治理改革任务 的文本值
+  - name: 具体实施内容
+    type: string
+    description: 提取 具体实施内容 的文本值
+  - name: 具体措施及责任人
+    type: string
+    description: 提取 具体措施及责任人 的文本值
+  - name: 具体目标
+    type: string
+    description: 提取 具体目标 的文本值
+  - name: 农村地区分配比例要求
+    type: number
+    description: 提取 农村地区分配比例要求 的数值（含单位，如万元、吨等）
+  - name: 分区管控
+    type: string
+    description: 提取 分区管控 的文本值
+  - name: 分布位置
+    type: string
+    description: 提取 分布位置 的文本值
+  - name: 分年度任务
+    type: date
+    description: 提取 分年度任务 的日期值，格式 YYYY-MM-DD
+  - name: 剥离厚度
+    type: string
+    description: 提取 剥离厚度 的文本值
+  - name: 剥离面积
+    type: string
+    description: 提取 剥离面积 的文本值
+  - name: 协调机制要求
+    type: string
+    description: 提取 协调机制要求 的文本值
+  - name: 原址保护要求
+    type: string
+    description: 提取 原址保护要求 的文本值
+  - name: 发放周期
+    type: string
+    description: 提取 发放周期 的文本值
+  - name: 受益范围
+    type: string
+    description: 提取 受益范围 的文本值
+  - name: 台账要求
+    type: string
+    description: 提取 台账要求 的文本值
+  - name: 各类考核指标明细
+    type: string
+    description: 提取 各类考核指标明细 的文本值
+  - name: 各阶段任务里程碑
+    type: string
+    description: 提取 各阶段任务里程碑 的文本值
+  - name: 各阶段禁捕时限要求
+    type: string
+    description: 提取 各阶段禁捕时限要求 的文本值
+  - name: 各项指标及权重
+    type: string
+    description: 提取 各项指标及权重 的文本值
+  - name: 合作协议中约定的保底收购量或销售额
+    type: string
+    description: 提取 合作协议中约定的保底收购量或销售额 的文本值
+  - name: 后期利用方向
+    type: string
+    description: 提取 后期利用方向 的文本值
+  - name: 周边污染源排查情况
+    type: string
+    description: 提取 周边污染源排查情况 的文本值
+  - name: 园区名称
+    type: string
+    description: 提取 园区名称 的文本值
+  - name: 垃圾分类减量阶段目标
+    type: string
+    description: 提取 垃圾分类减量阶段目标 的文本值
+  - name: 培训内容
+    type: string
+    description: 提取 培训内容 的文本值
+  - name: 培训内容大纲
+    type: string
+    description: 提取 培训内容大纲 的文本值
+  - name: 培训内容清单
+    type: string
+    description: 提取 培训内容清单 的文本值
+  - name: 培训目标人数
+    type: number
+    description: 提取 培训目标人数 的数值（含单位，如万元、吨等）
+  - name: 培训目标行业
+    type: string
+    description: 提取 培训目标行业 的文本值
+  - name: 培训计划期次
+    type: string
+    description: 提取 培训计划期次 的文本值
+  - name: 存储场地坐标
+    type: string
+    description: 提取 存储场地坐标 的文本值
+  - name: 完成时限
+    type: string
+    description: 提取 完成时限 的文本值
+  - name: 完成标准
+    type: string
+    description: 提取 完成标准 的文本值
+  - name: 实施乡镇
+    type: string
+    description: 提取 实施乡镇 的文本值
+  - name: 实施方案文号及年度
+    type: date
+    description: 提取 实施方案文号及年度 的日期值，格式 YYYY-MM-DD
+  - name: 实施时间
+    type: date
+    description: 提取 实施时间 的日期值，格式 YYYY-MM-DD
+  - name: 实施期限
+    type: string
+    description: 提取 实施期限 的文本值
+  - name: 实际投运时间
+    type: date
+    description: 提取 实际投运时间 的日期值，格式 YYYY-MM-DD
+  - name: 实际竣工状态
+    type: boolean
+    description: 提取 实际竣工状态 的布尔值（是/否）
+  - name: 审批日期
+    type: date
+    description: 提取 审批日期 的日期值，格式 YYYY-MM-DD
+  - name: 审计目标
+    type: string
+    description: 提取 审计目标 的文本值
+  - name: 审计范围描述
+    type: string
+    description: 提取 审计范围描述 的文本值
+  - name: 对服务组织遴选的程序性要求
+    type: string
+    description: 提取 对服务组织遴选的程序性要求 的文本值
+  - name: 对薄弱环节服务面积或资金的最低占比要求
+    type: string
+    description: 提取 对薄弱环节服务面积或资金的最低占比要求 的文本值
+  - name: 对薄弱环节的定义
+    type: string
+    description: 提取 对薄弱环节的定义 的文本值
+  - name: 差异化措施模板
+    type: string
+    description: 提取 差异化措施模板 的文本值
+  - name: 年度化解目标
+    type: date
+    description: 提取 年度化解目标 的日期值，格式 YYYY-MM-DD
+  - name: 年度压降目标
+    type: date
+    description: 提取 年度压降目标 的日期值，格式 YYYY-MM-DD
+  - name: 年度清运目标
+    type: date
+    description: 提取 年度清运目标 的日期值，格式 YYYY-MM-DD
+  - name: 建设内容
+    type: string
+    description: 提取 建设内容 的文本值
+  - name: 建设标准
+    type: string
+    description: 提取 建设标准 的文本值
+  - name: 建设目标
+    type: string
+    description: 提取 建设目标 的文本值
+  - name: 待治理水体名录
+    type: string
+    description: 提取 待治理水体名录 的文本值
+  - name: 技术培训计划
+    type: string
+    description: 提取 技术培训计划 的文本值
+  - name: 技术标准
+    type: string
+    description: 提取 技术标准 的文本值
+  - name: 技术模式要求
+    type: string
+    description: 提取 技术模式要求 的文本值
+  - name: 技术路线
+    type: string
+    description: 提取 技术路线 的文本值
+  - name: 投资概算
+    type: string
+    description: 提取 投资概算 的文本值
+  - name: 投资金额
+    type: number
+    description: 提取 投资金额 的数值（含单位，如万元、吨等）
+  - name: 指标修订说明
+    type: string
+    description: 提取 指标修订说明 的文本值
+  - name: 指标定义
+    type: string
+    description: 提取 指标定义 的文本值
+  - name: 排查范围
+    type: string
+    description: 提取 排查范围 的文本值
+  - name: 接口设计
+    type: string
+    description: 提取 接口设计 的文本值
+  - name: 推荐但非限定供应商名录
+    type: string
+    description: 提取 推荐但非限定供应商名录 的文本值
+  - name: 改造对象描述
+    type: string
+    description: 提取 改造对象描述 的文本值
+  - name: 改造方式
+    type: string
+    description: 提取 改造方式 的文本值
+  - name: 改造范围
+    type: string
+    description: 提取 改造范围 的文本值
+  - name: 改革任务清单
+    type: string
+    description: 提取 改革任务清单 的文本值
+  - name: 改革完成时间节点
+    type: date
+    description: 提取 改革完成时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 改革目标
+    type: string
+    description: 提取 改革目标 的文本值
+  - name: 改革目标面积
+    type: string
+    description: 提取 改革目标面积 的文本值
+  - name: 放流物种名称
+    type: string
+    description: 提取 放流物种名称 的文本值
+  - name: 数据共享要求
+    type: string
+    description: 提取 数据共享要求 的文本值
+  - name: 整合时间表
+    type: date
+    description: 提取 整合时间表 的日期值，格式 YYYY-MM-DD
+  - name: 整合资金来源清单
+    type: string
+    description: 提取 整合资金来源清单 的文本值
+  - name: 新增班级-分流学生目标
+    type: string
+    description: 提取 新增班级-分流学生目标 的文本值
+  - name: 方案中协同条款
+    type: number
+    description: 提取 方案中协同条款 的数值（含单位，如万元、吨等）
+  - name: 方案中明确的时间节点
+    type: date
+    description: 提取 方案中明确的时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 方案中是否包含运维保障章节
+    type: boolean
+    description: 提取 方案中是否包含运维保障章节 的布尔值（是/否）
+  - name: 方案印发日期
+    type: date
+    description: 提取 方案印发日期 的日期值，格式 YYYY-MM-DD
+  - name: 方案发布时间
+    type: date
+    description: 提取 方案发布时间 的日期值，格式 YYYY-MM-DD
+  - name: 方案提交日期
+    type: date
+    description: 提取 方案提交日期 的日期值，格式 YYYY-MM-DD
+  - name: 方案文本完整性
+    type: string
+    description: 提取 方案文本完整性 的文本值
+  - name: 方案编制日期
+    type: date
+    description: 提取 方案编制日期 的日期值，格式 YYYY-MM-DD
+  - name: 方案覆盖养殖场户类型
+    type: string
+    description: 提取 方案覆盖养殖场户类型 的文本值
+  - name: 时间节点
+    type: date
+    description: 提取 时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 服务类型划分
+    type: string
+    description: 提取 服务类型划分 的文本值
+  - name: 核心技术措施
+    type: string
+    description: 提取 核心技术措施 的文本值
+  - name: 每村每月最低放映频次
+    type: string
+    description: 提取 每村每月最低放映频次 的文本值
+  - name: 治理时限
+    type: string
+    description: 提取 治理时限 的文本值
+  - name: 治理期限
+    type: string
+    description: 提取 治理期限 的文本值
+  - name: 治理范围
+    type: string
+    description: 提取 治理范围 的文本值
+  - name: 灌区投资区域
+    type: string
+    description: 提取 灌区投资区域 的文本值
+  - name: 版本号
+    type: string
+    description: 提取 版本号 的文本值
+  - name: 牵头部门规定
+    type: string
+    description: 提取 牵头部门规定 的文本值
+  - name: 特殊季节避开要求
+    type: string
+    description: 提取 特殊季节避开要求 的文本值
+  - name: 班额控制上限标准
+    type: string
+    description: 提取 班额控制上限标准 的文本值
+  - name: 用地范围
+    type: string
+    description: 提取 用地范围 的文本值
+  - name: 电压合格率计算规则
+    type: string
+    description: 提取 电压合格率计算规则 的文本值
+  - name: 监测点布设标准
+    type: string
+    description: 提取 监测点布设标准 的文本值
+  - name: 监督机制
+    type: string
+    description: 提取 监督机制 的文本值
+  - name: 禁止直接施用新鲜粪污的规定
+    type: string
+    description: 提取 禁止直接施用新鲜粪污的规定 的文本值
+  - name: 立项的整改工程项目
+    type: string
+    description: 提取 立项的整改工程项目 的文本值
+  - name: 站点共建表述
+    type: string
+    description: 提取 站点共建表述 的文本值
+  - name: 站点配置要求
+    type: string
+    description: 提取 站点配置要求 的文本值
+  - name: 签订市县名称
+    type: string
+    description: 提取 签订市县名称 的文本值
+  - name: 类型
+    type: string
+    description: 提取 类型 的文本值
+  - name: 粪污资源化利用要求
+    type: string
+    description: 提取 粪污资源化利用要求 的文本值
+  - name: 细化任务量
+    type: string
+    description: 提取 细化任务量 的文本值
+  - name: 经营性资产改革时限要求
+    type: string
+    description: 提取 经营性资产改革时限要求 的文本值
+  - name: 经费预算
+    type: number
+    description: 提取 经费预算 的数值（含单位，如万元、吨等）
+  - name: 编制状态
+    type: boolean
+    description: 提取 编制状态 的布尔值（是/否）
+  - name: 考核方式
+    type: string
+    description: 提取 考核方式 的文本值
+  - name: 考核期目标清洁取暖率
+    type: string
+    description: 提取 考核期目标清洁取暖率 的文本值
+  - name: 股权结构调整目标
+    type: string
+    description: 提取 股权结构调整目标 的文本值
+  - name: 补助标准
+    type: string
+    description: 提取 补助标准 的文本值
+  - name: 补贴机具种类范围
+    type: string
+    description: 提取 补贴机具种类范围 的文本值
+  - name: 补贴标准
+    type: string
+    description: 提取 补贴标准 的文本值
+  - name: 要求覆盖的行政村名单
+    type: string
+    description: 提取 要求覆盖的行政村名单 的文本值
+  - name: 覆盖村落名录
+    type: string
+    description: 提取 覆盖村落名录 的文本值
+  - name: 规划任务清单及计划完工日期
+    type: date
+    description: 提取 规划任务清单及计划完工日期 的日期值，格式 YYYY-MM-DD
+  - name: 规划双回路电源要求
+    type: string
+    description: 提取 规划双回路电源要求 的文本值
+  - name: 规划的绿化项目清单及坐标
+    type: string
+    description: 提取 规划的绿化项目清单及坐标 的文本值
+  - name: 规定发放时限
+    type: string
+    description: 提取 规定发放时限 的文本值
+  - name: 计划产出成果
+    type: string
+    description: 提取 计划产出成果 的文本值
+  - name: 计划剥离量
+    type: string
+    description: 提取 计划剥离量 的文本值
+  - name: 计划化解时间节点
+    type: date
+    description: 提取 计划化解时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 计划参训人数
+    type: number
+    description: 提取 计划参训人数 的数值（含单位，如万元、吨等）
+  - name: 计划土壤改良措施及面积
+    type: string
+    description: 提取 计划土壤改良措施及面积 的文本值
+  - name: 计划培训人数
+    type: number
+    description: 提取 计划培训人数 的数值（含单位，如万元、吨等）
+  - name: 计划培训场次
+    type: string
+    description: 提取 计划培训场次 的文本值
+  - name: 计划完成时间
+    type: date
+    description: 提取 计划完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 计划完成时间节点
+    type: date
+    description: 提取 计划完成时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 计划建设内容
+    type: string
+    description: 提取 计划建设内容 的文本值
+  - name: 计划开工-竣工时间
+    type: date
+    description: 提取 计划开工-竣工时间 的日期值，格式 YYYY-MM-DD
+  - name: 计划投资额
+    type: string
+    description: 提取 计划投资额 的文本值
+  - name: 计划收集品种数量
+    type: number
+    description: 提取 计划收集品种数量 的数值（含单位，如万元、吨等）
+  - name: 计划改造总户数
+    type: string
+    description: 提取 计划改造总户数 的文本值
+  - name: 计划时间节点
+    type: date
+    description: 提取 计划时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 计划竣工时间
+    type: date
+    description: 提取 计划竣工时间 的日期值，格式 YYYY-MM-DD
+  - name: 计划综合利用率目标
+    type: string
+    description: 提取 计划综合利用率目标 的文本值
+  - name: 设备技术标准
+    type: string
+    description: 提取 设备技术标准 的文本值
+  - name: 设备配置清单
+    type: string
+    description: 提取 设备配置清单 的文本值
+  - name: 设施设计使用率标准
+    type: string
+    description: 提取 设施设计使用率标准 的文本值
+  - name: 设计标准值
+    type: string
+    description: 提取 设计标准值 的文本值
+  - name: 评价启动日期
+    type: date
+    description: 提取 评价启动日期 的日期值，格式 YYYY-MM-DD
+  - name: 评价完成截止日期
+    type: date
+    description: 提取 评价完成截止日期 的日期值，格式 YYYY-MM-DD
+  - name: 评分标准
+    type: string
+    description: 提取 评分标准 的文本值
+  - name: 课程设置规范
+    type: string
+    description: 提取 课程设置规范 的文本值
+  - name: 调查单位
+    type: string
+    description: 提取 调查单位 的文本值
+  - name: 调查年份
+    type: string
+    description: 提取 调查年份 的文本值
+  - name: 调查指标
+    type: string
+    description: 提取 调查指标 的文本值
+  - name: 调查范围
+    type: string
+    description: 提取 调查范围 的文本值
+  - name: 责任主体
+    type: string
+    description: 提取 责任主体 的文本值
+  - name: 责任单位
+    type: string
+    description: 提取 责任单位 的文本值
+  - name: 责任部门
+    type: string
+    description: 提取 责任部门 的文本值
+  - name: 贴近群众需求的选片标准要求
+    type: string
+    description: 提取 贴近群众需求的选片标准要求 的文本值
+  - name: 资源分配原则
+    type: string
+    description: 提取 资源分配原则 的文本值
+  - name: 资源整合内容
+    type: string
+    description: 提取 资源整合内容 的文本值
+  - name: 资金分解
+    type: string
+    description: 提取 资金分解 的文本值
+  - name: 资金计划
+    type: string
+    description: 提取 资金计划 的文本值
+  - name: 资金调整用途
+    type: string
+    description: 提取 资金调整用途 的文本值
+  - name: 资金配套
+    type: string
+    description: 提取 资金配套 的文本值
+  - name: 资金配套比例或来源要求
+    type: number
+    description: 提取 资金配套比例或来源要求 的数值（含单位，如万元、吨等）
+  - name: 进度计划
+    type: string
+    description: 提取 进度计划 的文本值
+  - name: 选址标准
+    type: string
+    description: 提取 选址标准 的文本值
+  - name: 里程碑节点
+    type: string
+    description: 提取 里程碑节点 的文本值
+  - name: 重点对象认定标准
+    type: string
+    description: 提取 重点对象认定标准 的文本值
+  - name: 重点排查范围
+    type: string
+    description: 提取 重点排查范围 的文本值
+  - name: 防渗技术要求
+    type: string
+    description: 提取 防渗技术要求 的文本值
+  - name: 阶段目标完成时限
+    type: string
+    description: 提取 阶段目标完成时限 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目地点
+    type: string
+    description: 提取 项目地点 的文本值
+  - name: 项目状态
+    type: boolean
+    description: 提取 项目状态 的布尔值（是/否）
+  - name: 预算资金
+    type: number
+    description: 提取 预算资金 的数值（含单位，如万元、吨等）
+  - name: 风险等级分类标准
+    type: string
+    description: 提取 风险等级分类标准 的文本值
+  - name: 风险评估内容
+    type: string
+    description: 提取 风险评估内容 的文本值
+  - name: 验收标准
+    type: string
+    description: 提取 验收标准 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (内部管理制度.责任主体描述 != 上级实施方案.牵头部门规定) || (内部管理制度.跨部门协调机制条款 == null && 上级实施方案.协调机制要求 != null) || (ABS(内部管理制度.资金保障条款
+    - 上级实施方案.资金配套比例或来源要求) > 0)
+  description: 检查内部制度的实施机制是否与上位要求脱节。表达式包含三个判定逻辑，任一满足即认为存在疑点：1.内部制度指定的责任主体与上级文件明确要求的牵头部门不一致；2.上级要求建立跨部门协调机制，但内部制度中缺失相关内容；3.内部制度规定的资金配套比例与上级要求存在差异。
+  audit_item: 内控管理制度符合性审计
+  suspicion: 内部制度实施保障机制缺失
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步加强财政预算执行管理的通知\",\n    \"法规文号\": \"财预〔2014〕85号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"相关条款\",\n    \"内容概述\": \"强化预算执行主体责任，建立健全工作协调机制，确保各项政策落实到位。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国预算法实施条例\"\
+    ,\n    \"法规文号\": \"国务院令第729号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第五条\",\n    \"内容概述\": \"各部门、各单位是本部门、本单位的预算执行主体，负责本部门、本单"
+- expression: (统计表.实际完成进度 < 方案中明确的时间节点 || 统计表.实际股权结构 != 方案中明确的时间节点.股权结构调整目标) && (统计表.董事会成员构成及席位 == 0 || 统计表.实际股权结构 < 10%)
+  description: 该表达式筛查两类情况：1. 实际进度落后于计划节点或股权结构未达方案要求；2. 在股权已完成变更的情况下，若非国有股东在董事会无席位或表决权比例极低（<10%），则判定为“混而不改”，即资本混合但治理机制未实现融合。
+  audit_item: 国有企业重点改革任务推进方面存在的问题
+  suspicion: 混合所有制改革推进缓慢或“混而不改”
+  regulation: "[\n  {\n    \"法规名称\": \"关于国有企业发展混合所有制经济的意见\",\n    \"法规文号\": \"国发〔2015〕54号\",\n    \"效力级别\": \"行政法规\",\n  \
+    \  \"条款号\": \"第四条\",\n    \"内容概述\": \"规范混合所有制企业法人治理结构，混合所有制企业要建立健全现代企业制度，明晰产权，同股同权，依法保护各类股东权益。\"\n  }\n]"
+- expression: 剥离企业办社会职能进度跟踪表.计划完成率 < 100% && (当前日期 - 改革完成时间节点责任部门.改革完成时间节点 > 0) && 医疗机构执业许可证.登记性质 仍为 '企业办'
+  description: 进度跟踪表中教育医疗机构改革完成率未达100%，且当前日期已超过实施方案规定的最晚完成时间，同时医疗机构执业许可证仍登记为企业办性质，表明改革滞后或未完成。
+  audit_item: 国有经济布局优化和结构调整方面存在的问题
+  suspicion: 教育医疗机构改革滞缓或未按方案推进
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于印发加快剥离国有企业办社会职能和解决历史遗留问题工作方案的通知\",\n    \"法规文号\": \"国发〔2016〕19号\",\n    \"效力级别\"\
+    : \"行政法规\",\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"加快剥离国有企业办社会职能，针对教育、医疗机构等实行分类改革，确保2020年年底前基本完成。\"\n  }\n]"
+- expression: (账龄区间.账龄区间（如3年以上） > 30%) || (存货分类周转统计表.存货周转天数 > 0.2) || (年度压降目标（金额或占比）.年度压降目标（金额或占比） > 期末两金总额.期末两金总额)
+  description: 触发条件一：3年以上长账龄应收账款占全部应收账款的比例超过30%，反映压控失效。触发条件二：存货周转天数同比增加超过20%，反映存货积压加剧。触发条件三：实际压降金额未达到企业自己设定的年度压控目标。以上任一条件触发皆表示两金压控未达标。
+  audit_item: 未按规定落实降成本政策措施
+  suspicion: 应收账款和存货“两金”压控未达标
+  regulation: "[\n  {\n    \"法规名称\": \"中央企业降杠杆减负债指导意见\",\n    \"法规文号\": \"国资发财管[2017]119号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"-\",\n    \"内容概述\": \"要求中央企业加强应收账款和存货管理，严控“两金”占用，加快资金周转，提升资产运营效率。\"\n  },\n  {\n    \"法规名称\": \"降低实体经济企业成本工作方案\"\
+    ,\n    \"法规文号\": \"国发〔2016〕48号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"-\",\n    \"内容概述\": \"政府引导企业加强资金管理，通过加快应收账款回收、"
+- expression: (报告正文.审计评价段文字内容 CONTAINS '认真贯彻落实' && 底稿.问题数量 > 5) || (报告正文.审计评价段文字内容 CONTAINS '较好' || 意见书.对审计评价的异议内容)
+  description: 当报告中评价使用正面定性词但审计发现问题较多（例如超过5个），或评价与被审计单位反馈意见明显矛盾时，判定评价可能失当。
+  audit_item: 审计文书校验
+  suspicion: 审计评价超出审计范围或自相矛盾
+  regulation: "[\n  {\n    \"法规名称\": \"国家审计准则\",\n    \"法规文号\": \"审计署令第8号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第一百一十二条\"\
+    ,\n    \"内容概述\": \"审计评价应当基于审计获取的审计证据，坚持实事求是，不得超越审计职权和范围，做到客观公正、审慎恰当。\"\n  }\n]"
+- expression: 竣工验收报告.实际完成建设面积 < 立项批复文件.批复建设面积 || 竣工验收报告.实际完成高效节水灌溉面积 < 立项批复文件.批复高效节水灌溉面积
+  description: 项目实际完成的核心量化指标（如建设面积、高效节水灌溉面积）低于批复的目标任务，即构成未完成建设目标。通常以验收报告为准，若实际完成面积低于批复面积超过1%或未达到高效节水灌溉考核要求，判定为违规。
+  audit_item: 不符合高标准农田建设相关规定的行为
+  suspicion: 未完成高标准农田建设目标任务
+  regulation: "[\n  {\n    \"法规名称\": \"农田建设项目管理办法\",\n    \"法规文号\": \"农业农村部令2019年第4号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十八条\",\n    \"内容概述\": \"项目建设单位应当严格按照项目实施计划组织项目实施，按期完成任务。\"\n  }\n]"
+- expression: 项目建设实施方案.计划土壤改良措施及面积 > 0 && 土壤改良工程验收报告.实际完成改良面积 == 0 || 土壤改良工程验收报告.实测有机质含量等指标 < 项目建设实施方案.地力提升指标目标值
+  description: 实施方案明确要求实施土壤改良，但验收报告显示面积为零或地力指标实测值未达到目标且未整改，即认定未有效实施地力提升工程。目标值与实测值的偏差以主要指标（如有机质含量）为准。
+  audit_item: 不符合高标准农田建设相关规定的行为
+  suspicion: 未实施土壤改良等地力提升工程
+  regulation: "[\n  {\n    \"法规名称\": \"高标准农田建设质量管理办法（试行）\",\n    \"法规文号\": \"农建发〔2021〕1号\",\n    \"效力级别\": \"规范性文件\",\n  \
+    \  \"条款号\": \"第十三条\",\n    \"内容概述\": \"耕地地力提升措施应符合国家有关标准要求，不得擅自降低地力提升标准。\"\n  }\n]"
+- expression: (质量检测报告.检测指标名称 = '道路厚度' AND 质量检测报告.实测值 < 质量检测报告.设计标准值) || (质量检测报告.检测指标名称 = '混凝土强度' AND 质量检测报告.实测值 < 质量检测报告.设计标准值)
+    || (质量检测报告.检测指标名称 = '灌溉保证率' AND 质量检测报告.实测值 < 质量检测报告.设计标准值)
+  description: 工程质量核心指标任意一项实测值低于设计要求，且监理整改记录未显示已完成整改或整改验收不合格，即判定为质量不达标。涉及道路、水利等关键设施。
+  audit_item: 不符合高标准农田建设相关规定的行为
+  suspicion: 建设标准低、质量不达标
+  regulation: "[\n  {\n    \"法规名称\": \"高标准农田建设质量管理办法（试行）\",\n    \"法规文号\": \"农建发〔2021〕1号\",\n    \"效力级别\": \"规范性文件\",\n  \
+    \  \"条款号\": \"第二十一条\",\n    \"内容概述\": \"工程质量未达到设计要求和合同约定标准的，项目法人应当要求施工单位返工处理，并承担相应责任。\"\n  }\n]"
+- expression: 三通工程项目进度表（含完成时间、验收状态）.实际完成时间 IS NULL || 三通工程项目进度表（含完成时间、验收状态）.实际完成时间 > 三通工程项目进度表（含完成时间、验收状态）.计划完成时间 || 三通工程项目进度表（含完成时间、验收状态）.验收状态
+    = '未通过' || LENGTH(薄弱学校改善项目验收报告.整改问题) > 0
+  description: 项目进度表中未填写实际完成时间、实际完成时间晚于方案规定时限、验收结论为不合格或存在逾期未整改问题，均判定为未完成三通工程建设。
+  audit_item: 乡村学校薄弱环节改善不符合相关规定
+  suspicion: 未按期完成三通工程建设
+  regulation: "[\n  {\n    \"法规名称\": \"教育部 国家发展改革委 财政部关于深入推进义务教育薄弱环节改善与能力提升工作的意见\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"无\",\n    \"内容概述\": \"要求各地按照规划时间表完成信息化基础设施建设，实现宽带网络校校通、优质资源班班通、网络学习空间人人通，确保所有项目学校达到标准要求。\"\n \
+    \ }\n]"
+- expression: (COUNT(CASE WHEN 订单定向医学生分配去向登记表.单位层级 = '县级以下' THEN 1 END) / COUNT(订单定向医学生分配去向登记表.毕业生姓名)) * 100 < 80
+  description: 若当年度订单定向毕业生分配到县级以下农村基层医疗卫生机构的比例低于80%，即判定为政策未倾斜，阈值可依据各省实施方案调整。
+  audit_item: 乡镇卫生院、村卫生室布局和标准化建设不合规
+  suspicion: 订单定向医学生分配未向农村基层倾斜
+  regulation: "[\n  {\n    \"法规名称\": \"关于做好农村订单定向免费培养医学生就业安置和履约管理工作的通知\",\n    \"法规文号\": \"国卫科教发〔2019〕56号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"二、切实做好就业安置工作\",\n    \"内容概述\": \"订单定向医学生毕业后应按照入学前签署的定向就业协议，到协议约定的农村基层医疗卫生机构服务；各地要将定向生就业安置与基层卫生人才补充同步推进，确保人尽其用。\"\
+    \n  }\n]"
+- expression: 保护任务完成进度跟踪表.实际完成面积 < 年度黑土地保护任务分解表.计划面积
+  description: 将进度跟踪表按区域或年度汇总的实际完成面积与任务分解表中对应分区的计划面积累加值进行比对，当实际完成面积小于计划面积时，触发疑点，完成率低于100%即判定为面积任务未完成，偏差越大问题越严重。
+  audit_item: 任务目标未完成
+  suspicion: 黑土地保护面积任务未完成
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"中华人民共和国主席令第103号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第二十一条\",\n    \"内容概述\": \"县级以上人民政府应当将黑土地保护纳入国民经济和社会发展规划，安排资金，确保黑土地面积不减、质量不降，生态功能不退化。\"\n  }\n]"
+- expression: (设备采购供应商清单.采购占比 = 100% AND 设备采购供应商清单.是否用户自选 = '否') OR (设备采购供应商清单.采购占比 = 100% AND 用户投诉工单数据库.内容 包含 '强制购买') OR
+    (电力设施供应商合作协议.排他性约定 包含 '必须向乙方采购') OR (设备采购单价 > 市场均价 * 1.3)
+  description: 判定逻辑：任一条件满足即视为违规。1.某一区域（如一个乡镇）内所有农户新装或改造设备采购均来自同一供应商且无用户自主选择记录；2.用户投诉工单中出现强制消费描述经核实属实；3.合作协议中订有不公平排他条款，限制用户从其他渠道购买；4.指定设备单价明显高于同期市场均价30%以上。
+  audit_item: 供电服务不合规
+  suspicion: 强制农户购买指定厂家设备
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反垄断法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十七条\",\n    \"内容概述\": \"禁止具有市场支配地位的经营者没有正当理由，限定交易相对人只能与其进行交易或者只能与其指定的经营者进行交易。\"\n  },\n  {\n    \"法规名称\": \"优化营商环境条例\"\
+    ,\n    \"法规文号\": \"国务院令第722号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十六条\",\n    \"内容概述\": \"任何单位和个人不得强制或者变相强制市场主体接受中介服务、"
+- expression: (同一馈线年故障停电次数 > 6) AND (投诉工单.同区域停电投诉 > 3 AND 投诉工单.处理结果 ≠ '已彻底解决') OR (电压监测点.低电压占比 > 5% AND 该区域无对应改造项目记录 ) OR
+    (改造方案.项目实际竣工日期 IS NULL 且 计划竣工日期已过去180天以上)
+  description: 判定：1.某馈线年故障停电次数超过6次，且该区域已有3次以上投诉且未显示“已彻底解决”，视为整治不到位；2.某监测点月低电压时间占比超过5%，且未在改造方案中发现相匹配的整改项目；3.已列入改造计划的项目逾期半年以上仍未竣工。上述任一满足即触发。
+  audit_item: 供电服务不合规
+  suspicion: 频繁停电与低电压整改不力
+  regulation: "[\n  {\n    \"法规名称\": \"供电监管办法\",\n    \"法规文号\": \"国家能源局令第1号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十三条\"\
+    ,\n    \"内容概述\": \"供电企业应当对用户投诉的低电压、频繁停电等电能质量问题及时核查、处理，并采取措施予以解决。\"\n  },\n  {\n    \"法规名称\": \"农村电网改造升级管理办法\",\n    \"\
+    法规文号\": \"发改能源规〔2020〕641号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十四条\",\n    \"内容概述\": \"项目单位应按规定进度完成改造升级任务，加强工程管理，确"
+- expression: 村级信息服务站建设清单.面积 < 20 || 村级信息服务站选址审批文件.批复同意地址 != 村级信息服务站建设清单.地址 || (村级信息服务站建设清单.电脑数量 < 1 || 村级信息服务站建设清单.显示屏数量
+    < 1)
+  description: 服务站面积小于标准面积（如低于20㎡），或实际建设地址与批复地址不一致（含擅自变更选址），或未配备规定设备如电脑、显示屏，视为选址建设不合规。
+  audit_item: 信息进村入户工程实施不到位
+  suspicion: 村级信息服务站选址建设不合规
+  regulation: "[\n  {\n    \"法规名称\": \"关于全面推进信息进村入户工程的实施意见\",\n    \"法规文号\": \"农市发[2016]3号\",\n    \"效力级别\": \"部门规范性文件\",\n\
+    \    \"条款号\": \"第二部分第（一）条\",\n    \"内容概述\": \"村级信息服务站应选址在村民集聚区域，面积不低于20平方米，统一配备电脑、显示屏等必要设备，严禁擅自变更选址。\"\n  }\n]"
+- expression: (面积统计表.实际完成面积 < 绩效自评报告.上报完成面积) || (面积统计表.实际完成面积 < 实施方案.改革目标面积 * 0.9)
+  description: 实际完成面积低于自评上报面积，或低于方案确定的目标任务面积的90%，存在虚报完成进度或任务不达标风险。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 虚报农业水价综合改革完成面积
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"五、保障措施（三）\",\n    \"内容概述\": \"各省（区、市）人民政府要把农业水价综合改革任务分解落实到有关部门和地区，明确改革时间表和分步实施计划，细化年度改革目标任务，建立健全工作机制，确保各项改革任务按期完成。\"\
+    \n  }\n]"
+- expression: (省级农业社会化服务绩效评价实施方案.评价启动日期 - 项目资金下达文件.资金下达日期 > 60) || (年度农业社会化服务工作计划.实际考核完成日期 - 年度农业社会化服务工作计划.计划考核完成日期 > 60)
+  description: 资金下达后超过60天仍未启动绩效评价，或实际完成考核时间超出计划截止日期60天以上，视为考核工作严重滞后。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效评价工作严重滞后未按时启动
+  regulation: "[\n  {\n    \"法规名称\": \"农业生产发展资金管理办法\",\n    \"法规文号\": \"财农〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十八条\",\n    \"内容概述\": \"地方各级农业农村部门应当加强项目绩效管理，建立健全绩效评价指标体系，及时组织开展绩效评价工作。\"\n  }\n]"
+- expression: (评分表.定性指标占比 > 0.3) || (数据表.调查样本量 < 30) || (数据表.满意度评分 == 0 && 数据表.满意度评分 >= 95)
+  description: 定性指标（如仅描述性评价无公式计算）占比超过30%，或满意度调查有效样本量不足30份，或所有样本得分完全一致且平均分在95分以上，均提示指标设计空洞或数据造假。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效考核指标缺乏量化标准满意度失真
+  regulation: "[\n  {\n    \"法规名称\": \"财政支出绩效评价管理暂行办法\",\n    \"法规文号\": \"财预〔2011〕285号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十五条\",\n    \"内容概述\": \"绩效评价指标应当遵循科学、规范、可行原则，尽可能量化，对无法量化的指标可采用分级描述，但应具有可衡量性。\"\n  }\n]"
+- expression: (评分表.指标权重实际值 < 0.2) && (评分表.指标权重实际值 > 0.5)
+  description: 若绩效评价方案中反映服务质量（如技术指导实效、农户增产率）的指标权重合计低于20%，而仅体现规模扩张的覆盖率指标权重超过50%，则权重设置严重失衡，重数量轻质量。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效评价方案指标权重偏向严重失衡
+  regulation: "[\n  {\n    \"法规名称\": \"农业生产发展资金管理办法\",\n    \"法规文号\": \"财农〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十八条\",\n    \"内容概述\": \"绩效评价指标体系应当科学合理，突出产出和效益，权重设置应当体现各指标的重要程度。\"\n  }\n]"
+- expression: (实施方案.服务类型划分 > 1) && (评分表.考核指标版本 == 1) && (佐证材料.材料类型 == '无差异化佐证要求')
+  description: 当项目涉及多种服务类型（如病虫害防治、秸秆还田等），但仅使用同一套考核指标模板，且未规定各类服务应提供的差异化佐证材料（如病虫害防治需实验室检测报告）时，评价方案未予细化。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效评价方案未区分服务类型考核标准
+  regulation: "[\n  {\n    \"法规名称\": \"财政支出绩效评价管理暂行办法\",\n    \"法规文号\": \"财预〔2011〕285号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十四条\",\n    \"内容概述\": \"绩效评价指标应当根据评价对象的具体情况设定，具有针对性和可比性，能够反映评价对象的实际特点和水平。\"\n  }\n]"
+- expression: (当前年份 - 实施方案.方案印发日期 >= 3) && (依据文件.修订触发条件建议) && (灾害记录.对服务影响)
+  description: 若绩效评价方案超过3年未进行任何修订，且期间发生过明显影响农业生产服务的特殊情形（如旱灾导致灌溉需求激增），但原有指标值与实际需求明显背离，则评价方案缺乏动态适应性。
+  audit_item: 农业社会化服务绩效考核不科学
+  suspicion: 绩效评价方案长期未修订缺乏动态调整
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第三部分第（九）条\",\n    \"内容概述\": \"建立绩效指标和标准体系动态调整机制，根据实际情况适时修订完善，确保绩效评价的科学性和有效性。\"\n  }\n]"

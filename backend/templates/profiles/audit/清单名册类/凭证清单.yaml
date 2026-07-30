@@ -1,0 +1,127 @@
+name: audit/清单名册类/凭证清单
+type: model
+description: 从清单名册类类文档（凭证清单）中提取结构化元数据。涵盖字段如：凭证类型、凭证编号、发票章、发票金额、完税证明编号、币种、开票单位、日期。文档范围包括：原始凭证清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 凭证
+- 票据
+- 金额
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 凭证清单
+  member_count: 1
+  member_details:
+  - 原始凭证清单
+output:
+  fields:
+  - name: 凭证类型
+    type: string
+    description: 提取 凭证类型 的文本值
+  - name: 凭证编号
+    type: string
+    description: 提取 凭证编号 的文本值
+  - name: 发票章
+    type: string
+    description: 提取 发票章 的文本值
+  - name: 发票金额
+    type: number
+    description: 提取 发票金额 的数值（含单位，如万元、吨等）
+  - name: 完税证明编号
+    type: string
+    description: 提取 完税证明编号 的文本值
+  - name: 币种
+    type: string
+    description: 提取 币种 的文本值
+  - name: 开票单位
+    type: string
+    description: 提取 开票单位 的文本值
+  - name: 日期
+    type: date
+    description: 提取 日期 的日期值，格式 YYYY-MM-DD
+  - name: 税务监制章
+    type: string
+    description: 提取 税务监制章 的文本值
+  - name: 翻译件标志
+    type: boolean
+    description: 提取 翻译件标志 的布尔值（是/否）
+  - name: 菜单消费小计
+    type: number
+    description: 提取 菜单消费小计 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (凭证清单.凭证类型 = '发票' AND (凭证清单.发票章 IS NULL OR 凭证清单.税务监制章 IS NULL)) OR (凭证清单.凭证类型 = '收据' AND 凭证清单.金额 > 500 AND 凭证清单.税务监制章
+    IS NULL) OR (凭证清单.币种 = '外币' AND 凭证清单.翻译件标志 = '否' AND 凭证清单.完税证明编号 IS NULL)
+  description: 发票缺少法定签章，大额收据无税务监制章，或境外发票无中文翻译及完税证明，均属不真实、不合法原始凭证。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 接受不真实、不合法原始凭证入账
+  regulation: "[\n  {\n    \"法规名称\": \"会计基础工作规范\",\n    \"法规文号\": \"财政部令第98号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第四十八条\",\n    \"内容概述\": \"原始凭证的内容必须具备：凭证名称、填制日期、单位名称、经办人签名或盖章、金额等要素，并要求真实、合法。\"\n  }\n]"
+- expression: 其他.涂改描述 IS NOT NULL AND (其他.是否作废 = '否' OR 记录表.审核意见 NOT LIKE '%作废%')
+  description: 凭证存在刮擦、涂改痕迹，且未作废或重新取得正确凭证，直接违反不得涂改的规定。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 原始凭证记载内容存在涂改
+  regulation: "[\n  {\n    \"法规名称\": \"会计基础工作规范\",\n    \"法规文号\": \"财政部令第98号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第四十九条\",\n    \"内容概述\": \"原始凭证不得涂改、挖补。发现原始凭证有错误的，应当由开出单位重开或者更正，更正处应当加盖开出单位的公章。\"\n  }\n]"
+- expression: 错误凭证登记及处理台账.金额错误标志 = '是' AND (错误凭证登记及处理台账.是否重开 = '否' OR 错误凭证登记及处理台账.重开凭证编号 IS NULL OR 更正审批记录文件.处理方式 != '重开')
+  description: 原始凭证金额错误必须由出具单位重开，不得在原凭证上更正，缺少重开记录即构成违规。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 原始凭证金额错误未重开而直接更正
+  regulation: "[\n  {\n    \"法规名称\": \"会计基础工作规范\",\n    \"法规文号\": \"财政部令第98号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第五十二条\",\n    \"内容概述\": \"原始凭证金额有错误的，应当由出具单位重开，不得在原始凭证上更正。\"\n  }\n]"

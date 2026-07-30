@@ -1,0 +1,87 @@
+name: audit/审查报告类/测评报告
+type: model
+description: 从审查报告类类文档（测评报告）中提取结构化元数据。涵盖字段如：测评日期、测评机构、测评结论、系统名称、高风险漏洞已整改数量、高风险漏洞数量。文档范围包括：等级保护测评报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 整改
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 测评报告
+  member_count: 1
+  member_details:
+  - 等级保护测评报告
+output:
+  fields:
+  - name: 测评日期
+    type: date
+    description: 提取 测评日期 的日期值，格式 YYYY-MM-DD
+  - name: 测评机构
+    type: string
+    description: 提取 测评机构 的文本值
+  - name: 测评结论
+    type: string
+    description: 提取 测评结论 的文本值
+  - name: 系统名称
+    type: string
+    description: 提取 系统名称 的文本值
+  - name: 高风险漏洞已整改数量
+    type: number
+    description: 提取 高风险漏洞已整改数量 的数值（含单位，如万元、吨等）
+  - name: 高风险漏洞数量
+    type: number
+    description: 提取 高风险漏洞数量 的数值（含单位，如万元、吨等）
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: ( COUNT(定级报告.系统名称)=0 ) OR ( COUNT(测评报告.系统名称)=0 ) OR ( 测评报告.高风险漏洞数量 - 测评报告.高风险漏洞已整改数量 > 0 )
+  description: 1. 缺失定级报告或测评报告直接判定违规；2. 存在测评报告但高风险漏洞未全部整改（差值>0）视同未有效通过测评；3. 系统状态为‘运行中’的均应纳入排查范围，以上条件满足任一即触发疑点。
+  audit_item: 网络安全建设方面存在的问题
+  suspicion: 信息系统未进行等级保护定级或测评
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国网络安全法\",\n    \"法规文号\": \"主席令第53号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十一条\",\n    \"内容概述\": \"国家实行网络安全等级保护制度。网络运营者应当按照网络安全等级保护制度的要求，履行安全保护义务，保障网络免受干扰、破坏或者未经授权的访问，防止网络数据泄露或者被窃取、篡改。\"\n  },\n\
+    \  {\n    \"法规名称\": \"信息安全等级保护管理办法\",\n    \"法规文号\": \"公通字[2007]43号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十四条、第十六"

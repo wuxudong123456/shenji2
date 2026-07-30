@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "违规表达式比对验证",
+    "subtitle": "采购合同数据流经3个比对条件，逐步筛选违规记录",
+    "output": "aw-violation-dataflow.html"
+  },
+  "stages": [
+    { "label": "数据源" },
+    { "label": "条件比对" },
+    { "label": "结果" },
+    { "label": "法规依据" }
+  ],
+  "nodes": [
+    { "id": "src", "type": "database", "label": "采购合同数据表", "sublabel": "5条记录 · ¥4,850,000", "stage": 0, "row": 1 },
+    { "id": "f1", "type": "backend", "label": "① 采购方式比对", "sublabel": "≠公开招标 → 5条命中", "stage": 1, "row": 0, "tag": "100%" },
+    { "id": "f2", "type": "backend", "label": "② 金额阈值比对", "sublabel": "≥¥200万 → 3条命中", "stage": 1, "row": 2, "tag": "60%" },
+    { "id": "f3", "type": "backend", "label": "③ 时间范围比对", "sublabel": "2026-01~06 → 3条通过", "stage": 1, "row": 4, "tag": "100%" },
+    { "id": "result", "type": "backend", "label": "违规记录", "sublabel": "3条 · ¥2,300,000", "stage": 2, "row": 2, "tag": "命中" },
+    { "id": "law", "type": "database", "label": "法规依据库", "sublabel": "招标投标法·政府采购法", "stage": 3, "row": 2, "tag": "依据" }
+  ],
+  "flows": [
+    { "from": "src", "to": "f1", "label": "5条记录", "classification": "全部数据", "variant": "emphasis" },
+    { "from": "f1", "to": "f2", "label": "5条", "classification": "命中100%", "variant": "default" },
+    { "from": "f2", "to": "f3", "label": "3条", "classification": "命中60%", "variant": "default" },
+    { "from": "f3", "to": "result", "label": "3条违规", "classification": "最终命中", "variant": "emphasis" },
+    { "from": "law", "to": "f1", "label": "《招标投标法》第4条", "classification": "法规依据", "variant": "dashed" },
+    { "from": "law", "to": "f2", "label": "货物≥200万须招标", "classification": "量化依据", "variant": "dashed", "labelAt": [500, 520] }
+  ],
+  "cards": [
+    { "dot": "navy", "title": "数据流", "items": ["5条合同数据从数据源出发", "经过3个条件层层过滤", "最终2条命中违规"] },
+    { "dot": "crimson", "title": "关键发现", "items": ["5条合同全部采用非公开招标方式", "3条金额超过200万招标门槛", "其中2条供应商相同(围标嫌疑)"] },
+    { "dot": "teal", "title": "法规支撑", "items": ["每个比对条件均引用法规依据", "主依据+量化依据+追责依据", "全链路可溯源"] }
+  ]
+}

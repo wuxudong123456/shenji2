@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>工具箱 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.tool-card {
+  background: #fff; border-radius: 12px; padding: 18px 16px; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); border: 1px solid var(--color-border);
+  transition: all 0.15s; text-align: center;
+}
+.tool-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.08); border-color: var(--color-primary); transform: translateY(-1px); }
+.tool-card .ti {
+  width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.tool-card h4 { font-size: 14px; margin: 0 0 2px; }
+.tool-card .td { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+
+.assistant-bar {
+  margin-top: 36px; padding: 20px 24px; background: #fff; border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--color-border);
+  display: flex; gap: 14px; align-items: center;
+}
+.assistant-bar input {
+  flex: 1; border: none; font-size: 15px; outline: none; color: var(--color-text);
+  background: transparent;
+}
+.assistant-bar input::placeholder { color: var(--color-text-muted); }
+.assistant-bar button {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body data-page="toolbox">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content">
+
+<div class="page-header"><div><h1>工具箱</h1><div class="breadcrumb">审计人员趁手工具</div></div></div>
+
+<div class="tool-grid">
+  <div class="tool-card" onclick="location.href='qualification.html'">
+    <div class="ti" style="background:rgba(196,30,58,0.08);color:var(--color-accent);"><i class="bi bi-crosshair"></i></div>
+    <h4>审计定性</h4><div class="td">输入问题→匹配法规→定性结论</div>
+  </div>
+  <div class="tool-card" onclick="location.href='review.html'">
+    <div class="ti" style="background:rgba(45,125,70,0.08);color:var(--color-success);"><i class="bi bi-check2-all"></i></div>
+    <h4>审理复核</h4><div class="td">AI建议 vs 人工复核双栏对比</div>
+  </div>
+  <div class="tool-card" onclick="location.href='lawqa.html'">
+    <div class="ti" style="background:rgba(26,58,92,0.08);color:var(--color-primary);"><i class="bi bi-chat-dots"></i></div>
+    <h4>法规问答</h4><div class="td">40万法规全文RAG智能问答</div>
+  </div>
+  <div class="tool-card" onclick="location.href='knowledge.html'">
+    <div class="ti" style="background:rgba(26,58,92,0.08);color:var(--color-primary);"><i class="bi bi-journal-text"></i></div>
+    <h4>法规速查</h4><div class="td">标题/文号/发布单位快速定位</div>
+  </div>
+  <div class="tool-card" onclick="location.href='docworkshop.html'">
+    <div class="ti" style="background:rgba(45,125,70,0.08);color:var(--color-success);"><i class="bi bi-camera"></i></div>
+    <h4>OCR 识别</h4><div class="td">文档拍照/上传→结构化输出</div>
+  </div>
+  <div class="tool-card" onclick="location.href='dataworkshop.html'">
+    <div class="ti" style="background:rgba(26,58,92,0.08);color:var(--color-primary);"><i class="bi bi-magic"></i></div>
+    <h4>智能问数</h4><div class="td">口述查询→LLM生成表达式→执行</div>
+  </div>
+  <div class="tool-card" onclick="location.href='documents.html'">
+    <div class="ti" style="background:rgba(26,58,92,0.08);color:var(--color-primary);"><i class="bi bi-file-earmark-pdf"></i></div>
+    <h4>文书生成</h4><div class="td">疑点→取证单/底稿/报告</div>
+  </div>
+  <div class="tool-card" onclick="Toolbox.todo('法规对比')">
+    <div class="ti" style="background:var(--color-bg);color:var(--color-text-muted);"><i class="bi bi-layout-split"></i></div>
+    <h4>法规对比</h4><div class="td">2-3部法规并排对比差异</div>
+  </div>
+  <div class="tool-card" onclick="Toolbox.todo('金额门槛计算')">
+    <div class="ti" style="background:var(--color-bg);color:var(--color-text-muted);"><i class="bi bi-calculator"></i></div>
+    <h4>金额门槛计算</h4><div class="td">项目类型+金额→招标方式</div>
+  </div>
+  <div class="tool-card" onclick="Toolbox.todo('时效性校验')">
+    <div class="ti" style="background:var(--color-bg);color:var(--color-text-muted);"><i class="bi bi-clock-history"></i></div>
+    <h4>时效性校验</h4><div class="td">批量检查法规是否现行有效</div>
+  </div>
+  <div class="tool-card" onclick="Toolbox.todo('整改台账检查')">
+    <div class="ti" style="background:var(--color-bg);color:var(--color-text-muted);"><i class="bi bi-stars"></i></div>
+    <h4>整改台账检查</h4><div class="td">自动比对整改与审计发现</div>
+  </div>
+  <div class="tool-card" onclick="Toolbox.todo('报告智能校对')">
+    <div class="ti" style="background:var(--color-bg);color:var(--color-text-muted);"><i class="bi bi-stars"></i></div>
+    <h4>报告智能校对</h4><div class="td">检查格式/法规引用/数据</div>
+  </div>
+</div>
+
+<div class="assistant-bar">
+  <i class="bi bi-robot" style="font-size:22px;color:var(--color-primary);flex-shrink:0;"></i>
+  <input type="text" id="tool-search" placeholder="有问题直接问，例如：招标金额超过多少必须公开招标？"
+    onkeydown="if(event.key==='Enter')Toolbox.ask()">
+  <button onclick="Toolbox.ask()">提问</button>
+</div>
+
+</main></div>
+<script src="js/app.js"></script>
+<script>
+var Toolbox = {
+  ask: function() {
+    var q = document.getElementById('tool-search').value.trim();
+    if (!q) return AuditWorkbench.toast('请输入问题', 'warning');
+    document.getElementById('tool-search').value = '';
+    AuditWorkbench.toast('AI正在分析: ' + q, 'info');
+    // Open lawqa or smart search
+    setTimeout(function(){ location.href = 'lawqa.html'; }, 500);
+  },
+  todo: function(name) {
+    AuditWorkbench.toast(name + ' — 即将上线', 'info');
+  }
+};
+</script>
+</body>
+</html>

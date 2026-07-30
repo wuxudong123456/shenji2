@@ -1,0 +1,840 @@
+name: audit/登记台账类/明细台账
+type: model
+description: 从登记台账类类文档（明细台账）中提取结构化元数据。涵盖字段如：12月大额支付汇总、业务编号、中介方、交易对手方、交易对手方名称、交易日期、交易类型、交易金额。文档范围包括：二次分配资金明细台账、公务接待明细台账、公积金缴存使用明细台账、关联交易明细台账、农业保险投保明细台账、农业保险理赔明细台账、农村产权交易明细台账、创业担保贷款发放明细台账、年末突击支付明细台账、往来款项明细台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 付款
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 明细台账
+  member_count: 1
+  member_details:
+  - 二次分配资金明细台账
+  - 公务接待明细台账
+  - 公积金缴存使用明细台账
+  - 关联交易明细台账
+  - 农业保险投保明细台账
+  - 农业保险理赔明细台账
+  - 农村产权交易明细台账
+  - 创业担保贷款发放明细台账
+  - 年末突击支付明细台账
+  - 往来款项明细台账
+  - 投资收益明细台账
+  - 捐赠事项明细台账
+  - 收费明细台账
+  - 收费项目明细台账
+  - 改厕资金使用明细台账
+  - 涉企保证金收取明细台账
+  - 涉农专项资金明细台账
+  - 用户收费明细台账
+  - 管理人员兼职取酬明细台账
+  - 职工福利费支出明细台账
+  - 融资业务收费明细台账
+  - 补助资金收支明细台账
+  - 财政资金收支明细台账
+  - 资金使用明细台账
+  - 资金拨付明细台账
+  - 跨单位经费分摊明细台账
+  - 非税收入征收明细台账
+  - 项目资金使用明细台账
+  - 食堂每日收支明细台账
+output:
+  fields:
+  - name: 12月大额支付汇总
+    type: string
+    description: 提取 12月大额支付汇总 的文本值
+  - name: 业务编号
+    type: string
+    description: 提取 业务编号 的文本值
+  - name: 中介方
+    type: string
+    description: 提取 中介方 的文本值
+  - name: 交易对手方
+    type: string
+    description: 提取 交易对手方 的文本值
+  - name: 交易对手方名称
+    type: string
+    description: 提取 交易对手方名称 的文本值
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 交易类型
+    type: string
+    description: 提取 交易类型 的文本值
+  - name: 交易金额
+    type: number
+    description: 提取 交易金额 的数值（含单位，如万元、吨等）
+  - name: 产能置换补偿资金流向
+    type: string
+    description: 提取 产能置换补偿资金流向 的文本值
+  - name: 付款单位
+    type: number
+    description: 提取 付款单位 的数值（含单位，如万元、吨等）
+  - name: 任职期间
+    type: string
+    description: 提取 任职期间 的文本值
+  - name: 企业名称
+    type: string
+    description: 提取 企业名称 的文本值
+  - name: 保证金类型
+    type: string
+    description: 提取 保证金类型 的文本值
+  - name: 保证金项目名称
+    type: string
+    description: 提取 保证金项目名称 的文本值
+  - name: 保费总额
+    type: number
+    description: 提取 保费总额 的数值（含单位，如万元、吨等）
+  - name: 保险公司名称
+    type: string
+    description: 提取 保险公司名称 的文本值
+  - name: 入库账户
+    type: string
+    description: 提取 入库账户 的文本值
+  - name: 其他应付款挂账
+    type: number
+    description: 提取 其他应付款挂账 的数值（含单位，如万元、吨等）
+  - name: 其他应收款挂账及核销
+    type: number
+    description: 提取 其他应收款挂账及核销 的数值（含单位，如万元、吨等）
+  - name: 其他综合收益
+    type: string
+    description: 提取 其他综合收益 的文本值
+  - name: 兼职单位
+    type: string
+    description: 提取 兼职单位 的文本值
+  - name: 农户收款签字
+    type: number
+    description: 提取 农户收款签字 的数值（含单位，如万元、吨等）
+  - name: 农资支出等
+    type: number
+    description: 提取 农资支出等 的数值（含单位，如万元、吨等）
+  - name: 减免标识
+    type: string
+    description: 提取 减免标识 的文本值
+  - name: 减免金额
+    type: number
+    description: 提取 减免金额 的数值（含单位，如万元、吨等）
+  - name: 分摊金额
+    type: number
+    description: 提取 分摊金额 的数值（含单位，如万元、吨等）
+  - name: 分配对象
+    type: string
+    description: 提取 分配对象 的文本值
+  - name: 分配时间
+    type: date
+    description: 提取 分配时间 的日期值，格式 YYYY-MM-DD
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 取酬金额
+    type: number
+    description: 提取 取酬金额 的数值（含单位，如万元、吨等）
+  - name: 受益职工
+    type: string
+    description: 提取 受益职工 的文本值
+  - name: 受让方名称
+    type: string
+    description: 提取 受让方名称 的文本值
+  - name: 受赠方
+    type: string
+    description: 提取 受赠方 的文本值
+  - name: 变更后科目的预算金额及实际支出
+    type: number
+    description: 提取 变更后科目的预算金额及实际支出 的数值（含单位，如万元、吨等）
+  - name: 各项支出金额及来源
+    type: number
+    description: 提取 各项支出金额及来源 的数值（含单位，如万元、吨等）
+  - name: 后续支出记录
+    type: number
+    description: 提取 后续支出记录 的数值（含单位，如万元、吨等）
+  - name: 地块编号
+    type: string
+    description: 提取 地块编号 的文本值
+  - name: 培训费
+    type: number
+    description: 提取 培训费 的数值（含单位，如万元、吨等）
+  - name: 基层实际执行水价
+    type: string
+    description: 提取 基层实际执行水价 的文本值
+  - name: 备用金
+    type: string
+    description: 提取 备用金 的文本值
+  - name: 外地接待记录及事由
+    type: string
+    description: 提取 外地接待记录及事由 的文本值
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 实收日期
+    type: date
+    description: 提取 实收日期 的日期值，格式 YYYY-MM-DD
+  - name: 实收时间
+    type: date
+    description: 提取 实收时间 的日期值，格式 YYYY-MM-DD
+  - name: 实收金额
+    type: number
+    description: 提取 实收金额 的数值（含单位，如万元、吨等）
+  - name: 实缴金额
+    type: number
+    description: 提取 实缴金额 的数值（含单位，如万元、吨等）
+  - name: 实际捐赠金额
+    type: number
+    description: 提取 实际捐赠金额 的数值（含单位，如万元、吨等）
+  - name: 实际收取金额
+    type: number
+    description: 提取 实际收取金额 的数值（含单位，如万元、吨等）
+  - name: 实际收费单价
+    type: number
+    description: 提取 实际收费单价 的数值（含单位，如万元、吨等）
+  - name: 实际缴纳保费
+    type: number
+    description: 提取 实际缴纳保费 的数值（含单位，如万元、吨等）
+  - name: 审批人
+    type: string
+    description: 提取 审批人 的文本值
+  - name: 客户名称
+    type: string
+    description: 提取 客户名称 的文本值
+  - name: 客户类型
+    type: string
+    description: 提取 客户类型 的文本值
+  - name: 对应会议纪要编号
+    type: string
+    description: 提取 对应会议纪要编号 的文本值
+  - name: 对应出国任务
+    type: string
+    description: 提取 对应出国任务 的文本值
+  - name: 对应审批事项
+    type: string
+    description: 提取 对应审批事项 的文本值
+  - name: 对应审批事项编码
+    type: string
+    description: 提取 对应审批事项编码 的文本值
+  - name: 对应审批单编号
+    type: string
+    description: 提取 对应审批单编号 的文本值
+  - name: 对方单位名称
+    type: string
+    description: 提取 对方单位名称 的文本值
+  - name: 已支付工程量对应进度款占比
+    type: number
+    description: 提取 已支付工程量对应进度款占比 的数值（含单位，如万元、吨等）
+  - name: 年末余额
+    type: number
+    description: 提取 年末余额 的数值（含单位，如万元、吨等）
+  - name: 应收时间
+    type: date
+    description: 提取 应收时间 的日期值，格式 YYYY-MM-DD
+  - name: 应收金额
+    type: number
+    description: 提取 应收金额 的数值（含单位，如万元、吨等）
+  - name: 应缴金额
+    type: number
+    description: 提取 应缴金额 的数值（含单位，如万元、吨等）
+  - name: 建设内容
+    type: string
+    description: 提取 建设内容 的文本值
+  - name: 建设资金支出
+    type: number
+    description: 提取 建设资金支出 的数值（含单位，如万元、吨等）
+  - name: 当前余额
+    type: number
+    description: 提取 当前余额 的数值（含单位，如万元、吨等）
+  - name: 当前实际执行水价
+    type: string
+    description: 提取 当前实际执行水价 的文本值
+  - name: 当日支出
+    type: number
+    description: 提取 当日支出 的数值（含单位，如万元、吨等）
+  - name: 当日收入
+    type: number
+    description: 提取 当日收入 的数值（含单位，如万元、吨等）
+  - name: 征收日期
+    type: date
+    description: 提取 征收日期 的日期值，格式 YYYY-MM-DD
+  - name: 征收金额
+    type: number
+    description: 提取 征收金额 的数值（含单位，如万元、吨等）
+  - name: 征收项目
+    type: string
+    description: 提取 征收项目 的文本值
+  - name: 成交价格
+    type: number
+    description: 提取 成交价格 的数值（含单位，如万元、吨等）
+  - name: 执收单位
+    type: string
+    description: 提取 执收单位 的文本值
+  - name: 投保主体名称
+    type: string
+    description: 提取 投保主体名称 的文本值
+  - name: 投保面积-数量
+    type: number
+    description: 提取 投保面积-数量 的数值（含单位，如万元、吨等）
+  - name: 投资单位名称
+    type: string
+    description: 提取 投资单位名称 的文本值
+  - name: 报案日期
+    type: date
+    description: 提取 报案日期 的日期值，格式 YYYY-MM-DD
+  - name: 拒绝原因
+    type: string
+    description: 提取 拒绝原因 的文本值
+  - name: 拨付资金用途
+    type: string
+    description: 提取 拨付资金用途 的文本值
+  - name: 拨付金额
+    type: number
+    description: 提取 拨付金额 的数值（含单位，如万元、吨等）
+  - name: 拨付项目
+    type: string
+    description: 提取 拨付项目 的文本值
+  - name: 持股比例
+    type: number
+    description: 提取 持股比例 的数值（含单位，如万元、吨等）
+  - name: 挂账时长
+    type: string
+    description: 提取 挂账时长 的文本值
+  - name: 挂账金额
+    type: number
+    description: 提取 挂账金额 的数值（含单位，如万元、吨等）
+  - name: 捐赠对象
+    type: string
+    description: 提取 捐赠对象 的文本值
+  - name: 捐赠日期
+    type: date
+    description: 提取 捐赠日期 的日期值，格式 YYYY-MM-DD
+  - name: 捐赠金额
+    type: number
+    description: 提取 捐赠金额 的数值（含单位，如万元、吨等）
+  - name: 接待事由
+    type: string
+    description: 提取 接待事由 的文本值
+  - name: 接待人数
+    type: number
+    description: 提取 接待人数 的数值（含单位，如万元、吨等）
+  - name: 接待单位
+    type: string
+    description: 提取 接待单位 的文本值
+  - name: 接待场所
+    type: string
+    description: 提取 接待场所 的文本值
+  - name: 接待场所名称
+    type: string
+    description: 提取 接待场所名称 的文本值
+  - name: 接待日期
+    type: date
+    description: 提取 接待日期 的日期值，格式 YYYY-MM-DD
+  - name: 接待时间
+    type: date
+    description: 提取 接待时间 的日期值，格式 YYYY-MM-DD
+  - name: 接待金额
+    type: number
+    description: 提取 接待金额 的数值（含单位，如万元、吨等）
+  - name: 提取业务类型
+    type: string
+    description: 提取 提取业务类型 的文本值
+  - name: 提取管理费金额
+    type: number
+    description: 提取 提取管理费金额 的数值（含单位，如万元、吨等）
+  - name: 摘要
+    type: string
+    description: 提取 摘要 的文本值
+  - name: 支付方式
+    type: string
+    description: 提取 支付方式 的文本值
+  - name: 支付日期
+    type: date
+    description: 提取 支付日期 的日期值，格式 YYYY-MM-DD
+  - name: 支付时间
+    type: date
+    description: 提取 支付时间 的日期值，格式 YYYY-MM-DD
+  - name: 支付用途
+    type: string
+    description: 提取 支付用途 的文本值
+  - name: 支付节点对应工程量
+    type: string
+    description: 提取 支付节点对应工程量 的文本值
+  - name: 支出地点
+    type: number
+    description: 提取 支出地点 的数值（含单位，如万元、吨等）
+  - name: 支出日期
+    type: date
+    description: 提取 支出日期 的日期值，格式 YYYY-MM-DD
+  - name: 支出用途
+    type: number
+    description: 提取 支出用途 的数值（含单位，如万元、吨等）
+  - name: 支出科目
+    type: number
+    description: 提取 支出科目 的数值（含单位，如万元、吨等）
+  - name: 支出金额
+    type: number
+    description: 提取 支出金额 的数值（含单位，如万元、吨等）
+  - name: 收入笔数
+    type: number
+    description: 提取 收入笔数 的数值（含单位，如万元、吨等）
+  - name: 收入金额
+    type: number
+    description: 提取 收入金额 的数值（含单位，如万元、吨等）
+  - name: 收取日期
+    type: date
+    description: 提取 收取日期 的日期值，格式 YYYY-MM-DD
+  - name: 收取时间
+    type: date
+    description: 提取 收取时间 的日期值，格式 YYYY-MM-DD
+  - name: 收取费率-金额
+    type: number
+    description: 提取 收取费率-金额 的数值（含单位，如万元、吨等）
+  - name: 收取金额
+    type: number
+    description: 提取 收取金额 的数值（含单位，如万元、吨等）
+  - name: 收款单位
+    type: number
+    description: 提取 收款单位 的数值（含单位，如万元、吨等）
+  - name: 收款单位名称
+    type: number
+    description: 提取 收款单位名称 的数值（含单位，如万元、吨等）
+  - name: 收款方
+    type: number
+    description: 提取 收款方 的数值（含单位，如万元、吨等）
+  - name: 收款方名称
+    type: number
+    description: 提取 收款方名称 的数值（含单位，如万元、吨等）
+  - name: 收费对象
+    type: number
+    description: 提取 收费对象 的数值（含单位，如万元、吨等）
+  - name: 收费性质
+    type: number
+    description: 提取 收费性质 的数值（含单位，如万元、吨等）
+  - name: 收费总额
+    type: number
+    description: 提取 收费总额 的数值（含单位，如万元、吨等）
+  - name: 收费方式
+    type: number
+    description: 提取 收费方式 的数值（含单位，如万元、吨等）
+  - name: 收费日期
+    type: date
+    description: 提取 收费日期 的日期值，格式 YYYY-MM-DD
+  - name: 收费标准
+    type: number
+    description: 提取 收费标准 的数值（含单位，如万元、吨等）
+  - name: 收费电量-气量
+    type: number
+    description: 提取 收费电量-气量 的数值（含单位，如万元、吨等）
+  - name: 收费金额
+    type: number
+    description: 提取 收费金额 的数值（含单位，如万元、吨等）
+  - name: 收费项目
+    type: number
+    description: 提取 收费项目 的数值（含单位，如万元、吨等）
+  - name: 收费项目名称
+    type: number
+    description: 提取 收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 放款日期
+    type: date
+    description: 提取 放款日期 的日期值，格式 YYYY-MM-DD
+  - name: 日期
+    type: date
+    description: 提取 日期 的日期值，格式 YYYY-MM-DD
+  - name: 暂借款等科目余额
+    type: number
+    description: 提取 暂借款等科目余额 的数值（含单位，如万元、吨等）
+  - name: 暂收款
+    type: number
+    description: 提取 暂收款 的数值（含单位，如万元、吨等）
+  - name: 服务提供方
+    type: string
+    description: 提取 服务提供方 的文本值
+  - name: 服务提供方名称
+    type: string
+    description: 提取 服务提供方名称 的文本值
+  - name: 服务项目
+    type: string
+    description: 提取 服务项目 的文本值
+  - name: 期末余额
+    type: number
+    description: 提取 期末余额 的数值（含单位，如万元、吨等）
+  - name: 核定损失金额
+    type: number
+    description: 提取 核定损失金额 的数值（含单位，如万元、吨等）
+  - name: 核算方法
+    type: string
+    description: 提取 核算方法 的文本值
+  - name: 每笔支出金额
+    type: number
+    description: 提取 每笔支出金额 的数值（含单位，如万元、吨等）
+  - name: 每笔贷款金额
+    type: number
+    description: 提取 每笔贷款金额 的数值（含单位，如万元、吨等）
+  - name: 活动内容描述
+    type: string
+    description: 提取 活动内容描述 的文本值
+  - name: 活动项目
+    type: string
+    description: 提取 活动项目 的文本值
+  - name: 理赔支付日期
+    type: date
+    description: 提取 理赔支付日期 的日期值，格式 YYYY-MM-DD
+  - name: 理赔金额
+    type: number
+    description: 提取 理赔金额 的数值（含单位，如万元、吨等）
+  - name: 用户名称
+    type: string
+    description: 提取 用户名称 的文本值
+  - name: 用户类别
+    type: string
+    description: 提取 用户类别 的文本值
+  - name: 用途
+    type: string
+    description: 提取 用途 的文本值
+  - name: 申请人基本条件
+    type: string
+    description: 提取 申请人基本条件 的文本值
+  - name: 盘活资金转入记录
+    type: string
+    description: 提取 盘活资金转入记录 的文本值
+  - name: 确认投资收益金额
+    type: number
+    description: 提取 确认投资收益金额 的数值（含单位，如万元、吨等）
+  - name: 种植-养殖品种
+    type: string
+    description: 提取 种植-养殖品种 的文本值
+  - name: 科目名称
+    type: string
+    description: 提取 科目名称 的文本值
+  - name: 经济业务摘要
+    type: string
+    description: 提取 经济业务摘要 的文本值
+  - name: 结余金额
+    type: number
+    description: 提取 结余金额 的数值（含单位，如万元、吨等）
+  - name: 结转账余
+    type: string
+    description: 提取 结转账余 的文本值
+  - name: 统一社会信用代码
+    type: string
+    description: 提取 统一社会信用代码 的文本值
+  - name: 缴存比例
+    type: number
+    description: 提取 缴存比例 的数值（含单位，如万元、吨等）
+  - name: 缴费人
+    type: number
+    description: 提取 缴费人 的数值（含单位，如万元、吨等）
+  - name: 缴费企业名称
+    type: number
+    description: 提取 缴费企业名称 的数值（含单位，如万元、吨等）
+  - name: 缴费单位
+    type: number
+    description: 提取 缴费单位 的数值（含单位，如万元、吨等）
+  - name: 缴费单位-个人名称
+    type: number
+    description: 提取 缴费单位-个人名称 的数值（含单位，如万元、吨等）
+  - name: 缴费对象
+    type: number
+    description: 提取 缴费对象 的数值（含单位，如万元、吨等）
+  - name: 缴费方
+    type: number
+    description: 提取 缴费方 的数值（含单位，如万元、吨等）
+  - name: 缴费进度
+    type: number
+    description: 提取 缴费进度 的数值（含单位，如万元、吨等）
+  - name: 老旧设备更新改造资金支付金额与进度
+    type: number
+    description: 提取 老旧设备更新改造资金支付金额与进度 的数值（含单位，如万元、吨等）
+  - name: 职务
+    type: string
+    description: 提取 职务 的文本值
+  - name: 补贴申领数量
+    type: number
+    description: 提取 补贴申领数量 的数值（含单位，如万元、吨等）
+  - name: 被投资方净利润
+    type: string
+    description: 提取 被投资方净利润 的文本值
+  - name: 计费数量
+    type: number
+    description: 提取 计费数量 的数值（含单位，如万元、吨等）
+  - name: 账龄
+    type: string
+    description: 提取 账龄 的文本值
+  - name: 贷款审批条件
+    type: number
+    description: 提取 贷款审批条件 的数值（含单位，如万元、吨等）
+  - name: 贷款本金余额
+    type: number
+    description: 提取 贷款本金余额 的数值（含单位，如万元、吨等）
+  - name: 费用金额
+    type: number
+    description: 提取 费用金额 的数值（含单位，如万元、吨等）
+  - name: 资金到位时间
+    type: date
+    description: 提取 资金到位时间 的日期值，格式 YYYY-MM-DD
+  - name: 资金占用时间
+    type: date
+    description: 提取 资金占用时间 的日期值，格式 YYYY-MM-DD
+  - name: 资金支付比例
+    type: number
+    description: 提取 资金支付比例 的数值（含单位，如万元、吨等）
+  - name: 资金支出明细
+    type: number
+    description: 提取 资金支出明细 的数值（含单位，如万元、吨等）
+  - name: 资金收入日期
+    type: date
+    description: 提取 资金收入日期 的日期值，格式 YYYY-MM-DD
+  - name: 资金来源
+    type: string
+    description: 提取 资金来源 的文本值
+  - name: 资金用途
+    type: string
+    description: 提取 资金用途 的文本值
+  - name: 资金类型
+    type: string
+    description: 提取 资金类型 的文本值
+  - name: 运维资金实际拨付金额
+    type: number
+    description: 提取 运维资金实际拨付金额 的数值（含单位，如万元、吨等）
+  - name: 配变扩容项目实际支出金额
+    type: number
+    description: 提取 配变扩容项目实际支出金额 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 银行账号
+    type: string
+    description: 提取 银行账号 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目状态
+    type: boolean
+    description: 提取 项目状态 的布尔值（是/否）
+  - name: 项目进度
+    type: string
+    description: 提取 项目进度 的文本值
+  - name: 预付账款
+    type: number
+    description: 提取 预付账款 的数值（含单位，如万元、吨等）
+  - name: 预算项目归属
+    type: number
+    description: 提取 预算项目归属 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (收费项目明细台账.收费项目名称 IN (行政事业性收费目录清单.收费项目名称) AND 收费项目明细台账.收费性质 = '经营服务性收费') OR (收费许可证.收费性质 = '经营服务性收费' AND 收费许可证.收费项目
+    IN (行政事业性收费目录清单.收费项目名称) AND 经营服务性收费项目审批文件.批准文号 IS NULL AND 收费项目性质变更审批记录 IS NULL) OR (收费项目明细台账.收费项目名称 IN (行政事业性收费目录清单.收费项目名称)
+    AND 银行账户入账流水.收款账户 NOT LIKE '%财政专户%')
+  description: 表达式通过三组条件识别违规转性行为：(1)收费项目属于行政事业性收费目录却标记为经营服务性；(2)收费许可证显示经营服务性但无合法审批文件且无性质变更记录；(3)目录内收费收入未进入财政专户，表明资金被截留；触发任一即判定为疑点。
+  audit_item: 不按照规定的预算级次、预算科目入库
+  suspicion: 将行政事业性收费违规转为经营服务性收费管理
+  regulation: "[\n  {\n    \"法规名称\": \"财政部关于加强政府非税收入管理的通知\",\n    \"法规文号\": \"财综〔2004〕53号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第二条第（一）项\",\n    \"内容概述\": \"行政事业性收费必须纳入财政管理，实行收支两条线，严禁将行政事业性收费转为经营服务性收费管理。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"行政事业性收费标准管理办法\",\n    \"法规文号\": \"发改价格规〔2018〕988号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第四条、第十八条\",\n    \"\
+    内容概述\": \"收费项目"
+- expression: 收费项目明细台账.收费项目名称 IN (国家明令取消的收费项目公告.取消项目名称) AND 收费项目明细台账.收费性质 = '经营服务性收费' AND 银行账户入账流水.摘要 LIKE CONCAT('%',收费项目明细台账.收费项目名称,'%')
+    AND 银行账户入账流水.金额 > 0 AND 银行账户入账流水.交易日期 > 国家明令取消的收费项目公告.生效日期
+  description: 表达式判定在取消生效后，仍以经营服务性名目对已取消项目收费且存在实际资金流入的行为。需同时满足：项目名称在已取消清单中、台账标注经营服务性、银行流水有对应收费记录且日期晚于取消日期。
+  audit_item: 不按照规定的预算级次、预算科目入库
+  suspicion: 将已取消的行政事业性收费转为经营服务性收费继续收取
+  regulation: "[\n  {\n    \"法规名称\": \"财政部关于取消、停征和免征一批行政事业性收费的通知\",\n    \"法规文号\": \"财税〔2014〕101号等系列文件\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第一条及附件\",\n    \"内容概述\": \"明确规定取消的收费项目不得以任何理由拖延或拒绝执行，不得以其他名目变相继续收取。\"\n  },\n  {\n    \"法规名称\"\
+    : \"国务院办公厅关于进一步加强涉企收费管理减轻企业负担的通知\",\n    \"法规文号\": \"国办发〔2014〕30号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三部分\",\n\
+    \    "
+- expression: (非税收入缴库明细表.预算级次 != 预算管理制度.法定级次归属) OR (非税收入缴库明细表.预算科目代码 NOT IN (预算管理制度.科目代码规则)) OR (ABS(非税收入缴库明细表.金额 - 预算执行情况报表.实际入库金额)
+    > 合理容差) OR (财政专户与国库对账记录.差异说明 IS NOT NULL AND 财政专户与国库对账记录.差异说明 NOT LIKE '%已更正%')
+  description: 通过四类条件发现入库乱象：预算级次错挂（如中央收入入地方库）；科目错误（如一般公共预算收入放入政府性基金科目）；缴库金额与报表差异超出容差；财政专户与国库差异未及时调整。容差一般设为缴库金额的1%或1000元。
+  audit_item: 不按照规定的预算级次、预算科目入库
+  suspicion: 非税收入未按规定预算级次或科目缴库
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"2018年修正\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第五十五条\"\
+    ,\n    \"内容概述\": \"预算收入征收部门和单位必须依照法律、行政法规的规定，及时、足额征收应征的预算收入，不得擅自减征、免征或者缓征，不得截留、占用或者挪用。\"\n  },\n  {\n    \"法规名称\": \"\
+    财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"财政收入执收单位及其工作"
+- expression: (公务接待明细台账.接待场所名称 NOT IN (定点接待场所名录.酒店名称)) && (公务接待明细台账.接待场所名称 IN (高档酒店预警清单) || (公务接待明细台账.接待金额 / 公务接待明细台账.接待人数)
+    > 地区公务接待餐费标准)
+  description: 接待场所不在定点名录内，且属于审计预设的高档酒店（如五星级、豪华型）清单，或人均消费超出当地公务接待标准（如超出10%），触发违规判定。需结合当地接待标准及酒店价格水平实施。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 在高档酒店进行公务接待
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十条\",\n    \"内容概述\": \"工作餐应当供应家常菜，不得提供鱼翅、燕窝等高档菜肴和用野生保护动物制作的菜肴，不得提供香烟和高档酒水，不得使用私人会所、高消费餐饮场所。\"\n  }\n]"
+- expression: 公务接待明细台账.接待场所名称 IN (A级景区名录) && (公务活动方案.考察内容 IS NULL || 公务活动方案.考察内容 NOT LIKE '%景区管理%' || 公务活动方案.考察内容 NOT LIKE
+    '%生态保护%') && (费用报销凭证.费用明细 CONTAINS '门票' || 费用报销凭证.费用明细 CONTAINS '导游费')
+  description: 当接待场所为A级景区，且活动方案中缺少与景区管理或生态环保等职能直接相关的实质考察内容，同时费用凭证中出现门票、导游费等旅游特征消费时，判定为变相旅游疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 在A级景区开展公务考察涉嫌变相旅游
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"接待单位不得超标准接待，不得组织旅游和与公务活动无关的参观，不得组织到营业性娱乐、健身场所活动。\"\n  }\n]"
+- expression: GROUP BY 公务接待明细台账.接待场所, MONTH(公务接待明细台账.接待时间) HAVING COUNT(DISTINCT 公务接待明细台账.接待单位) >= 3 && 公务接待明细台账.接待场所 LIKE
+    '%学习基地%' || 公务接待明细台账.接待场所 LIKE '%科研基地%' || 公务接待明细台账.接待场所 LIKE '%培训基地%'
+  description: 按接待场所和月份分组，当同一场所（特别是各类基地）一个月内出现3家及以上不同接待单位时，触发疑点。反映可能存在的扎堆轮流接待、相互请托旅游。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 短期内多单位集中赴同类场所考察涉嫌变相公款旅游
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"禁止以考察、学习、培训等名义变相用公款旅游。\"\n  }\n]"
+- expression: 公务接待明细台账.接待事由 = '公务考察学习' && (公务活动方案 IS NULL || 签到表 IS NULL || 考察报告 IS NULL || LENGTH(公务接待明细台账.活动内容描述) < 10)
+  description: 若接待事由仅为笼统的“考察学习”，缺乏具体的调研题目、学习内容文字描述，且无法提供对应的活动方案、参会签到或成果报告中的任意两项证明，视为虚构活动疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 公务考察学习活动缺乏具体内容涉嫌虚构
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第七条\",\n    \"内容概述\": \"无公函的公务活动和来访人员一律不予接待；接待单位应当根据规定的接待范围，严格接待审批控制，建立公务接待清单制度。\"\n  }\n]"
+- expression: 公务接待明细台账.活动项目 = '马拉松' && 单位三定方案.主要职能描述 NOT LIKE '%体育%' && 单位三定方案.主要职能描述 NOT LIKE '%文旅%' && 赛事活动通知.主办单位 != 上级体育主管部门
+  description: 排除体育、文旅等直接相关职能单位，其余单位以公务名义参与马拉松，且主办方非上级业务指导部门，即认定为活动与职能无关，属于违规列支。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 以公务名义参加与职能无关的体育赛事
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"不得组织与公务活动无关的参观和活动，不得以任何名义发放纪念品或变相福利。\"\n  }\n]"
+- expression: 公务接待明细台账.接待场所名称 IS NULL || TRIM(公务接待明细台账.接待场所名称) = ''
+  description: 当接待场所字段为空或空白时直接判定违规，因为缺失关键要素，无法验证接待合规性。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 公务接待清单未记录具体场所信息
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十四条\",\n    \"内容概述\": \"接待费报销凭证应当包括财务票据、派出单位公函和接待清单。接待清单应包括接待对象的单位、姓名、职务和公务活动项目、时间、场所、费用等内容。\"\n  }\n]"
+- expression: (公务接待明细台账.对应审批单编号 IS NULL) OR (接待审批单.审批日期 > 公务接待明细台账.接待日期) OR (接待审批单.审批人签字 IS NULL) OR (财务报销凭证.所附审批单情况 IS NULL)
+  description: 台账中无对应审批单编号、审批日期晚于实际接待日期(先接待后审批)、审批单无有效签字、报销时未附审批单，满足任一条件即告违规。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 未履行公务接待审批程序
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"党内法规\",\n    \"\
+    条款号\": \"第七条、第十四条\",\n    \"内容概述\": \"接待单位应当严格接待审批控制，无公函的公务活动和来访人员一律不予接待；接待费报销凭证应当包括财务票据、派出单位公函和接待清单。\"\n  }\n]"
+- expression: (会议/调研/考察活动通知及行程安排.门票费用 > 0) OR (会议/调研/考察活动通知及行程安排.公务内容占比 < 0.5) OR (差旅费报销汇总表.地点 属于旅游景区 AND DATEDIFF(差旅费报销汇总表.出差日期,
+    差旅费报销汇总表.差旅日期) > 公务天数 * 2)
+  description: 行程中含景点门票或导游费，或公务活动(会议、调研)时间不足总行程一半，或差旅天数明显多于公务所需天数(如公务1天差旅3天)，均触发变相旅游疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 以公务名义变相旅游
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"党内法规\",\n    \"\
+    条款号\": \"第六条\",\n    \"内容概述\": \"国内公务接待不得组织旅游和与公务活动无关的参观，不得以任何名义赠送礼金、有价证券、纪念品和土特产品等。\"\n  }\n]"
+- expression: (任务批件中文.所属单位 = 本单位) AND (明细台账.收款单位 != 本单位 AND 明细台账.对应出国任务 = 任务批件中文.任务名称) OR (单据.付款方 != 本单位 AND 单据.收款方 = 本单位
+    且摘要含出国事由)
+  description: 本单位人员的出国费用理应由本单位承担，若发现费用由所属单位或外单位支付（即分摊台账中收款方为外单位，但对应的是本单位人员任务，或银行流水显示外单位向本单位支付出国相关费用），可能构成摊派。无合规分摊协议或协议显失公平均属违规。
+  audit_item: 因公出国（境）经费预算执行不合规
+  suspicion: 向所属或其他单位摊派因公出国费用
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关厉行节约反对浪费条例\",\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第十二条\",\n    \"内容概述\": \"党政机关不得向下属单位、企业、社会组织等摊派或转嫁因公出国（境）等费用，不得以任何名义要求其他单位提供资金或物品。\"\n  }\n]"
+- expression: (信息.股东姓名 IN (项申报表.申报人姓名, 项申报表.配偶及子女姓名)) AND (信息.企业名称 IN (名录.关联企业名称)) AND (项申报表.投资企业名称 不包含 信息.企业名称 OR 项申报表.持股比例
+    != 信息.持股比例) AND (信息.出资日期 BETWEEN 领导人员任职开始日期 AND 审计基准日)
+  description: 领导人员或其近亲属在关联企业持有股份且未如实申报，或申报持股比例与工商登记不符，同时入股时间发生在任职期间内，触发违规判定。持股比例>0即视为投资入股。
+  audit_item: 国有企业领导人员利用职权谋取私利以及损害本企业利益
+  suspicion: 领导人员违规投资入股关联企业
+  regulation: "[\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\": \"中纪发〔2009〕7号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第五条第一款\",\n    \"内容概述\": \"国有企业领导人员不得个人从事营利性经营活动和有偿中介活动，或者在本企业的同类经营企业、关联企业和与本企业有业务关系的企业投资入股。\"\n  }\n]"
+- expression: (离职人员利益往来登记表.利益输送企业名称 IN 关联企业及业务关系企业名录.关联企业名称) AND (离职人员利益往来登记表.发生日期 BETWEEN 离职人员利益往来登记表.离职日期 AND 离职人员利益往来登记表.离职日期+1095天)
+    AND (离职人员利益往来登记表.金额 > 0) AND (关联交易明细台账.审批人 = 该离职人员) AND (关联交易明细台账.交易日期在离职前)
+  description: 离职人员在离职后三年内从原关联企业获取报酬或物质利益，且该关联企业曾与离职人员任职企业发生业务往来并由其审批，线索即为违规。利益类型包括顾问费、咨询费、无偿提供财物等。
+  audit_item: 国有企业领导人员利用职权谋取私利以及损害本企业利益
+  suspicion: 离职后三年内接受原关联企业利益
+  regulation: "[\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\": \"中纪发〔2009〕7号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第五条第（二）项\",\n    \"内容概述\": \"不得在职或者离职后接受、索取本企业的关联企业、与本企业有业务关系的企业，以及管理和服务对象提供的物质性利益。\"\n  }\n]"
+- expression: ((收支台账.服务内容摘要 = ‘无’ OR 收支台账.有无实质交付物 = ‘否’) AND 收支台账.支付金额 > 0 AND 收支台账.收款方名称 IN (领导人员姓名, 领导人员关联方)) OR (业务合同.约定折扣条款存在
+    AND ABS(行对账单.收款金额 - 业务合同.合同金额) > 0 AND 处置台账 无对应上交记录) OR (报销凭证.事由 LIKE ‘%奖励资金%’ AND 报销凭证.报销人 = 领导人员 AND 无经审批的分配方案)
+  description: 支付给无实质服务的个人或空壳公司的大额中介费、佣金；合同折扣款未上缴财务而由个人截留；政府奖励款项被以报销名义私分而未纳入公司账簿，均构成侵占。
+  audit_item: 国有企业领导人员利用职权谋取私利以及损害本企业利益
+  suspicion: 私分或侵占企业折扣费、中介费、佣金
+  regulation: "[\n  {\n    \"法规名称\": \"国有企业领导人员廉洁从业若干规定\",\n    \"法规文号\": \"中纪发〔2009〕7号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第六条第（二）项\",\n    \"内容概述\": \"不得将企业经济往来中的折扣费、中介费、佣金、礼金，以及因企业行为受到有关部门和单位奖励的财物等据为己有或者私分。\"\n  }\n]"
+- expression: 明细台账.保证金项目名称 NOT IN (法定保证金项目名称、设立依据、法定保证金比例上限（如质量保证金不超过3%）.法定保证金项目名称) || (收取通知.保证金项目名称 未在单位设定的保证金项目名称、设立依据中载明  &&
+    无任何政策文件依据)
+  description: 若实际收取的保证金项目名称未出现在国务院或省级公布的涉企保证金目录清单中，或单位无法提供该保证金项目的设立依据文件、政策文件编号，则判定为违规收取无依据保证金。
+  audit_item: 政府采购违规收取保证金或拖欠企业账款
+  suspicion: 违规收取无政策依据的涉企保证金
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于清理规范工程建设领域保证金的通知\",\n    \"法规文号\": \"国办发〔2016〕49号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第一条\",\n    \"内容概述\": \"全面清理各类保证金。对建筑业企业在工程建设中需缴纳的保证金，除依法依规设立的投标保证金、履约保证金、工程质量保证金、农民工工资保证金外，其他保证金一律取消。\"\
+    \n  },\n  {\n    \"法规名称\": \"关于公布涉企保证金目录清单的通知\",\n    \"法规文号\": \"工信部联运行〔2017〕236号\",\n    \"效力级别\": \"部门规章\",\n  "
+- expression: (明细台账.保证金类型 IN ('质量保证金','工程质保金') AND (明细台账.实际收取金额/采购合同.合同金额) > 0.03) OR (明细台账.保证金类型='履约保证金' AND (明细台账.实际收取金额/采购合同.合同金额)
+    > 0.10)
+  description: 根据《建设工程质量保证金管理办法》，质量保证金总预留比例不得高于工程价款结算总额的3%；履约保证金不得超过政府采购合同金额的10%。超出上述比例即构成超标准收取保证金。注意区分保证金类型，不同类型适用不同法定上限。
+  audit_item: 政府采购违规收取保证金或拖欠企业账款
+  suspicion: 超法定比例收取质量保证金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府采购法实施条例\",\n    \"法规文号\": \"国务院令第658号\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第四十八条\",\n    \"内容概述\": \"采购人或者采购代理机构应当在采购文件中明确是否收取履约保证金，以及履约保证金的数额和提交方式。履约保证金的数额不得超过政府采购合同金额的10%。\"\n  },\n\
+    \  {\n    \"法规名称\": \"建设工程质量保证金管理办法\",\n    \"法规文号\": \"建质〔2017〕138号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第七条\"\
+    ,\n    \"内"
+- expression: (日记账.现金余额 - 盘点记录.实盘现金余额 < 0 && ABS(差异) > 2000 && 无书面说明) || (银行对账单.借贷方金额转账至个人账户 && 金额 > 50000 && 缺少对应业务合同) ||
+    (明细台账.备用金 > 100000 && 长期未冲账且无实际库存现金)
+  description: 突击盘点发现现金溢余且无合理解释，可能为公款私存。银行转账至个人账户大额无业务支撑，揭示公款被挪用或私存。备用金余额异常且无法盘实，疑为以备用金名义提取现金私存。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 私存私放财政资金或公款
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十七条\",\n    \"内容概述\": \"单位和个人违反财务管理的规定，私存私放财政资金或者其他公款的，责令改正，调整有关会计账目，追回私存私放的资金，没收违法所得。对单位处3000元以上5万元以下的罚款；对直接负责的主管人员和其他直接责任人员处2000元以上2万元以下的罚款……\"\
+    \n  }\n]"
+- expression: (票据存根.收费项目 NOT IN 合法收费项目清单及标准.批准收费项目) || (票据存根.金额 > 合法收费项目清单及标准.计费标准及收费依据*数量) || (SUM(票据存根.金额) - SUM(明细表.金额)
+    > 0 && 收款银行账户非单位零余额账户或汇缴专户)
+  description: 擅自设立收费项目或超标准收费，且收入未缴入法定账户，即构成违规收费账外存放。票据存根中未经批准的项目、超标准收费的差额，均指向账外资金。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 违规收费罚款摊派资金账外存放
+  regulation: "[\n  {\n    \"法规名称\": \"违反行政事业性收费和罚没收入收支两条线管理规定行政处分暂行规定\",\n    \"法规文号\": \"国务院令第281号\",\n    \"效力级别\": \"\
+    行政法规\",\n    \"条款号\": \"第七条\",\n    \"内容概述\": \"对违反规定擅自设立行政事业性收费项目或者设置罚没处罚的，对直接负责的主管人员和其他直接责任人员给予降级或者撤职处分。违反规定，将行政事业性收费、罚没收入截留、挪用、坐收坐支的，给予记大过处分；情节严重的，给予降级或者撤职处分。\"\
+    \n  }\n]"
+- expression: 现金支取凭证及审批单.发票 > 0 && (经济合同.合同事项 IS NULL || 现金支取凭证及审批单.验收单) && 明细表.金额 > 20000) || (经济合同.乙方信息 != 行对账单.收款人名称 &&
+    经济合同.合同事项) || (现金支取凭证及审批单.发票 && 存货台账.资产名称) || (明细台账.其他应收款挂账及核销 && 行对账单.收入流水)
+  description: 缺少合同/验收的大额支出、资金收款方与合同方不一致，或资本支出后无实物资产，均提示虚假支出套取资金。往来款异常核销可能意味着资金已私下转出。
+  audit_item: 私设会计账簿、私存私放财政资金或者其他公款、资产
+  suspicion: 虚报支出套取资金账外存放
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第二十四号（2017年修正）\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第四十三条\",\n    \"内容概述\": \"伪造、变造会计凭证、会计账簿，编制虚假财务会计报告，构成犯罪的，依法追究刑事责任。尚不构成犯罪的，由县级以上人民政府财政部门予以通报，可以对单位并处五千元以上十万元以下的罚款……\"\
+    \n  }\n]"

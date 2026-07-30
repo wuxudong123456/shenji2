@@ -1,0 +1,127 @@
+name: audit/清单名册类/接待清单
+type: model
+description: 从清单名册类类文档（接待清单）中提取结构化元数据。涵盖字段如：人均费用、单位名称、场所名称、场所栏目是否空白、场所类型、审批状态、接待人数、接待对象。文档范围包括：公务接待清单、接待清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 审批
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 接待清单
+  member_count: 1
+  member_details:
+  - 公务接待清单
+  - 接待清单
+output:
+  fields:
+  - name: 人均费用
+    type: number
+    description: 提取 人均费用 的数值（含单位，如万元、吨等）
+  - name: 单位名称
+    type: string
+    description: 提取 单位名称 的文本值
+  - name: 场所名称
+    type: string
+    description: 提取 场所名称 的文本值
+  - name: 场所栏目是否空白
+    type: boolean
+    description: 提取 场所栏目是否空白 的布尔值（是/否）
+  - name: 场所类型
+    type: string
+    description: 提取 场所类型 的文本值
+  - name: 审批状态
+    type: boolean
+    description: 提取 审批状态 的布尔值（是/否）
+  - name: 接待人数
+    type: number
+    description: 提取 接待人数 的数值（含单位，如万元、吨等）
+  - name: 接待对象
+    type: string
+    description: 提取 接待对象 的文本值
+  - name: 接待日期
+    type: date
+    description: 提取 接待日期 的日期值，格式 YYYY-MM-DD
+  - name: 接待时间
+    type: date
+    description: 提取 接待时间 的日期值，格式 YYYY-MM-DD
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 公务接待明细台账.接待场所名称 IS NULL || TRIM(公务接待明细台账.接待场所名称) = ''
+  description: 当接待场所字段为空或空白时直接判定违规，因为缺失关键要素，无法验证接待合规性。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 公务接待清单未记录具体场所信息
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十四条\",\n    \"内容概述\": \"接待费报销凭证应当包括财务票据、派出单位公函和接待清单。接待清单应包括接待对象的单位、姓名、职务和公务活动项目、时间、场所、费用等内容。\"\n  }\n]"
+- expression: 报销凭证.审批单附置情况 NOT CONTAIN '公务接待审批单' || 公务接待审批单.审批日期 > 接待清单.接待时间 || 公务接待审批单.审批人 NOT IN (有审批权限人员名单)
+  description: 报销时缺少审批单，或审批日期晚于接待实际发生日期（事后补批），或审批人不在单位授权审批人清单内，均视为未履行审批程序。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 接待未按规定履行审批程序
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第七条\",\n    \"内容概述\": \"接待单位应当根据规定的接待范围，严格接待审批控制，对能够合并的公务接待统筹安排。\"\n  }\n]"
+- expression: (支出明细账.摘要 LIKE '%礼品%' || 购物发票.品名 IN ('购物卡','提货券','高档茶叶','高档酒','燕窝')) && 支出明细账.金额 > 500 && 支出明细账.会计科目 != '工会经费'
+    && 库房领用记录.用途 != '职工慰问'
+  description: 通过费用摘要或发票品名识别礼品类支出，单笔金额高于500元（可调整），且排除工会正常福利和员工慰问，若与接待清单时间、对象有关联，则判定为赠送。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 在公务接待中赠送礼品或礼金
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"不得以任何名义赠送礼金、有价证券、纪念品和土特产品等。\"\n  }\n]"
+- expression: (接待清单.人均费用 > 标准.宴请费上限) || (接待清单.接待人数 > 审批文件.批准接待人数 * 1.5) || (接待清单.场所类型 属于 '高档餐厅' 或 '娱乐场所' 等禁止类别)
+  description: 同时检查三个条件：人均费用超出该国宴请标准上限，或实际接待人数超出批准人数的50%，或消费场所为高档餐厅、娱乐场所等明确禁止地点，满足任一条件即视为违规。高档场所可结合米其林星级、黑珍珠钻级等外部数据判定。
+  audit_item: 境外公务未严格落实中央八项规定及实施细则精神
+  suspicion: 超标准安排境外公务接待
+  regulation: "[\n  {\n    \"法规名称\": \"因公临时出国经费管理办法\",\n    \"法规文号\": \"财行〔2013〕516号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十二条\",\n    \"内容概述\": \"出国人员在国外期间，应严格按照规定安排伙食，宴请标准不得超过所在国家日常伙食费标准；不得安排高档宴请。\"\n  },\n  {\n    \"法规名称\": \"中共中央政治局贯彻落实中央八项规定的实施细则\"\
+    ,\n    \"法规文号\": \"2017年修订\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"严禁用公款大吃大喝或安排"

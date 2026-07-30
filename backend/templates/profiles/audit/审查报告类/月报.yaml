@@ -1,0 +1,92 @@
+name: audit/审查报告类/月报
+type: model
+description: 从审查报告类类文档（月报）中提取结构化元数据。涵盖字段如：偏差分析说明、实际里程碑完成日期、已完工程价值、累计已完工程价值。文档范围包括：工程月报、工程量月报、监理月报等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 工程
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 月报
+  member_count: 1
+  member_details:
+  - 工程月报
+  - 工程量月报
+  - 监理月报
+output:
+  fields:
+  - name: 偏差分析说明
+    type: string
+    description: 提取 偏差分析说明 的文本值
+  - name: 实际里程碑完成日期
+    type: date
+    description: 提取 实际里程碑完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 已完工程价值
+    type: string
+    description: 提取 已完工程价值 的文本值
+  - name: 累计已完工程价值
+    type: string
+    description: 提取 累计已完工程价值 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (月报.实际里程碑完成日期 - 计划完成日期 > 30 && (会议纪要.预警事项记录 == null || 审批表.批复日期 > 月报.实际里程碑完成日期))
+  description: 当任一关键里程碑实际完成时间超出计划30天以上，且项目进度会议纪要中无相应进度预警及纠偏指令，或工期延期审批滞后于实际延误发生时间，判定为进度管理失控，存在未及时识别并纠正偏差的违规行为。
+  audit_item: 大型水利工程进度与成本审计
+  suspicion: 关键里程碑节点延误未实施纠偏措施
+  regulation: "[\n  {\n    \"法规名称\": \"水利工程建设项目管理规定（试行）\",\n    \"法规文号\": \"水建[1995]128号\",\n    \"效力级别\": \"部门规章\",\n   \
+    \ \"条款号\": \"第二十条\",\n    \"内容概述\": \"项目法人应加强建设项目的管理，严格控制工程进度，建立进度控制目标体系，定期进行进度分析，采取有效赶工措施纠正偏差。\"\n  },\n  {\n    \"法规名称\"\
+    : \"建设工程监理规范\",\n    \"法规文号\": \"GB/T 50319-2013\",\n    \"效力级别\": \"国家标准\",\n    \"条款号\": \"6.2.5\",\n    \"内容概述\": \"\
+    项目监理机构"
+- expression: (支付凭证.实际支付金额 / (申请.发包人审批金额 * (1 - 其他.质保金比例)) < 80%) || (支付凭证.银行到账日期 - 其他.合同约定竣工日期 > 30天)
+  description: 衡量建设单位履约支付情况。两个维度：1.支付率不足：累计已付金额除以累计扣留质保金后的应付金额，比率长期低于80%，构成严重拖欠；2.支付延迟：进度款超期支付超过30天（一般合同约定14-28天内支付），定性为建设单位违约，可能引发索赔。
+  audit_item: 某公共建筑合同履行审
+  suspicion: 未按合同约定支付工程款
+  regulation: "[\n  {\n    \"法规名称\": \"保障中小企业款项支付条例\",\n    \"法规文号\": \"国务院令第728号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第八条, 第十五条\",\n    \"内容概述\": \"机关、事业单位从中小企业采购货物、工程、服务，应当自交付之日起30日内支付款项；合同另有约定的，付款期限最长不超过60日。延迟支付的应支付逾期利息。\"\n  },\n\
+    \  {\n    \"法规名称\": \"建设工程价款结算暂行办法\",\n    \"法规文号\": \"财建〔2004〕369号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十三条\"\
+    ,\n    "

@@ -1,0 +1,116 @@
+name: audit/登记台账类/发证台账
+type: model
+description: 从登记台账类类文档（发证台账）中提取结构化元数据。涵盖字段如：变更记录、权利人、登记用途、登记面积、证号。文档范围包括：土地登记发证台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 登记
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 发证台账
+  member_count: 1
+  member_details:
+  - 土地登记发证台账
+output:
+  fields:
+  - name: 变更记录
+    type: string
+    description: 提取 变更记录 的文本值
+  - name: 权利人
+    type: string
+    description: 提取 权利人 的文本值
+  - name: 登记用途
+    type: string
+    description: 提取 登记用途 的文本值
+  - name: 登记面积
+    type: string
+    description: 提取 登记面积 的文本值
+  - name: 证号
+    type: string
+    description: 提取 证号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ((项目名称.审批面积 IS NULL OR 批准书.批准书文号 IS NULL) && (检查记录.开工状态 = '已占用')) || ((批准书.四至范围 != 许可证.红线图坐标及边界) && (ABS(批准书.批准面积
+    - 权属证明.宗地面积) / 批准书.批准面积 > 0.05)) || (供应台账.受让人 != 发证台账.权利人 && 检查记录.开工状态 = '已占用')
+  description: 表达式由三个或条件分支构成，触发任一即高度可疑。分支1：在审批台账或批准书缺失的情况下（未批），监察记录却显示已占用（先占），构成未批先占。分支2：实际批准的红线范围与许可的红线图不符，且权属证明的实际用地面积与批准面积偏差超过5%，构成批少占多。分支3：土地供应或登记的权利人与实际受让人（使用人）不一致，且已实际占用，构成违法转让或骗取批准后占用。
+  audit_item: 未办理土地变更手续非法占用土地
+  suspicion: 未经批准或骗取批准非法占用土地
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国土地管理法\",\n    \"法规文号\": \"中华人民共和国主席令第32号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第七十七条\",\n    \"内容概述\": \"未经批准或者采取欺骗手段骗取批准，非法占用土地的，由县级以上人民政府自然资源主管部门责令退还非法占用的土地，对违反土地利用总体规划擅自将农用地改为建设用地的，限期拆除在非法占用的土地上新建的建筑物和其他设施，恢复土地原状，对符合土地利用总体规划的，没收在非法占用的土地上新建的建筑物和其他设施，可以并处罚款；对非法占用土地单位的直接负责的主管人员和其他直接责任人员，依法"

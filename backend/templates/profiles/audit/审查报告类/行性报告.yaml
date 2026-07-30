@@ -1,0 +1,103 @@
+name: audit/审查报告类/行性报告
+type: model
+description: 从审查报告类类文档（行性报告）中提取结构化元数据。涵盖字段如：农村适应性分析专章、农民习惯调研内容、建设内容、是否满足资本化五条件、项目性质、项目所处阶段、项目立项时间。文档范围包括：可行性报告、技术可行性报告、项目立项可行性报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 行性报告
+  member_count: 1
+  member_details:
+  - 可行性报告
+  - 技术可行性报告
+  - 项目立项可行性报告
+output:
+  fields:
+  - name: 农村适应性分析专章
+    type: string
+    description: 提取 农村适应性分析专章 的文本值
+  - name: 农民习惯调研内容
+    type: string
+    description: 提取 农民习惯调研内容 的文本值
+  - name: 建设内容
+    type: string
+    description: 提取 建设内容 的文本值
+  - name: 是否满足资本化五条件
+    type: boolean
+    description: 提取 是否满足资本化五条件 的布尔值（是/否）
+  - name: 项目性质
+    type: string
+    description: 提取 项目性质 的文本值
+  - name: 项目所处阶段
+    type: string
+    description: 提取 项目所处阶段 的文本值
+  - name: 项目立项时间
+    type: date
+    description: 提取 项目立项时间 的日期值，格式 YYYY-MM-DD
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: 项目所处阶段（研究/开发）.项目所处阶段（研究/开发） = '研究阶段' && 明细账.资本化金额 > 0
+  description: 研究阶段支出必须费用化，如存在资本化金额，则违反准则。开发阶段未全部满足资本化五项条件仍资本化的，同样违规。
+  audit_item: 未按规定核算资产
+  suspicion: 不满足资本化条件的支出资本化
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第6号——无形资产\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第七条、第八条、第九条\",\n    \"内容概述\": \"企业内部研究开发项目的支出，应当区分研究阶段支出与开发阶段支出。研究阶段支出全部费用化；开发阶段支出同时满足五项条件的可资本化。\"\n  }\n]"
+- expression: (农村适应性分析专章.农民习惯调研内容 = '') || (投放时间合理性评分.总体满意度 < 60) || (智能设备日均扫码次数.智能设备日均扫码次数 < 10)
+  description: 可行性研究未考虑农村实际，或村民满意度平均分低于60分，或智能设备日均使用次数低于10人次，表明处理模式脱离农民习惯，难以推行。
+  audit_item: 农村生活垃圾治理不符合相关规定
+  suspicion: 分类处理模式照搬城市不符合农村实际
+  regulation: "[\n  {\n    \"法规名称\": \"《农村人居环境整治提升五年行动方案（2021－2025年）》\",\n    \"法规文号\": \"厅字〔2021〕44号\",\n    \"效力级别\": \"\
+    制度文件\",\n    \"条款号\": \"第二部分第（四）条\",\n    \"内容概述\": \"推进农村生活垃圾分类减量与利用，要因地制宜，结合农村特点和农民习惯，分类施策，不搞“一刀切”。\"\n  }\n]"
+- expression: 明细表.支出内容 LIKE ("%新建%"||"%温室大棚%"||"%永久设施%") && (明细表.拨款时间 < 灾情发生时间+7天 || 行性报告.项目立项时间 < 灾情发生时间) && 明细表.支出金额>0
+  description: 救灾资金只能用于灾后恢复生产临时性、应急性支出。若支出内容包含永久性建设工程或项目立项时间早于灾情发生时间，则表明资金被挪用于长期发展项目。单笔金额超50万元或非救灾用途占比超20%即严重违规。
+  audit_item: 涉农资金统筹整合不规范
+  suspicion: 农业生产救灾资金违规用于长期发展项目
+  regulation: "[\n  {\n    \"法规名称\": \"农业生产和水利救灾资金管理办法\",\n    \"法规文号\": \"财农〔2019〕31号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第八条\",\n    \"内容概述\": \"救灾资金主要用于恢复农业生产所需的物资材料及服务补助，不得用于兴建楼堂馆所、弥补预算支出缺口等与救灾无关的支出。\"\n  }\n]"

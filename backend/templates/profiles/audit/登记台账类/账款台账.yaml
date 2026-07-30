@@ -1,0 +1,106 @@
+name: audit/登记台账类/账款台账
+type: model
+description: 从登记台账类类文档（账款台账）中提取结构化元数据。涵盖字段如：应付账款账龄、应付金额。文档范围包括：应付账款台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 账款台账
+  member_count: 1
+  member_details:
+  - 应付账款台账
+output:
+  fields:
+  - name: 应付账款账龄
+    type: number
+    description: 提取 应付账款账龄 的数值（含单位，如万元、吨等）
+  - name: 应付金额
+    type: number
+    description: 提取 应付金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (应付账款账龄.应付账款账龄 > 365 AND 应付账款账龄.应付金额 > 0) AND ((货币资金余额.货币资金余额 + 货币资金余额.交易性金融资产) / 货币资金余额.流动负债 > 1)
+  description: 筛选账龄超过1年的应付账款，同时计算大型企业的现金比率。若现金比率大于1，说明企业具有较强的即期支付能力，此时仍长期拖欠中小企业款项，高度指向利用优势地位恶意拖欠。
+  audit_item: 违规收费-拖欠工程款和农民工工资
+  suspicion: 大型企业利用优势地位长期拖欠中小企业账款
+  regulation: "[\n  {\n    \"法规名称\": \"保障中小企业款项支付条例\",\n    \"法规文号\": \"国务院令第728号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第八条、第九条\",\n    \"内容概述\": \"大型企业从中小企业采购货物、工程、服务，应当合理约定付款期限并及时支付款项，不得利用优势地位强迫中小企业接受不合理的付款期限、方式或变相延长付款期限。\"\n  }\n]"

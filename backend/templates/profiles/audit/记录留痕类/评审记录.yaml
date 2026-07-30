@@ -1,0 +1,71 @@
+name: audit/记录留痕类/评审记录
+type: model
+description: 从记录留痕类类文档（评审记录）中提取结构化元数据。涵盖字段如：是否专家论证、权重分配、评审专家签名、评审意见、评审结论。文档范围包括：创业载体申报材料评审记录、绩效指标设计合理性评审记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 评审记录
+  member_count: 1
+  member_details:
+  - 创业载体申报材料评审记录
+  - 绩效指标设计合理性评审记录
+output:
+  fields:
+  - name: 是否专家论证
+    type: boolean
+    description: 提取 是否专家论证 的布尔值（是/否）
+  - name: 权重分配
+    type: string
+    description: 提取 权重分配 的文本值
+  - name: 评审专家签名
+    type: string
+    description: 提取 评审专家签名 的文本值
+  - name: 评审意见
+    type: string
+    description: 提取 评审意见 的文本值
+  - name: 评审结论
+    type: string
+    description: 提取 评审结论 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 是否专家论证 == '否' || 权重分配 NOT BETWEEN 行业下限 AND 行业上限 || 指标类型 IN ('经济效益') AND 权重 > 0.6
+  description: 若评审记录显示未经专家论证或集体决策；或关键指标权重严重偏离行业基准（如经济效益权重>60%偏重财务；或社会效益权重<20%）；或指标仅关注产出而忽略效果、满意度等，即视为不合理。
+  audit_item: 绩效管理不到位
+  suspicion: 绩效指标设计不合理不全面
+  regulation: "[\n  {\n    \"法规名称\": \"中央部门预算绩效目标管理办法\",\n    \"法规文号\": \"财预〔2015〕88号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十三条\",\n    \"内容概述\": \"绩效指标应当与绩效目标密切相关，突出重点，系统全面；优先选择最具代表性、最能反映项目绩效的关键指标。\"\n  }\n]"

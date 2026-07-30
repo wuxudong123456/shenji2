@@ -1,0 +1,122 @@
+name: audit/合同协议类/人员合同
+type: model
+description: 从合同协议类类文档（人员合同）中提取结构化元数据。涵盖字段如：合同期限、岗位类型、用工人数。文档范围包括：临时人员或借调人员合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 人员合同
+  member_count: 1
+  member_details:
+  - 临时人员或借调人员合同
+output:
+  fields:
+  - name: 合同期限
+    type: string
+    description: 提取 合同期限 的文本值
+  - name: 岗位类型
+    type: string
+    description: 提取 岗位类型 的文本值
+  - name: 用工人数
+    type: number
+    description: 提取 用工人数 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (人员名单.实际在岗人数 > 编制文件.核定编制总数) && (算申报表.预算申报人数 > 编制文件.核定编制总数) && (ABS(人员名单.实际在岗人数 - 算申报表.预算申报人数) <= 1)
+  description: 实际在岗总人数超过上级核定编制总数，且日常公用经费预算申报表中所使用的预算人数同样超过编制总数，同时预算申报人数与实际在岗人数基本一致（允许±1人的统计误差）。表明单位在预算编报时未按编制数控制，而是据实以超编人数申报，导致公用经费预算虚增。超编比例超过10%为严重违规。
+  audit_item: 生成模拟审计数据
+  suspicion: 超编制配置人员虚报公用经费预算
+  regulation: "[\n  {\n    \"法规名称\": \"行政单位财务规则\",\n    \"法规文号\": \"财政部令第71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第十三条\",\n    \"内容概述\": \"行政单位编制预算，应当综合考虑机构设置、人员编制和实际人数等因素，不得以超编人数作为预算编制基数，确保预算真实性。\"\n  },\n  {\n    \"法规名称\": \"党政机关厉行节约反对浪费条例\"\
+    ,\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第八条\",\n    \"内容概述\": \"党政机关应当遵循先有预算、后有支出的"

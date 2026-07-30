@@ -1,0 +1,120 @@
+name: audit/业务单据类/运联单
+type: model
+description: 从业务单据类类文档（运联单）中提取结构化元数据。涵盖字段如：交接时间、医废类型、移交人签名、重量/数量。文档范围包括：医疗废物交接转运联单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 运联单
+  member_count: 1
+  member_details:
+  - 医疗废物交接转运联单
+output:
+  fields:
+  - name: 交接时间
+    type: date
+    description: 提取 交接时间 的日期值，格式 YYYY-MM-DD
+  - name: 医废类型
+    type: string
+    description: 提取 医废类型 的文本值
+  - name: 移交人签名
+    type: string
+    description: 提取 移交人签名 的文本值
+  - name: 重量-数量
+    type: number
+    description: 提取 重量-数量 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (登记台账.消耗总数 * 单重) * (1 + 合理误差) <  运联单.重量/数量  && ABS(DATE(运联单.交接时间) - DATE(登记台账.使用时间)) > 48小时
+  description: 若销毁称重的医废量显著小于一次性器械理论废弃量，表明可能流失；若无转运联单或满载转运间隔超过48小时（常规存放时限），表明管理失范。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不符合相关规定
+  suspicion: 医疗废物登记处置不规范
+  regulation: "[\n  {\n    \"法规名称\": \"医疗废物管理条例\",\n    \"法规文号\": \"国务院令第380号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十六条、第十七条\",\n    \"内容概述\": \"医疗卫生机构应当及时收集本单位产生的医疗废物，并按照类别分置于防渗漏、防锐器穿透的专用包装物或密闭容器内。医疗废物的暂时贮存设施、设备，应当远离医疗区，且贮存时间不得超过2天。\"\
+    \n  }\n]"

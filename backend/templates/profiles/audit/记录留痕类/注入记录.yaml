@@ -1,0 +1,63 @@
+name: audit/记录留痕类/注入记录
+type: model
+description: 从记录留痕类类文档（注入记录）中提取结构化元数据。涵盖字段如：入账日期、实际注入基金账户金额。文档范围包括：基金注入记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 注入记录
+  member_count: 1
+  member_details:
+  - 基金注入记录
+output:
+  fields:
+  - name: 入账日期
+    type: date
+    description: 提取 入账日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际注入基金账户金额
+    type: number
+    description: 提取 实际注入基金账户金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (注入比例核算表.注入金额 / 注入比例核算表.年度收益总额 < 0.2) || EXISTS (SELECT 1 FROM 基金账户银行流水, 基金注入记录 WHERE 基金账户银行流水.交易摘要 = '转出' AND
+    基金账户银行流水.金额 = 基金注入记录.实际注入基金账户金额 AND 基金账户银行流水.交易日期 > 基金注入记录.入账日期 AND 基金账户银行流水.交易日期 <= 基金注入记录.入账日期 + 5)
+  description: 注入比例低于20%直接认定违规；若银行流水显示资金注入后短期内（5日）转出至原账户或关联方，视为虚假注资，同样构成违规。
+  audit_item: 供销合作社联合社治理机制不健全
+  suspicion: 合作发展基金未按不低于20%比例注入
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于深化供销合作社综合改革的决定\",\n    \"法规文号\": \"中发〔2015〕11号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第九条\",\n    \"内容概述\": \"当年社有资产收益按不低于20%的比例注入本级供销合作社合作发展基金。\"\n  }\n]"

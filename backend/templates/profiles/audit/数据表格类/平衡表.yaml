@@ -1,0 +1,46 @@
+name: audit/数据表格类/平衡表
+type: model
+description: 从数据表格类类文档（平衡表）中提取结构化元数据。涵盖字段如：所有科目借贷合计。文档范围包括：试算平衡表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 平衡表
+  member_count: 1
+  member_details:
+  - 试算平衡表
+output:
+  fields:
+  - name: 所有科目借贷合计
+    type: number
+    description: 提取 所有科目借贷合计 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 本期发生额、余额、科目名称、期末余额、固定资产科目余额、累计折旧科目余额、科目设置、发生额及余额、内部往来科目发生额、固定资产、无形资产等科目.期末余额 != SUM(明细分类账.各明细期末余额合计)
+  description: 总账科目余额与其所属明细账余额合计数不相等，且无有效的重分类调整支持，即为账账不符疑点。
+  audit_item: 账实不符、账证不符、账账不符、账表不符
+  suspicion: 总账与明细账期末余额不一致
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号（2017修正）\",\n    \"效力级别\": \"法律\",\n \
+    \   \"条款号\": \"第十七条\",\n    \"内容概述\": \"各单位应当定期核对会计账簿之间相对应的记录，保证会计账簿之间相对应的记录相符。\"\n  }\n]"

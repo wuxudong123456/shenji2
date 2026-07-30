@@ -1,0 +1,64 @@
+name: audit/记录留痕类/消毒记录
+type: model
+description: 从记录留痕类类文档（消毒记录）中提取结构化元数据。涵盖字段如：数量、时间、消毒物品名称。文档范围包括：消毒记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 消毒记录
+  member_count: 1
+  member_details:
+  - 消毒记录
+output:
+  fields:
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 时间
+    type: date
+    description: 提取 时间 的日期值，格式 YYYY-MM-DD
+  - name: 消毒物品名称
+    type: string
+    description: 提取 消毒物品名称 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (村卫生室药品采购/销售/库存台账.当期库存量 + 村卫生室药品采购/销售/库存台账.采购数量 - 村卫生室药品采购/销售/库存台账.当期库存量) < 登记台账.消耗总数
+  description: 当库存减少量（理论消耗量）小于同期台账登记的使用量时，表明存在台账虚增消耗或一次性耗材实际库存不足挪用的情况。同时，若同名同批号耗材在使用台账中出现两次以上且无销毁记录，则直接判定为重复使用。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不符合相关规定
+  suspicion: 重复使用一次性医疗器械
+  regulation: "[\n  {\n    \"法规名称\": \"医疗器械监督管理条例\",\n    \"法规文号\": \"国务院令第739号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四十九条\",\n    \"内容概述\": \"一次性使用的医疗器械不得重复使用，对使用过的应当按照国家有关规定销毁。\"\n  }\n]"

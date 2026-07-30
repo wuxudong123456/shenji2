@@ -1,0 +1,151 @@
+name: audit/规章制度类/整改方案
+type: model
+description: 从规章制度类类文档（整改方案）中提取结构化元数据。涵盖字段如：原因分析、各问题是否纳入整改范围、对应整改措施、对应问题编号、整改措施、整改措施文本、计划提升措施、计划整改完成时间。文档范围包括：任务未完成整改方案、关于避免同业竞争的整改方案、被审计单位整改方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 整改
+- 资产
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 整改方案
+  member_count: 1
+  member_details:
+  - 任务未完成整改方案
+  - 关于避免同业竞争的整改方案
+  - 被审计单位整改方案
+output:
+  fields:
+  - name: 原因分析
+    type: string
+    description: 提取 原因分析 的文本值
+  - name: 各问题是否纳入整改范围
+    type: boolean
+    description: 提取 各问题是否纳入整改范围 的布尔值（是/否）
+  - name: 对应整改措施
+    type: string
+    description: 提取 对应整改措施 的文本值
+  - name: 对应问题编号
+    type: string
+    description: 提取 对应问题编号 的文本值
+  - name: 整改措施
+    type: string
+    description: 提取 整改措施 的文本值
+  - name: 整改措施文本
+    type: string
+    description: 提取 整改措施文本 的文本值
+  - name: 计划提升措施
+    type: string
+    description: 提取 计划提升措施 的文本值
+  - name: 计划整改完成时间
+    type: date
+    description: 提取 计划整改完成时间 的日期值，格式 YYYY-MM-DD
+  - name: 责任单位
+    type: string
+    description: 提取 责任单位 的文本值
+  - name: 资产整合或业务托管的具体方案
+    type: string
+    description: 提取 资产整合或业务托管的具体方案 的文本值
+  - name: 问题编号
+    type: string
+    description: 提取 问题编号 的文本值
+  - name: 阶段性里程碑描述
+    type: string
+    description: 提取 阶段性里程碑描述 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: EXISTS (整改验收报告或证明材料.整改完成情况='已退回' AND 相关财务凭证的账务调整记录.借方科目 IN ('其他补贴','劳务费','福利费','加班费') AND ABS(相关财务凭证的账务调整记录.金额
+    - 以往审计报告.涉及金额) / 以往审计报告.涉及金额 <= 0.1 AND 相关财务凭证的账务调整记录.凭证日期 BETWEEN 整改验收报告或证明材料.退回到账日期 AND 整改验收报告或证明材料.退回到账日期+60 AND (相关财务凭证的账务调整记录.摘要
+    LIKE '%补贴%' OR 相关财务凭证的账务调整记录.摘要 LIKE '%发放%'))
+  description: 比对已退回资金问题，检查退款后60天内是否存在科目为敏感补贴类、金额与原违规金额偏差不超过10%的新支出，且摘要含补贴发放等关键词，若存在则高度涉嫌以新科目变相重发资金，属于虚假整改。
+  audit_item: 以往审计发现问题整改情况存在的问题
+  suspicion: 通过重列支出科目虚假整改已退回资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"主席令第48号（2021修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十二条\",\n    \"内容概述\": \"被审计单位应当按照规定时间整改审计查出的问题，将整改情况报告审计机关。审计机关应当对整改情况进行跟踪检查。\"\n  }\n]"
+- expression: 整改任务进度跟踪表.各问题当前状态 IN ('持续推进','部分整改','未整改') AND (被审计单位整改方案.计划整改完成时间 IS NULL OR (当前日期 - 被审计单位整改方案.计划整改完成时间 > 365))
+    AND (MAX(整改任务进度跟踪表.最新更新日期) < 当前日期 - 180 OR COUNT(管理层关于整改的会议纪要.会议日期) = 0)
+  description: 问题未关闭且超过承诺整改期限一年仍未完成，或未设定明确时限且近半年内无任何进展更新或管理层讨论记录，即判定为拖延整改。365天覆盖一个完整年度，180天（半年）作为无进展监控阈值。
+  audit_item: 以往审计发现问题整改情况存在的问题
+  suspicion: 整改措施长期无实质进展或无限期拖延
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"主席令第48号（2021修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十二条\",\n    \"内容概述\": \"被审计单位应当按照规定时间整改审计查出的问题，将整改情况报告审计机关。\"\n  }\n]"
+- expression: COUNT(以往审计报告.问题编号) - COUNT(整改验收报告或证明材料.已销号问题清单) > 0 AND (以往审计报告.风险等级 = '高' OR (以往审计报告.风险等级 = '中' AND 以往审计报告.涉及金额
+    > 500000)) AND (整改任务进度跟踪表.后续计划标记 IS NULL OR 整改任务进度跟踪表.后续计划标记 = '无')
+  description: 存在未整改问题，且未整改的是高风险问题，或中等风险但涉及金额超过50万元，同时被审计单位未提供任何后续处理计划或报备记录，则构成选择性整改。风险等级和金额阈值可根据实际调整。
+  audit_item: 以往审计发现问题整改情况存在的问题
+  suspicion: 选择性整改：仅整改简单问题，回避重大风险问题
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"主席令第48号（2021修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十二条\",\n    \"内容概述\": \"被审计单位应当全面整改审计查出的问题，不得选择性整改。\"\n  }\n]"
+- expression: 以往审计报告.问题类型 IN ('固定资产账实不符','存货盘亏','白条入账','内控缺陷') AND 被审计单位整改方案.整改措施 NOT LIKE '%制度%' AND 被审计单位整改方案.整改措施 NOT LIKE
+    '%流程%' AND (被审计单位整改方案.整改措施 LIKE '%补录%' OR 被审计单位整改方案.整改措施 LIKE '%调整%' OR 被审计单位整改方案.整改措施 LIKE '%一次性处理%') AND (相关规章制度.新制定或修订的制度文件编码
+    IS NULL OR 相关规章制度.发布日期 > 整改验收报告或证明材料.实际完成日期 + 180)
+  description: 对于根源在制度或流程的问题，若整改措施仅通过补录数据、账务调整等一次性操作完成，且在整改完成后6个月内未发布相关制度修订文件，即视为治标不治本。关键是通过关键词匹配排除制度性整改措施。
+  audit_item: 以往审计发现问题整改情况存在的问题
+  suspicion: 整改仅治标不治本，未建立长效制度机制
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"主席令第48号（2021修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十二条\",\n    \"内容概述\": \"被审计单位应当举一反三，健全长效机制。\"\n  }\n]"

@@ -1,0 +1,91 @@
+name: audit/规章制度类/活动计划
+type: model
+description: 从规章制度类类文档（活动计划）中提取结构化元数据。涵盖字段如：计划活动次数。文档范围包括：文化站（中心）年度活动计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 活动计划
+  member_count: 1
+  member_details:
+  - 文化站（中心）年度活动计划
+output:
+  fields:
+  - name: 计划活动次数
+    type: string
+    description: 提取 计划活动次数 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (计划活动次数.计划活动次数 或 上级要求最低次数) > 上报活动次数、上报参与人数.上报活动次数 OR (上报活动次数、上报参与人数.上报参与人数 / 上报活动次数、上报参与人数.上报参与人数 < 上报活动次数、上报参与人数.上报参与人数
+    / 上报活动次数、上报参与人数.上报活动次数)
+  description: 条件一：比对年度计划或主管部门规定的最低活动次数（如每月至少1次），若实际开展并上报的次数低于此标准，则为不达标。条件二：计算活动实施记录中签到人数的单次平均人数，再与活动统计表上报的单次平均人数进行比对，若后者虚高超过30%（经验阈值），则存在数据造假嫌疑。
+  audit_item: 文化站（中心）等建设运营管护不符合相关规定
+  suspicion: 文化站活动开展次数不达标或造假
+  regulation: "[\n  {\n    \"法规名称\": \"乡镇综合文化站管理办法\",\n    \"法规文号\": \"文化部令第48号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\":\
+    \ \"第十六条\",\n    \"内容概述\": \"文化站应当常年向公众开放，提供书报刊阅览、教育培训、文体活动等基本公共文化服务，并经常性组织开展群众性文体活动。\"\n  }\n]"

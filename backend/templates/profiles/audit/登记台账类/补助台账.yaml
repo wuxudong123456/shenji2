@@ -1,0 +1,133 @@
+name: audit/登记台账类/补助台账
+type: model
+description: 从登记台账类类文档（补助台账）中提取结构化元数据。涵盖字段如：与日常活动相关性标识、本期确认收益金额、确认收益方式、补助类型、补助金额。文档范围包括：政府补助台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 补助台账
+  member_count: 1
+  member_details:
+  - 政府补助台账
+output:
+  fields:
+  - name: 与日常活动相关性标识
+    type: string
+    description: 提取 与日常活动相关性标识 的文本值
+  - name: 本期确认收益金额
+    type: number
+    description: 提取 本期确认收益金额 的数值（含单位，如万元、吨等）
+  - name: 确认收益方式
+    type: string
+    description: 提取 确认收益方式 的文本值
+  - name: 补助类型
+    type: string
+    description: 提取 补助类型 的文本值
+  - name: 补助金额
+    type: number
+    description: 提取 补助金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: IF ( (补助台账.补助类型 = "与资产相关" OR 批文.补助用途 LIKE "%购建%") AND (ABS(本期发生额、补助来源.本期发生额 - 补助台账.补助金额) < 0.01) AND (递延收益科目本期贷方发生额.递延收益科目本期贷方发生额
+    = 0 OR 递延收益科目本期贷方发生额.无此笔补助记录) ) THEN 疑点；ELSE IF (批文.款项分期确认 = "是" AND 补助台账.本期确认收益金额 = 补助台账.补助全额 AND 批文.期数 > 1) THEN 疑点
+  description: 当补助批文明示用途为购建长期资产或台账分类为与资产相关时，企业应将补助款确认为递延收益并分期摊销；若企业当期直接将全额补助计入其他收益或营业外收入，且递延收益科目未记录该补助，则违规。此外，如果批文规定按项目进度分期确认收益，但企业一次性全额确认，也属违规。
+  audit_item: 未按规定核算政府补助
+  suspicion: 将资本性或跨期补助全额确认当期收益
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第16号——政府补助\",\n    \"法规文号\": \"财会[2017]15号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第五条、第八条\",\n    \"内容概述\": \"与资产相关的政府补助，应当冲减相关资产的账面价值或确认为递延收益，在相关资产使用寿命内分期计入损益；与收益相关的政府补助用于补偿企业以后期间的相关成本费用或损失的，应确认为递延收益，并在确认相关成本费用或损失的期间计入当期损益或冲减相关成本。\"\
+    \n  }\n]"
+- expression: ((补助事由（灾害救助、奖励、研发等）.补助用途 LIKE '%建设%' OR '%设备%' OR '%购建%') AND 补助事由（灾害救助、奖励、研发等）.补助类型（与资产/收益相关） = '与收益相关' AND
+    日记账.发生额 / 补助事由（灾害救助、奖励、研发等）.补助金额 > 0.5) OR ((补助事由（灾害救助、奖励、研发等）.补助用途 LIKE '%稳岗%' OR '%薪酬%' OR '%补偿日常成本%') AND 补助事由（灾害救助、奖励、研发等）.补助类型（与资产/收益相关）
+    = '与资产相关' AND 会计凭证.贷方科目 > 0)
+  description: 如果补助批文明确补助用于购建长期资产，企业却将其划分为与收益相关且直接计入当期损益，或补助用途为补偿人工等日常成本，却被划分为与资产相关并分期摊销，均构成分类错误。阈值设定为：资产相关补助错误归类为收益相关且超过50%金额已计入当期收益，或收益相关补助错误归类为资产相关且已确认递延收益。
+  audit_item: 未按规定核算政府补助
+  suspicion: 政府补助类型划分错误导致损益核算不当
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第16号——政府补助\",\n    \"法规文号\": \"财会[2017]15号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第八条、第九条\",\n    \"内容概述\": \"企业应当根据政府补助的性质和条件，合理区分与资产相关的政府补助和与收益相关的政府补助。与资产相关的政府补助，是指企业取得的、用于购建或以其他方式形成长期资产的政府补助。与收益相关的政府补助，是指除与资产相关的政府补助之外的政府补助。\"\
+    \n  }\n]"
+- expression: ((批文.补助事由（灾害救助、奖励、研发等） LIKE '%灾害%' OR '%重建%' OR '%自然灾害%' OR 补助台账.与日常活动相关性标识 = '否') AND 明细表.发生额 > 0) OR ((批文.补助事由（灾害救助、奖励、研发等）
+    LIKE '%研发%' OR '%高新技术%' OR '%稳岗%' OR 补助台账.与日常活动相关性标识 = '是') AND 明细表.发生额 > 0)
+  description: 根据准则，与日常活动无关的补助（如灾后重建、非经常性损失补偿）应计入营业外收支；与日常活动相关的补助（如研发奖励、高新认定奖励）应计入其他收益或冲减成本。若企业反向处理，则违规。表达式通过补助事由关键词或台账标注的“日常活动相关性”判断。
+  audit_item: 未按规定核算政府补助
+  suspicion: 日常活动无关补助计入其他收益或相关补助计入营业外收支
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第16号——政府补助\",\n    \"法规文号\": \"财会[2017]15号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十一条\",\n    \"内容概述\": \"与企业日常活动相关的政府补助，应当按照经济业务实质，计入其他收益或冲减相关成本费用。与企业日常活动无关的政府补助，应当计入营业外收支。\"\n  }\n]"

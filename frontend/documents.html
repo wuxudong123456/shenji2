@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>文书生成 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="documents">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content">
+<div class="page-header"><div><h1><i class="bi bi-file-earmark-pdf"></i> 文书生成</h1>
+<div class="breadcrumb">疑点报告 → 一键生成取证单 · 审计底稿 · 报告初稿 · 定性复核意见</div></div></div>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);margin-bottom:var(--space-lg);">
+  <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-primary);" onclick="DocGen.preview('evidence')">
+    <i class="bi bi-file-earmark-text" style="font-size:40px;color:var(--color-primary);"></i>
+    <h3 style="margin-top:8px;">取证单</h3><p style="font-size:12px;color:var(--color-text-muted);">从疑点提取关键事实<br>自动生成标准取证单</p>
+    <span class="badge badge-primary">可生成 2 份</span>
+  </div>
+  <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-warning);" onclick="DocGen.preview('workpaper')">
+    <i class="bi bi-file-earmark-spreadsheet" style="font-size:40px;color:var(--color-warning);"></i>
+    <h3 style="margin-top:8px;">审计底稿</h3><p style="font-size:12px;color:var(--color-text-muted);">取证单扩展+审计程序<br>+证据链+审计结论</p>
+    <span class="badge badge-warning">可生成 2 份</span>
+  </div>
+  <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-accent);" onclick="DocGen.preview('report')">
+    <i class="bi bi-file-earmark-pdf" style="font-size:40px;color:var(--color-accent);"></i>
+    <h3 style="margin-top:8px;">报告初稿</h3><p style="font-size:12px;color:var(--color-text-muted);">底稿提炼+审计评价<br>+审计发现+审计建议</p>
+    <span class="badge badge-accent">可生成 1 份</span>
+  </div>
+  <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-success);" onclick="DocGen.preview('review')">
+    <i class="bi bi-check2-all" style="font-size:40px;color:var(--color-success);"></i>
+    <h3 style="margin-top:8px;">定性复核意见</h3><p style="font-size:12px;color:var(--color-text-muted);">AI建议 vs 人工复核<br>双栏对比+自由裁量建议</p>
+    <span class="badge badge-success">可生成 1 份</span>
+  </div>
+</div>
+
+<!-- 操作区 — 置顶 -->
+<div class="card" style="margin-bottom:var(--space-md);">
+  <div class="card-header"><h3><i class="bi bi-gear"></i> 生成操作</h3></div>
+  <div style="display:flex;gap:var(--space-md);align-items:center;flex-wrap:wrap;">
+    <select class="form-select" style="width:280px;"><option>教育局2026采购审计 — 2条疑点</option><option>农业农村局补贴核查 — 5条疑点</option></select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" checked> 取证单</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" checked> 审计底稿</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox"> 报告初稿</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox"> 定性复核</label>
+    <div style="flex:1;"></div>
+    <button class="btn btn-accent btn-lg"><i class="bi bi-play-fill"></i> 一键生成全部</button>
+    <button class="btn btn-outline"><i class="bi bi-file-earmark-text"></i> 预览选中</button>
+  </div>
+</div>
+
+<div id="doc-preview" style="display:none;">
+  <div class="card">
+    <div class="card-header"><h3 id="preview-title">文书预览</h3>
+      <div><button class="btn btn-sm btn-primary"><i class="bi bi-download"></i> 导出Word</button>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('doc-preview').style.display='none'"><i class="bi bi-x-lg"></i></button></div>
+    </div>
+    <div id="preview-content"></div>
+  </div>
+</div>
+
+</main></div>
+<script src="js/app.js"></script>
+<script>
+var DocGen = {
+  preview: function(type) {
+    var panel = document.getElementById('doc-preview');
+    var content = document.getElementById('preview-content');
+    panel.style.display = 'block';
+    if (type === 'evidence') {
+      document.getElementById('preview-title').textContent = '审计取证单 — ZJ-2026-071';
+      content.innerHTML = '<div style="background:var(--color-card);border:1px solid var(--color-border);padding:24px;max-width:700px;margin:0 auto;font-size:14px;line-height:2;">' +
+        '<h2 style="text-align:center;margin-bottom:16px;">审计取证单</h2>' +
+        '<p><strong>编号:</strong> ZJ-2026-071 &nbsp; <strong>日期:</strong> 2026-07-04</p>' +
+        '<p><strong>被审计单位:</strong> 某市教育局</p>' +
+        '<p><strong>审计项目:</strong> 2026年度教学设备采购合规性审计</p>' +
+        '<hr><p><strong>一、取证事项</strong></p><p>教学设备采购项目化整为零规避公开招标</p>' +
+        '<p><strong>二、违规事实</strong></p><p>经查，某市教育局将应公开招标的500万元教学设备采购项目拆分为5个99万元子项目（合同号HT-2026-001~005），分别以询价方式采购。5个子项目实际均由同一供应商"XX科技有限公司"中标。</p>' +
+        '<p><strong>三、违反法规</strong></p><p>1.《招标投标法》第4条 — 禁止化整为零规避招标<br>2.《必须招标的工程项目规定》第5条 — 货物≥200万须公开招标<br>3.《政府采购法》第28条 — 公开招标应为主要采购方式</p>' +
+        '<p><strong>四、取证材料</strong></p><p>采购合同5份 | 询价记录5份 | 中标通知书5份 | 银行付款凭证23份</p>' +
+        '<p style="text-align:right;margin-top:24px;"><strong>审计员:</strong> 张三 &nbsp; <strong>复核人:</strong> 李四</p>' +
+        '<div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">' +
+        '<button class="btn btn-primary" onclick="DocGen.confirmGenerate(\'evidence\')"><i class="bi bi-check-lg"></i> 确认生成</button>' +
+        '<button class="btn btn-outline" onclick="document.getElementById(\'doc-preview\').style.display=\'none\'">关闭</button></div></div>';
+    } else if (type === 'workpaper') {
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--color-text-muted);">审计底稿将在取证单确认后自动生成。包含审计程序、审计证据、审计结论等完整内容。</div>';
+    } else if (type === 'report') {
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--color-text-muted);">报告初稿将在底稿完成后生成。包含基本情况、审计评价、审计发现、审计建议。</div>';
+    } else {
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--color-text-muted);">定性复核意见 = AI推理结论 vs 人工复核意见 双栏对比</div>';
+    }
+    panel.scrollIntoView({behavior:'smooth'});
+  },
+  confirmGenerate: function(type) {
+    AuditWorkbench.toast('取证单已生成，可导出为Word文档','success');
+    document.getElementById('doc-preview').style.display = 'none';
+  }
+};
+</script>
+</body>
+</html>

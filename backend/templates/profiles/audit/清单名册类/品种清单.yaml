@@ -1,0 +1,82 @@
+name: audit/清单名册类/品种清单
+type: model
+description: 从清单名册类类文档（品种清单）中提取结构化元数据。涵盖字段如：禁止补贴品种。文档范围包括：中央禁止或限制品种清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 补贴
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 品种清单
+  member_count: 1
+  member_details:
+  - 中央禁止或限制品种清单
+output:
+  fields:
+  - name: 禁止补贴品种
+    type: string
+    description: 提取 禁止补贴品种 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 地方优势特色农产品保险申报材料.申报品种名称 IN (中央禁止或限制品种清单.禁止补贴品种) || 地方优势特色农产品保险申报材料.申报品种名称 NOT IN (农业部门统计年鉴或种植备案数据.实际种植品种) ||
+    地方优势特色农产品保险申报材料.申报面积 > 农业部门统计年鉴或种植备案数据.实际种植面积 * 1.2
+  description: 申报品种属于禁止补贴范围，或者不属于当地主导产业（占比过小），或者申报面积超过实际种植面积20%以上，均构成套取补贴疑点。
+  audit_item: 农业保险保费补贴政策落实不到位
+  suspicion: 不符合要求的地方优势特色农产品保险品种被纳入申报
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政农业保险保险费补贴管理办法\",\n    \"法规文号\": \"财金〔2021〕94号\",\n    \"效力级别\": \"部门规章\",\n   \
+    \ \"条款号\": \"第十三条\",\n    \"内容概述\": \"地方优势特色农产品保险品种，由省级财政部门会同农业农村等有关部门，根据本地区优势特色农产品产业发展需要确定，并报财政部备案。\"\n  },\n  {\n  \
+    \  \"法规名称\": \"中央财政农业保险保险费补贴管理办法\",\n    \"法规文号\": \"财金〔2021〕94号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十七条\",\n\
+    \    \"内容概述"

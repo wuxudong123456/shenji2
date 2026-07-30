@@ -1,0 +1,75 @@
+name: audit/记录留痕类/评价记录
+type: model
+description: 从记录留痕类类文档（评价记录）中提取结构化元数据。涵盖字段如：成员社对联合社评价结果、考核执行年度、考核评分结果、联合社对成员社考核结果、评价指标、量化标准。文档范围包括：保险机构考核评价记录、近3年考核评价记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 评价记录
+  member_count: 1
+  member_details:
+  - 保险机构考核评价记录
+  - 近3年考核评价记录
+output:
+  fields:
+  - name: 成员社对联合社评价结果
+    type: boolean
+    description: 提取 成员社对联合社评价结果 的布尔值（是/否）
+  - name: 考核执行年度
+    type: date
+    description: 提取 考核执行年度 的日期值，格式 YYYY-MM-DD
+  - name: 考核评分结果
+    type: boolean
+    description: 提取 考核评分结果 的布尔值（是/否）
+  - name: 联合社对成员社考核结果
+    type: boolean
+    description: 提取 联合社对成员社考核结果 的布尔值（是/否）
+  - name: 评价指标
+    type: string
+    description: 提取 评价指标 的文本值
+  - name: 量化标准
+    type: string
+    description: 提取 量化标准 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (资产监管制度文件.风险控制措施条款 为空) || (工作考核机制相关制度.双向评价机制条款 为空) || (近3年考核评价记录.考核执行年度 为空) || (ABS(成员社资产清单.资产总额 - 实际盘点记录.盘点金额)/实际盘点记录.盘点金额
+    > 0.05)
+  description: 制度文件缺失监管或评价机制条款即判定违规；近3年无考核评价记录视为机制未运行；抽取资产清单与实际盘点差异率超过5%且无合理解释，视为资产监管缺位。
+  audit_item: 供销合作社联合社治理机制不健全
+  suspicion: 未建立成员社与联合社双向评价考核机制
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于深化供销合作社综合改革的决定\",\n    \"法规文号\": \"中发〔2015〕11号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第八条\",\n    \"内容概述\": \"构建联合社主导的行业指导体系，建立成员社对联合社的工作评价机制，完善联合社对成员社的工作考核机制。\"\n  }\n]"

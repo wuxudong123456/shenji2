@@ -1,0 +1,117 @@
+name: audit/登记台账类/债务台账
+type: model
+description: 从登记台账类类文档（债务台账）中提取结构化元数据。涵盖字段如：债务类型、债务编号、债务金额、债权人名称、入账日期。文档范围包括：村级债权债务台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 债务台账
+  member_count: 1
+  member_details:
+  - 村级债权债务台账
+output:
+  fields:
+  - name: 债务类型
+    type: string
+    description: 提取 债务类型 的文本值
+  - name: 债务编号
+    type: string
+    description: 提取 债务编号 的文本值
+  - name: 债务金额
+    type: number
+    description: 提取 债务金额 的数值（含单位，如万元、吨等）
+  - name: 债权人名称
+    type: string
+    description: 提取 债权人名称 的文本值
+  - name: 入账日期
+    type: date
+    description: 提取 入账日期 的日期值，格式 YYYY-MM-DD
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ( NOT EXISTS (SELECT 1 FROM 债务编号、债权人名称、债务金额、债务类型、入账日期) ) OR ( EXISTS ( SELECT 1 FROM 合同协议 WHERE ABS(合同协议.合同金额
+    - (SELECT SUM(债务金额) FROM 债务编号、债权人名称、债务金额、债务类型、入账日期 WHERE 债权人名称 = 合同协议.债权人)) > 0.05 * 合同协议.合同金额 ) ) OR ( EXISTS ( SELECT
+    1 FROM 使用凭证 LEFT JOIN 债务编号、债权人名称、债务金额、债务类型、入账日期 ON 使用凭证.对方户名 = 债务编号、债权
+  description: 触发条件：1. 债权债务台账缺失或无记录；2. 抽样比对合同金额与台账记录的债务金额偏差超过5%；3. 筛选银行流水中单笔支出超5万元，且对方户名不在台账债权人清单中，表示可能存在未入账的隐性债务。满足任一条件即生成疑点。
+  audit_item: 村级债务管理不规范
+  suspicion: 村级债权债务台账数据账实不符
+  regulation: "[\n  {\n    \"法规名称\": \"农业部关于进一步加强村级债务管理工作的通知\",\n    \"法规文号\": \"农经发〔2011〕3号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第二条\",\n    \"内容概述\": \"要全面清理核实村级债务，摸清债务底数，建立台账，实行动态管理，确保债务数据真实完整。\"\n  }\n]"

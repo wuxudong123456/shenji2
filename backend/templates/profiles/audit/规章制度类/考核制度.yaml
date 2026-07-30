@@ -1,0 +1,72 @@
+name: audit/规章制度类/考核制度
+type: model
+description: 从规章制度类类文档（考核制度）中提取结构化元数据。涵盖字段如：培训内容、年度供电可靠率目标、年度电压合格率目标、应参训人数、考核标准、课时要求。文档范围包括：乡村教师信息化培训考核制度、任务分解考核制度等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 培训
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 考核制度
+  member_count: 1
+  member_details:
+  - 乡村教师信息化培训考核制度
+  - 任务分解考核制度
+output:
+  fields:
+  - name: 培训内容
+    type: string
+    description: 提取 培训内容 的文本值
+  - name: 年度供电可靠率目标
+    type: date
+    description: 提取 年度供电可靠率目标 的日期值，格式 YYYY-MM-DD
+  - name: 年度电压合格率目标
+    type: date
+    description: 提取 年度电压合格率目标 的日期值，格式 YYYY-MM-DD
+  - name: 应参训人数
+    type: number
+    description: 提取 应参训人数 的数值（含单位，如万元、吨等）
+  - name: 考核标准
+    type: string
+    description: 提取 考核标准 的文本值
+  - name: 课时要求
+    type: string
+    description: 提取 课时要求 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ( ( 统计表.实际供电可靠率 < 考核制度.年度供电可靠率目标 ) || ( 统计表.实际电压合格率 < 考核制度.年度电压合格率目标 ) || ( 记录表.实测户均配变容量 < 规划文件.目标户均配变容量 ) )
+    && ( 统计表.考核周期已结束 )
+  description: 在考核期末，只要供电可靠率、电压合格率或户均配变容量中任一项实际值低于规划或考核目标值，即触发疑点。偏差幅度分级：偏差≤1%为一般风险，1%-3%为较大风险，>3%为重大风险。
+  audit_item: 农村电网巩固提升工程存在短板
+  suspicion: 供电可靠性及电压合格率未达标
+  regulation: "[\n  {\n    \"法规名称\": \"关于实施农村电网巩固提升工程的指导意见\",\n    \"法规文号\": \"发改能源〔2021〕154号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第三条\",\n    \"内容概述\": \"明确各地按期完成供电可靠率、综合电压合格率、户均配变容量等指标提升任务，并加强考核。\"\n  }\n]"

@@ -1,0 +1,107 @@
+name: audit/清单名册类/比对清单
+type: model
+description: 从清单名册类类文档（比对清单）中提取结构化元数据。涵盖字段如：相似项目编号、脱贫状态、身份证号、退出时间、重复内容描述、风险等级。文档范围包括：脱贫人口与救助对象交叉比对清单、项目交叉比对清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 比对清单
+  member_count: 1
+  member_details:
+  - 脱贫人口与救助对象交叉比对清单
+  - 项目交叉比对清单
+output:
+  fields:
+  - name: 相似项目编号
+    type: string
+    description: 提取 相似项目编号 的文本值
+  - name: 脱贫状态
+    type: boolean
+    description: 提取 脱贫状态 的布尔值（是/否）
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 退出时间
+    type: date
+    description: 提取 退出时间 的日期值，格式 YYYY-MM-DD
+  - name: 重复内容描述
+    type: string
+    description: 提取 重复内容描述 的文本值
+  - name: 风险等级
+    type: string
+    description: 提取 风险等级 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (社会救助资金发放明细表.身份证号 IN (死亡人员信息库.身份证号)) || (社会救助资金发放明细表.身份证号 IN (财政供养人员信息库.身份证号)) || (脱贫人口与救助对象交叉比对清单.退出时间 IS NOT
+    NULL && 社会救助资金发放明细表.发放时间 > DATEADD(DAY, 30, 脱贫人口与救助对象交叉比对清单.退出时间) && 社会救助资金发放明细表.发放状态 = '正常') || (特殊群体身份认定数据库.身份类型 = '低保'
+    && 家庭收入核查信息.实际收入 > 当地低保标准 * 1.2 && 社会救助资金发放明细表.发放状态 = '正常')
+  description: 表达式包含四条或条件规则：①救助对象身份证号存在于死亡人员库中，判定为死亡冒领；②身份证号存在于财政供养人员库中，判定为公职人员违规享受；③脱贫交叉清单中已记录退出时间，且发放时间超出退出后30天缓冲期仍正常发放，判定为应退未退；④低保对象实际收入超过低保标准1.2倍以上仍持续发放，判定为收入超标未退出。阈值1.2倍为收入合规弹性上限，缓冲期30天参照动态调整一般时限。满足任一条件即生成疑点。
+  audit_item: 防止返贫帮扶政策落实不到位
+  suspicion: 社会救助资金发放对象不合规
+  regulation: "[\n  {\n    \"法规名称\": \"社会救助暂行办法\",\n    \"法规文号\": \"国务院令第649号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十一条、第十三条\",\n    \"内容概述\": \"申请最低生活保障需按规定程序审核；县级民政部门及乡镇、街道应对低保家庭实行动态管理，定期核查保障对象家庭财产与收入，对不再符合条件的及时清退。\"\n  },\n  {\n \
+    \   \"法规名称\": \"关于进一步加强和改进最低生活保障工作的意见\",\n    \"法规文号\": \"国发〔2012〕45号\",\n    \"效力级别\": \"国务院规范性文件\",\n    \"条款号\": \"\
+    第三条\",\n"
+- expression: (项目交叉比对清单.相似度评分>0.8 && 项目资金使用明细表.拨付总额>0) || (项目设备采购清单.设备型号 IN (SELECT 设备型号 FROM 其他项目设备采购清单 WHERE 采购年度 BETWEEN
+    本年度-2 AND 本年度) && 项目单位相同) || (项目效益产出对比分析表.投入产出比-同类项目.投入产出比<-0.3)
+  description: 通过交叉比对清单发现相似度超80%、或同一单位3年内采购相同型号设备、或新项目投入产出比低于同类项目30%以上，即认定为重复建设。
+  audit_item: 项目实施管理不到位
+  suspicion: 同类项目重复建设造成资金浪费
+  regulation: "[\n  {\n    \"法规名称\": \"农业农村部关于进一步加强农业建设项目管理工作的通知\",\n    \"法规文号\": \"农计财发〔2017〕4号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第三条\",\n    \"内容概述\": \"严格项目立项储备，建立项目库查重机制，防止多头申报、重复建设同一建设内容。\"\n  },\n  {\n    \"法规名称\": \"中央预算内投资补助和贴息项目管理办法\"\
+    ,\n    \"法规文号\": \"国家发展改革委令第45号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"项目单位不得通过重复申报"

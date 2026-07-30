@@ -1,0 +1,75 @@
+name: audit/记录留痕类/勘察记录
+type: model
+description: 从记录留痕类类文档（勘察记录）中提取结构化元数据。涵盖字段如：园区实际入驻企业类型、在用面积、设施实体状况、运行参数。文档范围包括：实地勘察记录、现场勘察记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 勘察记录
+  member_count: 1
+  member_details:
+  - 实地勘察记录
+  - 现场勘察记录
+output:
+  fields:
+  - name: 园区实际入驻企业类型
+    type: string
+    description: 提取 园区实际入驻企业类型 的文本值
+  - name: 在用面积
+    type: string
+    description: 提取 在用面积 的文本值
+  - name: 设施实体状况
+    type: string
+    description: 提取 设施实体状况 的文本值
+  - name: 运行参数
+    type: string
+    description: 提取 运行参数 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (勘察记录.在用面积/情况表.规划可出租面积 < 60%) || (情况表.转租记录/情况表.规划可出租面积 > 10%) || (规划.土地性质证明缺失)
+  description: 入驻率=已签约入驻返乡创业企业实际使用面积/园区规划可出租面积，低于60%视为园区闲置严重；违规转租指将创业园场地出租给非返乡创业项目或非创业者自营项目，转租面积占比超10%视为严重改变用途；缺少土地性质合规审批或规划许可视为建设程序违规。
+  audit_item: 农民工返乡创业政策实施不到位
+  suspicion: 返乡创业园建设不合规
+  regulation: "[\n  {\n    \"法规名称\": \"关于结合新型城镇化开展支持农民工等人员返乡创业试点工作的通知\",\n    \"法规文号\": \"发改就业〔2015〕2811号\",\n    \"效力级别\"\
+    : \"部门规范性文件\",\n    \"条款号\": \"第四条\",\n    \"内容概述\": \"试点地区建设的返乡创业园要专门用于支持返乡创业项目，不得擅自改变用途或将场地转租给非返乡创业主体。\"\n  }\n]"
+- expression: 采购合同.实际采购设备品牌型号 NOT IN 设计建设标准及设备型号及功能要求.设备型号及功能要求 OR 使用表.实际完成进度<使用表.计划完成进度*80% OR 维修记录.故障次数>同类型设施行业平均故障次数*3
+    OR 资金支付流向缺乏对应采购合同
+  description: 完工进度严重滞后、设备以普通充智能、质量缺陷导致异常高故障率，或资金支付与建设内容不匹配，均构成疑点。故障倍数及进度偏差阈值参考建设项目管理常规审计指标。
+  audit_item: 现代农业产业园（集群、强镇）规划、设计、立项不科学
+  suspicion: 现代农业产业园基础设施虚报或建设不达标
+  regulation: "[\n  {\n    \"法规名称\": \"政府投资条例\",\n    \"法规文号\": \"国务院令第712号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三十四条\"\
+    ,\n    \"内容概述\": \"项目单位应当按照有关规定和批复的建设内容、建设规模、建设标准等进行建设，不得擅自增加或减少建设内容。\"\n  }\n]"

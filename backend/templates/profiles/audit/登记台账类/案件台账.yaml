@@ -1,0 +1,156 @@
+name: audit/登记台账类/案件台账
+type: model
+description: 从登记台账类类文档（案件台账）中提取结构化元数据。涵盖字段如：判决结果、处罚决定书文号、处罚地点、处罚时间、处罚案件编号、处罚金额、执行情况、案件名称。文档范围包括：案件台账、秸秆焚烧行政处罚案件台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 案件台账
+  member_count: 1
+  member_details:
+  - 案件台账
+  - 秸秆焚烧行政处罚案件台账
+output:
+  fields:
+  - name: 判决结果
+    type: boolean
+    description: 提取 判决结果 的布尔值（是/否）
+  - name: 处罚决定书文号
+    type: string
+    description: 提取 处罚决定书文号 的文本值
+  - name: 处罚地点
+    type: string
+    description: 提取 处罚地点 的文本值
+  - name: 处罚时间
+    type: date
+    description: 提取 处罚时间 的日期值，格式 YYYY-MM-DD
+  - name: 处罚案件编号
+    type: string
+    description: 提取 处罚案件编号 的文本值
+  - name: 处罚金额
+    type: number
+    description: 提取 处罚金额 的数值（含单位，如万元、吨等）
+  - name: 执行情况
+    type: string
+    description: 提取 执行情况 的文本值
+  - name: 案件名称
+    type: string
+    description: 提取 案件名称 的文本值
+  - name: 案件进展
+    type: string
+    description: 提取 案件进展 的文本值
+  - name: 案由
+    type: string
+    description: 提取 案由 的文本值
+  - name: 涉诉金额
+    type: number
+    description: 提取 涉诉金额 的数值（含单位，如万元、吨等）
+  - name: 违规地点坐标
+    type: string
+    description: 提取 违规地点坐标 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (判决书.案件事实认定 CONTAINS '违约' OR '无效' OR '撤销' OR '欺诈') && (判决书.裁判结果 == '我方败诉' OR '需承担责任') && (合同台账.履约状态 == '已结束'
+    OR '已付款') && NOT EXISTS (案件台账.执行情况 == '已全额追偿' AND 案件台账.涉诉金额 >= 判决书.涉诉金额)
+  description: 本表达式用于筛查因法律风险管控缺失导致财政资金损失或潜在损失风险的情况。当判决书认定被审计单位或其关联方存在违约、欺诈等行为并需承担责任，且相关合同已履行或款项已支付，但未从法务案件台账中发现已成功追偿的证据时，触发疑点警报。风险等级：同时满足所有条件为高风险，可能形成直接国有资产流失或隐性债务。
+  audit_item: 法律案例拆解
+  suspicion: 未对关联司法判例进行结构化法律分析
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十一条\"\
+    ,\n    \"内容概述\": \"审计机关对国有企业、国有金融机构和国有资本占控股地位或者主导地位的企业、金融机构的资产、负债、损益以及其他财务收支情况，进行审计监督。\"\n  },\n  {\n    \"法规名称\": \"\
+    审计署关于内部审计工作的规定\",\n    \"法规文号\": \"审计署令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"内部审计机构应当对内部管理的领导"
+- expression: (火点坐标、火点时间、火点强度、卫星火点坐标、火点影像等级.卫星火点坐标 NOT IN 处罚地点、处罚决定书文号、处罚金额、处罚时间、处罚案件编号、违规地点坐标.违规地点坐标) OR (处罚地点、处罚决定书文号、处罚金额、处罚时间、处罚案件编号、违规地点坐标.处罚金额
+    < 法定最低处罚金额) OR (宣传日期、覆盖村数、参与人数、宣传方式、宣传覆盖村数、宣传场次、宣传经费投入.覆盖村数 / 总村数 < 0.9) OR (巡查频次、巡查覆盖村数、发现火点数、处理情况.巡查频次 = 0)
+  description: 1. 将卫星火点坐标与处罚台账地点进行空间匹配，存在火点但无对应处罚记录即视为监管缺失；2. 处罚金额低于《大气污染防治法》规定的最低罚款标准（如500元以下）判定为执法不严；3. 禁烧宣传覆盖率不足90%反映预防措施不到位；4.
+    月度巡查频次为0则直接认定未履行监管职责。满足任一条件即生成疑点。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 禁烧区违规焚烧秸秆且监管缺位
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国大气污染防治法\",\n    \"法规文号\": \"主席令第三十二号（2018年修订）\",\n    \"效力级别\": \"法律\",\n  \
+    \  \"条款号\": \"第七十六条、第一百一十九条\",\n    \"内容概述\": \"禁止在人口集中地区、机场周围、交通干线附近等区域露天焚烧秸秆；违反者由县级以上地方人民政府确定的监督管理部门责令改正，并可处五百元以上二千元以下罚款。\"\
+    \n  },\n  {\n    \"法规名称\": \"关于进一步做好秸秆禁烧和综合利用工作的通知\",\n    \"法规文号\": \"环办函〔2019〕670号\",\n    \"效力级别\": \"部门规章\",\n"
+- expression: (COUNT(数据.卫星火点坐标) > COUNT(案件台账.违规地点坐标) * 1.2) || (SUM(CASE WHEN 同一地点火点次数 >= 2 AND 案件台账.处罚案件编号 IS NULL THEN 1
+    ELSE 0 END) > 0)
+  description: 当区域卫星监测火点数量超过已处罚案件数量的1.2倍（即未处罚率超过16.7%），或存在同一坐标点2次及以上焚烧但无任何处罚记录（重复火点未处罚），则判定为焚烧监管缺位，存在瞒报、漏查或执法不到位的情况。阈值1.2为通用审计经验值，可根据当地实际监管能力调整。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 秸秆禁烧监管缺位导致违规焚烧火点多发
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国大气污染防治法\",\n    \"法规文号\": \"中华人民共和国主席令第三十一号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第七十六条、第一百一十九条\",\n    \"内容概述\": \"省、自治区、直辖市人民政府应当划定区域，禁止露天焚烧秸秆、落叶等产生烟尘污染的物质。违反本法规定，在人口集中地区对树木、花草喷洒剧毒、高毒农药，或者露天焚烧秸秆、落叶等产生烟尘污染的物质的，由县级以上地方人民政府确定的监督管理部门责令改正，并可以处五百元以上二千元以下的罚款。\"\
+    \n  }\n]"

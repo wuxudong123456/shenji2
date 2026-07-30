@@ -1,0 +1,65 @@
+name: audit/记录留痕类/随访记录
+type: model
+description: 从记录留痕类类文档（随访记录）中提取结构化元数据。涵盖字段如：GPS定位、患者签名、服务照片。文档范围包括：随访记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 随访记录
+  member_count: 1
+  member_details:
+  - 随访记录
+output:
+  fields:
+  - name: GPS定位
+    type: string
+    description: 提取 GPS定位 的文本值
+  - name: 患者签名
+    type: string
+    description: 提取 患者签名 的文本值
+  - name: 服务照片
+    type: string
+    description: 提取 服务照片 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (签约对象姓名、服务项目、收费金额、支付方式、签约日期、服务对象姓名、服务对象身份证号、随访日期.随访日期 > 甲乙双方权责、免费服务包内容、付费服务包内容与收费标准、服务频次要求、服务项目.服务频次要求) || (档案更新时间、操作人、操作终端IP.操作终端IP集中度
+    > 80%)
+  description: 利用GPS及时间戳分析，若随访记录虚构（如单日内同一医生名下记录遍布全镇远超交通半径），或档案录入集中在月末突击补录，且无现场服务佐证，判定为服务缩水。
+  audit_item: 农村基本公共卫生服务和基本药物制度执行不符合相关规定
+  suspicion: 家庭医生签约服务缩水
+  regulation: "[\n  {\n    \"法规名称\": \"关于规范家庭医生签约服务管理的指导意见\",\n    \"法规文号\": \"国卫基层发〔2018〕35号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"二、（四）条\",\n    \"内容概述\": \"家庭医生团队应当根据签约服务协议，为居民提供综合、连续、协同的签约服务，做实履约，杜绝“签而不约”。\"\n  }\n]"

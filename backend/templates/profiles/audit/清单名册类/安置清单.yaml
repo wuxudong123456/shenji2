@@ -1,0 +1,90 @@
+name: audit/清单名册类/安置清单
+type: model
+description: 从清单名册类类文档（安置清单）中提取结构化元数据。涵盖字段如：劳动合同起止日期、吸纳人员身份证号、岗位、用人单位统一信用代码。文档范围包括：用人单位吸纳安置清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 人员
+- 合同
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 安置清单
+  member_count: 1
+  member_details:
+  - 用人单位吸纳安置清单
+output:
+  fields:
+  - name: 劳动合同起止日期
+    type: date
+    description: 提取 劳动合同起止日期 的日期值，格式 YYYY-MM-DD
+  - name: 吸纳人员身份证号
+    type: string
+    description: 提取 吸纳人员身份证号 的文本值
+  - name: 岗位
+    type: string
+    description: 提取 岗位 的文本值
+  - name: 用人单位统一信用代码
+    type: string
+    description: 提取 用人单位统一信用代码 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 去产能分流人员名册.身份证号 IN (用人单位吸纳安置清单.吸纳人员身份证号 WHERE 劳动合同期限 >= 1年) && (用人单位吸纳安置清单.用人单位统一信用代码 + 吸纳人员身份证号 NOT IN (SELECT
+    用人单位统一信用代码, 补贴人员身份证号 FROM 社保补贴发放汇总表 WHERE 补贴类型 IN ('岗位补贴','社保补贴') AND 发放年度 = 当前审计年度))
+  description: 筛选已实际吸纳去产能分流职工并签订1年以上劳动合同的用人单位，但未在同期社会保险补贴发放汇总表中出现对应的补贴记录，即为应享未享疑点。吸纳安置清单应与劳动合同备案、社保缴费记录交叉验证。
+  audit_item: 高校毕业生、去产能企业职工等就业扶持政策执行不到位
+  suspicion: 吸纳去产能分流人员就业扶持政策应享未享
+  regulation: "[\n  {\n    \"法规名称\": \"关于在化解钢铁煤炭行业过剩产能实现脱困发展过程中做好职工安置工作的意见\",\n    \"法规文号\": \"人社部发〔2016〕32号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"第三条（三）\",\n    \"内容概述\": \"对吸纳去产能分流人员并签订1年以上劳动合同的用人单位，按规定给予岗位补贴或社会保险补贴。\"\n  }\n]"

@@ -1,0 +1,118 @@
+name: audit/合同协议类/代发协议
+type: model
+description: 从合同协议类类文档（代发协议）中提取结构化元数据。涵盖字段如：重新处理时限、银行反馈失败交易的时限条款。文档范围包括：代发协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 代发协议
+  member_count: 1
+  member_details:
+  - 代发协议
+output:
+  fields:
+  - name: 重新处理时限
+    type: string
+    description: 提取 重新处理时限 的文本值
+  - name: 银行反馈失败交易的时限条款
+    type: number
+    description: 提取 银行反馈失败交易的时限条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: "(明细表.失败日期 IS NOT NULL \n  AND (登记表.农户ID IS NULL \n       OR (登记表.重新发放日期 - 明细表.失败日期) > 代发协议.重新处理时限))\n||\n(记录表.处理状态\
+    \ = '未办结' \n   AND (当前日期 - 记录表.登记日期) > 30)"
+  description: 判定逻辑：转账失败后，若在重新发放登记表中无对应成功发放记录，或重新发放日期与失败日期的间隔超过代发协议约定的重新处理时限（通常为10-15个工作日），则认定未及时重发；同时，异常处理记录中挂账超过30天仍未解决也属违规。风险等级：超时限1倍以内为关注，1-3倍为违规，3倍以上或跨年度为严重违规。
+  audit_item: 惠农补贴资金滞留、延压发放或长时间闲置
+  suspicion: 惠农补贴发放失败后未及时重新发放
+  regulation: "[\n  {\n    \"法规名称\": \"关于进一步加强惠民惠农财政补贴资金“一卡通”管理的指导意见\",\n    \"法规文号\": \"财办〔2020〕37号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第三部分（优化发放流程）\",\n    \"内容概述\": \"对因信息错误导致发放失败的，相关部门和银行应及时联系补贴对象核实信息，限期重新发放，不得长期挂账。\"\n  }\n]"

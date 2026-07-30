@@ -1,0 +1,59 @@
+name: audit/法律文书类/计提证明
+type: model
+description: 从法律文书类类文档（计提证明）中提取结构化元数据。涵盖字段如：企业是否按规定计提研发准备金及比例。文档范围包括：企业研发准备金计提证明等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 法律文书类
+- 审计
+- 元数据提取
+template_class:
+  category: 法律文书类
+  member_types:
+  - 计提证明
+  member_count: 1
+  member_details:
+  - 企业研发准备金计提证明
+output:
+  fields:
+  - name: 企业是否按规定计提研发准备金及比例
+    type: number
+    description: 提取 企业是否按规定计提研发准备金及比例 的数值（含单位，如万元、吨等）
+  - name: 文书类型
+    type: string
+    description: 法律文书类型（判决书/裁定书/起诉状等）
+    required: false
+  - name: 文书编号
+    type: string
+    description: 文书案号/编号
+    required: false
+  - name: 当事人
+    type: string
+    description: 当事人/原告/被告名称
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 发文机关
+    type: string
+    description: 制作或发布该法律文书的机关或单位
+    required: false
+violations:
+- expression: (年度实际财政科技拨款总额 / 一般公共预算支出总额) < 对本级财政科技投入占比目标 || (规上企业研发支出总额 / 营业收入总额) < 对企业研发投入占比要求 || 企业是否按规定计提研发准备金及比例
+  description: 若本级财政科技投入占一般公共预算支出比重低于政策承诺或上级要求的值（如4.5%），或重点规上企业研发投入强度连续两年低于行业平均水平，或企业未按制度计提研发准备金，均构成未达标。阈值根据当地政策文件确定。
+  audit_item: 未按规定落实补短板政策措施
+  suspicion: 科技投入和研发投入未达到规定要求
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国科学技术进步法\",\n    \"法规文号\": \"主席令第八十二号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"国家建立以财政投入为引导、企业投入为主体、社会投入为补充的科技投入体系，逐步提高科学技术经费投入的总体水平；国家财政用于科学技术经费的增长幅度，应当高于国家财政经常性收入的增长幅度。\"\
+    \n  },\n  {\n    \"法规名称\": \"国务院办公厅关于改革完善中央财政科研经费管理的若干意见\",\n    \"法规文号\": \"国办发〔2021〕32号\",\n    \"效力级别\": \"行政法规\""

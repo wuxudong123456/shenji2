@@ -1,0 +1,66 @@
+name: audit/法律文书类/检测证明
+type: model
+description: 从法律文书类类文档（检测证明）中提取结构化元数据。涵盖字段如：样品热值、甲烷纯度、硫含量。文档范围包括：质量检测证明等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 法律文书类
+- 审计
+- 元数据提取
+template_class:
+  category: 法律文书类
+  member_types:
+  - 检测证明
+  member_count: 1
+  member_details:
+  - 质量检测证明
+output:
+  fields:
+  - name: 样品热值
+    type: string
+    description: 提取 样品热值 的文本值
+  - name: 甲烷纯度
+    type: string
+    description: 提取 甲烷纯度 的文本值
+  - name: 硫含量
+    type: string
+    description: 提取 硫含量 的文本值
+  - name: 文书类型
+    type: string
+    description: 法律文书类型（判决书/裁定书/起诉状等）
+    required: false
+  - name: 文书编号
+    type: string
+    description: 文书案号/编号
+    required: false
+  - name: 当事人
+    type: string
+    description: 当事人/原告/被告名称
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 发文机关
+    type: string
+    description: 制作或发布该法律文书的机关或单位
+    required: false
+violations:
+- expression: (进度表.累计完成量 / 任务书.计划数量 < 0.95) || (盘点记录.实际检测数量 < 单据.库存余额 - 允许损耗) || (检测证明.样品热值 < 标准下限 || 检测证明.甲烷纯度 < 标准下限)
+  description: 截至计划完成日期，累计完成量低于计划量的95%，或现场盘点数量明显低于账面库存且超出允许损耗，或关键质量指标（热值、纯度）未达到国家标准，均构成任务未完成。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 未完成石油、天然气储备任务
+  regulation: "[\n  {\n    \"法规名称\": \"《国家石油储备条例》\",\n    \"法规文号\": \"无公开文号，依据《国务院办公厅关于加强石油储备管理的通知》（国办发〔2017〕32号）\",\n   \
+    \ \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二条、第八条\",\n    \"内容概述\": \"承担国家石油储备任务的企业应按计划完成实物收储，确保库存数量与质量符合规定，禁止虚报瞒报库存。\"\n\
+    \  },\n  {\n    \"法规名称\": \"《天然气储备管理办法（试行）》\",\n    \"法规文号\": \"发改能源规〔2019〕138号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十"

@@ -1,0 +1,55 @@
+name: audit/规章制度类/培训制度
+type: model
+description: 从规章制度类类文档（培训制度）中提取结构化元数据。涵盖字段如：培训频次。文档范围包括：教育培训制度等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 培训
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 培训制度
+  member_count: 1
+  member_details:
+  - 教育培训制度
+output:
+  fields:
+  - name: 培训频次
+    type: string
+    description: 提取 培训频次 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (规划文件.是否包含量化能耗目标) || (培训制度.签到记录<应参训人数*0.8) || (预算文件.预算金额==0) || ((明细表.实际支出金额/预算文件.预算金额)<0.8)
+  description: 缺少专项规划或规划无量化目标、培训覆盖率低于80%、未编制专项预算、或预算执行率低于80%，均视为制度管理缺失或执行不到位。
+  audit_item: 节能减排方面存在的问题
+  suspicion: 未按规定建立节能环保专项规划、培训制度及经费预算
+  regulation: "[\n  {\n    \"法规名称\": \"公共机构节能条例\",\n    \"法规文号\": \"国务院令第531号（2017年修订）\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第十五条、第十七条、第二十四条\",\n    \"内容概述\": \"公共机构应当制定年度节能目标和实施方案；安排节能资金，开展能源消费统计和审计；加强对用能系统的管理，开展节能教育和岗位培训。\"\n  }\n]"

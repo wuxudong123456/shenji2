@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>智能分析 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.analysis-wrap { width:100%; }
+.step-panel { display:none; }
+.step-panel.active { display:block; animation:fadeIn 0.3s ease; }
+</style>
+</head>
+<body data-page="analysis">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content"><div class="analysis-wrap">
+
+<div class="page-header"><div><h1>智能分析</h1><div class="breadcrumb">AI 审计助手引导式分析 · 自然语言交互 · 全程可溯源</div></div></div>
+
+<div class="steps" id="step-bar">
+  <div class="step active" onclick="AW.goBack(1)"><div class="step-num">1</div>意图判断</div>
+  <div class="step" onclick="AW.goBack(2)"><div class="step-num">2</div>方法推荐</div>
+  <div class="step" onclick="AW.goBack(3)"><div class="step-num">3</div>审计依据</div>
+  <div class="step" onclick="AW.goBack(4)"><div class="step-num">4</div>资料分析</div>
+  <div class="step" onclick="AW.goBack(5)"><div class="step-num">5</div>审核比对</div>
+  <div class="step" onclick="AW.goBack(6)"><div class="step-num">6</div>疑点核实</div>
+  <div class="step" onclick="AW.goBack(7)"><div class="step-num">7</div>文书编撰</div>
+</div>
+
+<!-- 主工作区 -->
+<div style="display:grid;grid-template-columns:380px 1fr;gap:var(--space-lg);margin-top:var(--space-lg);min-height:500px;">
+
+  <!-- 左侧：AI 审计助手聊天 -->
+  <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 200px);">
+    <div class="card-header"><h3 style="font-size:14px;"><i class="bi bi-robot"></i> AI 审计助手</h3></div>
+    <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:12px;font-size:14px;line-height:1.7;"></div>
+    <div style="padding:8px;border-top:1px solid var(--color-border);">
+      <textarea id="chat-input" rows="2" style="width:100%;border:1px solid var(--color-border);border-radius:8px;padding:8px;font-size:13px;resize:none;" placeholder="输入指令或描述审计需求..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();AW.send()}"></textarea>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="AW.send()"><i class="bi bi-send"></i> 发送</button>
+        <button class="btn btn-outline btn-sm" onclick="AW.uploadFile()" title="上传文件到项目资料库"><i class="bi bi-paperclip"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：结构化确认区 -->
+  <div id="right-panel"></div>
+
+</div>
+
+<!-- 隐藏的旧面板 S5-S7 -->
+<div class="step-panel" id="s5"><div class="card"><div class="card-header"><h3>第五步：审核比对</h3><span class="badge badge-warning">确认后执行</span></div>
+
+    <!-- 三清单摘要 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+      <details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-folder"></i> 审计资料清单（3份 · 可溯源）</summary>
+        <div style="font-size:12px;padding:4px 0;">
+          <div>📄 <a href="doc-viewer.html?file=采购合同汇总.pdf" target="_blank">采购合同汇总.pdf</a> · 5条 · <a class="trace-link" href="#">📍</a></div>
+          <div>📄 <a href="doc-viewer.html?file=银行流水2026Q1.csv" target="_blank">银行流水2026Q1.csv</a> · 126条 · <a class="trace-link" href="#">📍</a></div>
+          <div>📄 <a href="doc-viewer.html?file=供应商信息.pdf" target="_blank">供应商工商信息.pdf</a> · 4条 · <a class="trace-link" href="#">📍</a></div>
+        </div>
+      </details>
+      <details><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-journal-text"></i> 法律法规清单（6部 · 可溯源）</summary>
+        <div style="font-size:12px;padding:4px 0;">
+          <div>⚖️ 《招标投标法》第4条 · 主依据 · <a class="trace-link" href="#">📍MCP</a></div>
+          <div>⚖️ 《招标投标法》第49条 · 追责依据 · <a class="trace-link" href="#">📍MCP</a></div>
+          <div>⚖️ 《必须招标的工程项目规定》第5条 · 量化依据 · <a class="trace-link" href="#">📍MCP</a></div>
+          <div>⚖️ 《政府采购法》第28条 · 关联依据 · <a class="trace-link" href="#">📍MCP</a></div>
+          <div>⚖️ 《湖南省管理办法》第5条 · 地方补充 · <a class="trace-link" href="#">📍MCP</a></div>
+          <div>⚖️ 《市教育局采购管理办法》全文 · 特别适用 · <a class="trace-link" href="#">📍MCP</a></div>
+        </div>
+      </details>
+      <details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-exclamation-triangle"></i> 违规行为清单（3个 · 可溯源）</summary>
+        <div style="font-size:12px;padding:4px 0;">
+          <div>⚠️ 化整为零规避公开招标 · 高风险 · <a class="trace-link" href="#">📍语料库</a></div>
+          <div>⚠️ 违规采用询价方式采购 · 高风险 · <a class="trace-link" href="#">📍语料库</a></div>
+          <div>⚠️ 未按规定发布采购公告 · 中风险 · <a class="trace-link" href="#">📍语料库</a></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="alert alert-info" style="font-size:13px;margin-bottom:12px;"><i class="bi bi-info-circle"></i> 比对逻辑已发送到左侧AI对话框。右侧为数据筛选漏斗和逐记录比对结果。上方清单均可点击溯源查看详情。</div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:8px;">数据筛选漏斗</div>
+      <div style="max-width:500px;">
+        <div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:4px;">
+          <strong>📊 采购合同数据表</strong> · 5条记录 · ¥4,850,000</div>
+        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
+        <div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:8px 14px;margin-bottom:4px;">
+          ① 采购方式 ≠ 公开招标 → <strong style="color:var(--color-accent);">5条命中</strong></div>
+        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
+        <div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:8px 14px;margin-bottom:4px;">
+          ② 金额 ≥ ¥200万 → <strong style="color:var(--color-accent);">3条命中</strong></div>
+        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
+        <div style="background:rgba(196,30,58,0.06);border:2px solid var(--color-accent);border-radius:8px;padding:10px 14px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--color-accent);">3 条违规</div><div style="font-size:12px;color:var(--color-text-muted);">¥2,300,000</div></div>
+      </div>
+    </div>
+
+    <div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>合同号</th><th>金额</th><th>方式</th><th>供应商</th><th>日期</th><th>①≠公开</th><th>②≥200万</th><th>结果</th></tr></thead><tbody>
+      <tr><td>HT-001</td><td>¥990,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-05</td><td>✗</td><td>✗</td><td><span class="badge badge-success">合规</span></td></tr>
+      <tr class="row-danger"><td>HT-003</td><td>¥1,200,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-12</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
+      <tr class="row-danger"><td>HT-004</td><td>¥700,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-15</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
+      <tr class="row-danger"><td>HT-005</td><td>¥400,000</td><td style="color:var(--color-accent);">询价</td><td>ZZ贸易</td><td>04-01</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
+    </tbody></table></div>
+    <div class="alert alert-info" style="font-size:13px;margin-top:8px;"><i class="bi bi-robot"></i> 3条违规中2条供应商相同(XX科技)，建议核查围标嫌疑。</div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-accent btn-lg" onclick="AW.step=6;AW.showStep(6);AW.updateStepBar(6);AW.say('ai','已确认比对结果，进入疑点核实。');"><i class="bi bi-check-lg"></i> 确认比对，进入疑点核实</button>
+      <button class="btn btn-outline" onclick="AW.goBack(4)">返回修改资料</button>
+    </div></div></div>
+<div class="step-panel" id="s6"><div class="card"><div class="card-header"><h3>第六步：疑点核实</h3><span class="badge badge-accent" id="s6-total">3条疑点</span></div>
+    <div class="alert alert-warning" style="font-size:13px;margin-bottom:14px;">
+      <i class="bi bi-exclamation-triangle"></i> <strong>核实提示：</strong>每条疑点均需逐条核实确认。建议向被审计单位补充索取相关文件后再做最终定性。点击疑点行展开溯源流程图，核实后点击「确认」。
+    </div>
+    <div class="table-wrap" style="margin-bottom:10px;"><table class="table" style="font-size:13px;"><thead><tr><th style="width:45px;">状态</th><th>疑点名称</th><th style="width:90px;">涉及金额</th><th style="width:100px;">涉及主体</th><th style="width:80px;">涉及业务</th><th style="width:55px;">风险</th><th style="width:55px;">操作</th></tr></thead><tbody>
+      <tr id="s6-row-1" style="cursor:pointer;" onclick="var d=document.getElementById('s6-detail-1');d.style.display=d.style.display==='none'?'block':'none';">
+        <td><span class="badge badge-muted" id="s6-st-1">未确认</span></td><td><strong>化整为零规避公开招标</strong></td><td>¥1,200,000</td><td>某市教育局</td><td>招标投标</td><td><span class="badge badge-accent">高风险</span></td>
+        <td><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();this.closest('tr').style.background='rgba(45,125,70,0.06)';document.getElementById('s6-st-1').outerHTML='<span class=badge style=background:var(--color-success);color:#fff id=s6-st-1>已确认</span>';AuditWorkbench.toast('疑点#1已确认','success')">确认</button></td></tr>
+      <tr><td colspan="7" style="padding:0;"><div id="s6-detail-1" style="display:none;padding:8px 16px;">
+    <div style="border:1px solid var(--color-border);border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div><span class="badge badge-accent">高风险</span><strong style="margin-left:8px;font-size:16px;">疑点#1: 化整为零规避公开招标</strong></div>
+        <span style="font-weight:600;">涉及金额: ¥1,200,000</span>
+      </div>
+
+      <!-- 流程图 -->
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+        <!-- 行1: 数据源 -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">原始资料</div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;padding:8px 12px;background:rgba(26,58,92,0.04);border-radius:6px;border:1px solid var(--color-border);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍采购合同汇总.pdf · 3.4MB · OntoSKU解析 · 8字段5条','info')">
+              <strong>采购合同汇总.pdf</strong><br><span style="color:var(--color-text-muted);">HT-003 · ¥1,200,000 · 询价 · XX科技</span>
+            </div>
+            <span style="font-size:20px;color:var(--color-primary);">→</span>
+          </div>
+        </div>
+        <!-- 行2: 元数据提取 -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">元数据提取</div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;padding:8px 12px;background:rgba(26,58,92,0.04);border-radius:6px;border:1px solid var(--color-border);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍MinerU定位：第3页第8行 · 置信度0.95','info')">
+              <strong>合同金额: ¥1,200,000</strong><br><span style="color:var(--color-text-muted);">采购方式: 询价 · 供应商: XX科技</span>
+            </div>
+            <span style="font-size:20px;color:var(--color-primary);">→</span>
+          </div>
+        </div>
+        <!-- 行3: 表达式比对 -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">表达式比对</div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;padding:8px 12px;background:rgba(196,30,58,0.04);border-radius:6px;border:1px solid var(--color-accent);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍语料库Col10 · 违规模型"化整为零规避公开招标" · 匹配度97%','info')">
+              <strong style="color:var(--color-accent);">金额≥200万 ✓ 且 方式≠公开招标 ✓</strong><br><span style="color:var(--color-text-muted);">违规表达式触发 → 命中</span>
+            </div>
+            <span style="font-size:20px;color:var(--color-primary);">→</span>
+          </div>
+        </div>
+        <!-- 行4: 法规依据 -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">法规依据</div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;padding:8px 12px;background:rgba(45,125,70,0.04);border-radius:6px;border:1px solid var(--color-success);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍MCP溯源:law_id=a00013325289 · 现行有效','info')">
+              <strong>《招标投标法》第4条</strong><br><span style="color:var(--color-text-muted);">禁止化整为零规避招标 · 《必须招标规定》第5条·≥200万须招标</span>
+            </div>
+            <span style="font-size:20px;color:var(--color-primary);">→</span>
+          </div>
+        </div>
+        <!-- 行5: 疑点结论 -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">疑点结论</div>
+          <div style="flex:1;padding:10px 14px;background:rgba(196,30,58,0.08);border-radius:8px;border:2px solid var(--color-accent);font-size:13px;text-align:center;cursor:pointer;" onclick="AuditWorkbench.toast('📍推理溯源：LLM Prompt→匹配模型97%→验证表达式→确认违规','info')">
+            <strong style="color:var(--color-accent);font-size:15px;">🚨 疑点#1：化整为零规避公开招标</strong><br>
+            <span style="color:var(--color-text-muted);font-size:12px;">HT-003金额¥1,200,000超200万门槛，采用询价方式 → 认定为违规</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 补充建议 -->
+      <div style="padding:8px 14px;background:rgba(184,94,26,0.06);border-radius:6px;border:1px dashed var(--color-warning);font-size:12px;">
+        <strong>💡 建议补充索取：</strong>被审计单位采用询价方式的审批文件、市教育局采购方式的具体规定
+      </div>
+
+      <!-- AI评估 + 补充材料 + 重新评估 -->
+      <div style="margin-top:10px;border:1px solid var(--color-primary);border-radius:8px;overflow:hidden;">
+        <div style="padding:8px 12px;background:rgba(26,58,92,0.04);font-weight:600;font-size:13px;"><i class="bi bi-robot"></i> AI 综合评估</div>
+        <div style="padding:10px 12px;font-size:13px;line-height:1.7;">
+          <div style="margin-bottom:8px;padding:8px 10px;background:rgba(45,125,70,0.04);border-radius:6px;">
+            <strong>✅ 现有证据评估：</strong>证据链完整（合同原件+金额数据+采购方式记录），违规事实成立概率 <strong>95%</strong>。法规依据充分（招标投标法第4条+第49条），金额门槛明确（≥200万）。
+          </div>
+          <div style="padding:8px 10px;background:rgba(184,94,26,0.04);border-radius:6px;margin-bottom:8px;">
+            <strong>⚠️ 潜在风险点：</strong>若被审计单位能提供省级或市级采购方式豁免审批文件，可能降低违规等级。建议补充索取后再做最终定性。
+          </div>
+          <div style="padding:8px 10px;background:rgba(26,58,92,0.04);border-radius:6px;">
+            <strong>📋 AI 建议：</strong>1. 维持高风险定性，纳入审计报告；2. 向被审计单位发出取证通知，限期补充非公开招标审批依据；3. 若补充材料证明有合法审批，降级为中风险并调整定性措辞。
+          </div>
+        </div>
+        <div style="padding:8px 12px;border-top:1px solid var(--color-border);">
+          <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">📎 上传被审计单位说明材料（AI将重新评估）</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-sm btn-outline" onclick="AW.uploadFile()"><i class="bi bi-cloud-upload"></i> 上传说明材料</button>
+            <button class="btn btn-sm btn-primary" onclick="this.disabled=true;this.innerHTML='<span class=pulse>●</span> 评估中...';var self=this;setTimeout(function(){self.innerHTML='✅ 评估完成';self.className='btn btn-sm';self.style.background='var(--color-success)';self.style.color='#fff';self.closest('div').nextElementSibling.innerHTML='<div style=margin-top:8px;padding:8px;background:rgba(45,125,70,0.06);border-radius:6px;font-size:12px;><strong>🔄 重新评估结果：</strong>未检测到豁免审批文件。违规定性维持不变。建议在审计报告中注明已要求被审计单位补充说明。</div>';AuditWorkbench.toast('AI已根据现有材料重新评估','success')},2000)"><i class="bi bi-arrow-repeat"></i> 提交重新评估</button>
+          </div>
+          <div id="s6-reassess-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!--     <div style="border:1px solid var(--color-border);border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div><span class="badge badge-accent">高风险</span><strong style="margin-left:8px;font-size:16px;">疑点#2: 违规采用询价方式采购</strong></div><span style="font-weight:600;">¥700,000</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;"><div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">原始资料</div><div style="flex:1;display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 10px;background:rgba(26,58,92,0.04);border-radius:6px;border:1px solid var(--color-border);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍采购合同汇总.pdf 第4页','info')"><strong>采购合同汇总.pdf</strong> · HT-004 · ¥700,000 · 询价</div><span style="font-size:20px;color:var(--color-primary);">→</span></div></div>
+        <div style="display:flex;align-items:center;gap:8px;"><div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">表达式比对</div><div style="flex:1;display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 10px;background:rgba(196,30,58,0.04);border-radius:6px;border:1px solid var(--color-accent);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍语料库Col10 · 违规采用询价方式采购 · 匹配89%','info')"><strong style="color:var(--color-accent);">金额≥200万 ✓ 且 方式=询价 ✓</strong> → 命中</div><span style="font-size:20px;color:var(--color-primary);">→</span></div></div>
+        <div style="display:flex;align-items:center;gap:8px;"><div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">法规依据</div><div style="flex:1;display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 10px;background:rgba(45,125,70,0.04);border-radius:6px;border:1px solid var(--color-success);font-size:12px;cursor:pointer;" onclick="AuditWorkbench.toast('📍MCP溯源:《政府采购法》第28条','info')"><strong>《政府采购法》第28条</strong> · 公开招标应为主要采购方式</div><span style="font-size:20px;color:var(--color-primary);">→</span></div></div>
+        <div style="display:flex;align-items:center;gap:8px;"><div style="width:100px;text-align:right;font-size:11px;color:var(--color-text-muted);font-weight:600;">疑点结论</div><div style="flex:1;padding:8px 12px;background:rgba(196,30,58,0.08);border-radius:6px;border:2px solid var(--color-accent);font-size:13px;text-align:center;cursor:pointer;" onclick="AuditWorkbench.toast('📍推理:LLM匹配89%→验证→确认','info')"><strong style="color:var(--color-accent);">🚨 疑点#2：违规采用询价方式采购</strong></div></div>
+      </div>
+      <div style="padding:6px 12px;background:rgba(184,94,26,0.06);border-radius:6px;border:1px dashed var(--color-warning);font-size:12px;"><strong>💡 建议补充：</strong>询价采购审批文件、三家以上报价单</div>
+    </div>
+    -->
+
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-accent btn-lg" onclick="AW.step=7;AW.showStep(7);AW.updateStepBar(7);AW.say('ai','已核实疑点，进入文书编撰。')"><i class="bi bi-check-lg"></i> 确认核实，进入文书编撰</button>
+      <button class="btn btn-outline" onclick="AW.goBack(5)">返回审核比对</button>
+      <button class="btn btn-outline"><i class="bi bi-download"></i> 导出疑点报告</button>
+    </div></div></div>
+
+<div class="step-panel" id="s7"><div class="card"><div class="card-header"><h3>第七步：文书编撰</h3></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
+    <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-primary);" onclick="AuditWorkbench.toast('取证单预览','info')"><i class="bi bi-file-earmark-text" style="font-size:32px;color:var(--color-primary);"></i><h4 style="margin-top:6px;">取证单</h4><p style="font-size:12px;color:var(--color-text-muted);">从疑点提取关键事实</p><span class="badge badge-primary">3份</span></div>
+    <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-warning);" onclick="AuditWorkbench.toast('审计底稿预览','info')"><i class="bi bi-file-earmark-spreadsheet" style="font-size:32px;color:var(--color-warning);"></i><h4 style="margin-top:6px;">审计底稿</h4><p style="font-size:12px;color:var(--color-text-muted);">程序+证据+结论</p><span class="badge badge-warning">3份</span></div>
+    <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-accent);" onclick="AuditWorkbench.toast('报告初稿预览','info')"><i class="bi bi-file-earmark-pdf" style="font-size:32px;color:var(--color-accent);"></i><h4 style="margin-top:6px;">报告初稿</h4><p style="font-size:12px;color:var(--color-text-muted);">评价+发现+建议</p><span class="badge badge-accent">1份</span></div>
+    <div class="card" style="text-align:center;cursor:pointer;border-top:3px solid var(--color-success);" onclick="AuditWorkbench.toast('定性复核预览','info')"><i class="bi bi-check2-all" style="font-size:32px;color:var(--color-success);"></i><h4 style="margin-top:6px;">定性复核</h4><p style="font-size:12px;color:var(--color-text-muted);">AI vs 人工复核</p><span class="badge badge-success">1份</span></div>
+  </div>
+  <div style="display:flex;gap:8px;"><button class="btn btn-outline" onclick="AW.step=6;AW.showStep(6);AW.updateStepBar(6);">返回</button><button class="btn btn-accent btn-lg"><i class="bi bi-download"></i> 导出全部文书</button></div></div></div>
+
+</div></main></div>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script src="js/analysis-wiz.js"></script>
+</body>
+</html>

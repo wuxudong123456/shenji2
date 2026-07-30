@@ -1,0 +1,139 @@
+name: audit/业务单据类/移联单
+type: model
+description: 从业务单据类类文档（移联单）中提取结构化元数据。涵盖字段如：危废类别及数量、废弃物数量、接收单位、接收单位名称、接收单位资质、数量、转移日期、转移联单号。文档范围包括：危险废物转移联单、废弃物转移联单、转移联单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 移联单
+  member_count: 1
+  member_details:
+  - 危险废物转移联单
+  - 废弃物转移联单
+  - 转移联单
+output:
+  fields:
+  - name: 危废类别及数量
+    type: number
+    description: 提取 危废类别及数量 的数值（含单位，如万元、吨等）
+  - name: 废弃物数量
+    type: number
+    description: 提取 废弃物数量 的数值（含单位，如万元、吨等）
+  - name: 接收单位
+    type: string
+    description: 提取 接收单位 的文本值
+  - name: 接收单位名称
+    type: string
+    description: 提取 接收单位名称 的文本值
+  - name: 接收单位资质
+    type: string
+    description: 提取 接收单位资质 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 转移日期
+    type: date
+    description: 提取 转移日期 的日期值，格式 YYYY-MM-DD
+  - name: 转移联单号
+    type: string
+    description: 提取 转移联单号 的文本值
+  - name: 转移联单编号
+    type: string
+    description: 提取 转移联单编号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: COUNT(回收数量等.记录行数) = 0 OR (SUM(销售台账.销售数量（包装单位）) - SUM(回收数量等.回收数量)) / SUM(销售台账.销售数量（包装单位）) > 0.7
+  description: ①回收台账无任何记录，完全未开展回收工作；②以农药销售包装数量作为理论产生量，若实际回收量与理论量偏差率超过70%，即回收量不足理论量的30%，判定为未有效回收。
+  audit_item: 农药化肥减量增效落实方面不符合相关规定
+  suspicion: 农药包装废弃物未进行回收处理
+  regulation: "[\n  {\n    \"法规名称\": \"农药包装废弃物回收处理管理办法\",\n    \"法规文号\": \"生态环境部 农业农村部令2020年第7号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第十条\",\n    \"内容概述\": \"农药生产者、经营者、使用者应当积极履行农药包装废弃物回收处理义务，及时回收农药包装废弃物。\"\n  }\n]"
+- expression: (ABS(SUM(回收数量、去向.回收数量) - SUM(接收单位、数量、接收单位资质.数量)) / SUM(回收数量、去向.回收数量) > 0.05) OR (倒卖事实、处罚情况.倒卖事实 = TRUE) OR (接收单位、数量、接收单位资质.接收单位
+    NOT IN (接收单位、数量、接收单位资质.接收单位资质) AND 数量 > 0)
+  description: ①回收总量与移交有资质处理单位的数量差异超过5%，且无法提供去向说明，疑似倒卖流失；②案件查处记录中确认存在倒卖行为；③转移联单上的接收单位不具备处理资质，直接表明废弃物被转移给无资质主体。任一条件触发。
+  audit_item: 农药化肥减量增效落实方面不符合相关规定
+  suspicion: 违规倒卖农药包装废弃物
+  regulation: "[\n  {\n    \"法规名称\": \"农药包装废弃物回收处理管理办法\",\n    \"法规文号\": \"生态环境部 农业农村部令2020年第7号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第十八条\",\n    \"内容概述\": \"禁止将农药包装废弃物转移给没有资质的单位或者个人进行处置。\"\n  }\n]"

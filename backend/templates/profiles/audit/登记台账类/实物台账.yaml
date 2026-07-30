@@ -1,0 +1,113 @@
+name: audit/登记台账类/实物台账
+type: model
+description: 从登记台账类类文档（实物台账）中提取结构化元数据。涵盖字段如：仓号、入库日期、品种、账面库存数量。文档范围包括：政策性粮油库存实物台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 实物台账
+  member_count: 1
+  member_details:
+  - 政策性粮油库存实物台账
+output:
+  fields:
+  - name: 仓号
+    type: string
+    description: 提取 仓号 的文本值
+  - name: 入库日期
+    type: date
+    description: 提取 入库日期 的日期值，格式 YYYY-MM-DD
+  - name: 品种
+    type: string
+    description: 提取 品种 的文本值
+  - name: 账面库存数量
+    type: number
+    description: 提取 账面库存数量 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ABS(实物台账.账面库存数量 - 抽检台账.库存核查结果（实物侧量）) / 实物台账.账面库存数量 > 0.03 && 拨付文件.补贴计算基数（库存数量） == 实物台账.账面库存数量
+  description: 以现场监盘核实的实际库存与账面库存差异超过3%（考虑合理损耗），且财政补贴依据的基数仍采用账面虚高库存计算，即判定为账实不符且多领补贴。多领补贴金额=(账面库存-实盘库存)×补贴标准。
+  audit_item: 落实“六稳”“六保”政策存在的其他问题
+  suspicion: 政策性粮油账实不符、多领财政补贴
+  regulation: "[\n  {\n    \"法规名称\": \"《关于进一步加强中央储备粮油库存管理的通知》\",\n    \"法规文号\": \"国粮发〔2015〕24号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第二条\",\n    \"内容概述\": \"承储企业必须保证账实相符，不得虚报库存，财政补贴必须以实有库存为依据，对虚报库存骗取补贴的应全额追回并处理。\"\n  },\n  {\n    \"\
+    法规名称\": \"《粮食流通管理条例》\",\n    \"法规文号\": \"国务院令第407号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第二十条\",\n    \"内容概述\":\
+    \ \"政策性粮食存储企业"

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识工坊 — AuditWorkbench</title>
+  <link rel="stylesheet" href="lib/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .kw-tabs { display: flex; gap: 0; margin-bottom: var(--space-lg); border-bottom: 2px solid var(--color-border); }
+    .kw-tab {
+      padding: 10px 24px; cursor: pointer; font-weight: 500; font-size: 15px;
+      color: var(--color-text-muted); border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all 0.15s;
+    }
+    .kw-tab:hover { color: var(--color-primary); }
+    .kw-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+    .kw-panel { display: none; }
+    .kw-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+    .association-card {
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      padding: var(--space-md); margin-bottom: var(--space-sm);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .association-card:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
+    .association-card .assoc-links {
+      display: flex; gap: var(--space-sm); margin-top: var(--space-sm);
+      flex-wrap: wrap;
+    }
+    .assoc-link-item {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; font-size: 12px; border-radius: 12px;
+      background: var(--color-bg); cursor: pointer;
+    }
+    .assoc-link-item:hover { background: rgba(26,58,92,0.1); }
+
+    .search-bar {
+      display: flex; gap: var(--space-sm); margin-bottom: var(--space-md);
+    }
+    .search-bar input { flex: 1; }
+  </style>
+</head>
+<body data-page="knowledge">
+
+  <div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+  <nav id="aw-navbar" class="app-navbar"></nav>
+  <div class="app-layout">
+    <aside id="aw-sidebar" class="app-sidebar"></aside>
+    <main class="app-content">
+
+      <div class="page-header">
+        <div>
+          <h1><i class="bi bi-book"></i> 知识工坊</h1>
+          <div class="breadcrumb">违规行为库 · 审计依据库 · 审计案例库 — 三者互联互通</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="kw-tabs">
+        <div class="kw-tab active" onclick="KnowledgeWorkshop.switchTab('violations')">⚠️ 违规行为库 <span class="badge badge-muted">2,195</span></div>
+        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('regulations')">⚖️ 审计依据库 <span class="badge badge-muted">400,698</span></div>
+        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('cases')">📚 审计案例库 <span class="badge badge-muted">2,231</span></div>
+      </div>
+
+      <!-- Panel 1: Violations -->
+      <div class="kw-panel active" id="panel-violations">
+        <div class="search-bar">
+          <input type="text" class="form-input" placeholder="搜索违规模型名称、关键词..." oninput="KnowledgeWorkshop.filterViolations(this.value)">
+          <select class="form-select" style="width:200px;" onchange="KnowledgeWorkshop.filterViolations()">
+            <option value="">全部领域</option><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option><option>社会保障审计</option><option>固定资产投资审计</option>
+          </select>
+        </div>
+        <div id="violations-list"></div>
+      </div>
+
+      <!-- Panel 2: Regulations -->
+      <div class="kw-panel" id="panel-regulations">
+        <div class="search-bar">
+          <input type="text" class="form-input" placeholder="搜索法规标题、文号、发布单位..." oninput="KnowledgeWorkshop.filterRegulations(this.value)">
+          <select class="form-select" style="width:180px;">
+            <option value="">全部效力级别</option><option>法律</option><option>行政法规</option><option>部门规章</option><option>地方性法规</option>
+          </select>
+        </div>
+        <div id="regulations-list"></div>
+      </div>
+
+      <!-- Panel 3: Cases -->
+      <div class="kw-panel" id="panel-cases">
+        <div class="search-bar">
+          <input type="text" class="form-input" placeholder="搜索案例关键词...">
+          <select class="form-select" style="width:200px;">
+            <option value="">全部领域</option><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option>
+          </select>
+        </div>
+        <div id="cases-list"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/knowledge.js"></script>
+</body>
+</html>

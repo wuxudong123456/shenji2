@@ -1,0 +1,107 @@
+name: audit/登记台账类/往来台账
+type: model
+description: 从登记台账类类文档（往来台账）中提取结构化元数据。涵盖字段如：供应商性质、历史交易记录。文档范围包括：供应商往来台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 往来台账
+  member_count: 1
+  member_details:
+  - 供应商往来台账
+output:
+  fields:
+  - name: 供应商性质
+    type: string
+    description: 提取 供应商性质 的文本值
+  - name: 历史交易记录
+    type: string
+    description: 提取 历史交易记录 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 预付款项明细账.账龄 > 180天 && (货物验收单.实际交货日期 - 存货采购合同.交货期限) > 90天 && 供应商往来台账.供应商性质（是否关联方） = '关联方' && 存货采购合同.预付款比例 > 行业惯例5%
+  description: 当预付账款挂账超过半年，且延期交货超过3个月，同时供应商为关联方且预付款比例明显高于同期同类交易平均水平时，存在通过预付形式变相拆借资金或利益输送的重大嫌疑。
+  audit_item: 企业经营资产分析
+  suspicion: 存货采购预付款安排异常涉嫌资金占用
+  regulation: "[\n  {\n    \"法规名称\": \"关于规范上市公司与关联方资金往来及上市公司对外担保若干问题的通知\",\n    \"法规文号\": \"证监发〔2003〕56号\",\n    \"效力级别\"\
+    : \"部门规章\",\n    \"条款号\": \"第一条\",\n    \"内容概述\": \"上市公司不得以垫付工资、福利、保险、广告等期间费用，预付购货款等方式将资金直接或间接提供给控股股东及其他关联方使用。\"\n  },\n\
+    \  {\n    \"法规名称\": \"企业财务通则\",\n    \"法规文号\": \"财政部令第41号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十三条\",\n    \"\
+    内容概述\": "

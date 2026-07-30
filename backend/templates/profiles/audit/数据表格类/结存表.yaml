@@ -1,0 +1,46 @@
+name: audit/数据表格类/结存表
+type: model
+description: 从数据表格类类文档（结存表）中提取结构化元数据。涵盖字段如：手续费支出总额。文档范围包括：社会救助资金收支结存表（表7）等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 结存表
+  member_count: 1
+  member_details:
+  - 社会救助资金收支结存表（表7）
+output:
+  fields:
+  - name: 手续费支出总额
+    type: number
+    description: 提取 手续费支出总额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (服务机构性质.服务机构性质 != '金融机构' AND 服务机构性质.手续费率 > 行业标准费率*1.2) OR (规定文件.公开招标要求='公开招标' AND 服务机构性质.采购方式 != '公开招标')
+  description: 代发机构必须为具备资质的金融机构，手续费率明显高于同类银行交易费率20%以上或未通过公开招标选择，均为违规。行业标准费率可参考当地银行代发平均费率。
+  audit_item: 社会保障待遇计算、发放错误
+  suspicion: 指定非金融机构代发养老金手续费超支
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府采购法\",\n    \"法规文号\": \"主席令第68号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十六条、第二十八条\",\n    \"内容概述\": \"采购应采用公开招标等法定方式，选择合格供应商。\"\n  }\n]"

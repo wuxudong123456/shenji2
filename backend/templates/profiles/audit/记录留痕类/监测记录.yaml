@@ -1,0 +1,87 @@
+name: audit/记录留痕类/监测记录
+type: model
+description: 从记录留痕类类文档（监测记录）中提取结构化元数据。涵盖字段如：冷藏温度、整改落实情况、涉及供销社名义的金融活动主体名称、湿度、现场照片、监测时间、违规宣传内容。文档范围包括：公开舆情监测记录、水质监测记录、食品贮存环境监测记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 整改
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 监测记录
+  member_count: 1
+  member_details:
+  - 公开舆情监测记录
+  - 水质监测记录
+  - 食品贮存环境监测记录
+output:
+  fields:
+  - name: 冷藏温度
+    type: string
+    description: 提取 冷藏温度 的文本值
+  - name: 整改落实情况
+    type: string
+    description: 提取 整改落实情况 的文本值
+  - name: 涉及供销社名义的金融活动主体名称
+    type: string
+    description: 提取 涉及供销社名义的金融活动主体名称 的文本值
+  - name: 湿度
+    type: string
+    description: 提取 湿度 的文本值
+  - name: 现场照片
+    type: string
+    description: 提取 现场照片 的文本值
+  - name: 监测时间
+    type: date
+    description: 提取 监测时间 的日期值，格式 YYYY-MM-DD
+  - name: 违规宣传内容
+    type: string
+    description: 提取 违规宣传内容 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: EXISTS (SELECT 金融服务业务台账.合作单位名称 FROM 金融服务业务台账 WHERE 金融服务业务台账.合作单位名称 LIKE '%供销社%' AND 金融服务业务台账.合作单位名称 NOT IN (SELECT
+    合作单位授权使用供销社名义的协议文件.授权单位名称列表 FROM 合作单位授权使用供销社名义的协议文件)) OR EXISTS (SELECT 公开舆情监测记录.涉及供销社名义的金融活动主体名称 FROM 公开舆情监测记录 WHERE
+    公开舆情监测记录.涉及供销社名义的金融活动主体名称 NOT IN (合作单位授权使用供销社名义的协议文件.授权单位名称列表))
+  description: 判定规则：金融服务业务台账中使用供销社名义的合作单位（单位名称包含“供销社”关键词）不在授权协议清单中，或通过舆情监测发现冒用供销社名义开展金融活动的主体无授权记录，即认定未及时排查清理。
+  audit_item: 供销合作社金融服务不规范
+  suspicion: 未排查清理冒用供销社名义的金融活动
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国反不正当竞争法\",\n    \"法规文号\": \"主席令第29号\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第六条\",\n    \"内容概述\": \"经营者不得实施足以引人误认为是他人商品或者与他人存在特定联系的混淆行为，包括擅自使用他人有一定影响的企业名称（包括简称、字号等）。\"\n  }\n]"
+- expression: (台账表.是否有检疫证明 == '否' && 食材类别 IN ['肉类','禽类','水产品']) || (监测记录.冷藏温度 > 4℃ && 持续时间 > 1小时) || (检查记录.生熟分离情况 == '不合格')
+  description: 肉类等高风险食材采购无检疫证明，冷藏冷冻温度持续超标超过1小时，生熟食品未分离存放或加工，只要触发任一项即判定违规。
+  audit_item: 营养餐食品安全与膳食营养不符合要求
+  suspicion: 食品采购加工贮存卫生不达标
+  regulation: "[\n  {\n    \"法规名称\": \"餐饮服务食品安全操作规范\",\n    \"法规文号\": \"国家市场监督管理总局公告2018年第12号\",\n    \"效力级别\": \"行业规范\",\n\
+    \    \"条款号\": \"6.1.3、7.1.2\",\n    \"内容概述\": \"采购食品原料应查验供货者许可证和产品合格证明；加工制作过程中应避免交叉污染，生熟食品加工用具、容器分开使用。\"\n  }\n]"

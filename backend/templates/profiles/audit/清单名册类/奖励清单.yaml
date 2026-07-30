@@ -1,0 +1,90 @@
+name: audit/清单名册类/奖励清单
+type: model
+description: 从清单名册类类文档（奖励清单）中提取结构化元数据。涵盖字段如：住址、奖励对象姓名、奖励金额、节水量。文档范围包括：奖励清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 奖励清单
+  member_count: 1
+  member_details:
+  - 奖励清单
+output:
+  fields:
+  - name: 住址
+    type: string
+    description: 提取 住址 的文本值
+  - name: 奖励对象姓名
+    type: string
+    description: 提取 奖励对象姓名 的文本值
+  - name: 奖励金额
+    type: number
+    description: 提取 奖励金额 的数值（含单位，如万元、吨等）
+  - name: 节水量
+    type: string
+    description: 提取 节水量 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 奖励清单.奖励对象姓名 NOT IN (用水量统计表.各农户实际用水量及种植面积 WHERE (定额管理文件.各用水户定额水量 - 用水量统计表.各户实际用水量) > 0) OR 奖励清单.节水量 > (定额管理文件.各用水户定额水量
+    - 用水量统计表.各户实际用水量)
+  description: 列入奖励名单的对象未实际发生节水或节水量不符，或者奖励对象不在实际种植户名单内，表明奖励资金未精准投向实际节水主体。
+  audit_item: 农业水价综合改革相关事项落实不到位
+  suspicion: 节水奖励发放对象不精准
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于推进农业水价综合改革的意见\",\n    \"法规文号\": \"国办发〔2016〕2号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"四、建立精准补贴和节水奖励机制（六）\",\n    \"内容概述\": \"探索建立节水奖励机制。根据节水量对采取节水措施、调整种植结构节水的规模经营主体、农民用水合作组织和农户给予奖励，提高用水户主动节水的积极性。\"\
+    \n  }\n]"

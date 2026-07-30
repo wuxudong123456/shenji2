@@ -1,0 +1,100 @@
+name: audit/清单名册类/排查清单
+type: model
+description: 从清单名册类类文档（排查清单）中提取结构化元数据。涵盖字段如：坐标、堆放点名称、处置结果、姓名、排查单位、违规类型。文档范围包括：未注册/无证行医人员排查清单、非正规垃圾堆放点排查清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 排查清单
+  member_count: 1
+  member_details:
+  - 未注册/无证行医人员排查清单
+  - 非正规垃圾堆放点排查清单
+output:
+  fields:
+  - name: 坐标
+    type: string
+    description: 提取 坐标 的文本值
+  - name: 堆放点名称
+    type: string
+    description: 提取 堆放点名称 的文本值
+  - name: 处置结果
+    type: boolean
+    description: 提取 处置结果 的布尔值（是/否）
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 排查单位
+    type: string
+    description: 提取 排查单位 的文本值
+  - name: 违规类型
+    type: string
+    description: 提取 违规类型 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 乡镇卫生院/村卫生室人员配备统计表.在岗人员姓名 NOT IN (乡村医生执业资格证书.姓名 WHERE 乡村医生执业资格证书.注册状态='有效') OR 未注册/无证行医人员排查清单.姓名 IS NOT NULL
+  description: 将人员配备表中在岗医生与有效执业注册人员库比对，不能匹配的即涉嫌无证执业；同时列表中的已确认未注册/无证行医案例直接判定为违规。
+  audit_item: 乡镇卫生院、村卫生室布局和标准化建设不合规
+  suspicion: 存在未注册或无执业资质人员从事乡村医疗
+  regulation: "[\n  {\n    \"法规名称\": \"乡村医生从业管理条例\",\n    \"法规文号\": \"国务院令第386号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第九条、第十五条\",\n    \"内容概述\": \"国家实行乡村医生执业注册制度，未经注册取得乡村医生执业证书的，不得从事乡村医疗活动；乡村医生变更执业的村医疗卫生机构，应当办理变更注册手续。\"\n  }\n]"
+- expression: (COUNT(外部线索点坐标 WHERE 距离(外部线索点坐标, 排查清单及信息系统坐标)所有点最小距离 > 500) > 0) || (文件4.记录点坐标 NOT IN 表2.坐标)
+  description: 通过群众举报或卫星遥感获取的疑似堆放点坐标，与排查清单及信息系统的坐标进行500米缓冲区分析，若未匹配则判定为漏报；同时检查原始排查记录是否有对应点未录入信息系统。
+  audit_item: 非正规垃圾堆放点清理整治不合规
+  suspicion: 瞒报漏报非正规垃圾堆放点
+  regulation: "[\n  {\n    \"法规名称\": \"关于做好非正规垃圾堆放点排查和整治工作的通知\",\n    \"法规文号\": \"建办村〔2017〕55号\",\n    \"效力级别\": \"部门规范性文件\"\
+    ,\n    \"条款号\": \"二、（一）\",\n    \"内容概述\": \"要求全面排查，做到不留死角、不留盲区，建立完整排查台账。\"\n  }\n]"

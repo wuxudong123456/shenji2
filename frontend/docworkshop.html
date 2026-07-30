@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>资料工坊 — AuditWorkbench</title>
+  <link rel="stylesheet" href="lib/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .fm-toolbar {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+      padding: 12px 16px; background: #fff; border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .fm-toolbar .btn { white-space: nowrap; }
+    .fm-breadcrumb {
+      display: flex; align-items: center; gap: 4px; font-size: 14px;
+      padding: 8px 0; margin-bottom: 12px; color: var(--color-text-muted);
+    }
+    .fm-breadcrumb a { color: var(--color-primary); text-decoration: none; }
+    .fm-breadcrumb span { color: var(--color-text-muted); }
+    .fm-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .fm-item {
+      background: #fff; border-radius: 10px; padding: 14px; cursor: pointer;
+      border: 1px solid var(--color-border); text-align: center;
+      transition: all 0.15s; position: relative;
+    }
+    .fm-item:hover { border-color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .fm-item .fm-icon {
+      font-size: 40px; margin-bottom: 8px; line-height: 1;
+    }
+    .fm-item .fm-name {
+      font-size: 13px; font-weight: 500; line-height: 1.3;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .fm-item .fm-meta {
+      font-size: 11px; color: var(--color-text-muted); margin-top: 4px;
+    }
+    .fm-item .fm-actions {
+      display: none; position: absolute; top: 8px; right: 8px; gap: 4px;
+    }
+    .fm-item:hover .fm-actions { display: flex; }
+    .fm-item .fm-actions button {
+      background: #fff; border: 1px solid var(--color-border);
+      border-radius: 6px; padding: 2px 6px; cursor: pointer; font-size: 12px;
+    }
+    .fm-item.folder .fm-icon { color: var(--color-primary); }
+    .fm-item.file-pdf .fm-icon { color: var(--color-accent); }
+    .fm-item.file-xlsx .fm-icon { color: var(--color-success); }
+    .fm-item.file-img .fm-icon { color: var(--color-warning); }
+
+    .fm-empty {
+      grid-column: 1 / -1; text-align: center; padding: 60px 20px;
+      color: var(--color-text-muted);
+    }
+    .fm-list { display: none; }
+    .fm-list.show { display: block; }
+    .fm-grid.hide { display: none; }
+    .fm-list-row {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      border-bottom: 1px solid var(--color-border); cursor: pointer; font-size: 14px;
+    }
+    .fm-list-row:hover { background: rgba(26,58,92,0.03); }
+    .fm-list-row .fm-icon { font-size: 24px; width: 32px; text-align: center; }
+    .fm-list-row .fm-name { flex: 1; font-weight: 500; }
+    .fm-list-row .fm-meta { font-size: 13px; color: var(--color-text-muted); width: 100px; text-align: right; }
+    .fm-list-row .fm-date { font-size: 13px; color: var(--color-text-muted); width: 120px; text-align: right; }
+    .fm-list-hdr {
+      display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: 12px;
+      font-weight: 600; color: var(--color-text-muted); border-bottom: 2px solid var(--color-border);
+    }
+    .view-toggle { display: flex; gap: 0; background: var(--color-bg); border-radius: 6px; padding: 2px; }
+    .view-toggle button {
+      padding: 5px 12px; border: none; background: transparent; border-radius: 4px;
+      cursor: pointer; font-size: 14px; color: var(--color-text-muted);
+    }
+    .view-toggle button.on { background: #fff; color: var(--color-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  </style>
+</head>
+<body data-page="docworkshop">
+
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout">
+  <aside id="aw-sidebar" class="app-sidebar"></aside>
+  <main class="app-content">
+
+    <div class="page-header">
+      <div>
+        <h1><i class="bi bi-cloud"></i> 资料工坊</h1>
+        <div class="breadcrumb" id="fm-path">/</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="fm-toolbar">
+      <button class="btn btn-primary btn-sm" onclick="FileManager.upload()"><i class="bi bi-cloud-upload"></i> 上传</button>
+      <button class="btn btn-outline btn-sm" onclick="FileManager.newFolder()"><i class="bi bi-folder-plus"></i> 新建文件夹</button>
+      <input type="text" class="form-input form-input-sm" placeholder="搜索文件..." style="width:200px;margin-left:auto;" oninput="FileManager.filter(this.value)">
+      <div class="view-toggle">
+        <button class="on" onclick="FileManager.setView('grid',this)"><i class="bi bi-grid-3x3-gap"></i></button>
+        <button onclick="FileManager.setView('list',this)"><i class="bi bi-list-ul"></i></button>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="FileManager.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="fm-breadcrumb" id="fm-breadcrumb">
+      <a href="#" onclick="FileManager.navTo('')"><i class="bi bi-cloud"></i> 全部资料</a>
+    </div>
+
+    <!-- File Grid -->
+    <div class="fm-grid active" id="fm-grid"></div><div class="fm-list" id="fm-list"></div>
+
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+var FileManager = {
+  currentPath: '',
+
+  init: function() {
+    this.refresh();
+  },
+
+  refresh: function() {
+    var self = this;
+    var grid = document.getElementById('fm-grid');
+    grid.innerHTML = '<div class="fm-empty"><i class="bi bi-hourglass-split" style="font-size:24px;"></i><p>加载中...</p></div>';
+
+    // Load from MinIO API
+    MinioAPI.listProjects().then(function(data) {
+      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败</div>'; return; }
+      self.renderProjects(data.projects);
+    }).catch(function() {
+      // Fallback: show mock data
+      self.renderProjects([
+        {name:'教育局2026教学设备采购审计',file_count:3,total_size:6500000},
+        {name:'农业农村局2026补贴核查',file_count:2,total_size:3800000},
+        {name:'审计模板库',file_count:2,total_size:1500000}
+      ]);
+    });
+  },
+
+  renderProjects: function(projects) {
+    var grid = document.getElementById('fm-grid');
+    if (projects.length === 0) {
+      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i><p style="margin-top:12px;">暂无资料</p><p style="font-size:13px;">点击「上传」添加审计资料</p></div>';
+      return;
+    }
+
+    var html = '';
+    projects.forEach(function(p) {
+      var size = FileManager.formatSize(p.total_size || 0);
+      html += '<div class="fm-item folder" onclick="FileManager.openFolder(\'' + p.name + '\')">'+
+        '<div class="fm-actions">'+
+        '<button onclick="event.stopPropagation();FileManager.renameFolder(\''+p.name+'\')" title="重命名"><i class="bi bi-pencil"></i></button>'+
+        '<button onclick="event.stopPropagation();FileManager.deleteFolder(\''+p.name+'\')" title="删除"><i class="bi bi-trash"></i></button></div>'+
+        '<div class="fm-icon"><i class="bi bi-folder-fill"></i></div>'+
+        '<div class="fm-name">' + p.name + '</div>'+
+        '<div class="fm-meta">' + (p.file_count||0) + ' 份资料 · ' + size + '</div></div>';
+    });
+
+    grid.innerHTML = html;
+  },
+
+  openFolder: function(name) {
+    var self = this;
+    this.currentPath = name;
+    document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部资料</a> / <strong>' + name + '</strong>';
+
+    var grid = document.getElementById('fm-grid');
+    grid.innerHTML = '<div class="fm-empty">加载中...</div>';
+
+    MinioAPI.listFiles(name).then(function(data) {
+      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败</div>'; return; }
+      var html = '';
+      data.files.forEach(function(f) {
+        var ext = f.name.split('.').pop().toLowerCase();
+        var cls = ext === 'pdf' ? 'file-pdf' : (ext === 'xlsx' || ext === 'xls' || ext === 'csv') ? 'file-xlsx' : (ext === 'png' || ext === 'jpg') ? 'file-img' : 'file-pdf';
+        var icon = ext === 'pdf' ? 'bi-file-earmark-pdf' : (ext === 'xlsx'||ext==='xls'||ext==='csv') ? 'bi-file-earmark-spreadsheet' : (ext==='png'||ext==='jpg') ? 'bi-file-earmark-image' : (ext==='docx'||ext==='doc') ? 'bi-file-earmark-word' : 'bi-file-earmark';
+        html += '<div class="fm-item ' + cls + '" ondblclick="FileManager.download(\''+name+'\',\''+f.name+'\')">'+
+          '<div class="fm-actions">'+
+          '<button onclick="event.stopPropagation();FileManager.download(\''+name+'\',\''+f.name+'\')" title="下载"><i class="bi bi-download"></i></button>'+
+          '<button onclick="event.stopPropagation();FileManager.deleteFile(\''+name+'\',\''+f.name+'\')" title="删除"><i class="bi bi-trash"></i></button></div>'+
+          '<div class="fm-icon"><i class="bi ' + icon + '"></i></div>'+
+          '<div class="fm-name">' + f.name + '</div>'+
+          '<div class="fm-meta">' + self.formatSize(f.size) + ' · ' + (f.last_modified||'').substring(0,10) + '</div></div>';
+      });
+      grid.innerHTML = html || '<div class="fm-empty">空文件夹</div>';
+    }).catch(function() {
+      grid.innerHTML = '<div class="fm-empty">加载失败，请检查后端服务</div>';
+    });
+  },
+
+  navTo: function(path) {
+    if (!path) { this.currentPath = ''; this.refresh(); document.getElementById('fm-path').innerHTML = '/'; }
+    else { this.openFolder(path); }
+  },
+
+  upload: function() {
+    var self = this;
+    var input = document.createElement('input');
+    input.type = 'file'; input.multiple = true;
+    input.onchange = function() {
+      var project = self.currentPath || '教育局2026采购审计';
+    if (!self.currentPath) { AuditWorkbench.toast('请先进入一个项目文件夹再上传，或在此页面默认上传到 教育局2026采购审计', 'info'); }
+      if (!project) return;
+      for (var i = 0; i < input.files.length; i++) {
+        var f = input.files[i];
+        MinioAPI.upload(project, f).then(function(r) {
+          if (r.success) { AuditWorkbench.toast(f.name + ' 已上传', 'success'); self.openFolder(project); }
+          else { AuditWorkbench.toast('上传失败', 'danger'); }
+        });
+      }
+    };
+    input.click();
+  },
+
+  download: function(project, filename) {
+    MinioAPI.getDownloadUrl(project, filename).then(function(r) {
+      if (r.url) window.open(r.url, '_blank');
+    });
+  },
+
+  deleteFile: function(project, filename) {
+    if (!confirm('删除 ' + filename + ' ？')) return;
+    MinioAPI.deleteFile(project, filename).then(function(r) {
+      if (r.success) { AuditWorkbench.toast('已删除', 'info'); FileManager.openFolder(project); }
+    });
+  },
+
+  newFolder: function() {
+    var name = prompt('文件夹名称：');
+    if (!name) return;
+    var self = this;
+    fetch(MinioAPI.base + '/api/projects', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: name})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      AuditWorkbench.toast(d.success ? '已创建：'+name : '失败', d.success?'success':'danger');
+      if(d.success) self.refresh();
+    }).catch(function(){ self.refresh(); });
+  },
+
+  renameFolder: function(oldName) {
+    var newName = prompt('重命名为：', oldName);
+    if (!newName || newName === oldName) return;
+    var self = this;
+    fetch(MinioAPI.base + '/api/projects/' + encodeURIComponent(oldName) + '/rename', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({new_name: newName})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      AuditWorkbench.toast(d.success ? '已重命名' : '失败', d.success?'success':'danger');
+      if(d.success) self.refresh();
+    });
+  },
+
+  deleteFolder: function(name) {
+    if (!confirm('确定删除文件夹「' + name + '」及其所有文件？此操作不可恢复！')) return;
+    var self = this;
+    fetch(MinioAPI.base + '/api/projects/' + encodeURIComponent(name) + '/delete', { method: 'DELETE' })
+    .then(function(r){ return r.json(); }).then(function(d){
+      AuditWorkbench.toast(d.success ? '已删除' : '失败', d.success?'info':'danger');
+      if(d.success) self.refresh();
+    });
+  },
+
+  setView: function(view, btn) {
+    document.querySelectorAll('.view-toggle button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    if (view === 'grid') {
+      document.getElementById('fm-grid').classList.remove('hide');
+      document.getElementById('fm-list').classList.remove('show');
+    } else {
+      document.getElementById('fm-grid').classList.add('hide');
+      document.getElementById('fm-list').classList.add('show');
+      this.renderList();
+    }
+  },
+
+  renderList: function() {
+    var container = document.getElementById('fm-list');
+    if (!container) return;
+    var self = this;
+    MinioAPI.listProjects().then(function(data) {
+      if (!data.success) return;
+      var html = '<div class="fm-list-hdr"><span style="width:32px;"></span><span style="flex:1;">名称</span><span style="width:100px;text-align:right;">大小</span><span style="width:120px;text-align:right;">文件数</span></div>';
+      data.projects.forEach(function(p) {
+        html += '<div class="fm-list-row" ondblclick="FileManager.openFolder(\''+p.name+'\')">'+
+          '<span class="fm-icon"><i class="bi bi-folder-fill" style="color:var(--color-primary);"></i></span>'+
+          '<span class="fm-name">'+p.name+'</span>'+
+          '<span class="fm-meta">'+self.formatSize(p.total_size||0)+'</span>'+
+          '<span class="fm-date">'+(p.file_count||0)+' 份</span>'+
+          '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();FileManager.renameFolder(\''+p.name+'\')" title="重命名"><i class="bi bi-pencil"></i></button>'+
+          '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();FileManager.deleteFolder(\''+p.name+'\')" title="删除" style="color:var(--color-accent);"><i class="bi bi-trash"></i></button></div>';
+      });
+      container.innerHTML = html;
+    });
+  },
+
+  filter: function(q) {
+    var items = document.querySelectorAll('.fm-item');
+    items.forEach(function(item) {
+      var name = (item.querySelector('.fm-name')||{}).textContent || '';
+      item.style.display = !q || name.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+    });
+  },
+
+  formatSize: function(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    var k = 1024, sizes = ['B','KB','MB','GB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+};
+
+document.addEventListener('DOMContentLoaded', function() { FileManager.init(); });
+</script>
+</body>
+</html>

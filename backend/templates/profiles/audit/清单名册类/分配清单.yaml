@@ -1,0 +1,81 @@
+name: audit/清单名册类/分配清单
+type: model
+description: 从清单名册类类文档（分配清单）中提取结构化元数据。涵盖字段如：账户变更权限配置、资金调拨权限。文档范围包括：系统操作权限分配清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 分配清单
+  member_count: 1
+  member_details:
+  - 系统操作权限分配清单
+output:
+  fields:
+  - name: 账户变更权限配置
+    type: string
+    description: 提取 账户变更权限配置 的文本值
+  - name: 资金调拨权限
+    type: string
+    description: 提取 资金调拨权限 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 资金账户开立备案证明文件.账户开立主体 == 分支机构 && 资金账户开立备案证明文件.备案审批签章 缺失 中心财务专用章 || 系统操作权限分配清单.资金调拨权限 分配至 分支机构操作员账号
+  description: 若资金账户由分支机构作为主体独立开立，或开立备案证明上无设区城市中心财务审批章，即视为管理脱节；此外，穿透检查系统权限配置，若在业务系统中授予了分支机构操作员“资金调拨”或“账户属性变更”等核心权限，则直接判定为管理未统一。
+  audit_item: 住房公积金管理体制调整不到位
+  suspicion: 住房公积金分支机构资金账户未由中心统一管理
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金财务管理办法\",\n    \"法规文号\": \"财综字〔2003〕36号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第七条、第十六条\",\n    \"内容概述\": \"公积金中心应当建立严格的资金管理制度，所有公积金存款账户必须由公积金中心统一在受托银行开立，实行统一管理和调度，严禁下属机构单独在银行开立账户。\"\n  }\n]"

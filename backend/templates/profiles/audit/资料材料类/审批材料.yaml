@@ -1,0 +1,159 @@
+name: audit/资料材料类/审批材料
+type: model
+description: 从资料材料类类文档（审批材料）中提取结构化元数据。涵盖字段如：企业名称、企业申请时间、关联维修项目、反馈情况、审批人、审批意见、审批日期、审批状态。文档范围包括：企业增值税免税审批材料、养殖企业申报补贴的审批材料、学籍异动审批材料、建设工程规划许可证审批材料、殡葬服务费用减免审批材料、税收优惠申报的审批材料、维修资金使用审批材料、维修资金投资相关审批材料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 审批
+- 资产
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 审批材料
+  member_count: 1
+  member_details:
+  - 企业增值税免税审批材料
+  - 养殖企业申报补贴的审批材料
+  - 学籍异动审批材料
+  - 建设工程规划许可证审批材料
+  - 殡葬服务费用减免审批材料
+  - 税收优惠申报的审批材料
+  - 维修资金使用审批材料
+  - 维修资金投资相关审批材料
+output:
+  fields:
+  - name: 企业名称
+    type: string
+    description: 提取 企业名称 的文本值
+  - name: 企业申请时间
+    type: date
+    description: 提取 企业申请时间 的日期值，格式 YYYY-MM-DD
+  - name: 关联维修项目
+    type: string
+    description: 提取 关联维修项目 的文本值
+  - name: 反馈情况
+    type: string
+    description: 提取 反馈情况 的文本值
+  - name: 审批人
+    type: string
+    description: 提取 审批人 的文本值
+  - name: 审批意见
+    type: string
+    description: 提取 审批意见 的文本值
+  - name: 审批日期
+    type: date
+    description: 提取 审批日期 的日期值，格式 YYYY-MM-DD
+  - name: 审批状态
+    type: boolean
+    description: 提取 审批状态 的布尔值（是/否）
+  - name: 审批签字
+    type: string
+    description: 提取 审批签字 的文本值
+  - name: 审批结果
+    type: boolean
+    description: 提取 审批结果 的布尔值（是/否）
+  - name: 审批通过时间
+    type: date
+    description: 提取 审批通过时间 的日期值，格式 YYYY-MM-DD
+  - name: 审批通过金额
+    type: number
+    description: 提取 审批通过金额 的数值（含单位，如万元、吨等）
+  - name: 异动生效日期
+    type: date
+    description: 提取 异动生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 投资产品名称
+    type: string
+    description: 提取 投资产品名称 的文本值
+  - name: 未获批原因
+    type: string
+    description: 提取 未获批原因 的文本值
+  - name: 申报主体名称
+    type: string
+    description: 提取 申报主体名称 的文本值
+  - name: 申报企业名称
+    type: string
+    description: 提取 申报企业名称 的文本值
+  - name: 申报设备名称
+    type: string
+    description: 提取 申报设备名称 的文本值
+  - name: 申诉及部门回复函
+    type: string
+    description: 提取 申诉及部门回复函 的文本值
+  - name: 申请免税收入项目
+    type: number
+    description: 提取 申请免税收入项目 的数值（含单位，如万元、吨等）
+  - name: 申请材料清单
+    type: string
+    description: 提取 申请材料清单 的文本值
+  - name: 申请理由
+    type: string
+    description: 提取 申请理由 的文本值
+  - name: 税务机关审批意见
+    type: string
+    description: 提取 税务机关审批意见 的文本值
+  - name: 许可容积率
+    type: string
+    description: 提取 许可容积率 的文本值
+  - name: 许可建筑面积
+    type: string
+    description: 提取 许可建筑面积 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 预算金额
+    type: number
+    description: 提取 预算金额 的数值（含单位，如万元、吨等）
+  - name: 风险等级
+    type: string
+    description: 提取 风险等级 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (人员名单.已纳入减免名单的人数及身份信息 < 认定文件.在册低保户、五保户身份证号及人数) || (发放台账.实际发放补贴金额及对应人员 < 应发放金额) || (审批材料.审批通过时间 > 60个工作日) ||
+    (明细表.免费穴位标注)
+  description: 惠民政策覆盖名单人数少于同期在册困难群众总数，或补贴发放到位率低于95%，或减免审批用时超过60个工作日（远超合理时限），或公益性公墓中本应免费的穴位存在收费记录，均视为未解决基本需求。
+  audit_item: 农村公益性殡葬政策未有效落实
+  suspicion: 未保障困难群众基本殡葬需求
+  regulation: "[\n  {\n    \"法规名称\": \"民政部关于全面推行惠民殡葬政策的指导意见\",\n    \"法规文号\": \"民发〔2012〕211号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第三点\",\n    \"内容概述\": \"各地要为城乡低保对象、农村五保供养对象等困难群众免除基本殡葬服务费用，覆盖基本丧葬需求，确保政策惠及所有符合条件的对象。\"\n  }\n]"
+- expression: 明细表.发放月份 > 汇总表.异动日期 && 汇总表.异动类型 IN ('转学','休学','毕业') && 明细表.发放金额 > 0
+  description: 当学籍变更为转学、休学或毕业，且生效日期已过，但后续月份仍有补助发放记录的，直接判定为违规冒领。无容忍偏差。
+  audit_item: 违反农村义务教育学生营养改善计划相关规定的行为
+  suspicion: 学籍异动学生违规持续享受营养膳食补助
+  regulation: "[\n  {\n    \"法规名称\": \"农村义务教育学生营养改善计划专项资金管理办法\",\n    \"法规文号\": \"财教〔2021〕174号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第六条\",\n    \"内容概述\": \"严禁虚报、冒领、套取补助资金，发现相关行为应按规定处理。学籍变更后已不符合享受条件的学生应即停止发放补助。\"\n  }\n]"
+- expression: 明细表.交易类型 == '转账支出' && (明细表.交易对手名称 CONTAIN ('理财'||'基金'||'证券'||'信托')) && 缺失(决议文件.关于资金保值增值的决议内容)
+  description: 专户资金向外转出且收款账户名称包含理财、基金、证券、信托等字样，同时不能提供经业主大会双三分之二表决同意的投资决议，即可判定为违规挪用。
+  audit_item: 挪用住宅专项维修资金
+  suspicion: 违规使用维修资金购买高风险理财产品
+  regulation: "[\n  {\n    \"法规名称\": \"《住宅专项维修资金管理办法》\",\n    \"法规文号\": \"建设部令第165号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十八条\",\n    \"内容概述\": \"维修资金应当专项用于住宅共用部位、共用设施设备保修期满后的维修和更新、改造，不得挪作他用。\"\n  }\n]"

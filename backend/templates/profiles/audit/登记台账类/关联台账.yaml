@@ -1,0 +1,127 @@
+name: audit/登记台账类/关联台账
+type: model
+description: 从登记台账类类文档（关联台账）中提取结构化元数据。涵盖字段如：凭证编号、对应发票编号、对应合同编号、记账日期。文档范围包括：会计凭证与原始凭证关联台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 凭证
+- 合同
+- 票据
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 关联台账
+  member_count: 1
+  member_details:
+  - 会计凭证与原始凭证关联台账
+output:
+  fields:
+  - name: 凭证编号
+    type: string
+    description: 提取 凭证编号 的文本值
+  - name: 对应发票编号
+    type: string
+    description: 提取 对应发票编号 的文本值
+  - name: 对应合同编号
+    type: string
+    description: 提取 对应合同编号 的文本值
+  - name: 记账日期
+    type: date
+    description: 提取 记账日期 的日期值，格式 YYYY-MM-DD
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 审核人记录表.审核人 IS NULL OR 审核人记录表.审核日期 IS NULL OR 审核人记录表.审核日期 > 凭证编号关联台账.记账日期
+  description: 当审核人、审核日期为空，或审核日期晚于记账日期，表明未经审核或审核滞后，违反审核规定。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 会计人员未按规定审核原始凭证
+  regulation: "[\n  {\n    \"法规名称\": \"会计基础工作规范\",\n    \"法规文号\": \"财政部令第98号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"\
+    第五十一条\",\n    \"内容概述\": \"会计机构、会计人员必须对原始凭证进行审核，对不真实、不合法的原始凭证不予接受，并向单位负责人报告；对记载不准确、不完整的原始凭证予以退回，并要求更正、补充。\"\n  }\n]"
+- expression: (关联台账.对应合同编号 IS NULL AND 发票.金额 > 5000) OR (ABS(发票.金额 - 交易合同.合同金额) / 交易合同.合同金额 > 0.1 AND 明细表.审批意见 NOT LIKE '%补充协议%')
+  description: 发票无对应合同且金额较大（>5000元），或发票金额与合同金额偏差率超过10%且报销审批未注明补充协议，表明发票业务可能不实。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 使用票面记载事项与实际经济业务不符的发票报销入账
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"主席令第24号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第九条\"\
+    ,\n    \"内容概述\": \"各单位必须根据实际发生的经济业务事项进行会计核算，不得以虚假的经济业务事项或者资料进行会计核算。\"\n  }\n]"
+- expression: 验真结果、开票单位、开票方纳税识别号.验真结果 != '真实' OR (验真结果、开票单位、开票方纳税识别号.开票方纳税识别号 != 交易合同.纳税识别号 AND 交易合同.签约方类型 != '个人' AND 发票及附件.金额
+    > 5000)
+  description: 发票验真结果为假票，或开票方纳税识别号与任意有效合同签约方均不匹配且金额较大（>5000元），表明发票可能来自非法渠道，属代开、虚开发票。
+  audit_item: 未按照规定填制、取得原始凭证或者填制、取得的原始凭证不符合规定
+  suspicion: 使用未按法定渠道取得的发票报销入账
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国发票管理办法\",\n    \"法规文号\": \"国务院令第587号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十二条\",\n    \"内容概述\": \"不符合规定的发票，不得作为财务报销凭证，任何单位和个人有权拒收。\"\n  }\n]"

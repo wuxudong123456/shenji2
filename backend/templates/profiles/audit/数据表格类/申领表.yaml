@@ -1,0 +1,76 @@
+name: audit/数据表格类/申领表
+type: model
+description: 从数据表格类类文档（申领表）中提取结构化元数据。涵盖字段如：参保人姓名、姓名、是否参加培训、申报单位、申报缴费基数、申请补贴金额、申领日期、补贴金额。文档范围包括：就业人员补贴申领表、社保补贴申领表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 培训
+- 补贴
+- 金额
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 申领表
+  member_count: 1
+  member_details:
+  - 就业人员补贴申领表
+  - 社保补贴申领表
+output:
+  fields:
+  - name: 参保人姓名
+    type: string
+    description: 提取 参保人姓名 的文本值
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 是否参加培训
+    type: boolean
+    description: 提取 是否参加培训 的布尔值（是/否）
+  - name: 申报单位
+    type: string
+    description: 提取 申报单位 的文本值
+  - name: 申报缴费基数
+    type: number
+    description: 提取 申报缴费基数 的数值（含单位，如万元、吨等）
+  - name: 申请补贴金额
+    type: number
+    description: 提取 申请补贴金额 的数值（含单位，如万元、吨等）
+  - name: 申领日期
+    type: date
+    description: 提取 申领日期 的日期值，格式 YYYY-MM-DD
+  - name: 补贴金额
+    type: number
+    description: 提取 补贴金额 的数值（含单位，如万元、吨等）
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 申领表.申报缴费基数 > 缴纳记录.实际缴费基数 * 1.1 || 申领表.申报缴费基数 > MAX(发放凭证.实发工资金额, 申报记录.申报收入额) * 1.2 || 明细表.支出金额 / 缴费比例 对应的基数 !=
+    申领表.申报缴费基数（偏差>5%）
+  description: 当申报基数与实际社保系统记录基数相差超过10%，或申报基数明显高于员工真实工资收入20%以上，或补贴金额反推基数与申报基数不一致时，判定为虚增补贴标准。
+  audit_item: 虚列就业补助资金支出
+  suspicion: 篡改缴费基数虚增社保补贴
+  regulation: "[\n  {\n    \"法规名称\": \"就业补助资金管理办法\",\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第七条\",\n    \"内容概述\": \"社会保险补贴标准根据单位实际缴纳的社会保险费确定，缴费基数应符合社会保险征缴规定，不得擅自提高。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国社会保险法\"\
+    ,\n    \"法规文号\": \"主席令第三十五号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第六十条\",\n    \"内容概述\": \"用人单位应当自行申报、按时足额缴纳社会保险费，缴费基数应"

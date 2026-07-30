@@ -1,0 +1,101 @@
+name: audit/清单名册类/益户清单
+type: model
+description: 从清单名册类类文档（益户清单）中提取结构化元数据。涵盖字段如：与最近取水点直线距离、受益户数、实际入户安装量、户主地址坐标、是否通水。文档范围包括：农村饮水项目受益户清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 益户清单
+  member_count: 1
+  member_details:
+  - 农村饮水项目受益户清单
+output:
+  fields:
+  - name: 与最近取水点直线距离
+    type: string
+    description: 提取 与最近取水点直线距离 的文本值
+  - name: 受益户数
+    type: string
+    description: 提取 受益户数 的文本值
+  - name: 实际入户安装量
+    type: string
+    description: 提取 实际入户安装量 的文本值
+  - name: 户主地址坐标
+    type: string
+    description: 提取 户主地址坐标 的文本值
+  - name: 是否通水
+    type: boolean
+    description: 提取 是否通水 的布尔值（是/否）
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (对比表.累计拨付金额 > 对比表.应拨付金额) || (明细表.收款方名称 != 施工合同.承包方名称 && 明细表.金额 > 50000) || (审批文件.变更金额 / 批复文件.批复资金总额 > 0.1 &&
+    益户清单.实际入户安装量 < 益户清单.受益户数 * 0.95) || (拨付凭证.拨付日期 < 对比表.累计实际进度百分比)
+  description: 表达式从四个方面揭示资金违规：1）累计拨付金额超出按进度应拨付限额，涉嫌提前或超额拨付；2）单项支出超5万元且收款方非合同签约方，存在资金外流或套取嫌疑；3）变更金额超总投资10%且变更后受益户数减少5%以上，反映资金被挤占；4）拨付日期早于进度达标日期，违反进度付款原则。
+  audit_item: 工程建设和资金使用不符合规定
+  suspicion: 违规使用农村饮水安全专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"中央预算内投资补助和贴息项目管理办法\",\n    \"法规文号\": \"国家发展和改革委员会令第3号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第十四条\",\n    \"内容概述\": \"投资补助和贴息资金应当用于计划新开工或续建项目，原则上不得用于已完工项目，且不得擅自改变主要建设内容和建设标准。\"\n  },\n  {\n    \"\
+    法规名称\": \"中央预算内投资监督管理暂行办法\",\n    \"法规文号\": \"发改投资[2015]882号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第十六条\",\n   \
+    \ \"内容概述\":"
+- expression: (受益清单.与最近取水点直线距离 > 800) || (水源保护区划定.设计供水能力 / 统计表.日均需水量 < 1.0) || (水源保护区划定.周边污染源种类及距离 < 30) || (统计表.规划供水户数 /
+    统计表.户籍人口数 < 0.8)
+  description: 表达式设定了四项布局合理性判定规则：1）任一受益户至取水点的距离超过800米，违反取水半径标准；2）供水能力与日均需水量之比小于1.0，存在供需缺口；3）取水点与最近污染源距离小于30米，违反卫生防护要求；4）实际供水覆盖率（已通水户数/户籍人口）低于80%，表明选址盲区或设计遗漏。
+  audit_item: 工程建设和资金使用不符合规定
+  suspicion: 取水点布局不合理
+  regulation: "[\n  {\n    \"法规名称\": \"农村饮水安全评价准则\",\n    \"法规文号\": \"T/CHES 18-2018\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"第4.1条\",\n    \"内容概述\": \"人力取水方便程度：人力取水往返时间不超过20分钟，或取水水平距离不超过800米。\"\n  },\n  {\n    \"法规名称\": \"村镇供水工程技术规范\",\n \
+    \   \"法规文号\": \"SL 310-2019\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\": \"第3.0.5条\",\n    \"内容概述\": \"取水构筑物与污染源的距离应符合现行相关标准，水源保护"

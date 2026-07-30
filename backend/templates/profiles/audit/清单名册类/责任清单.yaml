@@ -1,0 +1,133 @@
+name: audit/清单名册类/责任清单
+type: model
+description: 从清单名册类类文档（责任清单）中提取结构化元数据。涵盖字段如：全流程覆盖标志、具体责任人、工程名称、文件存在性、管护单位、管护环节、细化到岗位的职责描述、结果运用。文档范围包括：农村公路管理养护权力和责任清单、农村饮水工程管护责任清单、绩效管理考核责任清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 工程
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 责任清单
+  member_count: 1
+  member_details:
+  - 农村公路管理养护权力和责任清单
+  - 农村饮水工程管护责任清单
+  - 绩效管理考核责任清单
+output:
+  fields:
+  - name: 全流程覆盖标志
+    type: boolean
+    description: 提取 全流程覆盖标志 的布尔值（是/否）
+  - name: 具体责任人
+    type: string
+    description: 提取 具体责任人 的文本值
+  - name: 工程名称
+    type: string
+    description: 提取 工程名称 的文本值
+  - name: 文件存在性
+    type: string
+    description: 提取 文件存在性 的文本值
+  - name: 管护单位
+    type: string
+    description: 提取 管护单位 的文本值
+  - name: 管护环节
+    type: string
+    description: 提取 管护环节 的文本值
+  - name: 细化到岗位的职责描述
+    type: string
+    description: 提取 细化到岗位的职责描述 的文本值
+  - name: 结果运用
+    type: boolean
+    description: 提取 结果运用 的布尔值（是/否）
+  - name: 考核对象
+    type: string
+    description: 提取 考核对象 的文本值
+  - name: 考核指标
+    type: string
+    description: 提取 考核指标 的文本值
+  - name: 责任主体
+    type: string
+    description: 提取 责任主体 的文本值
+  - name: 责任范围
+    type: string
+    description: 提取 责任范围 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 绩效管理责任分工相关文件.存在性 = '否' OR (绩效管理责任分工相关文件.是否明确考核与问责条款 = '否') OR (绩效评价问题整改台账.问题项目数 > 0 AND 绩效评价问题整改台账.问责记录 = '无')
+  description: 若未制定责任分工文件，或虽有分工但未提及绩效考核与问责措施，或者存在绩效评价不合格项目却无任何问责和整改记录，说明责任约束制度缺失。三者满足任一即判违规。
+  audit_item: 部门、单位预算绩效管理制度不健全
+  suspicion: 未建立绩效管理责任约束制度
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第五部分（十四）\",\n    \"内容概述\": \"强化绩效管理责任约束，明确各部门各单位全面实施预算绩效管理的主体责任，建立绩效问责机制，对绩效管理不力、导致财政资金损失浪费的，依法依规追究责任人责任。\"\
+    \n  }\n]"
+- expression: FILE(责任清单.文件存在性) IS NULL || (责任划分条款中无明确交通局、乡镇政府、村委会养护责任边界) || (记录表.涉及部门中同一路段存在多个部门重复列支记录 || 记录表.未解决事项标记中存在长期未解决争议事项且无上级裁定)
+  description: 判定权责体系是否健全：1.权责清单缺失直接违规；2.养护办法未明确各级责任主体边界；3.跨部门协调记录显示多头管理或管理空白且未解决。任一条件触发即为疑点。
+  audit_item: 农村公路管理养护体制的建立，以及建设规划、建设计划的编制不符合相关规定
+  suspicion: 农村公路管理养护权责不清缺乏统筹
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于深化农村公路管理养护体制改革的意见\",\n    \"法规文号\": \"国办发〔2019〕45号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第二条（三）\",\n    \"内容概述\": \"明确地方各级人民政府和有关部门的农村公路管理养护权力和责任清单，实行农村公路管理养护责任制。\"\n  }\n]"
+- expression: FILE(责任清单.文件存在性) IS NULL || (FILE(养护办法.清单引述条款)未引用或明确权责清单) || (FILE(责任清单.细化到岗位的职责描述)中未细化到具体岗位职责)
+  description: 未出台权责清单文件，或制发文件但职责笼统未细化到养护巡查、资金拨付等具体岗位，均视为未有效制定清单。
+  audit_item: 农村公路管理养护体制的建立，以及建设规划、建设计划的编制不符合相关规定
+  suspicion: 未制定农村公路管理养护权力和责任清单
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于深化农村公路管理养护体制改革的意见\",\n    \"法规文号\": \"国办发〔2019〕45号\",\n    \"效力级别\": \"行政法规\"\
+    ,\n    \"条款号\": \"第二条（五）\",\n    \"内容概述\": \"地方各级人民政府要制定相关部门、乡镇人民政府的农村公路管理养护权力和责任清单，细化到具体岗位。\"\n  }\n]"
+- expression: (已竣工供水工程总数 - 登记证书.证书编号 > 0) || (责任清单.管护单位 = '' OR 责任清单.具体责任人 = '') || (确认书.签订日期 = '' OR 确认书 IS NULL)
+  description: 产权证书未覆盖全部工程、管护责任清单中责任主体或责任人空缺、未按时签订书面责任确认书，任一条件满足即判定违规。
+  audit_item: 工程建后管护不到位
+  suspicion: 农村饮水工程产权、管护主体和责任不明确
+  regulation: "[\n  {\n    \"法规名称\": \"水利部关于进一步加强农村饮水安全工程运行管护工作的指导意见\",\n    \"法规文号\": \"水农〔2015〕306号\",\n    \"效力级别\": \"\
+    部门规范性文件\",\n    \"条款号\": \"二、明确管护主体和责任\",\n    \"内容概述\": \"农村饮水安全工程应明晰工程产权，落实管护主体、管护责任，确保工程有人管、管得好，长期发挥效益。\"\n  }\n]"

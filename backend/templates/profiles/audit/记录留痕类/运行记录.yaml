@@ -1,0 +1,65 @@
+name: audit/记录留痕类/运行记录
+type: model
+description: 从记录留痕类类文档（运行记录）中提取结构化元数据。涵盖字段如：燃料种类、运行时长、锅炉编号。文档范围包括：生物质锅炉运行记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 运行记录
+  member_count: 1
+  member_details:
+  - 生物质锅炉运行记录
+output:
+  fields:
+  - name: 燃料种类
+    type: string
+    description: 提取 燃料种类 的文本值
+  - name: 运行时长
+    type: string
+    description: 提取 运行时长 的文本值
+  - name: 锅炉编号
+    type: string
+    description: 提取 锅炉编号 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ( 采购合同.设备名称 LIKE '%生物质锅炉%' AND 验收报告.结论='合格' ) AND ( ( SELECT SUM(燃料消耗量) FROM 运行记录 WHERE 锅炉编号=采购合同.锅炉编号 AND 燃料种类='秸秆压块'
+    AND 年度=当前年度 ) < ( 采购合同.额定燃料消耗量 * 0.2 ) OR ( SELECT SUM(金额) FROM 燃料采购发票 WHERE 燃料种类='原煤' AND 关联锅炉=采购合同.锅炉编号 ) > 0 )
+  description: 已验收合格的生物质锅炉，若其秸秆压块燃料年消耗量低于额定消耗量的20%，或直接采购原煤作为替代燃料，则认定锅炉处于闲置或未按规定使用秸秆燃料状态，存在骗取财政资金或虚列项目成果的风险。
+  audit_item: 秸秆回收利用政策落实不到位
+  suspicion: 生物质锅炉闲置、未使用秸秆压块燃料产品
+  regulation: "[\n  {\n    \"法规名称\": \"《中央财政秸秆综合利用项目资金管理办法》\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"项目资金必须专项用于秸秆综合利用相关设施建设和运行，不得挪作他用，设备建成后应按规定使用并发挥效益。\"\n  }\n]"

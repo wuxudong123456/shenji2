@@ -1,0 +1,142 @@
+name: audit/业务单据类/回执单
+type: model
+description: 从业务单据类类文档（回执单）中提取结构化元数据。涵盖字段如：回执场次编号、回执编号、审核签字链完整性、影片名称、放映地点、放映日期、观看人数。文档范围包括：放映回执单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 回执单
+  member_count: 1
+  member_details:
+  - 放映回执单
+output:
+  fields:
+  - name: 回执场次编号
+    type: string
+    description: 提取 回执场次编号 的文本值
+  - name: 回执编号
+    type: string
+    description: 提取 回执编号 的文本值
+  - name: 审核签字链完整性
+    type: string
+    description: 提取 审核签字链完整性 的文本值
+  - name: 影片名称
+    type: string
+    description: 提取 影片名称 的文本值
+  - name: 放映地点
+    type: string
+    description: 提取 放映地点 的文本值
+  - name: 放映日期
+    type: date
+    description: 提取 放映日期 的日期值，格式 YYYY-MM-DD
+  - name: 观看人数
+    type: number
+    description: 提取 观看人数 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: COUNT(记录表.申报场次编号) - COUNT(回执单.回执场次编号 WHERE 回执单.签字真实性核实结果='真实' AND 回执单.回执场次编号 IS NOT NULL) > 0
+  description: 申报的放映场次数量减去经回执签字与村民电话回访核实确认真实放映的场次数量，差异大于0即怀疑虚报。若差异超过10%且涉及金额较大（如超2万元），则视为严重违规。表达式依赖回执签字与村民抽样核实结果。
+  audit_item: 送戏曲（电影）下乡等活动开展不符合相关规定
+  suspicion: 虚报场次套取财政补贴资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员违反规定骗取财政资金，依据有关法律、法规的规定处理、处罚。\"\n  },\n  {\n    \"法规名称\": \"中央补助地方公共文化服务体系建设专项资金管理暂行办法\"\
+    ,\n    \"法规文号\": \"财教〔2015〕423号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十四条\",\n    \"内容概述\": \"专项资金不得用于与公共文化服务无关的"
+- expression: （公示制度.公示制度缺失）||（公示制度.回执审核制度缺失）||（公示制度.奖励制度缺失）||（公示制度.社会监督举报制度是否涵盖缺失）
+  description: 检查制度文件清单中是否包含公益放映公示制度、放映回执审核制度、放映单位奖励制度、社会监督及举报制度等四项核心制度。任意一项书面制度缺失即构成疑点。
+  audit_item: 送戏曲（电影）下乡等活动开展不符合相关规定
+  suspicion: 未建立公益放映管理所必需的四项制度
+  regulation: "[\n  {\n    \"法规名称\": \"农村电影公益放映场次补贴管理实施细则\",\n    \"法规文号\": \"财教〔2008〕282号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第十二条、第十三条\",\n    \"内容概述\": \"各地应当建立放映公示制度，接受群众监督；建立放映回执审核制度，确保场次真实；建立放映单位考核奖励制度，提高放映质量；公布举报电话，接受社会监督。\"\
+    \n  }\n]"
+- expression: COUNT(回执单 WHERE 放映日期 IS NULL OR 放映地点 IS NULL OR 影片名称 IS NULL OR 观看人数 IS NULL OR 村民签字（或指纹） IS NULL) > 0
+  description: 回执单中缺少时间、地点、影片名、观看人数、村民签字等任意一项关键要素即视为不完整，存在记录一笔即触发疑点，完整性低于80%的视为系统性管理漏洞。
+  audit_item: 送戏曲（电影）下乡等活动开展不符合相关规定
+  suspicion: 放映回执记录关键要素缺失
+  regulation: "[\n  {\n    \"法规名称\": \"农村电影公益放映场次补贴管理实施细则\",\n    \"法规文号\": \"财教〔2008〕282号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第十一条\",\n    \"内容概述\": \"放映回执单是场次补贴发放的重要依据，应当载明放映时间、地点、影片名称、观众人数等，由村委会或村民代表签字盖章确认。\"\n  }\n]"

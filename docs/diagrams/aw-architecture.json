@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AuditWorkbench 系统架构",
+    "subtitle": "审计实务工坊 — AI多智能体审计分析平台",
+    "output": "aw-architecture.html"
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "审计人员", "sublabel": "浏览器访问", "pos": [40, 290], "size": [120, 60] },
+    { "id": "frontend", "type": "web", "label": "前端界面", "sublabel": "Bootstrap 5.3 纯静态", "pos": [240, 290], "size": [140, 60] },
+    { "id": "api", "type": "backend", "label": "Flask API", "sublabel": "REST + 文件上传", "pos": [460, 290], "size": [130, 60] },
+    { "id": "langgraph", "type": "backend", "label": "LangGraph引擎", "sublabel": "6 Agent多智能体", "pos": [460, 150], "size": [140, 60] },
+    { "id": "llm", "type": "backend", "label": "LLM网关", "sublabel": "文本推理 :8765", "pos": [680, 100], "size": [130, 60] },
+    { "id": "multimodal", "type": "backend", "label": "多模态服务", "sublabel": "deepseek-v4 :8767", "pos": [680, 200], "size": [130, 60] },
+    { "id": "ontosku", "type": "backend", "label": "OntoSKU", "sublabel": "OCR+SKU :5005", "pos": [680, 300], "size": [130, 60] },
+    { "id": "mysql", "type": "database", "label": "MySQL", "sublabel": "auditkm_factory", "pos": [460, 440], "size": [130, 60] },
+    { "id": "faiss", "type": "database", "label": "FAISS索引", "sublabel": "向量语义检索", "pos": [240, 440], "size": [120, 60] },
+    { "id": "excel", "type": "database", "label": "Excel语料", "sublabel": "2231条审计疑点", "pos": [40, 440], "size": [120, 60] },
+    { "id": "export", "type": "external", "label": "文书导出", "sublabel": "取证单/底稿/报告", "pos": [700, 440], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "前端层", "wraps": ["user", "frontend"] },
+    { "kind": "region", "label": "后端服务层", "wraps": ["api", "langgraph"] },
+    { "kind": "security-group", "label": "AI服务集群", "wraps": ["llm", "multimodal", "ontosku"] },
+    { "kind": "region", "label": "数据层", "wraps": ["mysql", "faiss", "excel"] }
+  ],
+  "connections": [
+    { "from": "user", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
+    { "from": "frontend", "to": "api", "label": "fetch API" },
+    { "from": "api", "to": "langgraph", "label": "启动工作流", "fromSide": "top", "toSide": "bottom" },
+    { "from": "langgraph", "to": "llm", "label": "文本推理" },
+    { "from": "langgraph", "to": "multimodal", "label": "图片理解" },
+    { "from": "api", "to": "ontosku", "label": "OCR提取" },
+    { "from": "api", "to": "mysql", "label": "法规查询", "fromSide": "bottom", "toSide": "top", "labelDy": 20 },
+    { "from": "api", "to": "faiss", "label": "语义检索" },
+    { "from": "api", "to": "excel", "label": "语料读取" },
+    { "from": "api", "to": "export", "label": "导出Word/PDF" }
+  ],
+  "cards": [
+    { "dot": "navy", "title": "前端", "items": ["Bootstrap 5.3 纯静态页面", "政府蓝主色 #1a3a5c", "14个功能页面"] },
+    { "dot": "indigo", "title": "智能体", "items": ["6个LangGraph Agent并行协作", "人工确认断点机制", "全链路可溯源"] },
+    { "dot": "crimson", "title": "AI服务", "items": ["LLM网关: 8765", "多模态: 8767", "OntoSKU OCR: 5005"] },
+    { "dot": "teal", "title": "数据", "items": ["MySQL 40万法规 + 关系链", "FAISS 语义向量检索", "2231条审计疑点语料"] }
+  ]
+}

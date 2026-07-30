@@ -1,0 +1,142 @@
+name: audit/合同协议类/处置合同
+type: model
+description: 从合同协议类类文档（处置合同）中提取结构化元数据。涵盖字段如：上缴时限要求、受托方名称、合同签订方、处置危废类别、处置数量、处置方式、处置金额。文档范围包括：危险废物处置合同、固体废物处置合同、国有资产处置合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 金额
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 处置合同
+  member_count: 1
+  member_details:
+  - 危险废物处置合同
+  - 固体废物处置合同
+  - 国有资产处置合同
+output:
+  fields:
+  - name: 上缴时限要求
+    type: string
+    description: 提取 上缴时限要求 的文本值
+  - name: 受托方名称
+    type: string
+    description: 提取 受托方名称 的文本值
+  - name: 合同签订方
+    type: string
+    description: 提取 合同签订方 的文本值
+  - name: 处置危废类别
+    type: string
+    description: 提取 处置危废类别 的文本值
+  - name: 处置数量
+    type: number
+    description: 提取 处置数量 的数值（含单位，如万元、吨等）
+  - name: 处置方式
+    type: string
+    description: 提取 处置方式 的文本值
+  - name: 处置金额
+    type: number
+    description: 提取 处置金额 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (管理台账.产生量 > 0) && ((合同签订方 IS NULL) || (管理台账.产生量 - 管理台账.自行利用量 - 管理台账.委托处置量 > 0.1 * 管理台账.产生量))
+  description: 有固废产生但无处置合同，或超过10%的产生量去向不明且无法提供合法利用、处置去向证明，即可疑为擅自倾倒、堆放。
+  audit_item: 污染防治攻坚战存在的问题
+  suspicion: 擅自倾倒、堆放固体废物
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国固体废物污染环境防治法\",\n    \"法规文号\": \"主席令第五十八号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第二十条\",\n    \"内容概述\": \"产生、收集、贮存、运输、利用、处置固体废物的单位和个人，应当采取防扬散、防流失、防渗漏或者其他防止污染环境的措施，不得擅自倾倒、堆放、丢弃、遗撒固体废物。\"\n  }\n]"
+- expression: (转移联单.接收单位名称 对应 许可证 IS NULL) || (转移联单.危废类别及数量 NOT IN 许可证.核准经营危险废物类别)
+  description: 接收危废的单位必须持有相应类别的危险废物经营许可证。无许可证或核准类别不覆盖所接收的危废种类，均属委托无资质单位处置。
+  audit_item: 污染防治攻坚战存在的问题
+  suspicion: 委托无经营资质单位处置危险废物
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国固体废物污染环境防治法\",\n    \"法规文号\": \"主席令第五十八号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第八十条\",\n    \"内容概述\": \"禁止将危险废物提供或者委托给无许可证的单位或者其他生产经营者从事收集、贮存、利用、处置活动。\"\n  }\n]"

@@ -1,0 +1,124 @@
+name: audit/清单名册类/成员名单
+type: model
+description: 从清单名册类类文档（成员名单）中提取结构化元数据。涵盖字段如：专家姓名、任职单位、任职时间、姓名、委员名单、成员姓名、抽取时间、身份类别。文档范围包括：农民专业合作社成员名单、膳食委员会成员名单、行业协会商会成员名单、评标委员会成员名单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 成员名单
+  member_count: 1
+  member_details:
+  - 农民专业合作社成员名单
+  - 膳食委员会成员名单
+  - 行业协会商会成员名单
+  - 评标委员会成员名单
+output:
+  fields:
+  - name: 专家姓名
+    type: string
+    description: 提取 专家姓名 的文本值
+  - name: 任职单位
+    type: string
+    description: 提取 任职单位 的文本值
+  - name: 任职时间
+    type: date
+    description: 提取 任职时间 的日期值，格式 YYYY-MM-DD
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 委员名单
+    type: string
+    description: 提取 委员名单 的文本值
+  - name: 成员姓名
+    type: string
+    description: 提取 成员姓名 的文本值
+  - name: 抽取时间
+    type: date
+    description: 提取 抽取时间 的日期值，格式 YYYY-MM-DD
+  - name: 身份类别
+    type: string
+    description: 提取 身份类别 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 通知时间
+    type: date
+    description: 提取 通知时间 的日期值，格式 YYYY-MM-DD
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (在职人员兼职申报审批表.审批状态 != '批准' OR 在职人员兼职申报审批表.兼职单位 NOT IN (行业协会商会成员名单.任职单位)) AND (党员领导干部个人事项报告表.兼职单位及职务 = 行业协会商会成员名单.任职单位
+    OR 行业协会商会成员名单.身份证号 IS NOT NULL)
+  description: 判断是否存在在职人员（尤其是领导干部）在行业协会商会兼职但未申报或审批未通过的情形：1.兼职申报表中无对应兼职记录或审批未批准；2.个人事项报告中披露了该兼职但审批缺失；或者未在个人报告中披露但在行业协会名单中发现。满足任一条件即触发疑点，需结合职级判定领导干部身份。
+  audit_item: 党员领导干部违反规定兼职或者兼职取酬以及从事有偿中介活动
+  suspicion: 在职人员违规在行业协会商会兼职
+  regulation: "[\n  {\n    \"法规名称\": \"中国共产党纪律处分条例\",\n    \"法规文号\": \"中发〔2018〕31号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\"\
+    : \"第九十四条\",\n    \"内容概述\": \"违反有关规定在经济组织、社会组织等单位中兼职，或者经批准兼职但获取薪酬、奖金、津贴等额外利益的，情节较轻的，给予警告或者严重警告处分；情节较重的，给予撤销党内职务或者留党察看处分；情节严重的，给予开除党籍处分。\"\
+    \n  },\n  {\n    \"法规名称\": \"中华人民共和国公务员法\",\n    \"法规文号\": \"中华人民共和国主席令第二十号\",\n    \"效力级别\": \"法"
+- expression: ((访问目标文件（标底文件）.访问内容（含评标专家查询） LIKE '%评标专家%' AND 访问时间 < 开标时间) AND 操作人 NOT IN (权限名单.允许查看人员)) || (相似度(投标文件.技术方案,
+    招标文件.技术参数要求) > 0.90 AND 投标准备时长 < 3天)
+  description: 开标前非授权人员查阅评标专家名单，或投标文件的技术方案与招标要求异常吻合且准备时间极短，均表明存在评标信息或关键技术参数被提前泄露的风险。
+  audit_item: 招标人违法泄漏招标秘密
+  suspicion: 泄露评标专家名单或关键信息影响公平竞争
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国招标投标法\",\n    \"法规文号\": \"主席令第21号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第五十二条\",\n    \"内容概述\": \"招标人向他人透露已获取招标文件的潜在投标人的名称、数量或者可能影响公平竞争的有关招标投标的其他情况的，或者泄露标底的，给予警告，可以并处一万元以上十万元以下的罚款。\"\n  }\n]"
+- expression: (成员名单.有效成员数 < 申报成员数 * 0.8) || (分红记录.分红总额 = 0 && 申报明细表.申报金额 > 10) || (现场检查登记表.核查结论 = '项目不存在' && 拨付台账.补贴资金已拨付)
+    || (银行流水明细.补贴收款账户在到账后10日内向个人关联账户转出资金比例 > 0.9)
+  description: 当合作社可核实真实成员不足申报的80%，或合作社无任何分红记录且申报补贴金额超过10万元，或现场检查发现申报项目不存在但补贴款已下达，或补贴资金到账后短期内几乎全部转入个人关联账户，即触发疑点。成员核实可通过电话抽查或比对分红银行流水。
+  audit_item: 骗取套取涉农财政专项资金
+  suspicion: 合作社编造虚假资料骗取涉农专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"国家机关及其工作人员有下列违反规定使用、骗取财政资金的行为之一的，……（一）以虚报、冒领等手段骗取财政资金……；企业和个人有类似行为的，依照本条规定处理。\"\n  }\n]"

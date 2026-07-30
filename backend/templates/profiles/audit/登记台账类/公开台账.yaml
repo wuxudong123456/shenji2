@@ -1,0 +1,102 @@
+name: audit/登记台账类/公开台账
+type: model
+description: 从登记台账类类文档（公开台账）中提取结构化元数据。涵盖字段如：公开日期。文档范围包括：《信息公开台账》等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 公开台账
+  member_count: 1
+  member_details:
+  - 《信息公开台账》
+output:
+  fields:
+  - name: 公开日期
+    type: date
+    description: 提取 公开日期 的日期值，格式 YYYY-MM-DD
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 《信息公开台账》.公开日期 - 《绩效评价报告》.批复日期 > 20 （工作日）
+  description: 以绩效评价报告获正式批复的日期为起算点，至在指定公开平台实际发布的日期，两个日期之间的工作日天数超过20日（不含20日），即构成超期公开。20日为《政府信息公开条例》的一般规定，若单位制度有更严时限，则按制度时限执行。
+  audit_item: 部门、单位绩效评价结果未公开
+  suspicion: 绩效评价结果超期公开
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国政府信息公开条例\",\n    \"法规文号\": \"国务院令第711号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第二十六条\",\n    \"内容概述\": \"属于主动公开范围的政府信息，应当自该政府信息形成或者变更之日起20个工作日内及时公开。法律、法规对政府信息公开的期限另有规定的，从其规定。\"\n  }\n]"

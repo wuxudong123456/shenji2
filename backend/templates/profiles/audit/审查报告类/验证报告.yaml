@@ -1,0 +1,91 @@
+name: audit/审查报告类/验证报告
+type: model
+description: 从审查报告类类文档（验证报告）中提取结构化元数据。涵盖字段如：发票代码、发票号码、验证数据差异结论、验证结果。文档范围包括：发票真伪验证报告、第三方数据验证报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 票据
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 验证报告
+  member_count: 1
+  member_details:
+  - 发票真伪验证报告
+  - 第三方数据验证报告
+output:
+  fields:
+  - name: 发票代码
+    type: string
+    description: 提取 发票代码 的文本值
+  - name: 发票号码
+    type: string
+    description: 提取 发票号码 的文本值
+  - name: 验证数据差异结论
+    type: string
+    description: 提取 验证数据差异结论 的文本值
+  - name: 验证结果
+    type: boolean
+    description: 提取 验证结果 的布尔值（是/否）
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: ABS({因素名称.数据值} - {差异说明.真实值}) > 0 || ({因素名称.数据时间节点} 距离分配年度 > 3) || ({验证数据差异结论.验证数据差异结论} = '不可接受' && {分配金额.分配金额}
+    使用该因素数据值计算)
+  description: 数据采集值与校验真实值存在任何绝对值差异，或引用数据年份距分配年度超过3年（时效性超标），或第三方验证报告判定数据不可信且该数据被用于计算金额，均判定为基础数据错误导致分配偏差。
+  audit_item: 财政转移支付预算分配不科学
+  suspicion: 分配引用基础数据错误
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"主席令第22号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第三十二条、第五十七条\"\
+    ,\n    \"内容概述\": \"各级政府预算编制应依据真实、准确的数据；各部门应完整、准确地向财政部门提供预算编制所需数据。\"\n  }\n]"
+- expression: (报销凭证.发票号码 连续 AND 报销凭证.金额 > 100000) || (验证报告.验证结果 == '假发票' && 报销凭证.收款银行账号 NOT IN 正常供应商账号库) || (流水单.收款人 IN 名录
+    && 流水单.金额 未出现在 其他 中 && 报销凭证.报销摘要 NULL 真实劳务内容)
+  description: 连号大额发票（10万以上）高度可疑；查证为虚假发票且资金流入非正常供应账户，直接判定为套取；银行代发流水中有职工收款但未列入奖金发放清单且无合理业务摘要的，即为账外发放奖金。
+  audit_item: 违规支付职工薪酬及股份
+  suspicion: 虚列支出套取资金发放职工奖金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第九条、第二十六条\",\n    \"内容概述\": \"各单位必须根据实际发生的经济业务事项进行会计核算；不得伪造、变造会计凭证、会计账簿及其他会计资料，不得提供虚假的财务会计报告。\"\n  },\n  {\n    \"\
+    法规名称\": \"财政违法行为处罚处分条例\",\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第六条\",\n    \"内容概述\"\
+    : \"国家机关及"

@@ -1,0 +1,74 @@
+name: audit/审查报告类/征信报告
+type: model
+description: 从审查报告类类文档（征信报告）中提取结构化元数据。涵盖字段如：不良信用记录、失信被执行人信息。文档范围包括：被担保方征信报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 征信报告
+  member_count: 1
+  member_details:
+  - 被担保方征信报告
+output:
+  fields:
+  - name: 不良信用记录
+    type: string
+    description: 提取 不良信用记录 的文本值
+  - name: 失信被执行人信息
+    type: string
+    description: 提取 失信被执行人信息 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: (被担保方.资产负债率 > 70% || 被担保方.不良信用记录 == 不良 || 被担保方.连续亏损年数 >= 3) && 审查结论、各指标评估值.审查结论 == 通过
+  description: 根据内部制度规定，担保对象资产负债率超过70%、征信存在不良记录或连续三年亏损应不予担保，但通过审查结论却为“通过”，表明审查流于形式或违规批准。具体阈值可根据企业制度调整。
+  audit_item: 违规对外提供重大担保或借款
+  suspicion: 违规向不符合担保条件的对象提供担保
+  regulation: "[\n  {\n    \"法规名称\": \"关于加强中央企业融资担保管理工作的通知\",\n    \"法规文号\": \"国资发财评规〔2021〕75号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"三、严格控制融资担保对象\",\n    \"内容概述\": \"中央企业严禁对集团外无股权关系企业提供担保；不得对进入重组或破产清算程序、资不抵债、连续三年及以上亏损且经营净现金流为负等不具备持续经营能力的子企业提供担保。\"\
+    \n  }\n]"

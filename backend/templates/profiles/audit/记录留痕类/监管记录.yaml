@@ -1,0 +1,68 @@
+name: audit/记录留痕类/监管记录
+type: model
+description: 从记录留痕类类文档（监管记录）中提取结构化元数据。涵盖字段如：发现时间、排水去向、是否制止、直排点位。文档范围包括：排放监管记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 监管记录
+  member_count: 1
+  member_details:
+  - 排放监管记录
+output:
+  fields:
+  - name: 发现时间
+    type: date
+    description: 提取 发现时间 的日期值，格式 YYYY-MM-DD
+  - name: 排水去向
+    type: string
+    description: 提取 排水去向 的文本值
+  - name: 是否制止
+    type: boolean
+    description: 提取 是否制止 的布尔值（是/否）
+  - name: 直排点位
+    type: string
+    description: 提取 直排点位 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (监管记录.直排点位 IS NOT NULL AND 监管记录.是否制止 = '否' AND 通知书.针对直排问题的限期整改决定 = '未完成') OR (登记表.投诉内容 LIKE '%直排%' AND 登记表.是否在保护区内
+    = '是' AND 登记表.处理结果 = '未结案') OR (汇总表.保护区上下游监测断面水质数据 > 'Ⅲ类' AND 规划文件.保护区是否规划纳入管网覆盖范围 = '否')
+  description: 在饮用水源保护区或重点生态功能区，若存在未纳管的生活污水直排口且监管部门未有效制止，或出现多次相关投诉未处理，或监测显示水质超标且区域管网空白，均表明存在直排污染且监管缺失。
+  audit_item: 污水治理项目建设、运营、管护不到位
+  suspicion: 重点生态保护区域污水直排污染环境
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国水污染防治法\",\n    \"法规文号\": \"主席令第70号（2017年修正）\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第六十四条\",\n    \"内容概述\": \"在饮用水水源保护区内，禁止设置排污口；已设置的由县级以上地方人民政府责令拆除或者关闭。\"\n  }\n]"

@@ -1,0 +1,120 @@
+name: audit/资料材料类/验收资料
+type: model
+description: 从资料材料类类文档（验收资料）中提取结构化元数据。涵盖字段如：单价、合同签订日期、实际购置数量、审批时间、开工停工记录、总额、户主姓名、房屋地址。文档范围包括：农村公路建设项目验收资料、农村危房改造项目验收资料、危房改造验收资料、资产购置验收资料、车辆购置验收资料等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 资料材料类
+- 审计
+- 合同
+- 审批
+- 项目
+- 验收
+- 元数据提取
+template_class:
+  category: 资料材料类
+  member_types:
+  - 验收资料
+  member_count: 1
+  member_details:
+  - 农村公路建设项目验收资料
+  - 农村危房改造项目验收资料
+  - 危房改造验收资料
+  - 资产购置验收资料
+  - 车辆购置验收资料
+output:
+  fields:
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 合同签订日期
+    type: date
+    description: 提取 合同签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际购置数量
+    type: number
+    description: 提取 实际购置数量 的数值（含单位，如万元、吨等）
+  - name: 审批时间
+    type: date
+    description: 提取 审批时间 的日期值，格式 YYYY-MM-DD
+  - name: 开工停工记录
+    type: string
+    description: 提取 开工停工记录 的文本值
+  - name: 总额
+    type: number
+    description: 提取 总额 的数值（含单位，如万元、吨等）
+  - name: 户主姓名
+    type: string
+    description: 提取 户主姓名 的文本值
+  - name: 房屋地址
+    type: string
+    description: 提取 房屋地址 的文本值
+  - name: 改造前照片
+    type: string
+    description: 提取 改造前照片 的文本值
+  - name: 现场照片
+    type: string
+    description: 提取 现场照片 的文本值
+  - name: 确认签字
+    type: string
+    description: 提取 确认签字 的文本值
+  - name: 移交路线编码
+    type: string
+    description: 提取 移交路线编码 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 项目实际路线坐标
+    type: string
+    description: 提取 项目实际路线坐标 的文本值
+  - name: 验收报告
+    type: string
+    description: 提取 验收报告 的文本值
+  - name: 验收日期
+    type: date
+    description: 提取 验收日期 的日期值，格式 YYYY-MM-DD
+  - name: 验收照片
+    type: string
+    description: 提取 验收照片 的文本值
+  - name: 验收移交日期
+    type: date
+    description: 提取 验收移交日期 的日期值，格式 YYYY-MM-DD
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: 重复身份证号对比表.重复身份证号 申报次数 >=2 || (重复房屋地址对比表.重复房屋地址 申报次数 >=2 && 验收资料.改造前照片 不同年份相同) || (发放金额明细表.身份证号 收款金额累加 > 政策最高补助标准)
+  description: 同一身份证号或同一房屋地址在补贴名单中出现两次及以上，或照片信息被复用，则认定为重复享受；同一户获得的补贴总额超出省级最高补助限额的，也视为编造资料重复申报。
+  audit_item: 监管不到位，惠农补贴资金被套取骗取、违规使用
+  suspicion: 编造资料重复享受农村危房改造补贴
+  regulation: "[\n  {\n    \"法规名称\": \"中央财政农村危房改造补助资金管理暂行办法\",\n    \"法规文号\": \"财社〔2016〕216号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第九条、第十条\",\n    \"内容概述\": \"补助资金用于农村危房改造，不得用于与农村危房改造无关的支出。享受补助资金的农村危房改造对象必须为居住在危房中的农村分散供养五保户、低保户、贫困残疾人家庭和其他贫困户。已纳入因灾倒损农房恢复重建补助范围的，不得重复享受农村危房改造补助。同一户籍内家庭成员不得重复享受补助资金。\"\
+    \n  },\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\","
+- expression: (表5.申请人身份证号 NOT IN (垦区职工名单)) || (表5.改造前后对比照片相同或无验收签字) || (表5.同一房屋地址重复申请) || (表1.该家庭已享受其他住房保障补贴)
+  description: 申领人非垦区在职或退休职工，身份不符；危房改造验收资料缺失或照片显示无明显改造痕迹，表明未实际改造；同一地址在不同年份或不同项目重复出现；家庭已享受过其他保障性住房补贴，重复享受应禁止。任一条件触发疑点。
+  audit_item: 不符合条件的家庭违规获取住房保障待遇
+  suspicion: 非垦区职工或未实际改造骗取垦区危房补贴
+  regulation: "[\n  {\n    \"法规名称\": \"农业部 国家发展改革委 住房城乡建设部关于做好农垦危房改造工作的意见\",\n    \"法规文号\": \"农垦发〔2011〕3号\",\n    \"效力级别\"\
+    : \"部门规范性文件\",\n    \"条款号\": \"三、严格对象审核\",\n    \"内容概述\": \"严格审核申请对象资格，垦区危房改造资金必须用于垦区职工危房改造，不得虚报冒领。\"\n  }\n]"

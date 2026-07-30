@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>系统设置 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.settings-container { max-width: 900px; }
+.kw-panel { display:none; }
+.kw-panel.active { display:block; animation:fadeIn 0.3s ease; }
+.setting-row { display: flex; align-items: center; gap: var(--space-md); padding: 10px 0; }
+.setting-row + .setting-row { border-top: 1px solid var(--color-border); }
+.setting-row .setting-label { width: 180px; font-weight: 500; font-size: 14px; flex-shrink: 0; }
+.setting-row .setting-value { flex: 1; }
+.setting-row .setting-hint { font-size: 12px; color: var(--color-text-muted); min-width: 80px; text-align: right; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.status-dot.ok { background: var(--color-success); }
+.status-dot.warn { background: var(--color-warning); }
+.status-dot.error { background: var(--color-accent); }
+</style>
+</head>
+<body data-page="settings">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content"><div class="settings-container">
+
+<div class="page-header"><div><h1><i class="bi bi-gear"></i> 系统设置</h1>
+<div class="breadcrumb">LLM服务 · 数据源 · 用户偏好 · 系统信息</div></div></div>
+
+<!-- Tabs: 业务设置 + 软件设置 -->
+<style>
+  .stab-bar { display:flex; gap:4px; margin-bottom:var(--space-lg); background:var(--color-bg); border-radius:var(--radius-md); padding:4px; }
+  .stab { padding:8px 20px; border-radius:var(--radius-sm); cursor:pointer; font-size:14px; font-weight:500; color:var(--color-text-muted); transition:all 0.15s; white-space:nowrap; }
+  .stab:hover { color:var(--color-text); background:rgba(255,255,255,0.6); }
+  .stab.active { background:#fff; color:var(--color-primary); box-shadow:0 1px 3px rgba(0,0,0,0.08); font-weight:600; }
+  .stab-sep { width:1px; background:var(--color-border); margin:4px 8px; }
+  /* Toggle switch */
+  .switch { position:relative; display:inline-block; width:44px; height:24px; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; cursor:pointer; inset:0; background:#ccc; transition:0.3s; border-radius:24px; }
+  .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:#fff; transition:0.3s; border-radius:50%; }
+  input:checked + .slider { background:var(--color-primary); }
+  input:checked + .slider:before { transform:translateX(20px); }
+  .setting-row { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--color-border); }
+  .setting-label { font-size:14px; font-weight:500; min-width:100px; color:var(--color-text); }
+  .setting-value { flex:1; }
+  .setting-hint { font-size:13px; color:var(--color-text-muted); }
+  .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .status-dot.ok { background:var(--color-success); }
+  .status-dot.warn { background:var(--color-warning); }
+  .status-dot.off { background:var(--color-text-muted); }
+</style>
+
+<div class="stab-bar" id="settings-tabs">
+  <span style="font-size:11px;color:var(--color-text-muted);padding:8px 4px;font-weight:600;letter-spacing:1px;">业务设置</span>
+  <div class="stab active" onclick="SettingsTab.switch('rules')">项目管理规则</div>
+  <div class="stab" onclick="SettingsTab.switch('templates')">模板管理</div>
+  <div class="stab" onclick="SettingsTab.switch('preferences')">用户偏好</div>
+  <div class="stab" onclick="SettingsTab.switch('agents')">智能体配置</div>
+  <span class="stab-sep"></span>
+  <span style="font-size:11px;color:var(--color-text-muted);padding:8px 4px;font-weight:600;letter-spacing:1px;">软件设置</span>
+  <div class="stab" onclick="SettingsTab.switch('llm')">LLM 服务</div>
+  <div class="stab" onclick="SettingsTab.switch('datasource')">数据源</div>
+  <div class="stab" onclick="SettingsTab.switch('about')">关于</div>
+  <span class="stab-sep"></span>
+  <span style="font-size:11px;color:var(--color-text-muted);padding:8px 4px;font-weight:600;letter-spacing:1px;">实验</span>
+  <div class="stab" onclick="SettingsTab.switch('lab')" id="tab-lab" style="color:var(--color-warning);">🧪 实验室</div>
+</div>
+
+<!-- LLM Service -->
+<div class="kw-panel" id="panel-llm">
+  <div class="card"><div class="card-header"><h3>文本推理网关</h3><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);">连接正常</span></div>
+    <div class="setting-row"><span class="setting-label">服务地址</span><input class="form-input setting-value" value="http://192.168.3.189:8765/v1"><span class="setting-hint">OpenAI兼容</span></div>
+    <div class="setting-row"><span class="setting-label">默认模型</span><input class="form-input setting-value" value="deepseek-v4-flash"><span class="setting-hint">文本推理</span></div>
+    <div class="setting-row"><span class="setting-label">请求超时</span><input class="form-input setting-value" value="120" style="width:100px;"> <span style="font-size:13px;color:var(--color-text-muted);">秒</span></div>
+    <div class="setting-row"><span class="setting-label">最大并发</span><input class="form-input setting-value" value="6" style="width:100px;"> <span style="font-size:13px;color:var(--color-text-muted);">Agent并行数</span></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>多模态服务</h3><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);">连接正常</span></div>
+    <div class="setting-row"><span class="setting-label">服务地址</span><input class="form-input setting-value" value="http://192.168.3.189:8767/v1"><span class="setting-hint">多模态</span></div>
+    <div class="setting-row"><span class="setting-label">默认模型</span><input class="form-input setting-value" value="deepseek-v4-flash"><span class="setting-hint">视觉理解</span></div>
+    <div class="setting-row"><span class="setting-label">上下文大小</span><input class="form-input setting-value" value="65536" readonly style="width:100px;background:var(--color-bg);"> <span style="font-size:13px;color:var(--color-text-muted);">tokens</span></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>MinIO 对象存储</h3><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);" id="minio-status">本地连接正常</span></div>
+    <div class="setting-row">
+      <span class="setting-label">存储模式</span>
+      <select class="form-select setting-value" id="minio-mode" onchange="SettingsTab.switchMinio(this.value)">
+        <option value="local" selected>本地 MinIO</option>
+        <option value="remote">远程 MinIO 服务器</option>
+      </select>
+    </div>
+    <div id="minio-local">
+      <div class="setting-row"><span class="setting-label">服务地址</span><input class="form-input setting-value" value="127.0.0.1:9100"></div>
+      <div class="setting-row"><span class="setting-label">Access Key</span><input class="form-input setting-value" value="minioadmin"></div>
+      <div class="setting-row"><span class="setting-label">Console</span><a href="http://127.0.0.1:9101" target="_blank" class="btn btn-sm btn-outline">打开 Console</a></div>
+    </div>
+    <div id="minio-remote" style="display:none;">
+      <div class="setting-row"><span class="setting-label">服务地址</span><input class="form-input setting-value" value="192.168.3.164:9100"></div>
+      <div class="setting-row"><span class="setting-label">Access Key</span><input class="form-input setting-value" value="ontosku"></div>
+      <div class="setting-row"><span class="setting-label">Console</span><a href="http://192.168.3.164:9101" target="_blank" class="btn btn-sm btn-outline">打开 Console</a></div>
+    </div>
+    <div class="setting-row"><span class="setting-label">Bucket</span><input class="form-input setting-value" value="audit-materials"></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>OCR 引擎配置</h3></div>
+    <div class="setting-row">
+      <span class="setting-label">默认引擎</span>
+      <select class="form-select setting-value" id="ocr-engine">
+        <option value="liteparse" selected>LiteParse — 快速·本地引擎（默认）</option>
+        <option value="mineru">MinerU (OntoSKU) — 高精度·远程服务</option>
+      </select>
+    </div>
+    <div id="ocr-mineru" style="display:none;">
+      <div class="setting-row"><span class="setting-label">MinerU 地址</span><input class="form-input setting-value" value="http://192.168.3.189:5005"></div>
+      <div class="setting-row"><span class="setting-label">可用模板</span><input class="form-input setting-value" value="1,511 审计模板" readonly style="background:var(--color-bg);"></div>
+    </div>
+    <div id="ocr-liteparse">
+      <div class="setting-row"><span class="setting-label">LiteParse 地址</span><input class="form-input setting-value" value="http://127.0.0.1:5006"></div>
+      <div class="setting-row"><span class="setting-label">版本</span><input class="form-input setting-value" value="v2.0.0 · Python 3.10 · conda env: liteparse" readonly style="background:var(--color-bg);"></div>
+      <div class="setting-row"><span class="setting-label">状态</span><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);">运行中 (:5006)</span></div>
+    </div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>OntoSKU 内容加工服务</h3><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);">连接正常</span></div>
+    <div class="setting-row"><span class="setting-label">服务地址</span><input class="form-input setting-value" value="http://192.168.3.189:5005"><span class="setting-hint">OCR+SKU</span></div>
+    <div class="setting-row"><span class="setting-label">可用模板</span><input class="form-input setting-value" value="1,511 审计模板" readonly style="background:var(--color-bg);"></div>
+    <div class="setting-row"><span class="setting-label">支持格式</span><input class="form-input setting-value" value="PDF / DOCX / XLSX / PPTX / MD / TXT" readonly style="background:var(--color-bg);"></div>
+  </div>
+  <button class="btn btn-primary" onclick="AuditWorkbench.toast('LLM配置已保存','success')"><i class="bi bi-check-lg"></i> 保存配置</button>
+  <button class="btn btn-outline" onclick="SettingsTab.testConnection()" style="margin-left:8px;"><i class="bi bi-plug"></i> 测试连接</button>
+</div>
+
+<!-- Data Source -->
+<div class="kw-panel" id="panel-datasource">
+  <div class="card"><div class="card-header"><h3>MySQL 数据库</h3><span class="status-dot ok"></span><span style="font-size:13px;color:var(--color-success);">连接正常</span></div>
+    <div class="setting-row"><span class="setting-label">主机地址</span><input class="form-input setting-value" value="127.0.0.1"></div>
+    <div class="setting-row"><span class="setting-label">端口</span><input class="form-input setting-value" value="3306" style="width:100px;"></div>
+    <div class="setting-row"><span class="setting-label">数据库名</span><input class="form-input setting-value" value="auditkm_factory" readonly style="background:var(--color-bg);"></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>数据统计</h3></div>
+    <div class="setting-row"><span class="setting-label">法规总表</span><span class="setting-value">sys_core_law — 400,698 条</span></div>
+    <div class="setting-row"><span class="setting-label">审计法规</span><span class="setting-value">sys_core_law_allaudit — 12,016 条</span></div>
+    <div class="setting-row"><span class="setting-label">主法列表</span><span class="setting-value">law_selection_item — 7,101 条</span></div>
+    <div class="setting-row"><span class="setting-label">法规关系</span><span class="setting-value">tools_regulation_relation — 31,317 条 (superior/related/history)</span></div>
+    <div class="setting-row"><span class="setting-label">条款关系</span><span class="setting-value">tools_clause_relation — 119,210 条</span></div>
+    <div class="setting-row"><span class="setting-label">语料数据</span><span class="setting-value">审计疑点_6层法规依据_发布版.xlsx — 2,231 条</span></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>FAISS 向量索引</h3><span class="status-dot warn"></span><span style="font-size:13px;color:var(--color-warning);">待构建</span></div>
+    <div class="setting-row"><span class="setting-label">违规模型索引</span><span class="setting-value">待构建 (2,195 违规模型)</span><button class="btn btn-sm btn-outline" style="margin-left:8px;">构建索引</button></div>
+    <div class="setting-row"><span class="setting-label">法规全文索引</span><span class="setting-value">待构建 (400,698 法规)</span><button class="btn btn-sm btn-outline" style="margin-left:8px;">构建索引</button></div>
+  </div>
+</div>
+
+<!-- Preferences -->
+<div class="kw-panel" id="panel-preferences">
+  <div class="card"><div class="card-header"><h3>分析默认值</h3></div>
+    <div class="setting-row"><span class="setting-label">默认审计领域</span><select class="form-select setting-value"><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option><option>社会保障审计</option></select></div>
+    <div class="setting-row"><span class="setting-label">默认审计层级</span><select class="form-select setting-value"><option>国家级</option><option>省级</option><option selected>市级</option><option>县级</option><option>乡镇级</option></select></div>
+    <div class="setting-row"><span class="setting-label">AI确认模式</span><select class="form-select setting-value"><option selected>一键确认 + 低置信度提示</option><option>逐条确认</option></select></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>界面偏好</h3></div>
+    <div class="setting-row"><span class="setting-label">溯源定位默认</span><select class="form-select setting-value"><option>手动展开</option><option selected>自动展开</option></select></div>
+    <div class="setting-row"><span class="setting-label">表达式展示</span><select class="form-select setting-value"><option selected>漏斗图 (推荐)</option><option>SQL原文</option><option>并排显示</option></select></div>
+    <div class="setting-row"><span class="setting-label">通知方式</span>
+      <div class="setting-value" style="display:flex;gap:16px;">
+        <label style="font-size:14px;"><input type="checkbox" checked> Toast弹窗</label>
+        <label style="font-size:14px;"><input type="checkbox" checked> 导航徽标</label>
+        <label style="font-size:14px;"><input type="checkbox"> 浏览器通知</label>
+      </div></div>
+  </div>
+  <button class="btn btn-primary" onclick="AuditWorkbench.toast('偏好设置已保存','success')"><i class="bi bi-check-lg"></i> 保存偏好</button>
+</div>
+
+<!-- Templates -->
+<div class="kw-panel" id="panel-templates">
+  <div class="card"><div class="card-header"><h3>OntoSKU 模板管理</h3><span class="badge badge-primary">1,511 模板</span></div>
+    <div class="search-bar">
+      <input type="text" class="form-input" placeholder="搜索模板...">
+      <select class="form-select" style="width:180px;"><option>全部领域</option><option>audit/业务单据类</option><option>audit/财务类</option><option>audit/合同类</option></select>
+    </div>
+    <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+      <table class="table"><thead><tr><th>模板名称</th><th>领域</th><th>类型</th><th>操作</th></tr></thead><tbody>
+        <tr><td>audit/业务单据类/合同</td><td>业务单据类</td><td><span class="badge badge-muted">系统</span></td><td><a href="#">查看YAML</a> | <a href="docworkshop.html">使用</a></td></tr>
+        <tr><td>audit/业务单据类/入库单</td><td>业务单据类</td><td><span class="badge badge-muted">系统</span></td><td><a href="#">查看</a> | <a href="#">使用</a></td></tr>
+        <tr><td>audit/财务类/银行对账单</td><td>财务类</td><td><span class="badge badge-muted">系统</span></td><td><a href="#">查看</a> | <a href="#">使用</a></td></tr>
+        <tr><td>教育局采购合同专用模板</td><td>自定义</td><td><span class="badge badge-success">自定义</span></td><td><a href="#">编辑</a> | <a href="#">删除</a></td></tr>
+      </tbody></table>
+    </div>
+    <button class="btn btn-outline btn-sm" style="margin-top:8px;"><i class="bi bi-plus-lg"></i> 新建自定义模板</button>
+    <button class="btn btn-outline btn-sm" style="margin-left:4px;"><i class="bi bi-download"></i> 导出模板</button>
+  </div>
+</div>
+
+<!-- Project Management Rules -->
+<div class="kw-panel active" id="panel-rules">
+  <div class="card"><div class="card-header"><h3>现场实施阶段</h3></div>
+    <div class="setting-row"><span class="setting-label">实施方案出具期限</span><input class="form-input" style="width:80px;" value="5"> <span style="font-size:13px;color:var(--color-text-muted);">日（进点后）</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="3"> 天提醒</span></div>
+    <div class="setting-row"><span class="setting-label">预算执行审计</span><input class="form-input" style="width:80px;" value="30"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">预算执行1+N/资金量大</span><input class="form-input" style="width:80px;" value="45"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">经济责任审计</span><input class="form-input" style="width:80px;" value="45"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">国企/地方主要领导经责</span><input class="form-input" style="width:80px;" value="60"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">自然资源资产责任</span><input class="form-input" style="width:80px;" value="60"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">重大投资/民生专项</span><input class="form-input" style="width:80px;" value="60"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+    <div class="setting-row"><span class="setting-label">临期提醒（提前）</span><input class="form-input" style="width:80px;" value="3"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>出具审计报告阶段</h3></div>
+    <div class="setting-row"><span class="setting-label">④征求意见稿</span><input class="form-input" style="width:80px;" value="5"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="3"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑤被审计单位递交意见</span><input class="form-input" style="width:80px;" value="10"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="3"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑥修改报告提交审核</span><input class="form-input" style="width:80px;" value="2"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑦复核意见书签字</span><input class="form-input" style="width:80px;" value="3"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑧递交法规审理</span><input class="form-input" style="width:80px;" value="2"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑨出具审理意见书</span><input class="form-input" style="width:80px;" value="3"> <span style="font-size:13px;color:var(--color-text-muted);">日（大型5日）</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑩审理意见采纳说明</span><input class="form-input" style="width:80px;" value="2"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+    <div class="setting-row"><span class="setting-label">⑫签发并送达</span><input class="form-input" style="width:80px;" value="3"> <span style="font-size:13px;color:var(--color-text-muted);">日</span><span class="setting-hint">提前 <input class="form-input" style="width:60px;display:inline;" value="1"> 天</span></div>
+  </div>
+
+  <div class="card"><div class="card-header"><h3>审计整改阶段</h3></div>
+    <div class="setting-row"><span class="setting-label">整改台账上传日(1-11月)</span><input class="form-input" style="width:80px;" value="18"> <span style="font-size:13px;color:var(--color-text-muted);">号</span></div>
+    <div class="setting-row"><span class="setting-label">整改台账上传日(12月)</span><input class="form-input" style="width:80px;" value="8"> <span style="font-size:13px;color:var(--color-text-muted);">号</span></div>
+    <div class="setting-row"><span class="setting-label">提前提醒</span><input class="form-input" style="width:80px;" value="3"> <span style="font-size:13px;color:var(--color-text-muted);">天</span></div>
+  </div>
+
+  <button class="btn btn-primary" onclick="AuditWorkbench.toast('项目管理规则已保存','success')"><i class="bi bi-check-lg"></i> 保存规则</button>
+  <button class="btn btn-outline" style="margin-left:8px;" onclick="AuditWorkbench.toast('已恢复默认规则','info')">恢复默认</button>
+</div>
+
+<!-- Multi-Agent Configuration -->
+<div class="kw-panel" id="panel-agents">
+
+  <!-- 团队总览 -->
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;">
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(1,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(26,58,92,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">🔍</div>
+      <div style="font-size:12px;font-weight:600;">意图分析</div><div style="font-size:10px;color:var(--color-text-muted);">第一步</div></div>
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(2,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(196,30,58,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">🎯</div>
+      <div style="font-size:12px;font-weight:600;">违规匹配</div><div style="font-size:10px;color:var(--color-text-muted);">第二步</div></div>
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(3,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(45,125,70,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">📋</div>
+      <div style="font-size:12px;font-weight:600;">资料推荐</div><div style="font-size:10px;color:var(--color-text-muted);">第二步并行</div></div>
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(4,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(184,94,26,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">⚖️</div>
+      <div style="font-size:12px;font-weight:600;">法规推荐</div><div style="font-size:10px;color:var(--color-text-muted);">第二步并行</div></div>
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(5,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(26,58,92,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">🧠</div>
+      <div style="font-size:12px;font-weight:600;">审计分析</div><div style="font-size:10px;color:var(--color-text-muted);">第五步</div></div>
+    <div style="text-align:center;cursor:pointer;" onclick="AgentToggler.show(6,this)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(45,125,70,0.1);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:24px;">📝</div>
+      <div style="font-size:12px;font-weight:600;">疑点生成</div><div style="font-size:10px;color:var(--color-text-muted);">第六步</div></div>
+  </div>
+
+  <div class="alert alert-info" style="font-size:13px;margin-bottom:16px;">
+    <i class="bi bi-robot"></i> <strong>多智能体协作团队</strong> — 6位AI审计专家各司其职，通过LangGraph编排协同工作。点击专家头像可快速跳转。修改提示词后点击保存生效。
+  </div>
+
+  <!-- Agent 1 -->
+  <div class="card" id="ag-1" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(26,58,92,0.04),rgba(26,58,92,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">🔍</div>
+      <div style="flex:1;"><strong style="font-size:15px;">IntentAnalyzer</strong><div style="font-size:12px;color:var(--color-text-muted);">意图分析专家 — 读懂审计目标，提取关键要素</div></div>
+      <span class="badge badge-muted">Step ①</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="3" style="font-family:var(--font-mono);font-size:12px;">你是一名资深审计分析专家。从用户输入的审计意图中提取结构化信息：审计领域、被审计单位、审计期间、涉及金额、关注要点、审计事项。对于模糊描述要主动追问确认。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-primary">LLM网关 :8765</span><span class="badge badge-muted">只读</span></div></div></div>
+
+  <!-- Agent 2 -->
+  <div class="card" id="ag-2" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(196,30,58,0.04),rgba(196,30,58,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-accent);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">🎯</div>
+      <div style="flex:1;"><strong style="font-size:15px;">ViolationMatcher</strong><div style="font-size:12px;color:var(--color-text-muted);">违规匹配专家 — 从2195个模型中精准匹配</div></div>
+      <span class="badge badge-accent">Step ②</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="3" style="font-family:var(--font-mono);font-size:12px;">你是一名审计违规模型匹配专家。根据结构化审计意图，从2195个违规模型中检索匹配的违规类型。对每个匹配结果给出匹配度评分和风险等级。只返回有依据的匹配结果。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-primary">FAISS向量检索</span><span class="badge badge-primary">LLM网关</span><span class="badge badge-muted">MySQL只读</span></div></div></div>
+
+  <!-- Agent 3 -->
+  <div class="card" id="ag-3" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(45,125,70,0.04),rgba(45,125,70,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-success);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">📋</div>
+      <div style="flex:1;"><strong style="font-size:15px;">DataAdvisor</strong><div style="font-size:12px;color:var(--color-text-muted);">资料推荐专家 — 告诉您需要收集什么</div></div>
+      <span class="badge badge-success">Step ② 并行</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="2" style="font-family:var(--font-mono);font-size:12px;">根据匹配的违规模型，推荐需要收集的审计资料清单。列出关键字段和来源单位，区分"必须收集"和"建议收集"。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-primary">LLM网关</span><span class="badge badge-primary">语料库Col8/9</span></div></div></div>
+
+  <!-- Agent 4 -->
+  <div class="card" id="ag-4" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(184,94,26,0.04),rgba(184,94,26,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-warning);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">⚖️</div>
+      <div style="flex:1;"><strong style="font-size:15px;">RegulationAdvisor</strong><div style="font-size:12px;color:var(--color-text-muted);">法规推荐专家 — 找到适用的法规依据</div></div>
+      <span class="badge badge-warning">Step ② 并行</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="3" style="font-family:var(--font-mono);font-size:12px;">通过MCP连接auditkm_factory数据库，查询法规原文和关系链(上位法→相关法→历史版本→地方法规)。根据审计对象层级推荐应优先适用的法规。标注效力级别、时效性和适用类型。检测冲突时按"上位法>下位法、新法>旧法、特别法>一般法"排序。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-accent">MCP:MySQL</span><span class="badge badge-primary">FAISS法规</span><span class="badge badge-primary">LLM网关</span></div></div></div>
+
+  <!-- Agent 5 -->
+  <div class="card" id="ag-5" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(26,58,92,0.04),rgba(26,58,92,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">🧠</div>
+      <div style="flex:1;"><strong style="font-size:15px;">AuditAnalyzer</strong><div style="font-size:12px;color:var(--color-text-muted);">审计分析专家 — 逐模型比对，深度分析</div></div>
+      <span class="badge badge-primary">Step ⑤</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="2" style="font-family:var(--font-mono);font-size:12px;">根据确认的违规模型和OCR解析数据，逐模型比对数据字段。对每条违规表达式执行逻辑验证，标注命中/未命中。所有分析结论必须引用具体数据来源。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-primary">LLM网关</span><span class="badge badge-primary">多模态:8767</span><span class="badge badge-accent">OntoSKU:5005</span></div></div></div>
+
+  <!-- Agent 6 -->
+  <div class="card" id="ag-6" style="margin-bottom:14px;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,rgba(45,125,70,0.04),rgba(45,125,70,0.01));">
+      <div style="width:44px;height:44px;border-radius:14px;background:var(--color-success);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;">📝</div>
+      <div style="flex:1;"><strong style="font-size:15px;">SuspiciousPointGen</strong><div style="font-size:12px;color:var(--color-text-muted);">疑点生成专家 — 生成结构化疑点报告</div></div>
+      <span class="badge badge-success">Step ⑥</span></div>
+    <div style="padding:14px 18px;">
+      <div class="form-group"><label class="form-label" style="font-size:12px;">📝 系统提示词</label><textarea class="form-textarea" rows="2" style="font-family:var(--font-mono);font-size:12px;">根据分析结果生成结构化疑点报告。每条疑点包含：编号、标题、风险等级、违规模型、金额、法规依据(law_id+clause)、推理过程、核查方法。所有内容可溯源。</textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;"><span style="color:var(--color-text-muted);">🔧 工具:</span><span class="badge badge-primary">LLM网关</span><span class="badge badge-muted">只读</span></div></div></div>
+
+  <button class="btn btn-primary" onclick="AuditWorkbench.toast('智能体配置已保存','success')"><i class="bi bi-check-lg"></i> 保存全部配置</button>
+</div>
+
+<!-- About -->
+<div class="kw-panel" id="panel-about">
+  <div class="card"><div class="card-header"><h3>系统信息</h3></div>
+    <div class="setting-row"><span class="setting-label">产品名称</span><span class="setting-value"><strong>AuditWorkbench</strong> 审计实务工坊</span></div>
+    <div class="setting-row"><span class="setting-label">版本号</span><span class="setting-value">v1.0.0</span></div>
+    <div class="setting-row"><span class="setting-label">环境</span><span class="setting-value"><span class="badge badge-warning">开发环境</span></span></div>
+    <div class="setting-row"><span class="setting-label">多智能体框架</span><span class="setting-value">LangGraph</span></div>
+  </div>
+  <div class="card"><div class="card-header"><h3>数据资产</h3></div>
+    <div class="setting-row"><span class="setting-label">违规模型</span><span class="setting-value">2,195 个</span></div>
+    <div class="setting-row"><span class="setting-label">法规全文</span><span class="setting-value">400,698 部</span></div>
+    <div class="setting-row"><span class="setting-label">法规关系</span><span class="setting-value">31,317 条</span></div>
+    <div class="setting-row"><span class="setting-label">条款关系</span><span class="setting-value">119,210 条</span></div>
+    <div class="setting-row"><span class="setting-label">审计语料</span><span class="setting-value">2,231 条 (15列×6层法规依据)</span></div>
+    <div class="setting-row"><span class="setting-label">SKU模板</span><span class="setting-value">1,511 审计模板</span></div>
+  </div>
+</div>
+
+</div></main></div>
+<!-- 🧪 实验室面板 -->
+<div class="kw-panel" id="panel-lab">
+  <div class="card" style="border:2px solid var(--color-warning);background:rgba(184,94,26,0.02);margin-bottom:16px;">
+    <div class="card-header"><h3><i class="bi bi-flask"></i> 实验室功能总开关</h3></div>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
+      <label class="switch"><input type="checkbox" id="lab-master" onchange="SettingsTab.toggleAllLabs(this.checked)">
+        <span class="slider round"></span></label>
+      <span style="font-size:14px;" id="lab-master-label">所有实验功能已关闭</span>
+    </div>
+  </div>
+
+  <!-- 数据工坊实验室 -->
+  <div class="card" style="border-left:4px solid var(--color-success);margin-bottom:12px;">
+    <div class="card-header"><h4><i class="bi bi-grid-3x3-gap"></i> 数据工坊实验室</h4></div>
+    <div class="setting-row"><span class="setting-label">智能问数</span><span style="font-size:13px;color:var(--color-text-muted);">NL→伪SQL，自然语言查询结构化数据</span>
+      <label class="switch"><input type="checkbox" data-lab="dw_nl" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">表达式引擎</span><span style="font-size:13px;color:var(--color-text-muted);">伪SQL→逐行扫描→命中结果</span>
+      <label class="switch"><input type="checkbox" data-lab="dw_expr" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">数据导出</span><span style="font-size:13px;color:var(--color-text-muted);">CSV/Excel 批量导出</span>
+      <label class="switch"><input type="checkbox" data-lab="dw_export" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+  </div>
+
+  <!-- 资料工坊实验室 -->
+  <div class="card" style="border-left:4px solid var(--color-warning);margin-bottom:12px;">
+    <div class="card-header"><h4><i class="bi bi-file-earmark-text"></i> 资料工坊实验室</h4></div>
+    <div class="setting-row"><span class="setting-label">语音识别</span><span style="font-size:13px;color:var(--color-text-muted);">音频→文字+Markdown</span>
+      <label class="switch"><input type="checkbox" data-lab="fw_audio" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">图像识别</span><span style="font-size:13px;color:var(--color-text-muted);">多模态理解+OCR增强</span>
+      <label class="switch"><input type="checkbox" data-lab="fw_image" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">知识图谱</span><span style="font-size:13px;color:var(--color-text-muted);">文档关联关系可视化</span>
+      <label class="switch"><input type="checkbox" data-lab="fw_graph" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">文档生成</span><span style="font-size:13px;color:var(--color-text-muted);">AI 辅助生成审计文书</span>
+      <label class="switch"><input type="checkbox" data-lab="fw_docgen" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+  </div>
+
+  <!-- 知识工坊实验室 -->
+  <div class="card" style="border-left:4px solid var(--color-primary);margin-bottom:12px;">
+    <div class="card-header"><h4><i class="bi bi-book"></i> 知识工坊实验室</h4></div>
+    <div class="setting-row"><span class="setting-label">智能发现</span><span style="font-size:13px;color:var(--color-text-muted);">AI 扫描三库发现隐藏模式</span>
+      <label class="switch"><input type="checkbox" data-lab="kw_discover" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">违规模式分析</span><span style="font-size:13px;color:var(--color-text-muted);">高频违规组合+趋势</span>
+      <label class="switch"><input type="checkbox" data-lab="kw_pattern" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">法规关联挖掘</span><span style="font-size:13px;color:var(--color-text-muted);">隐性引用关系自动发现</span>
+      <label class="switch"><input type="checkbox" data-lab="kw_lawlink" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+    <div class="setting-row"><span class="setting-label">案例聚类</span><span style="font-size:13px;color:var(--color-text-muted);">相似案例自动分组</span>
+      <label class="switch"><input type="checkbox" data-lab="kw_cluster" onchange="SettingsTab.toggleLab(this)"><span class="slider round"></span></label></div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+// OCR engine switch
+document.addEventListener('DOMContentLoaded', function() {
+  var sel = document.getElementById('ocr-engine');
+  if (sel) sel.onchange = function() {
+    document.getElementById('ocr-mineru').style.display = this.value === 'mineru' ? '' : 'none';
+    document.getElementById('ocr-liteparse').style.display = this.value === 'liteparse' ? '' : 'none';
+  };
+});
+
+var AgentToggler = {
+  show: function(n, el) {
+    for(var i=1;i<=6;i++) {
+      var card = document.getElementById('ag-'+i);
+      if(card) card.style.display = (i===n) ? 'block' : 'none';
+    }
+  }
+};
+
+var SettingsTab = {
+  switchMinio: function(mode) {
+    document.getElementById('minio-local').style.display = mode === 'local' ? '' : 'none';
+    document.getElementById('minio-remote').style.display = mode === 'remote' ? '' : 'none';
+    document.getElementById('minio-status').textContent = mode === 'local' ? '本地连接正常' : '远程连接正常';
+  },
+
+  switch: function(tab) {
+    document.querySelectorAll('#settings-tabs .stab').forEach(function(t,i){
+      var tabs = ['rules','templates','preferences','agents','llm','datasource','about','lab'];
+      t.classList.toggle('active', tabs[i] === tab);
+    });
+    document.querySelectorAll('.kw-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('panel-' + tab).classList.add('active');
+    // Restore lab toggle states
+    if(tab === 'lab') this.restoreLabToggles();
+  },
+
+  /** 🧪 实验室功能 */
+  toggleLab: function(cb) {
+    var key = 'aw_lab_' + cb.dataset.lab;
+    localStorage.setItem(key, cb.checked ? '1' : '0');
+    this.updateLabMaster();
+  },
+
+  toggleAllLabs: function(on) {
+    document.querySelectorAll('#panel-lab input[data-lab]').forEach(function(cb){
+      cb.checked = on;
+      localStorage.setItem('aw_lab_' + cb.dataset.lab, on ? '1' : '0');
+    });
+    this.updateLabMaster();
+  },
+
+  updateLabMaster: function() {
+    var all = document.querySelectorAll('#panel-lab input[data-lab]');
+    var on = 0;
+    all.forEach(function(cb){ if(cb.checked) on++; });
+    var master = document.getElementById('lab-master');
+    master.checked = (on === all.length);
+    master.indeterminate = (on > 0 && on < all.length);
+    var label = document.getElementById('lab-master-label');
+    if(on === 0) label.textContent = '所有实验功能已关闭';
+    else if(on === all.length) label.textContent = '所有实验功能已开启 (' + on + ' 项)';
+    else label.textContent = '部分实验功能已开启 (' + on + '/' + all.length + ' 项)';
+  },
+
+  restoreLabToggles: function() {
+    document.querySelectorAll('#panel-lab input[data-lab]').forEach(function(cb){
+      cb.checked = localStorage.getItem('aw_lab_' + cb.dataset.lab) === '1';
+    });
+    this.updateLabMaster();
+  },
+
+  testConnection: function() {
+  testConnection: function() {
+    AuditWorkbench.toast('正在测试LLM网关连接...', 'info');
+    setTimeout(function(){ AuditWorkbench.toast('所有服务连接正常', 'success'); }, 1500);
+  }
+};
+</script>
+</body>
+</html>

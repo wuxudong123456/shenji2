@@ -1,0 +1,102 @@
+name: audit/清单名册类/教师名单
+type: model
+description: 从清单名册类类文档（教师名单）中提取结构化元数据。涵盖字段如：参训项目名称、学校属地类型、所在学校、教师姓名、身份证号。文档范围包括：近三年国培计划参训教师名单（含学校属地标识）等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 教师名单
+  member_count: 1
+  member_details:
+  - 近三年国培计划参训教师名单（含学校属地标识）
+output:
+  fields:
+  - name: 参训项目名称
+    type: string
+    description: 提取 参训项目名称 的文本值
+  - name: 学校属地类型
+    type: string
+    description: 提取 学校属地类型 的文本值
+  - name: 所在学校
+    type: string
+    description: 提取 所在学校 的文本值
+  - name: 教师姓名
+    type: string
+    description: 提取 教师姓名 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (近三年国培计划参训教师名单（含学校属地标识）中按学校属地类型分组统计的乡村教师参训人数 / 总参训人数) < (城乡教师培训名额分配对比表.乡村教师占比 * 0.9) || (城乡教师培训名额分配对比表.乡村名额数
+    / 城乡教师培训名额分配对比表.总名额数 < 城乡教师培训名额分配对比表.乡村教师占比)
+  description: 若实际参训乡村教师比例低于乡村教师占区域教师总数比例的90%，或名额分配时乡村教师名额占比低于其人口占比，即判定为国培计划未向乡村教师有效倾斜。阈值90%为审计风险判断标准，可根据政策要求调整。
+  audit_item: 乡村教师技能培训不符合要求
+  suspicion: 国培计划名额分配未向乡村教师倾斜
+  regulation: "[\n  {\n    \"法规名称\": \"教育部 财政部关于实施中小学幼儿园教师国家级培训计划（2021-2025年）的通知\",\n    \"法规文号\": \"教师〔2021〕4号\",\n    \"\
+    效力级别\": \"部门规范性文件\",\n    \"条款号\": \"二、重点任务 （一）聚焦乡村教师\",\n    \"内容概述\": \"培训名额分配向乡村教师倾斜，确保乡村教师参训比例适应国家乡村振兴战略和乡村教师队伍建设需要。\"\
+    \n  },\n  {\n    \"法规名称\": \"国务院办公厅关于印发乡村教师支持计划（2015—2020年）的通知\",\n    \"法规文号\": \"国办发〔2015〕43号\",\n    \"效力级别\""
+- expression: (培训通知.培训项目面向对象要求 = '乡村教师' AND 近三年国培计划参训教师名单（含学校属地标识）.参训项目名称 = 培训通知.培训内容 AND 近三年国培计划参训教师名单（含学校属地标识）.学校属地类型 =
+    '城区') OR (培训报名表.学校属地类型 = '乡村' AND 近三年国培计划参训教师名单（含学校属地标识）.学校属地类型 = '城区' AND 培训报名表.报名教师姓名 = 近三年国培计划参训教师名单（含学校属地标识）.教师姓名)
+  description: 培训项目明确规定仅限乡村教师参加，但实际参训人员中出现城区教师，或报名时显示乡村教师但实际参训人是城区教师，构成挤占。两个条件满足任一即判定违规。
+  audit_item: 乡村教师技能培训不符合要求
+  suspicion: 城区学校教师挤占乡村教师培训名额
+  regulation: "[\n  {\n    \"法规名称\": \"教育部关于深化中小学教师培训模式改革全面提升培训质量的指导意见\",\n    \"法规文号\": \"教师〔2013〕6号\",\n    \"效力级别\": \"\
+    部门规范性文件\",\n    \"条款号\": \"十二、加强培训对象遴选\",\n    \"内容概述\": \"严格培训对象遴选，杜绝‘关系’培训、‘人情’培训，确保最需要的教师获得培训机会，防止培训名额被挤占。\"\n  },\n\
+    \  {\n    \"法规名称\": \"国务院办公厅关于印发乡村教师支持计划（2015—2020年）的通知\",\n    \"法规文号\": \"国办发〔2015〕43号\",\n    \"效力级别\": \"行政法规\",\n\
+    \ "

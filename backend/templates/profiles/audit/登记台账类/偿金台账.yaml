@@ -1,0 +1,110 @@
+name: audit/登记台账类/偿金台账
+type: model
+description: 从登记台账类类文档（偿金台账）中提取结构化元数据。涵盖字段如：代偿总额、使用余额、补偿金规模。文档范围包括：风险补偿金台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 偿金台账
+  member_count: 1
+  member_details:
+  - 风险补偿金台账
+output:
+  fields:
+  - name: 代偿总额
+    type: number
+    description: 提取 代偿总额 的数值（含单位，如万元、吨等）
+  - name: 使用余额
+    type: number
+    description: 提取 使用余额 的数值（含单位，如万元、吨等）
+  - name: 补偿金规模
+    type: string
+    description: 提取 补偿金规模 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (统计表.获得贷款企业数/统计表.申请企业数 < 0.5) || (统计表.实际贴息额/统计表.应贴息额 < 0.8) || (发放记录.实际利率 > 政策文件.贴息利率*1.1) || (偿金台账.使用余额/偿金台账.补偿金规模
+    < 0.2)
+  description: 贷款支持覆盖率低于申请企业的50%，或贴息兑现率低于80%，或企业实际承担的贷款利率超过政策承诺利率的110%，或风险补偿金到位规模不足应设规模的20%，任一条件成立即判定金融扶持政策缺失或落实不到位。
+  audit_item: 现代农业产业园（集群、强镇）政策扶持不到位
+  suspicion: 现代农业产业园金融扶持政策未建立或执行不到位
+  regulation: "[\n  {\n    \"法规名称\": \"关于金融服务乡村振兴的指导意见\",\n    \"法规文号\": \"银发〔2019〕11号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"五、强化金融产品和服务方式创新\",\n    \"内容概述\": \"鼓励银行业金融机构单列涉农信贷计划，下放审批权限，优化审批流程，开发专属金融产品，加大信用贷款投放力度，合理确定贷款利率水平。\"\n  },\n\
+    \  {\n    \"法规名称\": \"国务院办公厅关于支持返乡下乡人员创业创新促进农村一二三产业融合发展的意见\",\n    \"法规文号\": \"国办发〔2016〕84号\",\n    \"效力级别\": \"规范性文件\""

@@ -1,0 +1,223 @@
+name: audit/清单名册类/登记清单
+type: model
+description: 从清单名册类类文档（登记清单）中提取结构化元数据。涵盖字段如：价格、使用部门、名义权属单位、实际使用部门、当前使用部门、排量、登记状态、组织名称。文档范围包括：公务用车登记清单、市场监管部门注册登记清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 登记
+- 车辆
+- 采购
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 登记清单
+  member_count: 1
+  member_details:
+  - 公务用车登记清单
+  - 市场监管部门注册登记清单
+output:
+  fields:
+  - name: 价格
+    type: number
+    description: 提取 价格 的数值（含单位，如万元、吨等）
+  - name: 使用部门
+    type: string
+    description: 提取 使用部门 的文本值
+  - name: 名义权属单位
+    type: string
+    description: 提取 名义权属单位 的文本值
+  - name: 实际使用部门
+    type: string
+    description: 提取 实际使用部门 的文本值
+  - name: 当前使用部门
+    type: string
+    description: 提取 当前使用部门 的文本值
+  - name: 排量
+    type: string
+    description: 提取 排量 的文本值
+  - name: 登记状态
+    type: boolean
+    description: 提取 登记状态 的布尔值（是/否）
+  - name: 组织名称
+    type: string
+    description: 提取 组织名称 的文本值
+  - name: 经营范围
+    type: string
+    description: 提取 经营范围 的文本值
+  - name: 统一社会信用代码
+    type: string
+    description: 提取 统一社会信用代码 的文本值
+  - name: 购置日期
+    type: date
+    description: 提取 购置日期 的日期值，格式 YYYY-MM-DD
+  - name: 车牌号
+    type: string
+    description: 提取 车牌号 的文本值
+  - name: 车辆型号
+    type: string
+    description: 提取 车辆型号 的文本值
+  - name: 车辆来源
+    type: string
+    description: 提取 车辆来源 的文本值
+  - name: 车辆状态
+    type: boolean
+    description: 提取 车辆状态 的布尔值（是/否）
+  - name: 车辆类型
+    type: string
+    description: 提取 车辆类型 的文本值
+  - name: 车辆购置日期
+    type: date
+    description: 提取 车辆购置日期 的日期值，格式 YYYY-MM-DD
+  - name: 采购方式
+    type: string
+    description: 提取 采购方式 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: COUNT(登记清单.车牌号) > 核定编制数.核定编制数 || (登记清单.价格 > 标准.价格上限 && 记录表.是否特批 != '是') || (登记清单.排量 > 标准.排量上限 && 记录表.是否特批 !=
+    '是')
+  description: 实有车辆数超过核定编制数即违规；车辆单价或排量超出当地规定上限，且无合规特批手续的，判定为超标准配备。
+  audit_item: 违规配备公务用车
+  suspicion: 超编制超标准配备公务用车
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第七条、第九条、第十条\",\n    \"内容概述\": \"公务用车编制根据机构设置和人员编制确定，不得超编制配备；公务用车配备标准由省级主管部门制定，党政机关不得超标准配备；确因特殊情况需超标准配备的，须报省级公务用车主管部门审批。\"\
+    \n  }\n]"
+- expression: 登记清单.车辆类型（越野车标识） = '越野车' AND (NOT EXISTS (审批编号、获批单位、车辆用途、地理条件说明.审批编号 WHERE 审批编号、获批单位、车辆用途、地理条件说明.车辆ID = 登记清单.车辆ID)
+    OR (登记台账.城市道路占比 > 0.8 AND 登记台账.出车事由 ≠ '特殊野外作业'))
+  description: 越野车需具备合规审批文件；虽有审批但实际城市道路行驶占比超80%且非特殊野外作业用途的，视为违规使用。
+  audit_item: 违规配备公务用车
+  suspicion: 违规配备越野车辆
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十一条\",\n    \"内容概述\": \"党政机关不得以任何理由违规配备越野车；确因地理环境复杂、工作需要的，应当从严控制并履行审批程序，越野车不得作为领导干部固定用车。\"\n  }\n]"
+- expression: (登记清单.车辆来源（国产/进口） = '进口' AND 平台记录.采购方式 NOT IN ('公开招标', '政府集中采购')) OR (购置清单.批准文号 IS NULL AND 登记清单.车辆来源（国产/进口）
+    = '进口')
+  description: 进口车辆必须履行规定的政府采购程序且取得进口审批，无合规采购方式或无批准文号的进口车均属违规。
+  audit_item: 违规配备公务用车
+  suspicion: 违反规定进口或购买汽车
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"党政机关应当配备使用国产汽车，带头使用新能源汽车，除特殊情况外不得购置进口汽车。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国政府采购法\",\n \
+    \   \"法规文号\": \"主席令第六十八号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第七条\",\n    \"内容概述\": \"政府采购实行集中采购和分散采购相结合，纳入集中采购目录的政府采购项目，"
+- expression: (车辆原所属机构、处置方式、接收单位、交接日期.处置方式 = '转交国内单位' AND 车辆原所属机构、处置方式、接收单位、交接日期.接收单位 NOT IN (规定的上交接收单位列表)) OR (车牌号、车辆来源（是否退役转籍）、当前使用部门、车辆型号、价格、排量、购置日期、使用部门、车辆类型（越野车标识）、车辆来源（国产/进口）、采购方式、名义权属单位、实际使用部门、车辆购置日期、车辆状态.车辆来源（是否退役转籍）
+    = '退役车辆' AND 入账日期、来源说明、车辆编号、使用状态、权属单位.来源说明 LIKE '%捐赠%' AND NOT EXISTS (车辆原所属机构、处置方式、接收单位、
+  description: 退役车辆未按规定上交而违规转给关联单位，或通过虚假捐赠、改装等方式变相继续使用进口车，均构成变相违规。
+  audit_item: 违规配备公务用车
+  suspicion: 变相进口或未上交退役车辆
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十二条\",\n    \"内容概述\": \"党政机关应当按规定对公务用车进行报废、更新和处置；国外机构退役车辆应按规定上交或处置，不得擅自留用或转移给关联单位。\"\n  }\n]"
+- expression: (借用单位、出借单位、车辆品牌型号、车牌号、借用起止日期.借用单位 = 某机关单位 AND (借用单位、出借单位、车辆品牌型号、车牌号、借用起止日期.借用起止日期 > 规定期限 OR 借用单位、出借单位、车辆品牌型号、车牌号、借用起止日期.借用起止日期
+    IS NULL)) OR (实际支付金额、车辆型号、支付金额、供应商名称、支付单位名称.支付单位名称 LIKE '%企业%' AND 车牌号、车辆型号、价格、排量、购置日期、使用部门、车辆类型（越野车标识）、车辆来源（国产/进口）、采购方式、车辆来源（是否退役转籍）、当前使用部门、名义权属单位、实际使用部门、车辆购置日期、车辆状态.实际使用部门
+  description: 机关单位长期借用企事业单位车辆、由企事业单位支付购车款或承担车辆运行费用，均属利用职权违规配备车辆。
+  audit_item: 违规配备公务用车
+  suspicion: 利用职权调换借用或摊派购车
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十一条\",\n    \"内容概述\": \"党政机关不得以任何方式换用、借用、占用下属单位或者其他单位和个人的车辆，不得接受企事业单位和个人赠送的车辆，不得向企事业单位摊派款项购买车辆。\"\n  }\n]"
+- expression: (明细表.已使用指标数 > 明细表.分配单位) OR (报废证明.报废日期 < 登记清单.购置日期 AND 登记清单.车辆状态 = '在用' AND 登记清单.车牌号 = 报废证明.报废车辆原车牌号) OR (明细表.分配单位收到指标
+    时间后 明细表.已使用指标数 对应车辆中 存在 登记清单.使用部门 ≠ 明细表.分配单位)
+  description: 超额使用指标、虚假报废腾挪指标或指标挪用，均为违反指标管理的行为。‘虚假报废’指旧车报废后仍由该单位继续使用。
+  audit_item: 违规配备公务用车
+  suspicion: 违反指标管理规定配备公务用车
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关公务用车管理办法\",\n    \"法规文号\": \"中办发〔2017〕71号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第六条、第七条\",\n    \"内容概述\": \"公务用车实行编制和指标管理，核定编制和指标不得突破；主管部门应严格指标审批，任何单位不得无指标或超指标购车，不得挪用、转借指标。\"\n  }\n]"
+- expression: (农业社会化服务组织的备案或注册登记资料.统一社会信用代码 NOT IN (农业社会化服务组织基础信息表.统一社会信用代码)) || (农业社会化服务组织基础信息表.统一社会信用代码 NOT IN (农业社会化服务组织的备案或注册登记资料.统一社会信用代码))
+    || (农业社会化服务组织的备案或注册登记资料.统一社会信用代码 = 农业社会化服务组织基础信息表.统一社会信用代码 AND 农业社会化服务组织的备案或注册登记资料.服务类型 != 农业社会化服务组织基础信息表.服务类型) || (ABS(COUNT(农业社会化服务组织的备案或注册登记资料.统一社会信用代码)
+    - COUNT(农业社会化
+  description: 出现以下任一情况判定为底数不清：基础信息表中组织在备案资料中缺失；备案资料中组织在基础信息表中缺失；同一组织在两个台账中的关键字段（如服务类型）不一致；组织数量差异率超过10%。若引入市场监管部门数据，还应比对是否存在未在农业部门备案但从事相关服务的组织。
+  audit_item: 农业社会化服务管理不到位
+  suspicion: 农业社会化服务组织备案底数不实、多头登记
+  regulation: "[\n  {\n    \"法规名称\": \"关于加快发展农业社会化服务的指导意见\",\n    \"法规文号\": \"农经发〔2021〕2号\",\n    \"效力级别\": \"部门规范性文件\",\n\
+    \    \"条款号\": \"第三条（十）\",\n    \"内容概述\": \"全面掌握服务组织数量、能力、业绩等情况，建立服务组织名录库并实施动态管理，确保信息真实、准确、完整。\"\n  }\n]"

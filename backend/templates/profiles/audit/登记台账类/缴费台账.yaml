@@ -1,0 +1,148 @@
+name: audit/登记台账类/缴费台账
+type: model
+description: 从登记台账类类文档（缴费台账）中提取结构化元数据。涵盖字段如：另收服务费名目、实际收取的项目、实际收费项目名称、收款单位、收费依据、收费金额、收费项目名称、票据类型。文档范围包括：农机企业缴费台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 缴费台账
+  member_count: 1
+  member_details:
+  - 农机企业缴费台账
+output:
+  fields:
+  - name: 另收服务费名目
+    type: number
+    description: 提取 另收服务费名目 的数值（含单位，如万元、吨等）
+  - name: 实际收取的项目
+    type: string
+    description: 提取 实际收取的项目 的文本值
+  - name: 实际收费项目名称
+    type: number
+    description: 提取 实际收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 收款单位
+    type: number
+    description: 提取 收款单位 的数值（含单位，如万元、吨等）
+  - name: 收费依据
+    type: number
+    description: 提取 收费依据 的数值（含单位，如万元、吨等）
+  - name: 收费金额
+    type: number
+    description: 提取 收费金额 的数值（含单位，如万元、吨等）
+  - name: 收费项目名称
+    type: number
+    description: 提取 收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 提取 票据类型 的文本值
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (农机企业缴费台账.实际收费项目名称 NOT IN (国家和地方涉农收费政策文件.合法收费项目名称)) && (农机企业缴费台账.实际收费项目名称 NOT IN (被审计单位收费项目审批备案文件.获批收费项目名称))
+    && (农机企业缴费台账.收费依据 IS NULL OR 农机企业缴费台账.票据类型 != '财政票据')
+  description: 当缴费台账中的收费项目既不在国家和地方政策允许清单中，又未经本单位审批备案，且无合法收费依据或未使用财政票据时，判定为违规收费。重点排查以“管理费”“服务费”等名义收取的费用。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 向农机企业违规收取无审批依据的管理费
+  regulation: "[\n  {\n    \"法规名称\": \"行政事业性收费标准管理暂行办法\",\n    \"法规文号\": \"发改价格〔2006〕532号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第四条\",\n    \"内容概述\": \"行政事业性收费项目、收费标准由国务院和省、自治区、直辖市人民政府审批，未经审批不得收取。\"\n  }\n]"
+- expression: (农机企业缴费台账.收费项目名称 IN ('赞助','捐赠','支持费')) && (农机企业缴费台账.收费依据 IS NULL) && (企业财务账簿.对方科目 LIKE '%政府%' OR 企业财务账簿.对方科目
+    LIKE '%下属单位账户%') && (政府会议纪要或内部文件.摊派任务分解表 IS NOT NULL OR 政府会议纪要或内部文件.赞助通知 IS NOT NULL)
+  description: 当企业缴费以赞助、捐赠等名义支付，无任何合同或政策依据，且资金流入政府或关联单位账户，并发现政府内部摊派文件时，认定为强制摊派。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 以赞助名义向农机企业强制摊派费用
+  regulation: "[\n  {\n    \"法规名称\": \"禁止向企业摊派暂行条例\",\n    \"法规文号\": \"国务院令第29号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四条\",\n    \"内容概述\": \"国家禁止在法律、法规的规定之外向企业征收各种摊派费用。\"\n  }\n]"
+- expression: 农机企业缴费台账.收费项目名称 IN (国家和地方涉农财政专项资金管理办法.财政保障的支出范围) && (农机企业缴费台账.收款单位 属于财政拨款单位)
+  description: 若企业缴费台账中出现应由财政资金保障的支出项目（如技术推广费、检验检测费），且收款方为财政拨款单位，即构成转嫁政府成本。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 要求农机企业承担本应由财政支付的费用
+  regulation: "[\n  {\n    \"法规名称\": \"禁止向企业摊派暂行条例\",\n    \"法规文号\": \"国务院令第29号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四条\",\n    \"内容概述\": \"禁止在法律、法规的规定之外向企业征收费用，包括不得强制企业承担本应由财政承担的支出。\"\n  }\n]"
+- expression: (农机企业缴费台账.收费项目名称 = '服务费' OR 农机企业缴费台账.收费项目名称 LIKE '%服务%') && (农机企业合作协议.已约定的服务项目及费用 LIKE '%' || 农机企业缴费台账.收费项目名称
+    || '%') && (农机企业缴费台账.收费依据 IS NULL)
+  description: 合同已包含的服务项目，另行以服务费名义收取，且无任何追加收费的依据，即为重复收费。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 在合同约定费用外向农机企业重复收取服务费
+  regulation: "[\n  {\n    \"法规名称\": \"禁止向企业摊派暂行条例\",\n    \"法规文号\": \"国务院令第29号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四条\",\n    \"内容概述\": \"禁止在法律、法规的规定之外向企业征收费用，禁止以任何形式进行摊派。\"\n  }\n]"
+- expression: 涉农收费项目清单.各项收费项目名称 NOT IN (收费公示材料.已公示的收费项目) OR (农机企业缴费台账.收费项目名称 NOT IN (收费公示材料.已公示的收费项目) AND 农机企业缴费台账.收费依据 =
+    '合法')
+  description: 合法收费项目清单中有项目未在公示材料中出现，或者实际收取的合法项目也未公示，均视为未按规定公示。
+  audit_item: 乱集资、乱摊派、乱收费
+  suspicion: 涉企收费项目未按规定进行公示
+  regulation: "[\n  {\n    \"法规名称\": \"国家发展改革委关于全面实行收费公示制度的通知\",\n    \"法规文号\": \"发改价格〔2004〕297号\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"全文要求\",\n    \"内容概述\": \"所有按国家规定权限和程序制定的行政事业性收费均应实行公示制度，公示内容包括收费项目、收费标准、收费依据等。\"\n  }\n]"

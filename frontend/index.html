@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页 — AuditWorkbench 审计实务工坊</title>
+  <link rel="stylesheet" href="lib/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Welcome Banner */
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px 20px; margin-bottom: var(--space-lg);
+      color: #fff; box-shadow: var(--shadow-md);
+    }
+    .welcome-banner .wb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .welcome-banner h2 { color: #fff; margin: 0; font-size: 22px; }
+    .welcome-banner .welcome-sub { opacity: 0.75; font-size: 14px; margin-top: 4px; }
+    .welcome-banner .welcome-date { text-align: right; opacity: 0.85; font-size: 14px; }
+    .welcome-banner .welcome-date .date-main { font-size: 18px; font-weight: 500; display: block; }
+
+    /* Quick Actions */
+    .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-md); }
+    .quick-card {
+      background: var(--color-card); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); padding: 20px;
+      display: flex; align-items: flex-start; gap: var(--space-md);
+      transition: all 0.15s; cursor: pointer; text-decoration: none; color: inherit;
+    }
+    .quick-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); text-decoration: none; color: inherit; }
+    .quick-card .qc-icon {
+      width: 48px; height: 48px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .quick-card .qc-icon.i-knowledge   { background: rgba(26,58,92,0.1);  color: var(--color-primary); }
+    .quick-card .qc-icon.i-data       { background: rgba(45,125,70,0.1); color: var(--color-success); }
+    .quick-card .qc-icon.i-doc        { background: rgba(184,94,26,0.1); color: var(--color-warning); }
+    .quick-card .qc-icon.i-analysis   { background: rgba(196,30,58,0.1); color: var(--color-accent); }
+    .quick-card .qc-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .quick-card .qc-desc  { font-size: 13px; color: var(--color-text-muted); }
+    .quick-card .qc-arrow { color: var(--color-text-muted); margin-left: auto; align-self: center; font-size: 18px; }
+
+    /* Two-column layout */
+    .portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+    @media (max-width: 992px) { .portal-grid { grid-template-columns: 1fr; } }
+
+    /* Todo */
+    .todo-item {
+      display: flex; align-items: center; gap: var(--space-sm);
+      padding: 8px 0;
+    }
+    .todo-item + .todo-item { border-top: 1px solid var(--color-border); }
+    .todo-check { width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer; }
+    .todo-deadline { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
+    .todo-priority { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+    .todo-priority.high { background: var(--color-accent); }
+    .todo-priority.medium { background: var(--color-warning); }
+  </style>
+</head>
+<body data-page="home">
+
+  <!-- Toast Container -->
+  <div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+
+  <!-- ========== Guide Overlay ========== -->
+  <div id="aw-guide-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:var(--radius-lg);max-width:700px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);">
+      <div style="padding:24px 32px;border-bottom:2px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">欢迎使用 AuditWorkbench</h2>
+        <button onclick="AuditWorkbench.closeGuide()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button>
+      </div>
+      <div style="padding:32px;">
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="width:64px;height:64px;background:var(--color-primary);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin-bottom:12px;">
+            <i class="bi bi-briefcase-fill"></i>
+          </div>
+          <h2 style="font-size:18px;">AI 多智能体审计分析平台</h2>
+          <p style="color:var(--color-text-muted);">
+            六个专业分析引擎协同工作，覆盖从审计意图到疑点报告的全过程。
+          </p>
+        </div>
+        <div class="stat-grid" style="margin-bottom:24px;">
+          <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">核心能力</div>
+            <div style="font-weight:600;">意图分析 + 模型匹配</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">2195个违规模型</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">法规支撑</div>
+            <div style="font-weight:600;">法规关系链 + RAG问答</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">40万部法规全文</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">数据加工</div>
+            <div style="font-weight:600;">OCR解析 + 结构化查询</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">智能问数</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">交付输出</div>
+            <div style="font-weight:600;">文书生成 + 溯源报告</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">全链路可追溯</div>
+          </div>
+        </div>
+        <div class="alert alert-info">
+          <strong>使用方式：</strong>用自然语言描述审计意图 → 确认AI推荐的法规和模型 → 上传审计资料 → 核查分析结果。每一步均可溯源、可回退。
+        </div>
+        <div style="text-align:center;margin-top:20px;">
+          <button class="btn btn-primary btn-lg" onclick="AuditWorkbench.closeGuide();location.href='analysis.html'">
+            <i class="bi bi-play-fill"></i> 开始智能分析
+          </button>
+          <button class="btn btn-outline btn-lg" onclick="AuditWorkbench.closeGuide()" style="margin-left:12px;">
+            进入首页
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Layout ========== -->
+  <nav id="aw-navbar" class="app-navbar"></nav>
+  <button class="sidebar-collapse-btn" onclick="var s=document.getElementById('aw-sidebar');var c=document.querySelector('.app-content');var cl=s.classList.toggle('collapsed');if(c)c.classList.toggle('expanded');this.style.left=cl?'52px':'216px';this.innerHTML=cl?'<i class=\"bi bi-chevron-right\"></i>':'<i class=\"bi bi-chevron-left\"></i>';localStorage.setItem('aw_sidebar_collapsed',cl?'1':'0');" title="折叠侧边栏" style="position:fixed;top:64px;left:216px;z-index:2000;width:24px;height:48px;background:#fff;border:1px solid var(--color-border);border-left:none;border-radius:0 6px 6px 0;cursor:pointer;font-size:12px;color:var(--color-text-muted);display:flex;align-items:center;justify-content:center;transition:left 0.25s ease;padding:0;"><i class="bi bi-chevron-left"></i></button>
+  <div class="app-layout">
+    <aside id="aw-sidebar" class="app-sidebar"></aside>
+    <main class="app-content">
+
+      <!-- Welcome Banner -->
+      <div class="welcome-banner">
+        <div>
+          <h2><span id="greeting">早上好</span>，欢迎回来</h2>
+          <div class="welcome-sub">AuditWorkbench 审计实务工坊 · AI多智能体分析平台</div>
+        </div>
+        <div class="welcome-date">
+          <span class="date-main" id="today-date"></span>
+          <span id="today-weekday"></span>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stat-grid">
+        <div class="stat-card accent-primary">
+          <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
+          <div class="stat-value" id="stat-projects">0</div>
+          <div class="stat-label">进行中项目</div>
+        </div>
+        <div class="stat-card accent-accent">
+          <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+          <div class="stat-value" id="stat-tasks">0</div>
+          <div class="stat-label">待处理任务</div>
+        </div>
+        <div class="stat-card accent-success">
+          <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+          <div class="stat-value" id="stat-completed">0</div>
+          <div class="stat-label">本月完成</div>
+        </div>
+        <div class="stat-card accent-warning">
+          <div class="stat-icon"><i class="bi bi-book"></i></div>
+          <div class="stat-value" id="stat-cases">0</div>
+          <div class="stat-label">案例总数</div>
+        </div>
+      </div>
+
+      <!-- 资料处理状态 (可折叠) -->
+      <div class="card" style="margin-top:var(--space-lg);transition:all 0.4s ease;overflow:hidden;" id="doc-status-card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <h3>📄 审计资料处理状态</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <a href="docworkshop.html" style="font-size:13px;">资料工坊 →</a>
+            <button class="btn btn-sm btn-outline" onclick="Portal.toggleDocStatus()" title="收缩到右上角" style="padding:2px 8px;font-size:16px;line-height:1;">
+              <i class="bi bi-chevron-up" id="doc-status-toggle-icon"></i>
+            </button>
+          </div>
+        </div>
+        <div id="doc-status-body">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);" id="doc-status-grid">
+            <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+              <div style="font-size:28px;font-weight:700;color:var(--color-primary);" id="stat-total-docs">0</div>
+              <div style="font-size:12px;color:var(--color-text-muted);">资料总数</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+              <div style="font-size:28px;font-weight:700;color:var(--color-success);" id="stat-parsed-docs">0</div>
+              <div style="font-size:12px;color:var(--color-text-muted);">已完成识别</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+              <div style="font-size:28px;font-weight:700;color:var(--color-warning);" id="stat-processing-docs">0</div>
+              <div style="font-size:12px;color:var(--color-text-muted);">识别中 <span class="pulse" style="color:var(--color-warning);">●</span></div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--color-bg);border-radius:var(--radius-md);">
+              <div style="font-size:28px;font-weight:700;color:var(--color-text-muted);" id="stat-pending-docs">0</div>
+              <div style="font-size:12px;color:var(--color-text-muted);">待处理</div>
+            </div>
+          </div>
+          <div id="doc-processing-list" style="margin-top:var(--space-sm);"></div>
+        </div>
+      </div>
+
+      <!-- Minimized indicator (top-right, shown when card collapsed) -->
+      <div id="doc-status-mini" style="display:none;position:fixed;top:64px;right:16px;z-index:1035;
+        background:var(--color-card);border:1px solid var(--color-border);border-radius:var(--radius-md);
+        padding:8px 14px;box-shadow:var(--shadow-md);cursor:pointer;font-size:13px;
+        display:none;align-items:center;gap:8px;animation:fadeIn 0.3s ease;"
+        onclick="Portal.toggleDocStatus()" title="点击展开资料处理状态">
+        <span class="pulse" style="color:var(--color-warning);font-size:10px;">●</span>
+        <span>资料处理: <strong id="mini-processing">0</strong> 进行中</span>
+        <span style="color:var(--color-text-muted);">|</span>
+        <span>已完成: <strong id="mini-completed" style="color:var(--color-success);">0</strong></span>
+        <i class="bi bi-chevron-down" style="font-size:10px;opacity:0.5;"></i>
+      </div>
+
+      <!-- Show button when minimized -->
+      <div id="doc-status-show-btn" style="display:none;margin-top:var(--space-lg);">
+        <button class="btn btn-outline btn-sm" onclick="Portal.toggleDocStatus()">
+          <i class="bi bi-chevron-down"></i> 展开资料处理状态
+        </button>
+      </div>
+
+      <!-- Quick Actions + Activity -->
+      <div class="portal-grid" style="margin-top:var(--space-lg);">
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header"><h3>快捷入口</h3></div>
+          <div class="quick-grid">
+            <a class="quick-card" href="analysis.html">
+              <div class="qc-icon i-analysis"><i class="bi bi-cpu"></i></div>
+              <div><div class="qc-title">智能分析</div><div class="qc-desc">多Agent流水线，意图→疑点</div></div>
+              <i class="bi bi-chevron-right qc-arrow"></i>
+            </a>
+            <a class="quick-card" href="knowledge.html">
+              <div class="qc-icon i-knowledge"><i class="bi bi-book"></i></div>
+              <div><div class="qc-title">知识工坊</div><div class="qc-desc">违规库+依据库+案例库</div></div>
+              <i class="bi bi-chevron-right qc-arrow"></i>
+            </a>
+            <a class="quick-card" href="dataworkshop.html">
+              <div class="qc-icon i-data"><i class="bi bi-grid-3x3-gap"></i></div>
+              <div><div class="qc-title">数据工坊</div><div class="qc-desc">结构化数据表+智能问数</div></div>
+              <i class="bi bi-chevron-right qc-arrow"></i>
+            </a>
+            <a class="quick-card" href="lawqa.html">
+              <div class="qc-icon i-doc"><i class="bi bi-chat-dots"></i></div>
+              <div><div class="qc-title">法规问答</div><div class="qc-desc">RAG驱动的法规智能问答</div></div>
+              <i class="bi bi-chevron-right qc-arrow"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent Activity + Todos -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-md);">
+          <!-- Recent Activity -->
+          <div class="card" style="flex:1;">
+            <div class="card-header"><h3>最近实务动态</h3></div>
+            <ul class="activity-list" id="activity-list">
+              <li style="padding:20px;text-align:center;color:var(--color-text-muted);">暂无动态</li>
+            </ul>
+          </div>
+
+          <!-- Todo -->
+          <div class="card">
+            <div class="card-header">
+              <h3>待办事项</h3>
+              <span class="badge badge-accent" id="todo-count">0</span>
+            </div>
+            <div id="todo-list">
+              <div style="padding:16px;text-align:center;color:var(--color-text-muted);">暂无待办</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align:center;padding:var(--space-lg) 0;color:var(--color-text-muted);font-size:13px;margin-top:var(--space-lg);border-top:1px solid var(--color-border);">
+        &copy; 2026 AuditWorkbench 审计实务工坊 &nbsp;|&nbsp; 版本 1.0.0 &nbsp;|&nbsp; 面向国家审计机关
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/portal.js"></script>
+</body>
+</html>

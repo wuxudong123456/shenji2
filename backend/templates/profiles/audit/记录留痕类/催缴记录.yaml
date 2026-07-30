@@ -1,0 +1,81 @@
+name: audit/记录留痕类/催缴记录
+type: model
+description: 从记录留痕类类文档（催缴记录）中提取结构化元数据。涵盖字段如：催收方式、催缴日期、承诺回复、法律措施、送达时间、逾期天数。文档范围包括：催缴记录、未到位捐赠款物的催缴记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 催缴记录
+  member_count: 1
+  member_details:
+  - 催缴记录
+  - 未到位捐赠款物的催缴记录
+output:
+  fields:
+  - name: 催收方式
+    type: string
+    description: 提取 催收方式 的文本值
+  - name: 催缴日期
+    type: date
+    description: 提取 催缴日期 的日期值，格式 YYYY-MM-DD
+  - name: 承诺回复
+    type: string
+    description: 提取 承诺回复 的文本值
+  - name: 法律措施
+    type: string
+    description: 提取 法律措施 的文本值
+  - name: 送达时间
+    type: date
+    description: 提取 送达时间 的日期值，格式 YYYY-MM-DD
+  - name: 逾期天数
+    type: number
+    description: 提取 逾期天数 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ((明细表.欠缴金额/应收金额>10%) || (明细表.欠缴金额>50000元)) && (欠缴起始时间>365天) && (催缴记录.法律措施=="无" 或 缺失)
+  description: 整体拖欠比例超10%或单笔超5万元且拖欠超1年，同时村集体未采取律师函、诉讼等有效法律措施，即构成违规；严重损害农民收益。
+  audit_item: 农村集体经济发展壮大不到位
+  suspicion: 长期拖欠农户土地流转费且催收措施不力
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国农村土地承包法\",\n    \"法规文号\": \"2018年修订\",\n    \"效力级别\": \"法律\",\n    \"条款号\":\
+    \ \"第三十九条、第五十五条\",\n    \"内容概述\": \"土地经营权流转的受让方应当按合同约定支付流转费用；任何组织和个人不得截留、扣缴农户的流转收益。因一方违约，另一方可依法请求其承担违约责任。\"\n  }\n]"
+- expression: (捐赠人名称、承诺捐赠金额、实际到账金额、到账日期.承诺捐赠金额 - 捐赠人名称、承诺捐赠金额、实际到账金额、到账日期.实际到账金额) > 0 && (当前日期 - 捐赠人名称、承诺捐赠金额、实际到账金额、到账日期.到账日期)
+    > 30
+  description: 承诺捐赠金额与实际到账金额存在差异，且超过协议约定的最晚到账日期30天以上仍未足额到位，视为捐赠承诺未履行。金额差异大于零且逾期天数大于30触发违规。单笔金额超过10万元且无书面协议的可直接标注为高风险。
+  audit_item: 社会捐赠款物接收管理不合规
+  suspicion: 捐赠承诺款物未按期足额到位
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国慈善法\",\n    \"法规文号\": \"主席令第43号（2016年）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第四十一条\",\n    \"内容概述\": \"捐赠人应当按照捐赠协议履行捐赠义务。捐赠人违反协议逾期未交付捐赠财产，慈善组织可以要求交付；拒不交付的，可依法申请支付令或提起诉讼。\"\n  }\n]"

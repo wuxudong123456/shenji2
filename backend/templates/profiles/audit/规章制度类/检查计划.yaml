@@ -1,0 +1,94 @@
+name: audit/规章制度类/检查计划
+type: model
+description: 从规章制度类类文档（检查计划）中提取结构化元数据。涵盖字段如：实际完成村数、应检查村数。文档范围包括：年度检查计划等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 检查
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 检查计划
+  member_count: 1
+  member_details:
+  - 年度检查计划
+output:
+  fields:
+  - name: 实际完成村数
+    type: string
+    description: 提取 实际完成村数 的文本值
+  - name: 应检查村数
+    type: string
+    description: 提取 应检查村数 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (明细表.身份证号 重复计数 > 1 且 分配金额 > 0) || (明细表.身份证号 关联 公安死亡人口数据 存在匹配且分配金额 > 0) AND (该村集体经济组织在监督检查台账中无最近两年检查记录 || 对应问题未出现在任何底稿中)
+  description: 满足以下任一条件：①同一身份证号多次分配；②死亡人员仍参与分配。同时对应村集体近两年未被检查或检查底稿中未提及此类异常，表明监督检查缺失导致侵害未被发现。
+  audit_item: 政策支持落实和监督检查不到位
+  suspicion: 监督检查不到位未发现侵害集体经济组织权益行为
+  regulation: "[\n  {\n    \"法规名称\": \"农村集体经济组织审计规定\",\n    \"法规文号\": \"农办经〔2008〕8号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第五条\",\n    \"内容概述\": \"各级农村经营管理部门应当对农村集体经济组织财务收支、资产运营等情况进行定期审计，及时发现和纠正违法违纪问题。\"\n  }\n]"

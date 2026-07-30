@@ -1,0 +1,125 @@
+name: audit/合同协议类/见习协议
+type: model
+description: 从合同协议类类文档（见习协议）中提取结构化元数据。涵盖字段如：岗位名称、见习人员姓名、见习起止日期、身份证号。文档范围包括：就业见习协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 人员
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 见习协议
+  member_count: 1
+  member_details:
+  - 就业见习协议
+output:
+  fields:
+  - name: 岗位名称
+    type: string
+    description: 提取 岗位名称 的文本值
+  - name: 见习人员姓名
+    type: string
+    description: 提取 见习人员姓名 的文本值
+  - name: 见习起止日期
+    type: date
+    description: 提取 见习起止日期 的日期值，格式 YYYY-MM-DD
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (见习期间 签到天数 < 最低出勤天数) && (补贴全额申领) || (见习期满后 见习人员未出现在单位社保缴纳记录中 && 单位申报留用奖励) || (同一身份证号在同一时段内 同时存在于 多份见习协议中)
+  description: 见习期签到天数未达到政策规定的最低标准（如每月15天）却申领全额补贴；或单位未留用见习人员却虚报留用奖励；或同一人同时被多个单位申报，均属虚假见习。严重违规：连续三个月签到为零仍申报补贴。
+  audit_item: 骗取、套取资金或补贴
+  suspicion: 虚假开展就业见习骗取见习补贴
+  regulation: "[\n  {\n    \"法规名称\": \"关于实施青年就业见习计划的通知\",\n    \"法规文号\": \"人社部函〔2019〕36号\",\n    \"效力级别\": \"部门规章\",\n   \
+    \ \"条款号\": \"三（四）\",\n    \"内容概述\": \"见习单位应如实记录见习人员出勤，据实申领补贴，不得虚报、谎报见习人数和留用情况。\"\n  },\n  {\n    \"法规名称\": \"就业补助资金管理办法\"\
+    ,\n    \"法规文号\": \"财社〔2017〕164号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十条\",\n    \"内容概述\": \"就业见习补贴主要用于支付见习人员基本生活费、办理人"

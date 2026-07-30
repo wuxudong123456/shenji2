@@ -1,0 +1,1592 @@
+name: audit/政策文件类/政策文件
+type: model
+description: 从政策文件类类文档（政策文件）中提取结构化元数据。涵盖字段如：三同步具体条款要求、上级政策要求条款、上级部门要求统计频率、上缴时限要求、上限金额、不动产登记费减免条件、主管部门监管职责条款、主要污染物减排率。文档范围包括：上位法规政策文件、上级主管部门关于预算绩效管理的政策文件、上级单位关于为农服务创新的政策文件、上级政府关于债务管理的政策文件、上级政府关于村庄规划编制的政策文件、上级政策文件、上级部门关于新型职业农民认定的政策文件、上级部门关于资产管理的政策文件、上级部门绩效管理政策文件、下位政策文件等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 政策文件类
+- 审计
+- 培训
+- 登记
+- 补贴
+- 金额
+- 元数据提取
+template_class:
+  category: 政策文件类
+  member_types:
+  - 政策文件
+  member_count: 1
+  member_details:
+  - 上位法规政策文件
+  - 上级主管部门关于预算绩效管理的政策文件
+  - 上级单位关于为农服务创新的政策文件
+  - 上级政府关于债务管理的政策文件
+  - 上级政府关于村庄规划编制的政策文件
+  - 上级政策文件
+  - 上级部门关于新型职业农民认定的政策文件
+  - 上级部门关于资产管理的政策文件
+  - 上级部门绩效管理政策文件
+  - 下位政策文件
+  - 专用基金计提政策文件
+  - 专项政策文件
+  - 乡村教师补助补贴发放政策文件
+  - 产能置换政策文件
+  - 企业政策文件
+  - 企业财务制度和会计政策文件
+  - 优惠政策文件
+  - 住房保障政策文件
+  - 住房公积金贷款利率政策文件
+  - 住房公积金贷款担保业务政策文件
+  - 住房公积金贷款政策文件
+  - 保障待遇相关政策文件
+  - 公共租赁住房租金调整政策文件
+  - 公租房政策文件
+  - 农业保险补贴政策文件
+  - 农业生产用电价格优惠政策文件（省级及以上文件）
+  - 农业社会化服务相关政策文件
+  - 农村公路与客运站点同步建设政策文件
+  - 农村养老服务体系建设政策文件
+  - 农民工返乡创业相关政策文件
+  - 农膜回收利用相关政策文件
+  - 分布式可再生能源并网审批政策文件
+  - 创业担保贷款政策文件
+  - 创业担保贷款财政贴息政策文件
+  - 医保定点医疗机构管理政策文件
+  - 医疗救助资金专项政策文件
+  - 各级政府惠农补贴政策文件
+  - 国培计划政策文件
+  - 国家/地方住房公积金管理政策文件
+  - 国家/地方税收优惠政策文件
+  - 国家关于沼气发电上网标杆电价的政策文件
+  - 国家关于沼气发电上网电量收购的政策文件
+  - 国家及地方产业政策文件
+  - 国家及地方住房公积金管理相关政策文件
+  - 国家及地方保障性安居工程资金安排政策文件
+  - 国家及地方关于固定资产投资项目资本金比例的政策文件
+  - 国家及地方关于工程建设领域保证金管理的政策文件
+  - 国家及地方农业设施用地政策文件
+  - 国家及地方创业担保贷款政策文件
+  - 国家及地方海洋渔船双控政策文件
+  - 国家及地方电价政策文件
+  - 国家及省级农村供水相关政策文件
+  - 国家和地方免收不动产登记费政策文件
+  - 国家和地方关于保障性安居工程政策文件
+  - 国家和地方关于保障性安居工程税费减免的政策文件
+  - 国家和地方关于保障性安居工程行政事业性收费减免的政策文件
+  - 国家和地方关于保障性安居工程贷款优惠利率的政策文件
+  - 国家和地方关于农村寄宿物流体系建设的政策文件
+  - 国家和地方关于基层医疗机构人员配置标准的政策文件
+  - 国家和地方关于非税收入管理的政策文件
+  - 国家和地方农业生产电价政策文件
+  - 国家和地方农业社会化服务增值税免征政策文件
+  - 国家和地方农机购置补贴政策文件
+  - 国家和地方农村危房改造政策文件
+  - 国家和地方农药包装废弃物回收处理相关政策文件
+  - 国家和地方政府去产能政策文件
+  - 国家和地方政府性融资担保政策文件
+  - 国家和地方棚户区改造政策文件
+  - 国家和地方涉农收费政策文件
+  - 国家和地方职业培训政策文件
+  - 国家和地方设施用地管理政策文件
+  - 国家和地方退役军人安置相关法规政策文件（含修订版本）
+  - 国家和地方预算绩效管理相关政策文件
+  - 国家或省级复垦保证金管理政策文件
+  - 国家生猪养殖项目环评“放管服”改革政策文件
+  - 国家相关产业政策文件
+  - 国家社会救助政策文件
+  - 国家级农家书屋建设管理相关法规和政策文件
+  - 土地承包经营权确权登记颁证政策文件
+  - 地下水禁采区政策文件
+  - 地方关于沼气发电上网标杆电价的政策文件
+  - 地方关于沼气发电上网电量收购的政策文件
+  - 地方农家书屋建设管理相关法规和政策文件
+  - 地方招商引资优惠政策文件
+  - 地方收取复垦保证金政策文件
+  - 地方政府关于新型农业经营主体信贷扶持的政策文件
+  - 地方政府或教育部门发布的营养改善计划政策文件
+  - 地方政策文件
+  - 地方生猪养殖项目环评“放管服”改革政策文件
+  - 地方社会救助政策文件
+  - 培训相关政策文件
+  - 外币折算会计政策文件
+  - 就业补助资金相关政策文件
+  - 帮扶产业项目分红政策文件
+  - 强制免疫疫苗“先打后补”政策文件
+  - 惠农补贴政策文件
+  - 护理人员配置政策文件
+  - 收入确认政策文件
+  - 收费政策文件
+  - 政府补短板政策文件
+  - 政府部门下发的补短板政策文件
+  - 政府采购相关政策文件
+  - 政策文件
+  - 教育经费投入政策文件
+  - 数字乡村建设人才激励政策文件
+  - 新农村现代流通服务网络建设专项政策文件
+  - 新型职业农民培训相关政策文件
+  - 村庄规划编制政策文件
+  - 残疾人护理补贴政策文件
+  - 民政部门关于公益性墓地建设标准的政策文件
+  - 水费定价政策文件
+  - 水资源费征收政策文件
+  - 永久基本农田划定相关政策文件
+  - 消费帮扶政策文件
+  - 涉农专项转移支付资金相关政策文件
+  - 电价政策文件
+  - 电商配送服务扶持政策文件
+  - 畜禽养殖废弃物资源化利用相关政策文件
+  - 畜禽粪污资源化利用装备补贴政策文件
+  - 畜禽规模养殖用地用电配套政策文件
+  - 监管政策文件
+  - 相关公共服务政策文件
+  - 省级或国家小规模学校经费保障政策文件
+  - 省级生均公用经费政策文件
+  - 社会保障待遇发放政策文件（国家及地方标准）
+  - 社保与公积金关联政策文件
+  - 租金收取政策文件
+  - 税务部门发布的秸秆综合利用税收优惠政策文件
+  - 稳岗补贴发放政策文件
+  - 经费保障政策文件
+  - 绩效评价相关政策文件
+  - 职业培训补贴政策文件
+  - 脱钩改革政策文件
+  - 融资担保政策文件
+  - 补偿政策文件
+  - 补助政策文件
+  - 补贴政策文件
+  - 表箱安装收费政策文件
+  - 购房补贴政策文件
+  - 费用承担政策文件
+  - 资源分配政策文件
+  - 退捕渔民安置政策文件
+  - 退捕渔民转产安置相关政策文件
+  - 退捕补偿政策文件
+  - 逾期未兑奖奖金处理政策文件
+  - 金融扶持政策文件
+  - 金融政策文件
+  - 金融服务三农相关政策文件
+  - 金融机构信贷政策文件
+  - 金融机构支持重大项目的信贷政策文件
+  - 金融负债与权益工具分类的会计政策文件
+  - 长江全面禁捕工作的政策文件
+  - 防止返贫监测相关政策文件
+output:
+  fields:
+  - name: 三同步具体条款要求
+    type: number
+    description: 提取 三同步具体条款要求 的数值（含单位，如万元、吨等）
+  - name: 上级政策要求条款
+    type: number
+    description: 提取 上级政策要求条款 的数值（含单位，如万元、吨等）
+  - name: 上级部门要求统计频率
+    type: string
+    description: 提取 上级部门要求统计频率 的文本值
+  - name: 上缴时限要求
+    type: string
+    description: 提取 上缴时限要求 的文本值
+  - name: 上限金额
+    type: number
+    description: 提取 上限金额 的数值（含单位，如万元、吨等）
+  - name: 不动产登记费减免条件
+    type: number
+    description: 提取 不动产登记费减免条件 的数值（含单位，如万元、吨等）
+  - name: 主管部门监管职责条款
+    type: number
+    description: 提取 主管部门监管职责条款 的数值（含单位，如万元、吨等）
+  - name: 主要污染物减排率
+    type: string
+    description: 提取 主要污染物减排率 的文本值
+  - name: 乡村医生岗位补助标准
+    type: string
+    description: 提取 乡村医生岗位补助标准 的文本值
+  - name: 乡村教师培训倾斜政策条款
+    type: number
+    description: 提取 乡村教师培训倾斜政策条款 的数值（含单位，如万元、吨等）
+  - name: 二套房上浮比例
+    type: number
+    description: 提取 二套房上浮比例 的数值（含单位，如万元、吨等）
+  - name: 互斥补贴项目列表与禁止兼得规定
+    type: string
+    description: 提取 互斥补贴项目列表与禁止兼得规定 的文本值
+  - name: 产业目录版本
+    type: string
+    description: 提取 产业目录版本 的文本值
+  - name: 产品标准
+    type: string
+    description: 提取 产品标准 的文本值
+  - name: 人均住房面积上限
+    type: string
+    description: 提取 人均住房面积上限 的文本值
+  - name: 人均基本公共卫生服务补助标准
+    type: string
+    description: 提取 人均基本公共卫生服务补助标准 的文本值
+  - name: 人均补助标准
+    type: string
+    description: 提取 人均补助标准 的文本值
+  - name: 人防易地建设费减免对象及条件
+    type: number
+    description: 提取 人防易地建设费减免对象及条件 的数值（含单位，如万元、吨等）
+  - name: 代缴标准
+    type: string
+    description: 提取 代缴标准 的文本值
+  - name: 企业注册年限门槛
+    type: string
+    description: 提取 企业注册年限门槛 的文本值
+  - name: 企业申请资格条款
+    type: number
+    description: 提取 企业申请资格条款 的数值（含单位，如万元、吨等）
+  - name: 优先项目清单
+    type: string
+    description: 提取 优先项目清单 的文本值
+  - name: 优惠内容
+    type: string
+    description: 提取 优惠内容 的文本值
+  - name: 优惠利率
+    type: string
+    description: 提取 优惠利率 的文本值
+  - name: 优惠利率标准
+    type: string
+    description: 提取 优惠利率标准 的文本值
+  - name: 优惠对象
+    type: string
+    description: 提取 优惠对象 的文本值
+  - name: 优惠对象条件
+    type: string
+    description: 提取 优惠对象条件 的文本值
+  - name: 优惠政策条款
+    type: number
+    description: 提取 优惠政策条款 的数值（含单位，如万元、吨等）
+  - name: 优惠方式
+    type: string
+    description: 提取 优惠方式 的文本值
+  - name: 优惠条件
+    type: string
+    description: 提取 优惠条件 的文本值
+  - name: 优惠电价标准
+    type: string
+    description: 提取 优惠电价标准 的文本值
+  - name: 优惠税种
+    type: string
+    description: 提取 优惠税种 的文本值
+  - name: 优惠类产业清单
+    type: string
+    description: 提取 优惠类产业清单 的文本值
+  - name: 低保标准金额
+    type: number
+    description: 提取 低保标准金额 的数值（含单位，如万元、吨等）
+  - name: 低保资格认定条件
+    type: string
+    description: 提取 低保资格认定条件 的文本值
+  - name: 依据文号
+    type: string
+    description: 提取 依据文号 的文本值
+  - name: 保底收益条款
+    type: number
+    description: 提取 保底收益条款 的数值（含单位，如万元、吨等）
+  - name: 保费补贴比例
+    type: number
+    description: 提取 保费补贴比例 的数值（含单位，如万元、吨等）
+  - name: 保障对象应享受的税费减免
+    type: number
+    description: 提取 保障对象应享受的税费减免 的数值（含单位，如万元、吨等）
+  - name: 保障对象范围
+    type: string
+    description: 提取 保障对象范围 的文本值
+  - name: 债务追责条款
+    type: number
+    description: 提取 债务追责条款 的数值（含单位，如万元、吨等）
+  - name: 倾斜比例基准
+    type: number
+    description: 提取 倾斜比例基准 的数值（含单位，如万元、吨等）
+  - name: 允许保留的保证金类型清单
+    type: string
+    description: 提取 允许保留的保证金类型清单 的文本值
+  - name: 允许或鼓励发展的方向
+    type: string
+    description: 提取 允许或鼓励发展的方向 的文本值
+  - name: 允许收费项目
+    type: number
+    description: 提取 允许收费项目 的数值（含单位，如万元、吨等）
+  - name: 允许改造的建制镇范围及人口标准
+    type: string
+    description: 提取 允许改造的建制镇范围及人口标准 的文本值
+  - name: 免征主体范围
+    type: string
+    description: 提取 免征主体范围 的文本值
+  - name: 免税服务范围
+    type: string
+    description: 提取 免税服务范围 的文本值
+  - name: 兑现时限
+    type: string
+    description: 提取 兑现时限 的文本值
+  - name: 兑现条件
+    type: string
+    description: 提取 兑现条件 的文本值
+  - name: 全覆盖目标要求
+    type: string
+    description: 提取 全覆盖目标要求 的文本值
+  - name: 公共服务项目办理条件
+    type: string
+    description: 提取 公共服务项目办理条件 的文本值
+  - name: 公示要求
+    type: string
+    description: 提取 公示要求 的文本值
+  - name: 关于不得重复领取同类补助的规定
+    type: string
+    description: 提取 关于不得重复领取同类补助的规定 的文本值
+  - name: 农业生产用电价格标准
+    type: number
+    description: 提取 农业生产用电价格标准 的数值（含单位，如万元、吨等）
+  - name: 农业生产用电分类标准
+    type: string
+    description: 提取 农业生产用电分类标准 的文本值
+  - name: 农业用地认定标准
+    type: string
+    description: 提取 农业用地认定标准 的文本值
+  - name: 农业用水
+    type: string
+    description: 提取 农业用水 的文本值
+  - name: 农业用电优惠目录类别
+    type: string
+    description: 提取 农业用电优惠目录类别 的文本值
+  - name: 农村义务教育经费倾斜比例要求
+    type: number
+    description: 提取 农村义务教育经费倾斜比例要求 的数值（含单位，如万元、吨等）
+  - name: 农田水利建设基金免征范围
+    type: string
+    description: 提取 农田水利建设基金免征范围 的文本值
+  - name: 准入收入标准
+    type: number
+    description: 提取 准入收入标准 的数值（含单位，如万元、吨等）
+  - name: 准入条件
+    type: string
+    description: 提取 准入条件 的文本值
+  - name: 准入能耗-排放限值
+    type: string
+    description: 提取 准入能耗-排放限值 的文本值
+  - name: 准备金计提比例要求
+    type: number
+    description: 提取 准备金计提比例要求 的数值（含单位，如万元、吨等）
+  - name: 减免对象
+    type: string
+    description: 提取 减免对象 的文本值
+  - name: 减免幅度
+    type: string
+    description: 提取 减免幅度 的文本值
+  - name: 减免收费项目
+    type: number
+    description: 提取 减免收费项目 的数值（含单位，如万元、吨等）
+  - name: 减免条件
+    type: string
+    description: 提取 减免条件 的文本值
+  - name: 减免税种
+    type: string
+    description: 提取 减免税种 的文本值
+  - name: 减免项目名称
+    type: string
+    description: 提取 减免项目名称 的文本值
+  - name: 减免额度
+    type: string
+    description: 提取 减免额度 的文本值
+  - name: 分类标准
+    type: string
+    description: 提取 分类标准 的文本值
+  - name: 创新服务内容要求
+    type: string
+    description: 提取 创新服务内容要求 的文本值
+  - name: 利率上限规定
+    type: string
+    description: 提取 利率上限规定 的文本值
+  - name: 利率优惠
+    type: string
+    description: 提取 利率优惠 的文本值
+  - name: 制定日期
+    type: date
+    description: 提取 制定日期 的日期值，格式 YYYY-MM-DD
+  - name: 制度建立时限
+    type: string
+    description: 提取 制度建立时限 的文本值
+  - name: 办理流程
+    type: string
+    description: 提取 办理流程 的文本值
+  - name: 功率控制总量指标
+    type: string
+    description: 提取 功率控制总量指标 的文本值
+  - name: 加急办理条款
+    type: number
+    description: 提取 加急办理条款 的数值（含单位，如万元、吨等）
+  - name: 医疗救助对象类型
+    type: string
+    description: 提取 医疗救助对象类型 的文本值
+  - name: 单位和职工缴存比例上限
+    type: number
+    description: 提取 单位和职工缴存比例上限 的数值（含单位，如万元、吨等）
+  - name: 单墓穴面积上限
+    type: string
+    description: 提取 单墓穴面积上限 的文本值
+  - name: 危房改造条件
+    type: string
+    description: 提取 危房改造条件 的文本值
+  - name: 参保标的条件
+    type: string
+    description: 提取 参保标的条件 的文本值
+  - name: 双墓穴面积上限
+    type: string
+    description: 提取 双墓穴面积上限 的文本值
+  - name: 双碳目标及产业链安全要求
+    type: string
+    description: 提取 双碳目标及产业链安全要求 的文本值
+  - name: 发放周期
+    type: string
+    description: 提取 发放周期 的文本值
+  - name: 发放周期要求
+    type: string
+    description: 提取 发放周期要求 的文本值
+  - name: 发放方式
+    type: string
+    description: 提取 发放方式 的文本值
+  - name: 发放时限要求
+    type: string
+    description: 提取 发放时限要求 的文本值
+  - name: 发文号
+    type: string
+    description: 提取 发文号 的文本值
+  - name: 发文机关
+    type: string
+    description: 提取 发文机关 的文本值
+  - name: 取消-停征收费项目名称
+    type: number
+    description: 提取 取消-停征收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 取消执行日期
+    type: date
+    description: 提取 取消执行日期 的日期值，格式 YYYY-MM-DD
+  - name: 取消生效日期
+    type: date
+    description: 提取 取消生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 受益对象资格条件
+    type: string
+    description: 提取 受益对象资格条件 的文本值
+  - name: 变更原因说明
+    type: string
+    description: 提取 变更原因说明 的文本值
+  - name: 各培训类型应包含的内容模块要求
+    type: string
+    description: 提取 各培训类型应包含的内容模块要求 的文本值
+  - name: 各时段适用的首套房利率标准
+    type: string
+    description: 提取 各时段适用的首套房利率标准 的文本值
+  - name: 各行业置换比例要求如钢铁置换范围
+    type: number
+    description: 提取 各行业置换比例要求如钢铁置换范围 的数值（含单位，如万元、吨等）
+  - name: 各阶段禁捕时限要求
+    type: string
+    description: 提取 各阶段禁捕时限要求 的文本值
+  - name: 合作准入条件
+    type: string
+    description: 提取 合作准入条件 的文本值
+  - name: 合法收费项目名称
+    type: number
+    description: 提取 合法收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 合计比例上限
+    type: number
+    description: 提取 合计比例上限 的数值（含单位，如万元、吨等）
+  - name: 同一项目不得重复补贴条款
+    type: number
+    description: 提取 同一项目不得重复补贴条款 的数值（含单位，如万元、吨等）
+  - name: 向基层社倾斜要求
+    type: string
+    description: 提取 向基层社倾斜要求 的文本值
+  - name: 品牌认证要求
+    type: string
+    description: 提取 品牌认证要求 的文本值
+  - name: 回收率目标要求
+    type: string
+    description: 提取 回收率目标要求 的文本值
+  - name: 回收责任主体条款
+    type: number
+    description: 提取 回收责任主体条款 的数值（含单位，如万元、吨等）
+  - name: 国家最低补助标准
+    type: string
+    description: 提取 国家最低补助标准 的文本值
+  - name: 国家最新政策生效日期
+    type: date
+    description: 提取 国家最新政策生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 地方自行制定的补贴标准
+    type: string
+    description: 提取 地方自行制定的补贴标准 的文本值
+  - name: 地方配套细则制定时限要求
+    type: string
+    description: 提取 地方配套细则制定时限要求 的文本值
+  - name: 地理边界划定要求
+    type: string
+    description: 提取 地理边界划定要求 的文本值
+  - name: 基层服务优先条款
+    type: number
+    description: 提取 基层服务优先条款 的数值（含单位，如万元、吨等）
+  - name: 墓碑规格限制
+    type: string
+    description: 提取 墓碑规格限制 的文本值
+  - name: 备案申报要求
+    type: string
+    description: 提取 备案申报要求 的文本值
+  - name: 备用或自选动作清单
+    type: string
+    description: 提取 备用或自选动作清单 的文本值
+  - name: 完成时限
+    type: string
+    description: 提取 完成时限 的文本值
+  - name: 完成时限要求
+    type: string
+    description: 提取 完成时限要求 的文本值
+  - name: 定价依据
+    type: string
+    description: 提取 定价依据 的文本值
+  - name: 定价标准
+    type: string
+    description: 提取 定价标准 的文本值
+  - name: 实施主体的资格要求
+    type: string
+    description: 提取 实施主体的资格要求 的文本值
+  - name: 实施方案名称
+    type: string
+    description: 提取 实施方案名称 的文本值
+  - name: 实施范围
+    type: string
+    description: 提取 实施范围 的文本值
+  - name: 审批时限
+    type: string
+    description: 提取 审批时限 的文本值
+  - name: 审批时限要求
+    type: string
+    description: 提取 审批时限要求 的文本值
+  - name: 审批时限规定
+    type: string
+    description: 提取 审批时限规定 的文本值
+  - name: 审批权限
+    type: string
+    description: 提取 审批权限 的文本值
+  - name: 审批权限划分
+    type: string
+    description: 提取 审批权限划分 的文本值
+  - name: 审批权限要求
+    type: string
+    description: 提取 审批权限要求 的文本值
+  - name: 审批流程规定
+    type: string
+    description: 提取 审批流程规定 的文本值
+  - name: 家庭人均收入标准线
+    type: number
+    description: 提取 家庭人均收入标准线 的数值（含单位，如万元、吨等）
+  - name: 家庭财产状况标准线
+    type: string
+    description: 提取 家庭财产状况标准线 的文本值
+  - name: 对企业研发投入占比要求
+    type: string
+    description: 提取 对企业研发投入占比要求 的文本值
+  - name: 对外来务工人员户籍
+    type: string
+    description: 提取 对外来务工人员户籍 的文本值
+  - name: 对应术语的官方定义
+    type: string
+    description: 提取 对应术语的官方定义 的文本值
+  - name: 对应污染物减排目标值
+    type: string
+    description: 提取 对应污染物减排目标值 的文本值
+  - name: 对本级财政科技投入占比目标
+    type: string
+    description: 提取 对本级财政科技投入占比目标 的文本值
+  - name: 对流程节点的强制性规定
+    type: string
+    description: 提取 对流程节点的强制性规定 的文本值
+  - name: 对目标设定的具体要求条款
+    type: number
+    description: 提取 对目标设定的具体要求条款 的数值（含单位，如万元、吨等）
+  - name: 对薄弱环节的定义
+    type: string
+    description: 提取 对薄弱环节的定义 的文本值
+  - name: 小规模学校最低核定人数标准
+    type: number
+    description: 提取 小规模学校最低核定人数标准 的数值（含单位，如万元、吨等）
+  - name: 就业救助政策规定的免费培训次数
+    type: number
+    description: 提取 就业救助政策规定的免费培训次数 的数值（含单位，如万元、吨等）
+  - name: 居住或社保缴纳年限要求
+    type: string
+    description: 提取 居住或社保缴纳年限要求 的文本值
+  - name: 岗位信息推送次数要求
+    type: string
+    description: 提取 岗位信息推送次数要求 的文本值
+  - name: 工业用水
+    type: string
+    description: 提取 工业用水 的文本值
+  - name: 工艺技术限制说明
+    type: string
+    description: 提取 工艺技术限制说明 的文本值
+  - name: 已取消项目名称
+    type: string
+    description: 提取 已取消项目名称 的文本值
+  - name: 带动脱贫户数目标
+    type: number
+    description: 提取 带动脱贫户数目标 的数值（含单位，如万元、吨等）
+  - name: 年度封顶线
+    type: date
+    description: 提取 年度封顶线 的日期值，格式 YYYY-MM-DD
+  - name: 年度覆盖率目标
+    type: date
+    description: 提取 年度覆盖率目标 的日期值，格式 YYYY-MM-DD
+  - name: 年龄资格要求条款
+    type: number
+    description: 提取 年龄资格要求条款 的数值（含单位，如万元、吨等）
+  - name: 应保条件
+    type: string
+    description: 提取 应保条件 的文本值
+  - name: 应免收费项目
+    type: number
+    description: 提取 应免收费项目 的数值（含单位，如万元、吨等）
+  - name: 应发放金额
+    type: number
+    description: 提取 应发放金额 的数值（含单位，如万元、吨等）
+  - name: 应编尽编范围定义
+    type: string
+    description: 提取 应编尽编范围定义 的文本值
+  - name: 建设区域
+    type: string
+    description: 提取 建设区域 的文本值
+  - name: 强制性条款清单
+    type: number
+    description: 提取 强制性条款清单 的数值（含单位，如万元、吨等）
+  - name: 当地住房公积金缴存基数上限
+    type: string
+    description: 提取 当地住房公积金缴存基数上限 的文本值
+  - name: 待遇核定周期
+    type: string
+    description: 提取 待遇核定周期 的文本值
+  - name: 待遇计算标准
+    type: string
+    description: 提取 待遇计算标准 的文本值
+  - name: 必备科室目录
+    type: string
+    description: 提取 必备科室目录 的文本值
+  - name: 必须提交材料清单
+    type: string
+    description: 提取 必须提交材料清单 的文本值
+  - name: 快递进村覆盖率目标
+    type: string
+    description: 提取 快递进村覆盖率目标 的文本值
+  - name: 执行期限
+    type: string
+    description: 提取 执行期限 的文本值
+  - name: 扶持对象条件
+    type: string
+    description: 提取 扶持对象条件 的文本值
+  - name: 批准变更的董事会决议
+    type: string
+    description: 提取 批准变更的董事会决议 的文本值
+  - name: 承担主体
+    type: string
+    description: 提取 承担主体 的文本值
+  - name: 承诺审批时限
+    type: string
+    description: 提取 承诺审批时限 的文本值
+  - name: 技术标准编号
+    type: string
+    description: 提取 技术标准编号 的文本值
+  - name: 折算方法
+    type: string
+    description: 提取 折算方法 的文本值
+  - name: 担保放大倍数上限
+    type: string
+    description: 提取 担保放大倍数上限 的文本值
+  - name: 担保物范围
+    type: string
+    description: 提取 担保物范围 的文本值
+  - name: 担保要求
+    type: string
+    description: 提取 担保要求 的文本值
+  - name: 担保费率
+    type: number
+    description: 提取 担保费率 的数值（含单位，如万元、吨等）
+  - name: 担保费率上限要求
+    type: number
+    description: 提取 担保费率上限要求 的数值（含单位，如万元、吨等）
+  - name: 拨付方式与期限要求
+    type: string
+    description: 提取 拨付方式与期限要求 的文本值
+  - name: 拨付时间要求
+    type: date
+    description: 提取 拨付时间要求 的日期值，格式 YYYY-MM-DD
+  - name: 指导标准
+    type: string
+    description: 提取 指导标准 的文本值
+  - name: 指标有效期
+    type: string
+    description: 提取 指标有效期 的文本值
+  - name: 排查主体
+    type: string
+    description: 提取 排查主体 的文本值
+  - name: 撤并程序要求
+    type: string
+    description: 提取 撤并程序要求 的文本值
+  - name: 支小支农业务规模占比政策要求
+    type: string
+    description: 提取 支小支农业务规模占比政策要求 的文本值
+  - name: 支持对象类型
+    type: string
+    description: 提取 支持对象类型 的文本值
+  - name: 支持领域目录
+    type: string
+    description: 提取 支持领域目录 的文本值
+  - name: 收入确认条件
+    type: number
+    description: 提取 收入确认条件 的数值（含单位，如万元、吨等）
+  - name: 收款账户公示信息及管理规定
+    type: number
+    description: 提取 收款账户公示信息及管理规定 的数值（含单位，如万元、吨等）
+  - name: 收费标准
+    type: number
+    description: 提取 收费标准 的数值（含单位，如万元、吨等）
+  - name: 收费标准上限
+    type: number
+    description: 提取 收费标准上限 的数值（含单位，如万元、吨等）
+  - name: 收费许可依据
+    type: number
+    description: 提取 收费许可依据 的数值（含单位，如万元、吨等）
+  - name: 改造费用承担规定
+    type: number
+    description: 提取 改造费用承担规定 的数值（含单位，如万元、吨等）
+  - name: 政策发布日期
+    type: date
+    description: 提取 政策发布日期 的日期值，格式 YYYY-MM-DD
+  - name: 政策名称
+    type: string
+    description: 提取 政策名称 的文本值
+  - name: 政策层级
+    type: string
+    description: 提取 政策层级 的文本值
+  - name: 政策性贷款额度
+    type: number
+    description: 提取 政策性贷款额度 的数值（含单位，如万元、吨等）
+  - name: 政策扶持方向
+    type: string
+    description: 提取 政策扶持方向 的文本值
+  - name: 政策文件中规定的该类项目指标最低合格标准
+    type: string
+    description: 提取 政策文件中规定的该类项目指标最低合格标准 的文本值
+  - name: 政策文件名称
+    type: string
+    description: 提取 政策文件名称 的文本值
+  - name: 政策有效期
+    type: string
+    description: 提取 政策有效期 的文本值
+  - name: 政策生效日期
+    type: date
+    description: 提取 政策生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 政策衔接要求
+    type: string
+    description: 提取 政策衔接要求 的文本值
+  - name: 政策要求年度回收率目标值
+    type: date
+    description: 提取 政策要求年度回收率目标值 的日期值，格式 YYYY-MM-DD
+  - name: 政策规定的标杆电价
+    type: string
+    description: 提取 政策规定的标杆电价 的文本值
+  - name: 政策规定的申请条件清单
+    type: string
+    description: 提取 政策规定的申请条件清单 的文本值
+  - name: 救助比例
+    type: number
+    description: 提取 救助比例 的数值（含单位，如万元、吨等）
+  - name: 救助比例要求
+    type: number
+    description: 提取 救助比例要求 的数值（含单位，如万元、吨等）
+  - name: 教育费附加和地方教育附加免征条件
+    type: number
+    description: 提取 教育费附加和地方教育附加免征条件 的数值（含单位，如万元、吨等）
+  - name: 文件依据
+    type: string
+    description: 提取 文件依据 的文本值
+  - name: 文件标题
+    type: string
+    description: 提取 文件标题 的文本值
+  - name: 文号
+    type: string
+    description: 提取 文号 的文本值
+  - name: 时间节点
+    type: date
+    description: 提取 时间节点 的日期值，格式 YYYY-MM-DD
+  - name: 明文要求的资金分配方法
+    type: string
+    description: 提取 明文要求的资金分配方法 的文本值
+  - name: 明确规定的享受资金地区资格条件
+    type: string
+    description: 提取 明确规定的享受资金地区资格条件 的文本值
+  - name: 是否允许收费
+    type: number
+    description: 提取 是否允许收费 的数值（含单位，如万元、吨等）
+  - name: 是否明确免费办理
+    type: number
+    description: 提取 是否明确免费办理 的数值（含单位，如万元、吨等）
+  - name: 是否要求制定部门内部评价细则
+    type: boolean
+    description: 提取 是否要求制定部门内部评价细则 的布尔值（是/否）
+  - name: 普惠型涉农贷款增速或信用贷款占比等监管目标
+    type: number
+    description: 提取 普惠型涉农贷款增速或信用贷款占比等监管目标 的数值（含单位，如万元、吨等）
+  - name: 智慧水务
+    type: string
+    description: 提取 智慧水务 的文本值
+  - name: 最低名额比例要求
+    type: number
+    description: 提取 最低名额比例要求 的数值（含单位，如万元、吨等）
+  - name: 最低注册资本要求
+    type: string
+    description: 提取 最低注册资本要求 的文本值
+  - name: 最低资本金比例要求
+    type: number
+    description: 提取 最低资本金比例要求 的数值（含单位，如万元、吨等）
+  - name: 最低连续缴存月数
+    type: string
+    description: 提取 最低连续缴存月数 的文本值
+  - name: 最低连续缴存月数要求
+    type: string
+    description: 提取 最低连续缴存月数要求 的文本值
+  - name: 最高缴存基数限制
+    type: string
+    description: 提取 最高缴存基数限制 的文本值
+  - name: 最高贷款成数
+    type: number
+    description: 提取 最高贷款成数 的数值（含单位，如万元、吨等）
+  - name: 月缴存基数上限
+    type: string
+    description: 提取 月缴存基数上限 的文本值
+  - name: 有序用电及指标分配基本原则
+    type: string
+    description: 提取 有序用电及指标分配基本原则 的文本值
+  - name: 服务单位性质要求
+    type: string
+    description: 提取 服务单位性质要求 的文本值
+  - name: 服务费类项目允许范围
+    type: number
+    description: 提取 服务费类项目允许范围 的数值（含单位，如万元、吨等）
+  - name: 村庄名称
+    type: string
+    description: 提取 村庄名称 的文本值
+  - name: 柴油机井改造最后期限
+    type: string
+    description: 提取 柴油机井改造最后期限 的文本值
+  - name: 标准
+    type: string
+    description: 提取 标准 的文本值
+  - name: 核定标准
+    type: string
+    description: 提取 核定标准 的文本值
+  - name: 核心要求条款
+    type: number
+    description: 提取 核心要求条款 的数值（含单位，如万元、吨等）
+  - name: 每人每年补贴上限
+    type: string
+    description: 提取 每人每年补贴上限 的文本值
+  - name: 每千服务人口最低乡村医生配备标准
+    type: string
+    description: 提取 每千服务人口最低乡村医生配备标准 的文本值
+  - name: 每千服务人口配备标准
+    type: string
+    description: 提取 每千服务人口配备标准 的文本值
+  - name: 每行政村最低配备标准
+    type: string
+    description: 提取 每行政村最低配备标准 的文本值
+  - name: 水质标准等关键指标要求
+    type: string
+    description: 提取 水质标准等关键指标要求 的文本值
+  - name: 污水处理费减免标准
+    type: number
+    description: 提取 污水处理费减免标准 的数值（含单位，如万元、吨等）
+  - name: 法定保证金比例上限
+    type: number
+    description: 提取 法定保证金比例上限 的数值（含单位，如万元、吨等）
+  - name: 法定保证金项目名称
+    type: string
+    description: 提取 法定保证金项目名称 的文本值
+  - name: 法定内涵与外延
+    type: string
+    description: 提取 法定内涵与外延 的文本值
+  - name: 法定征收对象
+    type: string
+    description: 提取 法定征收对象 的文本值
+  - name: 法定征收标准
+    type: string
+    description: 提取 法定征收标准 的文本值
+  - name: 法定收费标准上限
+    type: number
+    description: 提取 法定收费标准上限 的数值（含单位，如万元、吨等）
+  - name: 法定罚款权限和幅度
+    type: number
+    description: 提取 法定罚款权限和幅度 的数值（含单位，如万元、吨等）
+  - name: 法定退还时限
+    type: string
+    description: 提取 法定退还时限 的文本值
+  - name: 法定项目名称
+    type: string
+    description: 提取 法定项目名称 的文本值
+  - name: 测算依据
+    type: string
+    description: 提取 测算依据 的文本值
+  - name: 涉农贷款抵押率上限要求
+    type: number
+    description: 提取 涉农贷款抵押率上限要求 的数值（含单位，如万元、吨等）
+  - name: 涉农贷款抵押率规定上限
+    type: number
+    description: 提取 涉农贷款抵押率规定上限 的数值（含单位，如万元、吨等）
+  - name: 涉及事项
+    type: string
+    description: 提取 涉及事项 的文本值
+  - name: 淘汰完成时限
+    type: string
+    description: 提取 淘汰完成时限 的文本值
+  - name: 淘汰标准
+    type: string
+    description: 提取 淘汰标准 的文本值
+  - name: 淘汰类条目明细
+    type: string
+    description: 提取 淘汰类条目明细 的文本值
+  - name: 淘汰范围
+    type: string
+    description: 提取 淘汰范围 的文本值
+  - name: 清产核资截止日期要求
+    type: date
+    description: 提取 清产核资截止日期要求 的日期值，格式 YYYY-MM-DD
+  - name: 激励标准
+    type: string
+    description: 提取 激励标准 的文本值
+  - name: 激励类型
+    type: string
+    description: 提取 激励类型 的文本值
+  - name: 特困人员认定标准
+    type: string
+    description: 提取 特困人员认定标准 的文本值
+  - name: 特定业务的费率上限
+    type: number
+    description: 提取 特定业务的费率上限 的数值（含单位，如万元、吨等）
+  - name: 理赔时限要求
+    type: string
+    description: 提取 理赔时限要求 的文本值
+  - name: 理赔流程标准
+    type: string
+    description: 提取 理赔流程标准 的文本值
+  - name: 生均公用经费基准定额
+    type: number
+    description: 提取 生均公用经费基准定额 的数值（含单位，如万元、吨等）
+  - name: 生均公用经费基准定额标准
+    type: number
+    description: 提取 生均公用经费基准定额标准 的数值（含单位，如万元、吨等）
+  - name: 生效日期
+    type: date
+    description: 提取 生效日期 的日期值，格式 YYYY-MM-DD
+  - name: 生活用水征收标准
+    type: string
+    description: 提取 生活用水征收标准 的文本值
+  - name: 申报截止时限
+    type: string
+    description: 提取 申报截止时限 的文本值
+  - name: 申报条件
+    type: string
+    description: 提取 申报条件 的文本值
+  - name: 申报流程
+    type: string
+    description: 提取 申报流程 的文本值
+  - name: 申报程序要求
+    type: string
+    description: 提取 申报程序要求 的文本值
+  - name: 申请与受理时限要求
+    type: string
+    description: 提取 申请与受理时限要求 的文本值
+  - name: 申请条件
+    type: string
+    description: 提取 申请条件 的文本值
+  - name: 申领条件
+    type: string
+    description: 提取 申领条件 的文本值
+  - name: 电价水平
+    type: string
+    description: 提取 电价水平 的文本值
+  - name: 电网企业主动服务要求
+    type: string
+    description: 提取 电网企业主动服务要求 的文本值
+  - name: 监测范围界定
+    type: string
+    description: 提取 监测范围界定 的文本值
+  - name: 目录更新周期规定
+    type: string
+    description: 提取 目录更新周期规定 的文本值
+  - name: 目标任务量
+    type: string
+    description: 提取 目标任务量 的文本值
+  - name: 目标回收率
+    type: string
+    description: 提取 目标回收率 的文本值
+  - name: 社保中断要求
+    type: string
+    description: 提取 社保中断要求 的文本值
+  - name: 禁止性条款
+    type: number
+    description: 提取 禁止性条款 的数值（含单位，如万元、吨等）
+  - name: 禁止性规定
+    type: string
+    description: 提取 禁止性规定 的文本值
+  - name: 禁止或限制性条款原文
+    type: number
+    description: 提取 禁止或限制性条款原文 的数值（含单位，如万元、吨等）
+  - name: 禁止收取个人手续费条款
+    type: number
+    description: 提取 禁止收取个人手续费条款 的数值（含单位，如万元、吨等）
+  - name: 禁止收取的收费项目清单
+    type: number
+    description: 提取 禁止收取的收费项目清单 的数值（含单位，如万元、吨等）
+  - name: 禁止收取贷款保证金条款
+    type: number
+    description: 提取 禁止收取贷款保证金条款 的数值（含单位，如万元、吨等）
+  - name: 禁止收费项目清单
+    type: number
+    description: 提取 禁止收费项目清单 的数值（含单位，如万元、吨等）
+  - name: 禁止收费项目清单中关于电子介质的规定
+    type: number
+    description: 提取 禁止收费项目清单中关于电子介质的规定 的数值（含单位，如万元、吨等）
+  - name: 禁止用途领域
+    type: string
+    description: 提取 禁止用途领域 的文本值
+  - name: 禁止超额收取规定
+    type: string
+    description: 提取 禁止超额收取规定 的文本值
+  - name: 禁止重复收费的规定
+    type: number
+    description: 提取 禁止重复收费的规定 的数值（含单位，如万元、吨等）
+  - name: 离任审计范围要求
+    type: string
+    description: 提取 离任审计范围要求 的文本值
+  - name: 离职提取-封存时限规定
+    type: string
+    description: 提取 离职提取-封存时限规定 的文本值
+  - name: 科目使用说明
+    type: string
+    description: 提取 科目使用说明 的文本值
+  - name: 租金调整规则与标准
+    type: string
+    description: 提取 租金调整规则与标准 的文本值
+  - name: 符合条件人数
+    type: number
+    description: 提取 符合条件人数 的数值（含单位，如万元、吨等）
+  - name: 简化手续规定
+    type: string
+    description: 提取 简化手续规定 的文本值
+  - name: 管理要求
+    type: string
+    description: 提取 管理要求 的文本值
+  - name: 约束性指标数值
+    type: string
+    description: 提取 约束性指标数值 的文本值
+  - name: 经费拨付比例
+    type: number
+    description: 提取 经费拨付比例 的数值（含单位，如万元、吨等）
+  - name: 统计内容的规定
+    type: string
+    description: 提取 统计内容的规定 的文本值
+  - name: 绩效评价范围
+    type: string
+    description: 提取 绩效评价范围 的文本值
+  - name: 绿化率标准
+    type: string
+    description: 提取 绿化率标准 的文本值
+  - name: 置换程序
+    type: string
+    description: 提取 置换程序 的文本值
+  - name: 考古勘探发掘项目名称
+    type: string
+    description: 提取 考古勘探发掘项目名称 的文本值
+  - name: 考核标准
+    type: string
+    description: 提取 考核标准 的文本值
+  - name: 考核目标值
+    type: string
+    description: 提取 考核目标值 的文本值
+  - name: 考核要求
+    type: string
+    description: 提取 考核要求 的文本值
+  - name: 联结机制要求
+    type: string
+    description: 提取 联结机制要求 的文本值
+  - name: 能耗标准
+    type: string
+    description: 提取 能耗标准 的文本值
+  - name: 脱钩完成时限
+    type: string
+    description: 提取 脱钩完成时限 的文本值
+  - name: 脱钩标准
+    type: string
+    description: 提取 脱钩标准 的文本值
+  - name: 行业限制
+    type: string
+    description: 提取 行业限制 的文本值
+  - name: 补偿标准下限
+    type: string
+    description: 提取 补偿标准下限 的文本值
+  - name: 补偿标准分类体系
+    type: string
+    description: 提取 补偿标准分类体系 的文本值
+  - name: 补偿标准金额
+    type: number
+    description: 提取 补偿标准金额 的数值（含单位，如万元、吨等）
+  - name: 补助资金使用限制规定
+    type: string
+    description: 提取 补助资金使用限制规定 的文本值
+  - name: 补贴产品种类范围
+    type: string
+    description: 提取 补贴产品种类范围 的文本值
+  - name: 补贴发放时间要求
+    type: date
+    description: 提取 补贴发放时间要求 的日期值，格式 YYYY-MM-DD
+  - name: 补贴对象条件
+    type: string
+    description: 提取 补贴对象条件 的文本值
+  - name: 补贴对象资格条件
+    type: string
+    description: 提取 补贴对象资格条件 的文本值
+  - name: 补贴方式
+    type: string
+    description: 提取 补贴方式 的文本值
+  - name: 补贴机具分档及补贴额一览表
+    type: string
+    description: 提取 补贴机具分档及补贴额一览表 的文本值
+  - name: 补贴标准
+    type: string
+    description: 提取 补贴标准 的文本值
+  - name: 补贴残疾等级要求及标准
+    type: string
+    description: 提取 补贴残疾等级要求及标准 的文本值
+  - name: 补贴目录
+    type: string
+    description: 提取 补贴目录 的文本值
+  - name: 补贴类型
+    type: string
+    description: 提取 补贴类型 的文本值
+  - name: 补贴项目名称
+    type: string
+    description: 提取 补贴项目名称 的文本值
+  - name: 要求制定专项规划或方案的条款
+    type: number
+    description: 提取 要求制定专项规划或方案的条款 的数值（含单位，如万元、吨等）
+  - name: 要求推行EMC的项目类型与范围
+    type: string
+    description: 提取 要求推行EMC的项目类型与范围 的文本值
+  - name: 要求的必备内容清单
+    type: string
+    description: 提取 要求的必备内容清单 的文本值
+  - name: 要求覆盖的重点产业清单
+    type: string
+    description: 提取 要求覆盖的重点产业清单 的文本值
+  - name: 覆盖率目标值
+    type: string
+    description: 提取 覆盖率目标值 的文本值
+  - name: 覆盖范围要求
+    type: string
+    description: 提取 覆盖范围要求 的文本值
+  - name: 规划建设内容
+    type: string
+    description: 提取 规划建设内容 的文本值
+  - name: 规划建设机构数量
+    type: number
+    description: 提取 规划建设机构数量 的数值（含单位，如万元、吨等）
+  - name: 规划空间落位
+    type: string
+    description: 提取 规划空间落位 的文本值
+  - name: 规划编制要求截止时间
+    type: date
+    description: 提取 规划编制要求截止时间 的日期值，格式 YYYY-MM-DD
+  - name: 规划编制要求条款
+    type: number
+    description: 提取 规划编制要求条款 的数值（含单位，如万元、吨等）
+  - name: 规划项目清单
+    type: string
+    description: 提取 规划项目清单 的文本值
+  - name: 规定人员配比标准如失能老人
+    type: string
+    description: 提取 规定人员配比标准如失能老人 的文本值
+  - name: 规定划定完成时限
+    type: string
+    description: 提取 规定划定完成时限 的文本值
+  - name: 规定图书种类覆盖率或品种目录
+    type: string
+    description: 提取 规定图书种类覆盖率或品种目录 的文本值
+  - name: 规定审批时限
+    type: string
+    description: 提取 规定审批时限 的文本值
+  - name: 规定最低藏书数量
+    type: number
+    description: 提取 规定最低藏书数量 的数值（含单位，如万元、吨等）
+  - name: 规定标准
+    type: string
+    description: 提取 规定标准 的文本值
+  - name: 规定每周最低开放天数或最低开放时长
+    type: number
+    description: 提取 规定每周最低开放天数或最低开放时长 的数值（含单位，如万元、吨等）
+  - name: 规定汇率来源
+    type: string
+    description: 提取 规定汇率来源 的文本值
+  - name: 规定申报主体资质条件
+    type: string
+    description: 提取 规定申报主体资质条件 的文本值
+  - name: 规定的最长拨付时限
+    type: string
+    description: 提取 规定的最长拨付时限 的文本值
+  - name: 规定的计提比例
+    type: number
+    description: 提取 规定的计提比例 的数值（含单位，如万元、吨等）
+  - name: 规定的风险分担比例要求
+    type: number
+    description: 提取 规定的风险分担比例要求 的数值（含单位，如万元、吨等）
+  - name: 规定计提基数
+    type: string
+    description: 提取 规定计提基数 的文本值
+  - name: 规定计提比例
+    type: number
+    description: 提取 规定计提比例 的数值（含单位，如万元、吨等）
+  - name: 计收标准
+    type: string
+    description: 提取 计收标准 的文本值
+  - name: 计算口径
+    type: string
+    description: 提取 计算口径 的文本值
+  - name: 认定文件要求
+    type: string
+    description: 提取 认定文件要求 的文本值
+  - name: 设施农业用地范围
+    type: string
+    description: 提取 设施农业用地范围 的文本值
+  - name: 设施用地允许用途范围
+    type: string
+    description: 提取 设施用地允许用途范围 的文本值
+  - name: 设立依据
+    type: string
+    description: 提取 设立依据 的文本值
+  - name: 评审费用项目名称
+    type: number
+    description: 提取 评审费用项目名称 的数值（含单位，如万元、吨等）
+  - name: 识别标准
+    type: string
+    description: 提取 识别标准 的文本值
+  - name: 课时要求
+    type: string
+    description: 提取 课时要求 的文本值
+  - name: 负面清单具体项目
+    type: string
+    description: 提取 负面清单具体项目 的文本值
+  - name: 财政承担运维范围的条款
+    type: number
+    description: 提取 财政承担运维范围的条款 的数值（含单位，如万元、吨等）
+  - name: 贴息利率
+    type: string
+    description: 提取 贴息利率 的文本值
+  - name: 贴息期限
+    type: string
+    description: 提取 贴息期限 的文本值
+  - name: 贴息条件
+    type: string
+    description: 提取 贴息条件 的文本值
+  - name: 贴息标准
+    type: string
+    description: 提取 贴息标准 的文本值
+  - name: 贴息比例
+    type: number
+    description: 提取 贴息比例 的数值（含单位，如万元、吨等）
+  - name: 贴息资金申请与拨付流程
+    type: string
+    description: 提取 贴息资金申请与拨付流程 的文本值
+  - name: 贷款期限要求
+    type: number
+    description: 提取 贷款期限要求 的数值（含单位，如万元、吨等）
+  - name: 贷款用途范围
+    type: number
+    description: 提取 贷款用途范围 的数值（含单位，如万元、吨等）
+  - name: 贷款用途规定
+    type: number
+    description: 提取 贷款用途规定 的数值（含单位，如万元、吨等）
+  - name: 贷款额度
+    type: number
+    description: 提取 贷款额度 的数值（含单位，如万元、吨等）
+  - name: 贷款额度上限
+    type: number
+    description: 提取 贷款额度上限 的数值（含单位，如万元、吨等）
+  - name: 费用承担主体
+    type: number
+    description: 提取 费用承担主体 的数值（含单位，如万元、吨等）
+  - name: 费用项目名称
+    type: number
+    description: 提取 费用项目名称 的数值（含单位，如万元、吨等）
+  - name: 资产分类标准
+    type: string
+    description: 提取 资产分类标准 的文本值
+  - name: 资质要求
+    type: string
+    description: 提取 资质要求 的文本值
+  - name: 资质门槛
+    type: string
+    description: 提取 资质门槛 的文本值
+  - name: 资金分配原则
+    type: string
+    description: 提取 资金分配原则 的文本值
+  - name: 资金规模要求
+    type: string
+    description: 提取 资金规模要求 的文本值
+  - name: 返还条件
+    type: string
+    description: 提取 返还条件 的文本值
+  - name: 退休提取-封存时限要求
+    type: string
+    description: 提取 退休提取-封存时限要求 的文本值
+  - name: 适用主体
+    type: string
+    description: 提取 适用主体 的文本值
+  - name: 适用会计准则条目
+    type: string
+    description: 提取 适用会计准则条目 的文本值
+  - name: 适用对象
+    type: string
+    description: 提取 适用对象 的文本值
+  - name: 适用时间
+    type: date
+    description: 提取 适用时间 的日期值，格式 YYYY-MM-DD
+  - name: 适用条件
+    type: string
+    description: 提取 适用条件 的文本值
+  - name: 适用环节
+    type: string
+    description: 提取 适用环节 的文本值
+  - name: 适用税种
+    type: string
+    description: 提取 适用税种 的文本值
+  - name: 适用项目类型
+    type: string
+    description: 提取 适用项目类型 的文本值
+  - name: 通电资格认定条件
+    type: string
+    description: 提取 通电资格认定条件 的文本值
+  - name: 配送频次要求
+    type: string
+    description: 提取 配送频次要求 的文本值
+  - name: 采购期限
+    type: string
+    description: 提取 采购期限 的文本值
+  - name: 采购量约定
+    type: string
+    description: 提取 采购量约定 的文本值
+  - name: 重点帮扶县资金增幅要求
+    type: string
+    description: 提取 重点帮扶县资金增幅要求 的文本值
+  - name: 重点支持产业目录
+    type: string
+    description: 提取 重点支持产业目录 的文本值
+  - name: 重点支持对象及目标占比
+    type: string
+    description: 提取 重点支持对象及目标占比 的文本值
+  - name: 重点支持行业清单
+    type: string
+    description: 提取 重点支持行业清单 的文本值
+  - name: 重点类型村庄标准
+    type: string
+    description: 提取 重点类型村庄标准 的文本值
+  - name: 银行风险分担最低比例要求
+    type: number
+    description: 提取 银行风险分担最低比例要求 的数值（含单位，如万元、吨等）
+  - name: 长期股权投资核算方法规定
+    type: string
+    description: 提取 长期股权投资核算方法规定 的文本值
+  - name: 阶段目标完成时限
+    type: string
+    description: 提取 阶段目标完成时限 的文本值
+  - name: 附属设施用地规模控制比例上限
+    type: number
+    description: 提取 附属设施用地规模控制比例上限 的数值（含单位，如万元、吨等）
+  - name: 限制类条目
+    type: string
+    description: 提取 限制类条目 的文本值
+  - name: 险种范围
+    type: string
+    description: 提取 险种范围 的文本值
+  - name: 集中连片标准定义
+    type: string
+    description: 提取 集中连片标准定义 的文本值
+  - name: 需评估项目类型
+    type: string
+    description: 提取 需评估项目类型 的文本值
+  - name: 项目所属行业
+    type: string
+    description: 提取 项目所属行业 的文本值
+  - name: 颁证率目标
+    type: string
+    description: 提取 颁证率目标 的文本值
+  - name: 预算安排要求
+    type: number
+    description: 提取 预算安排要求 的数值（含单位，如万元、吨等）
+  - name: 风险认定标准
+    type: string
+    description: 提取 风险认定标准 的文本值
+  - name: 首次创业要求
+    type: string
+    description: 提取 首次创业要求 的文本值
+  - name: 高质量发展规划编制要求
+    type: string
+    description: 提取 高质量发展规划编制要求 的文本值
+  - name: 鼓励类
+    type: string
+    description: 提取 鼓励类 的文本值
+  - name: 鼓励类-限制类-淘汰类产业目录
+    type: string
+    description: 提取 鼓励类-限制类-淘汰类产业目录 的文本值
+violations:
+- expression: EXISTS (SELECT 1 FROM 地方招商引资优惠政策文件 WHERE 地方招商引资优惠政策文件.鼓励类 IN (SELECT 国家负面清单文件.禁止类) OR 地方招商引资优惠政策文件.优惠类产业清单 IN
+    (SELECT 国家负面清单文件.禁止类))
+  description: 若地方招商引资政策明确鼓励或提供优惠的产业中，包含国家负面清单中的禁止类产业，则触发违规。比对基于产业名称精确匹配，模糊匹配或近似名称需人工确认。
+  audit_item: 上位与下位政策法规检查
+  suspicion: 下位政策突破上位负面清单引入禁止类产业
+  regulation: "[\n  {\n    \"法规名称\": \"产业结构调整指导目录（2019年本）\",\n    \"法规文号\": \"国家发展和改革委员会令第29号\",\n    \"效力级别\": \"部门规章\",\n\
+    \    \"条款号\": \"第三类 淘汰类、第二类 限制类\",\n    \"内容概述\": \"对属于淘汰类、限制类的产业，禁止或限制投资、生产、销售和使用，各地不得以任何名义变相引入。\"\n  }\n]"
+- expression: 下位政策文件.发文机关 NOT IN (SELECT 权限规定文件.有权制定该事项的机关层级 FROM 权限规定文件)
+  description: 若下位政策的制定主体（如乡镇政府）不具备该项事务的法定职权（如土地征收审批），即判定为越权。权限清单依据《土地管理法》等法律明确的各级机关权限。
+  audit_item: 上位与下位政策法规检查
+  suspicion: 政策制定主体不具备法定职权越权发文
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国地方各级人民代表大会和地方各级人民政府组织法\",\n    \"法规文号\": \"主席令第58号\",\n    \"效力级别\": \"法律\"\
+    ,\n    \"条款号\": \"第七十六条\",\n    \"内容概述\": \"乡镇人民政府的职权范围，未包括土地征收、国有资产处置等应由县级以上人民政府行使的职权。\"\n  },\n  {\n    \"法规名称\": \"\
+    中华人民共和国土地管理法\",\n    \"法规文号\": \"主席令第32号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第四十六条\",\n    \"内容概述\": \"征收下列土地的，由国务院批准；征收前款"
+- expression: 地方政策文件.对应污染物减排目标值 < 上级政策文件.主要污染物减排率 OR 地方政策文件.对应污染物减排目标值 > 上级政策文件.约束性指标数值
+  description: 若地方文件中设定的污染物减排比例低于上级分解的约束性指标，或允许的排放总量超过上级下达的限额，则判定为未有效承接。例如上级要求COD减排5%，地方仅设定3%。
+  audit_item: 上位与下位政策法规检查
+  suspicion: 量化指标未承接上级约束性减排目标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国环境保护法\",\n    \"法规文号\": \"主席令第9号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第六条\",\n    \"内容概述\": \"地方各级人民政府应当对本行政区域的环境质量负责，采取有效措施改善环境质量，落实减排目标。\"\n  },\n  {\n    \"法规名称\": \"国务院办公厅关于印发“十四五”节能减排综合工作方案的通知\"\
+    ,\n    \"法规文号\": \"国发〔2021〕33号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"全文\",\n    \"内容概述\": \"明确了各地区主要污染物重点工程减排量、"
+- expression: 内部管理制度.禁止或限制性规定描述 != null && 上位法规政策文件.负面清单具体项目.contains(内部管理制度.禁止或限制性规定描述)
+  description: 检查内部管理制度中的禁止性或限制性条款是否与上位法的'负面清单'或禁止性规定存在包含或完全相反的情况。若内部制度中允许或未禁止上位法明令禁止的事项，判定为违规。表达式中的'!= null'确保存在禁止性条款，'上位法规政策文件['负面清单'].contains()'用于比对是否触及上级红线。
+  audit_item: 内控管理制度符合性审计
+  suspicion: 内部制度突破上位法禁止性规定
+  regulation: "[\n  {\n    \"法规名称\": \"规章制定程序条例\",\n    \"法规文号\": \"国务院令第322号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第八条\",\n    \"内容概述\": \"制定规章不得与法律、行政法规的规定相抵触。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国立法法\",\n    \"法规文号\": \"主席令第三十一号\"\
+    ,\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第九十六条、第九十七条\",\n    \"内容概述\": \"下位法违反上位法规定的，由有关机关依法予以改变或者撤销。法律、行政法规、地方性法规、自治条例和单行条例、规章不"
+- expression: (内部管理制度.具体支持性条款 激发 上位法规政策文件.允许或鼓励发展的方向的相反方向) || (内部管理制度.具体条款内容 != 上位法规政策文件.技术标准编号) || (内部管理制度.差异化落地措施描述 违背 上位法规政策文件.法定内涵与外延)
+  description: 审查内部制度对上位政策的支持性拓展或差异化适配是否‘跑偏’。表达式逻辑：1.内部制度的条款虽然对上位政策进行了细化，但方向与上位政策初衷相悖（如养老服务体系本应细化社区设施标准，却将资源全部导向高端养老地产）；2.内部制度引用的技术标准低于或与上位政策指定的强制性标准不一致，如食品安全监管未采用国家强制标准；3.地方的差异化适配措施不合理，损害了公平性或造成新的风险。
+  audit_item: 内控管理制度符合性审计
+  suspicion: 内部制度违反应当性规定
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国标准化法\",\n    \"法规文号\": \"主席令第七十八号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二十五条\",\n    \"内容概述\": \"不符合强制性标准的产品、服务，不得生产、销售、进口或者提供。\"\n  },\n  {\n    \"法规名称\": \"中华人民共和国反垄断法\",\n    \"法规文号\": \"\
+    主席令第一一六号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第四十一条至第四十五条\",\n    \"内容概述\": \"行政机关和法律、法规授权的具有管理公共事务职能的组织不得滥用行政权力，制定含有排除、限"
+- expression: 内部管理制度.使用的特定法律、行业、经济术语 ∩ 上位法规政策文件.负面清单具体项目 != ∅ && 内部管理制度.具体条款内容 != 上位法规政策文件.法定内涵与外延
+  description: 表达式逻辑：当内部管理制度与上位法使用了相同的术语，但其所指的概念、主体、范围或程序与法定解释不一致时，判定为疑点。例如，将上位法中的‘行政处罚’误写为‘行政处分’，或者将‘财政专项资金’的概念曲解为可用于单位日常公用经费。需要建立常见的易混淆术语库进行比对。
+  audit_item: 内控管理制度符合性审计
+  suspicion: 内部制度核心术语与上位法冲突
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国行政处罚法\",\n    \"法规文号\": \"主席令第七十号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第二章、第三章\",\n    \"内容概述\": \"对行政处罚的种类和设定、实施机关、管辖和适用做了明确规定，任何内部制度不得擅自扩大或缩小‘行政处罚’的概念与权限，更不可将其与‘行政处分’混淆。\"\n  },\n  {\n  \
+    \  \"法规名称\": \"关于加强行政规范性文件制定和监督管理工作的通知\",\n    \"法规文号\": \"国办发〔2018〕37号\",\n    \"效力级别\": \"制度文件\",\n    \"条款号\": \"第二部分\"\
+    ,\n "
+- expression: (业务主管单位.业务主管单位 IS NOT NULL AND 业务主管单位.业务主管单位 包含 行政机关名称) OR (关系类型、脱钩状态.关系类型 IN ('主办', '主管', '联系', '挂靠') AND 关系类型、脱钩状态.脱钩状态
+    != '已完成')
+  description: 章程或登记证书中仍列示行政机关为业务主管单位，或关联关系对照表中标明存在主办、主管、联系、挂靠关系且脱钩状态未完成，即触发疑点。
+  audit_item: 未按规定与行业协会商会脱钩
+  suspicion: 未取消主办主管挂靠关系
+  regulation: "[\n  {\n    \"法规名称\": \"行业协会商会与行政机关脱钩总体方案\",\n    \"法规文号\": \"中办发〔2015〕39号\",\n    \"效力级别\": \"党内法规/规范性文件\"\
+    ,\n    \"条款号\": \"第二条主要任务（一）机构分离\",\n    \"内容概述\": \"取消行政机关（包括下属单位）与行业协会商会的主办、主管、联系和挂靠关系，行业协会商会依法直接登记和独立运行。\"\n  }\n]"
+- expression: (计提表.计提基数 != 余额表.事业收入 + 余额表.经营收入) || (计提表.计提比例 != 政策文件.规定计提比例) || (ABS(计提表.计提金额 - 计提表.计提基数 * 政策文件.规定计提比例) >
+    0)
+  description: 专用基金计提基数与科目余额表中对应收入合计数不一致，或实际采用的计提比例与政策规定不符，或计算出的计提金额不等于基数乘比例，任一条成立即触发疑点。
+  audit_item: 未按规定进行年终清理结算和结账，导致决算报表数据与实际情况不符
+  suspicion: 专用基金计提基数或比例错误
+  regulation: "[\n  {\n    \"法规名称\": \"《事业单位财务规则》\",\n    \"法规文号\": \"财政部令第108号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\":\
+    \ \"第二十六条\",\n    \"内容概述\": \"事业单位应当按规定提取修购基金、职工福利基金和其他专用基金，不得随意改变计提基数、比例和支出用途。\"\n  }\n]"
+- expression: (变动表.折算汇率 != 政策文件.规定汇率来源) || (ABS(变动表.原币金额 * 政策文件.规定汇率来源 - 变动表.折算后人民币金额) > 0) || (汇兑损益未计入财务费用)
+  description: 若使用汇率非期末央行中间价，或折算金额计算错误，或汇兑损益未在恰当科目反映，均属折算处理错误。
+  audit_item: 未按规定进行年终清理结算和结账，导致决算报表数据与实际情况不符
+  suspicion: 年终外币折算汇率或方法错误
+  regulation: "[\n  {\n    \"法规名称\": \"《企业会计准则第19号——外币折算》\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n   \
+    \ \"条款号\": \"第十一条\",\n    \"内容概述\": \"企业在资产负债表日，应当对外币货币性项目采用期末即期汇率折算，因汇率变动产生的差额计入当期损益。\"\n  }\n]"
+- expression: 记账凭证.摘要内容 != 记账凭证.会计科目
+  description: 当摘要描述的经济业务与入账科目按企业会计政策明显不符，如广告费计入办公费，且无合理解释，即判定为分类错误，疑点成立。
+  audit_item: 账实不符、账证不符、账账不符、账表不符
+  suspicion: 会计凭证摘要与账簿科目归类不符
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号（2017修正）\",\n    \"效力级别\": \"法律\",\n \
+    \   \"条款号\": \"第十七条\",\n    \"内容概述\": \"各单位应当定期将会计账簿记录与会计凭证进行核对，保证会计账簿记录与会计凭证的有关内容相符。\"\n  }\n]"
+- expression: (明细表.项目名称 NOT IN (政策文件.法定项目名称)) && (审批文件.批准文号 IS NULL || 审批文件.批准机关 NOT IN ('国务院', '财政部', '省级财政部门')) && (流水.入账金额
+    > 0)
+  description: 该表达式判定被审计单位实际征收并产生收入的收费项目既不在国家或省级公布的法定收费目录内，又无法提供有权机关（国务院、财政部或省级财政部门）的合法审批文件。一旦满足所有条件，即构成无依据擅自设立收费项目的违规行为。
+  audit_item: 违反规定设立非税收入
+  suspicion: 擅自设立非税收入项目
+  regulation: "[\n  {\n    \"法规名称\": \"政府非税收入管理办法\",\n    \"法规文号\": \"财税〔2016〕33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第九条\",\n    \"内容概述\": \"设立非税收入项目，必须有法律、法规或者国务院、省、自治区、直辖市人民政府及其财政部门的规定作为依据。\"\n  }\n]"
+- expression: (征收台账.收费项目名称 IN (法定征收对象、法定收费标准上限、法定项目名称、法定征收标准、已取消项目名称、取消执行日期.已取消项目名称)) && (征收台账.实际征收日期 > 法定征收对象、法定收费标准上限、法定项目名称、法定征收标准、已取消项目名称、取消执行日期.取消执行日期)
+    && (征收台账.征收金额 > 0)
+  description: 该表达式用于识别在政策规定的取消执行日期之后，被审计单位仍存在征收已取消项目的行为。通过将征收台账中的项目名称与已取消项目清单匹配，并比对征收日期和金额，只要在取消日期后产生任何大于零的收费记录，即判定为违规。
+  audit_item: 违反规定设立非税收入
+  suspicion: 继续征收已明令取消的非税收入项目
+  regulation: "[\n  {\n    \"法规名称\": \"政府非税收入管理办法\",\n    \"法规文号\": \"财税〔2016〕33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第七条\",\n    \"内容概述\": \"非税收入项目应当依法设立。已明确取消、停征、减征、免征或者缓征的非税收入项目，执收单位应当严格按照规定执行。\"\n  }\n]"
+- expression: (征收台账.实际缴款人名称 NOT IN (明细表.规定征收对象)) || (征收台账.实际征收单价/金额 > 明细表.规定收费标准) || (征收台账.实际征收单价/金额 > 政策文件.法定收费标准上限)
+  description: 该表达式用于发现征收环节的两种违规越权行为：一是实际缴款人不属于政策批准的征收对象范围；二是征收标准超过了法定上限或本单位制定的内部标准。只要满足任一条件，即构成违规。其中，收费标准混淆了法定上限与内部标准，但凡超过任一标准即触发告警。
+  audit_item: 违反规定设立非税收入
+  suspicion: 扩大非税收入征收对象与提高收费标准
+  regulation: "[\n  {\n    \"法规名称\": \"政府非税收入管理办法\",\n    \"法规文号\": \"财税〔2016〕33号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十条\",\n    \"内容概述\": \"执收单位应当严格按照规定的非税收入项目、征收对象、征收标准、征收期限以及减免缓政策进行征收，不得擅自扩大征收范围、提高征收标准。\"\n  }\n]"
+- expression: (绩效目标申报表.总目标 = '无' OR 绩效目标申报表.总目标 LIKE '%定性描述%') && (预算编制说明及依据材料.设定依据说明 IS NULL OR 项目可行性研究报告或立项论证材料.文件编号 IS
+    NULL) && (制度文件.论证审核流程 = '缺失')
+  description: 该表达式用于筛查绩效目标设定依据不充分的疑点。当‘绩效目标申报表’中的总目标为空或仅包含无法量化的模糊定性描述（如‘提升’、‘改善’），且‘预算编制说明及依据材料’中未提供任何政策文件、数据等依据，或部门未提供对应的‘项目可行性研究报告’等立项论证材料，同时经核实其内部‘制度文件’缺少对目标设定的论证审核流程要求时，判定为高度可疑，属于目标设定依据不充分违规。
+  audit_item: 部门、单位预算绩效目标设定不科学不合理
+  suspicion: 绩效目标设定依据不充分
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第十二号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第三十二条\",\n    \"内容概述\": \"各部门、各单位应当按照国务院财政部门制定的政府收支分类科目、预算支出标准和要求，以及绩效目标管理等预算编制规定，根据其依法履行职能和事业发展的需要以及存量资产情况，编制本部门、本单位预算草案。\"\
+    \n  },\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"行"
+- expression: (申报评价标准.优 >= 历史实际完成最差值) || (申报评价标准.合格 < 政策文件.最低要求标准)
+  description: 此表达式排查评价标准‘低定高评’的问题。第一种情况，评价标准过于宽松：如果申报的优秀线（如完成任务80%即优秀），甚至低于本单位过去三年最差年份的实际完成值，说明该标准形同虚设，起不到任何激励约束作用。第二种情况，评价标准过低：如果部门自行设定的合格线（如满意度60%即合格），显著低于上级政策文件或行业通用的最低服务标准（如80%），属于刻意降低及格门槛，以掩盖实际绩效的低下。两者均构成评价标准不
+  audit_item: 部门、单位预算绩效目标设定不科学不合理
+  suspicion: 绩效评价标准设定过低或过高不合理
+  regulation: "[\n  {\n    \"法规名称\": \"项目支出绩效评价管理办法\",\n    \"法规文号\": \"财预〔2020〕10号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十六条\",\n    \"内容概述\": \"绩效评价标准是指衡量财政支出绩效目标完成情况的尺度，应当符合客观公正、科学合理的原则。绩效评价标准的设定应当与项目的实际情况、历史数据、行业标准等相匹配。\"\n  },\n \
+    \ {\n    \"法规名称\": \"中央部门预算绩效目标管理办法\",\n    \"法规文号\": \"财预〔2015〕88号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\"\
+    ,\n   "
+- expression: 部门/单位发布的预算绩效管理制度文件.文件存在性 = '不存在' || 部门/单位发布的预算绩效管理制度文件.发布日期 IS NULL
+  description: 若该部门未以正式发文形式发布任何预算绩效管理制度文件，或声称有制度但无法提供正式发文日期和文号，即判定为未建立制度，违规成立。
+  audit_item: 部门、单位预算绩效管理制度不健全
+  suspicion: 未按规定建立预算绩效管理制度
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第二部分（二）\",\n    \"内容概述\": \"各部门各单位要结合本部门本单位职责、行业发展规划，完善预算绩效管理制度，健全绩效指标和标准体系，将绩效管理融入预算编制、执行、监督全过程。\"\n\
+    \  }\n]"
+- expression: (NOT(绩效管理流程说明.内容 LIKE '%运行监控%' AND 绩效管理流程说明.内容 LIKE '%绩效评价%' AND 绩效管理流程说明.内容 LIKE '%结果应用%')) OR (绩效运行监控分析表.记录数
+    = 0 AND 绩效评价报告.评价结论 IS NULL)
+  description: 制度文件未完整涵盖目标设定、监控、评价、结果应用全部必要环节，或实际执行中未生成关键节点文档记录（如无任何监控记录、评价报告），视为流程不完善。前者检查制度文本完整性，后者检查实际执行痕迹，满足任一条件即触发违规。
+  audit_item: 部门、单位预算绩效管理制度不健全
+  suspicion: 预算绩效管理流程不完善
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第二部分（三）\",\n    \"内容概述\": \"健全绩效运行监控机制，对绩效目标实现程度和预算执行进度实行双监控；健全绩效评价机制和结果应用机制，将评价结果作为预算安排和政策调整的重要依据。\"\
+    \n  }\n]"
+- expression: 部门内部绩效评价规章制度.文件存在性 = '否' OR (部门内部绩效评价规章制度.细化程度 = '直接套用通用模板' AND 绩效评价指标体系表.指标来源 = '全部通用') OR 第三方评价管理相关制度.存在性
+    = '否'
+  description: 部门未制定本部门绩效评价实施细则或操作规范，或者文件虽存在但完全照搬上级通用条款无任何本行业、本单位细化指标，或委托第三方评价但缺失选聘与质量管理制度，均视为规章制度不健全。
+  audit_item: 部门、单位预算绩效管理制度不健全
+  suspicion: 未制定本部门绩效评价规章制度
+  regulation: "[\n  {\n    \"法规名称\": \"中共中央 国务院关于全面实施预算绩效管理的意见\",\n    \"法规文号\": \"中发〔2018〕34号\",\n    \"效力级别\": \"制度文件\"\
+    ,\n    \"条款号\": \"第二部分（二）\",\n    \"内容概述\": \"各部门各单位要健全绩效指标和标准体系，制定本部门本单位绩效评价规章制度，完善评价操作流程，提高评价的针对性和有效性。\"\n  }\n]"
+- expression: 预算申报购房补贴金额 > 补贴标准 × 实际符合条件人数 && 实际发放金额 < 批复金额 * 0.9
+  description: 申报预算金额超出按政策标准和实际符合人数计算的理论最大值，且财政批复金额远高于实际发放金额（实际发放占比低于90%），表明可能存在虚报人数或标准，多申财政资金。
+  audit_item: 预算编制不完整
+  suspicion: 购房补贴预算虚报多申财政资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"中华人民共和国主席令第22号（2018年修正）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第五十七条\",\n    \"内容概述\": \"各级政府、各部门、各单位的支出必须按照预算执行，不得虚假列支。\"\n  },\n  {\n    \"法规名称\": \"财政违法行为处罚处分条例\"\
+    ,\n    \"法规文号\": \"国务院令第427号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第七条\",\n    \"内容概述\": \"国家机关及其工作人员虚报、冒领财政资金，以及骗取财政拨款或者补贴"
+- expression: 对照表.差异说明 IN (产业目录版本.淘汰类条目明细) && 审批清单.审批状态 == '已批准/核准' && 批复文件.批复结论 > 产业目录版本.准入能耗/排放限值
+  description: 将项目申报的产业类别与国家发布的《产业结构调整指导目录》淘汰类目录进行精确比对，若匹配淘汰类条目且在此期间获得审批通过，则直接判定为违规。表达式考虑了政策时效性，只有当批复在政策生效后仍违规批准才触发。
+  audit_item: 批准、核准建设不符合国家有关规定的建设项目
+  suspicion: 批准建设列入国家淘汰类产业目录的项目
+  regulation: "[\n  {\n    \"法规名称\": \"产业结构调整指导目录（最新版本）\",\n    \"法规文号\": \"国家发展和改革委员会令第29号（示例）\",\n    \"效力级别\": \"部门规章\"\
+    ,\n    \"条款号\": \"第三类 淘汰类 说明部分\",\n    \"内容概述\": \"淘汰类项目禁止投资，各金融机构不得发放贷款，土地管理、城乡规划、环境保护、消防、海关等部门不得办理相关手续。\"\n  },\n  {\n\
+    \    \"法规名称\": \"企业投资项目核准和备案管理条例\",\n    \"法规文号\": \"国务院令第673号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十一条\",\n \
+    \   \"内容"

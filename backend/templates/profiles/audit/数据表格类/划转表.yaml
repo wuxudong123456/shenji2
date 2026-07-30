@@ -1,0 +1,57 @@
+name: audit/数据表格类/划转表
+type: model
+description: 从数据表格类类文档（划转表）中提取结构化元数据。涵盖字段如：划转日期、实际划转金额、应划转金额、逾期奖金期间。文档范围包括：逾期未兑奖奖金统计与划转表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 划转表
+  member_count: 1
+  member_details:
+  - 逾期未兑奖奖金统计与划转表
+output:
+  fields:
+  - name: 划转日期
+    type: date
+    description: 提取 划转日期 的日期值，格式 YYYY-MM-DD
+  - name: 实际划转金额
+    type: number
+    description: 提取 实际划转金额 的数值（含单位，如万元、吨等）
+  - name: 应划转金额
+    type: number
+    description: 提取 应划转金额 的数值（含单位，如万元、吨等）
+  - name: 逾期奖金期间
+    type: string
+    description: 提取 逾期奖金期间 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ABS(划转表.应划转金额 - 明细表.收入金额) > 0 || (划转表.划转日期 - 兑奖记录.逾期标记 > 30)
+  description: 应划转的逾期奖金金额与公益金收入表中对应的入账金额不一致，或划转时间超过政策规定的30日上缴时限，即构成违规。金额不一致可能指向截留或挪用；超期未划转则违反及时上缴要求。
+  audit_item: 彩票资金筹集审计常见违法违规问题
+  suspicion: 逾期未兑奖奖金未纳入彩票公益金
+  regulation: "[\n  {\n    \"法规名称\": \"彩票管理条例\",\n    \"法规文号\": \"国务院令第554号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第三十一条\"\
+    ,\n    \"内容概述\": \"逾期未兑奖的奖金，纳入彩票公益金。\"\n  },\n  {\n    \"法规名称\": \"彩票管理条例实施细则\",\n    \"法规文号\": \"财政部 民政部 国家体育总局令第67号\"\
+    ,\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第四十二条\",\n    \"内容概述\": \"逾期未兑奖的奖金，由彩票销售机构上缴省级财政，全部留归地方使用。具体上缴办法由省级财政部门商民政部门、体"

@@ -1,0 +1,124 @@
+name: audit/政策文件类/申请文件
+type: model
+description: 从政策文件类类文档（申请文件）中提取结构化元数据。涵盖字段如：申报建设用途、申报用地类型、申请用地规模、申请用途、附属设施申报面积、项目名称、项目总面积。文档范围包括：农业设施用地申请文件（含用地规划许可）、设施农业用地项目申请文件等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 政策文件类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 政策文件类
+  member_types:
+  - 申请文件
+  member_count: 1
+  member_details:
+  - 农业设施用地申请文件（含用地规划许可）
+  - 设施农业用地项目申请文件
+output:
+  fields:
+  - name: 申报建设用途
+    type: string
+    description: 提取 申报建设用途 的文本值
+  - name: 申报用地类型
+    type: string
+    description: 提取 申报用地类型 的文本值
+  - name: 申请用地规模
+    type: string
+    description: 提取 申请用地规模 的文本值
+  - name: 申请用途
+    type: string
+    description: 提取 申请用途 的文本值
+  - name: 附属设施申报面积
+    type: string
+    description: 提取 附属设施申报面积 的文本值
+  - name: 项目名称
+    type: string
+    description: 提取 项目名称 的文本值
+  - name: 项目总面积
+    type: string
+    description: 提取 项目总面积 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 申请日期
+    type: date
+    description: 申请日期，格式 YYYY-MM-DD
+    required: false
+  - name: 申请单位
+    type: string
+    description: 申请单位全称
+    required: false
+  - name: 申请人
+    type: string
+    description: 申请人姓名
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 审批意见
+    type: string
+    description: 审批意见/结果
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+violations:
+- expression: 设施农业用地项目申请文件.申请用途 IN (设施农业用地政策实施细则.允许按设施农业用地管理的项目类型) AND 设施农业用地项目批复文件.批复用地性质 = '建设用地' AND (设施农业用地登记台账.备案类型 IS
+    NULL OR 设施农业用地登记台账.备案类型 != '设施农业用地')
+  description: 表达式识别出项目用途符合设施农业用地政策范围，但土地审批部门却将用地性质批复为建设用地，且在设施农业用地台账中无对应备案记录的情况。此类项目违反了国家简化设施农业用地管理的规定，增加了企业用地成本。
+  audit_item: 农业社会化服务政策扶持不到位
+  suspicion: 设施农业用地项目被违规要求办理建设用地审批
+  regulation: "[\n  {\n    \"法规名称\": \"自然资源部 农业农村部关于设施农业用地管理有关问题的通知\",\n    \"法规文号\": \"自然资规〔2019〕4号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第一条\",\n    \"内容概述\": \"设施农业用地包括农业生产中直接用于作物种植和畜禽水产养殖的设施用地，设施农业属于农业内部结构调整，可以使用一般耕地，不需落实占补平衡，按农用地管理，不需办理建设用地审批手续。\"\
+    \n  }\n]"

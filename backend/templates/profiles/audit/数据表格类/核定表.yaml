@@ -1,0 +1,70 @@
+name: audit/数据表格类/核定表
+type: model
+description: 从数据表格类类文档（核定表）中提取结构化元数据。涵盖字段如：住房公积金月缴存额、新增耕地来源项目名称、新增耕地面积、缴费基数、验收确认坐标。文档范围包括：土地整治项目新增耕地核定表、教师社保缴费基数核定表等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 数据表格类
+- 审计
+- 项目
+- 验收
+- 元数据提取
+template_class:
+  category: 数据表格类
+  member_types:
+  - 核定表
+  member_count: 1
+  member_details:
+  - 土地整治项目新增耕地核定表
+  - 教师社保缴费基数核定表
+output:
+  fields:
+  - name: 住房公积金月缴存额
+    type: string
+    description: 提取 住房公积金月缴存额 的文本值
+  - name: 新增耕地来源项目名称
+    type: string
+    description: 提取 新增耕地来源项目名称 的文本值
+  - name: 新增耕地面积
+    type: string
+    description: 提取 新增耕地面积 的文本值
+  - name: 缴费基数
+    type: number
+    description: 提取 缴费基数 的数值（含单位，如万元、吨等）
+  - name: 验收确认坐标
+    type: string
+    description: 提取 验收确认坐标 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 近三年教师工资发放明细表.应发合计 WHERE 近三年教师工资发放明细表.学校类型（城乡）='乡村' GROUP BY 近三年教师工资发放明细表.职级 HAVING AVG(月应发合计) < (近三年教师工资发放明细表.应发合计
+    WHERE 近三年教师工资发放明细表.学校类型（城乡）='县镇' GROUP BY 近三年教师工资发放明细表.职级 HAVING AVG(月应发合计)) * (1 - 0.15)
+  description: 将同职级教师按月均收入对比，若乡村教师收入低于县镇同级教师收入的85%（即差异率≥15%），则判定为待遇不公平。重点关注乡村教师生活补助、乡镇工作补贴等专项津补贴是否足额兑现，以及社保、公积金缴费基数是否一致。
+  audit_item: 乡村教师队伍建设不符合要求
+  suspicion: 乡村教师实际待遇低于县镇同职级教师
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于印发乡村教师支持计划（2015—2020年）的通知\",\n    \"法规文号\": \"国办发〔2015〕43号\",\n    \"效力级别\"\
+    : \"行政法规\",\n    \"条款号\": \"第三部分第（四）项\",\n    \"内容概述\": \"全面落实集中连片特困地区乡村教师生活补助政策，依据学校艰苦边远程度实行差别化补助；依法依规落实乡村教师工资待遇政策，确保乡村教师平均工资水平不低于当地公务员平均工资水平，并按时足额发放。\"\
+    \n  }\n]"
+- expression: (T.amount * 0.3) > SUM(CASE WHEN M.usage LIKE '%农田建设%' AND T.source_project == M.project_name THEN M.receive_amount
+    ELSE 0 END) AND T.recipient_account != 'FARMLAND_SPECIAL_ACCOUNT'
+  description: 追踪指标交易收益（T）的最终流向。计算回流至原高标准农田建设项目（T.source_project）的资金总和。如果回流资金低于交易金额的30%（通用审计标准阈值），或收益直接存入非农田建设专户（如城投公司或财政非税专户），则判定为违规。
+  audit_item: 高标农田建设资金保障不到位
+  suspicion: 占补平衡指标交易收益未返还农田建设
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于切实加强高标准农田建设提升国家粮食安全保障能力的意见\",\n    \"法规文号\": \"国办发〔2019〕50号\",\n    \"效力级别\"\
+    : \"行政法规\",\n    \"条款号\": \"第三条第（八）款\",\n    \"内容概述\": \"高标准农田建设新增耕地指标经核定后，其调剂收益应当用于高标准农田建设。\"\n  }\n]"

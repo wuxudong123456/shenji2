@@ -1,0 +1,149 @@
+name: audit/业务单据类/款回单
+type: model
+description: 从业务单据类类文档（款回单）中提取结构化元数据。涵盖字段如：交易日期、付款日期、收款人姓名、收款账户、账号、退款金额、金额。文档范围包括：银行付款回单、银行退款回单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 付款
+- 金额
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 款回单
+  member_count: 1
+  member_details:
+  - 银行付款回单
+  - 银行退款回单
+output:
+  fields:
+  - name: 交易日期
+    type: date
+    description: 提取 交易日期 的日期值，格式 YYYY-MM-DD
+  - name: 付款日期
+    type: date
+    description: 提取 付款日期 的日期值，格式 YYYY-MM-DD
+  - name: 收款人姓名
+    type: number
+    description: 提取 收款人姓名 的数值（含单位，如万元、吨等）
+  - name: 收款账户
+    type: number
+    description: 提取 收款账户 的数值（含单位，如万元、吨等）
+  - name: 账号
+    type: string
+    description: 提取 账号 的文本值
+  - name: 退款金额
+    type: number
+    description: 提取 退款金额 的数值（含单位，如万元、吨等）
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (住房公积金缴存明细表.缴存状态 = '正常') && (人力资源系统在职人员清单.状态 = '退休') && (DATEDIFF(DAY, 人力资源系统在职人员清单.退休日期, CURRENT_DATE) > 365)
+  description: 违规判定规则：退休超12个月但公积金账户仍为正常缴存状态，未办理封存或销户提取。触发器为退休日期与当前日期差超过365天，阈值可依据内部制度调整，如地方政策规定30日内办理，审计中常以超12个月作为严重违规信号。
+  audit_item: 住房公积金账户未及时清理
+  suspicion: 退休人员住房公积金账户未及时清理
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金管理条例\",\n    \"法规文号\": \"国务院令第350号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第十五条、第二十四条\",\n    \"内容概述\": \"第十五条：单位与职工终止劳动关系的，应当自劳动关系终止之日起30日内向住房公积金管理中心办理变更登记，并办理职工住房公积金账户转移或者封存手续。第二十四条：职工离休、退休的，可以提取职工住房公积金账户内的存储余额，单位应予以协助。\"\
+    \n  }\n]"
+- expression: (死亡人员统计台账.死亡日期 IS NOT NULL || 民政部门死亡人员信息共享数据.死亡日期 IS NOT NULL) && (住房公积金缴存明细表.账户状态 NOT IN ('销户','冻结','呆滞'))
+    && (DATEDIFF(DAY, COALESCE(死亡人员统计台账.死亡日期, 民政部门死亡人员信息共享数据.死亡日期), CURRENT_DATE) > 180)
+  description: 违规判定：已掌握死亡信息且死亡超180天，但该职工公积金账户仍未销户或冻结，未启动继承提取程序。表达式采用死亡人员统计台账与民政部门数据双源确保死亡信息可靠，超过6个月视为未及时清理。部分地方政策要求单位在知晓死亡后一定期限内通知继承人办理，审计常用180天作为一般容忍上限。
+  audit_item: 住房公积金账户未及时清理
+  suspicion: 未向死亡人员家属退还住房公积金
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金管理条例\",\n    \"法规文号\": \"国务院令第350号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第二十四条\",\n    \"内容概述\": \"职工死亡或者被宣告死亡的，职工的继承人、受遗赠人可以提取职工住房公积金账户内的存储余额；单位负有协助办理的义务，并应妥善保管资料。\"\n  },\n  {\n    \"法规名称\"\
+    : \"住房公积金提取业务标准\",\n    \"法规文号\": \"GB/T 51353-2019\",\n    \"效力级别\": \"国家标准\",\n    \"条款号\": \"4.2.4\",\n    \"内容概述\"\
+    : \"死亡提取"
+- expression: (员工编号、缴纳时间、缴纳金额.缴纳时间 > 员工编号、入职日期、退休日期、职务状态.退休日期 AND 员工编号、入职日期、退休日期、职务状态.退休日期 IS NOT NULL) OR (员工编号、缴纳时间、缴纳金额.缴纳时间
+    >= 员工编号、养老金发放日期.养老金发放日期)
+  description: 当公积金缴纳时间晚于员工退休日期，或养老金已发放后仍有公积金缴纳记录，即判定为违规。退休日期以员工基本信息表记录为准，养老金发放日期作为补充验证。两条子条件为“或”关系，任一成立即触发疑点。
+  audit_item: 退休人员未停缴住房公积金
+  suspicion: 退休人员未停缴住房公积金
+  regulation: "[\n  {\n    \"法规名称\": \"住房公积金管理条例\",\n    \"法规文号\": \"国务院令第350号（2019年修订）\",\n    \"效力级别\": \"行政法规\",\n    \"\
+    条款号\": \"第二十四条\",\n    \"内容概述\": \"职工离休、退休的，可以提取住房公积金账户内的存储余额，同时注销账户。退休后不再缴存住房公积金。\"\n  },\n  {\n    \"法规名称\": \"关于住房公积金管理若干具体问题的指导意见\"\
+    ,\n    \"法规文号\": \"建金管〔2005〕5号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第一条第（一）款\",\n    \"内容概述\": \"职工离退休"

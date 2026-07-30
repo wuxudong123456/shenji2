@@ -1,0 +1,70 @@
+name: audit/法律文书类/判决书
+type: model
+description: 从法律文书类类文档（判决书）中提取结构化元数据。涵盖字段如：判决日期、当事人信息、案件事实认定、案由、涉诉金额、裁判结果。文档范围包括：判决书等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 法律文书类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 法律文书类
+  member_types:
+  - 判决书
+  member_count: 1
+  member_details:
+  - 判决书
+output:
+  fields:
+  - name: 判决日期
+    type: date
+    description: 提取 判决日期 的日期值，格式 YYYY-MM-DD
+  - name: 当事人信息
+    type: string
+    description: 提取 当事人信息 的文本值
+  - name: 案件事实认定
+    type: string
+    description: 提取 案件事实认定 的文本值
+  - name: 涉诉金额
+    type: number
+    description: 提取 涉诉金额 的数值（含单位，如万元、吨等）
+  - name: 文书类型
+    type: string
+    description: 法律文书类型（判决书/裁定书/起诉状等）
+    required: false
+  - name: 文书编号
+    type: string
+    description: 文书案号/编号
+    required: false
+  - name: 当事人
+    type: string
+    description: 当事人/原告/被告名称
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 发文机关
+    type: string
+    description: 制作或发布该法律文书的机关或单位
+    required: false
+violations:
+- expression: (判决书.案件事实认定 CONTAINS '违约' OR '无效' OR '撤销' OR '欺诈') && (判决书.裁判结果 == '我方败诉' OR '需承担责任') && (合同台账.履约状态 == '已结束'
+    OR '已付款') && NOT EXISTS (案件台账.执行情况 == '已全额追偿' AND 案件台账.涉诉金额 >= 判决书.涉诉金额)
+  description: 本表达式用于筛查因法律风险管控缺失导致财政资金损失或潜在损失风险的情况。当判决书认定被审计单位或其关联方存在违约、欺诈等行为并需承担责任，且相关合同已履行或款项已支付，但未从法务案件台账中发现已成功追偿的证据时，触发疑点警报。风险等级：同时满足所有条件为高风险，可能形成直接国有资产流失或隐性债务。
+  audit_item: 法律案例拆解
+  suspicion: 未对关联司法判例进行结构化法律分析
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国审计法\",\n    \"法规文号\": \"无\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"第二十一条\"\
+    ,\n    \"内容概述\": \"审计机关对国有企业、国有金融机构和国有资本占控股地位或者主导地位的企业、金融机构的资产、负债、损益以及其他财务收支情况，进行审计监督。\"\n  },\n  {\n    \"法规名称\": \"\
+    审计署关于内部审计工作的规定\",\n    \"法规文号\": \"审计署令第11号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第十二条\",\n    \"内容概述\": \"内部审计机构应当对内部管理的领导"

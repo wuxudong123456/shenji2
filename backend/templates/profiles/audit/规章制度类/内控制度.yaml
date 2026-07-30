@@ -1,0 +1,58 @@
+name: audit/规章制度类/内控制度
+type: model
+description: 从规章制度类类文档（内控制度）中提取结构化元数据。涵盖字段如：异常订单复核流程、是否建立IP监控。文档范围包括：电商企业内控制度等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 内控制度
+  member_count: 1
+  member_details:
+  - 电商企业内控制度
+output:
+  fields:
+  - name: 异常订单复核流程
+    type: string
+    description: 提取 异常订单复核流程 的文本值
+  - name: 是否建立IP监控
+    type: boolean
+    description: 提取 是否建立IP监控 的布尔值（是/否）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (匹配表.签收状态 = NULL) OR (分析表.同一IP当日下单数 > 10 OR 分析表.同一收货地址当月下单数 > 50) OR (追踪表.资金闭环标记 = FALSE) OR (内控制度.是否建立IP监控
+    = FALSE OR 承诺书.承诺书签署状态 = '未签署')
+  description: 物流信息缺失率超过30%表明存在空包刷单嫌疑；同一IP短期内大量下单或同一地址异常集中下单，反映批量虚假交易特征；退款资金回流至卖方账户是自买自退的典型标志；企业缺少反刷单内控或未签署真实性承诺，表明主观放任。以上条件满足任意一条均触发疑点。
+  audit_item: 农村电子商务发展不到位
+  suspicion: 电商企业虚构交易刷单造假销售数据
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国电子商务法\",\n    \"法规文号\": \"主席令第7号\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第十七条\",\n    \"内容概述\": \"电子商务经营者不得以虚构交易、编造用户评价等方式进行虚假或者引人误解的商业宣传，欺骗、误导消费者。\"\n  }\n]"

@@ -1,0 +1,159 @@
+name: audit/登记台账类/支付台账
+type: model
+description: 从登记台账类类文档（支付台账）中提取结构化元数据。涵盖字段如：姓名、实发工资、实际扣留金额、实际支付劳务报酬记录、工时、工种、应付工资、扣留比例。文档范围包括：公路养护项目合同支付台账、工程款支付台账、工资支付台账、质量保证金支付台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 薪酬
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 支付台账
+  member_count: 1
+  member_details:
+  - 公路养护项目合同支付台账
+  - 工程款支付台账
+  - 工资支付台账
+  - 质量保证金支付台账
+output:
+  fields:
+  - name: 姓名
+    type: string
+    description: 提取 姓名 的文本值
+  - name: 实发工资
+    type: string
+    description: 提取 实发工资 的文本值
+  - name: 实际扣留金额
+    type: number
+    description: 提取 实际扣留金额 的数值（含单位，如万元、吨等）
+  - name: 实际支付劳务报酬记录
+    type: string
+    description: 提取 实际支付劳务报酬记录 的文本值
+  - name: 工时
+    type: string
+    description: 提取 工时 的文本值
+  - name: 工种
+    type: string
+    description: 提取 工种 的文本值
+  - name: 应付工资
+    type: string
+    description: 提取 应付工资 的文本值
+  - name: 扣留比例
+    type: number
+    description: 提取 扣留比例 的数值（含单位，如万元、吨等）
+  - name: 支付对象
+    type: string
+    description: 提取 支付对象 的文本值
+  - name: 支付摘要
+    type: string
+    description: 提取 支付摘要 的文本值
+  - name: 支付金额
+    type: number
+    description: 提取 支付金额 的数值（含单位，如万元、吨等）
+  - name: 计算基数
+    type: string
+    description: 提取 计算基数 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (支付台账.实发工资 > 组织计划.计划用工天数 * 1.2) && (支付台账.姓名 NOT IN 考勤记录.姓名) || (支付台账.工时 > 考勤记录.出勤工时 * 1.3)
+  description: 当实际支付人工费超出预算的20%时，或工资表中存在未在实名制考勤中登记的‘影子人员’，或计薪工时大幅超过考勤记录的130%时，触发疑点报警。
+  audit_item: 工程项目成本异常调查
+  suspicion: 人工费虚列或超支
+  regulation: "[\n  {\n    \"法规名称\": \"保障农民工工资支付条例\",\n    \"法规文号\": \"国务院令第724号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条\",\n    \"内容概述\": \"用人单位实行农民工劳动用工实名制管理，与招用的农民工书面约定或者通过依法制定的规章制度规定工资支付标准、支付时间、支付方式等内容。\"\n  },\n  {\n    \"法规名称\"\
+    : \"基本建设财务规则\",\n    \"法规文号\": \"财政部令第81号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十一条\",\n    \"内容概述\": \"项目建设单位应当严格控制建设"
+- expression: (施工合同.保修期限.基础设施 < 5年) OR (施工合同.质量保证金比例 < 0.03) OR (质量保证金台账.实际扣留金额 / 结算总额 < 0.03)
+  description: 根据条例，基础设施工程保修期最低5年，其他2年。质量保证金比例通常为3%，不低于此标准。保修期限低于规定或质保金比例低于3%视为违规。
+  audit_item: 项目建设不符合规定
+  suspicion: 施工合同未按规定设定质量保修期限和保证金
+  regulation: "[\n  {\n    \"法规名称\": \"建设工程质量管理条例\",\n    \"法规文号\": \"国务院令第279号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\":\
+    \ \"第四十条\",\n    \"内容概述\": \"在正常使用条件下，基础设施工程、房屋建筑的地基基础工程和主体结构工程，最低保修期限为设计文件规定的该工程的合理使用年限；屋面防水工程、有防水要求的卫生间、房间和外墙面的防渗漏，为5年；供热与供冷系统，为2个采暖期、供冷期；电气管线、给排水管道、设备安装和装修工程，为2年。\"\
+    \n  },\n  {\n    \"法规名称\": \"建设工程质量保证金管理办法\",\n    \"法规文号\": \"建质"
+- expression: 施工合同.合同单价 / 同类项目市场平均单价 > 1.3  ||  SUM(工程款支付台账.支付金额 WHERE 支付对象为无实际经营供应商) > 贷款总额*0.2  ||  ABS(施工合同.合同总价 - 企业财务报表.在建工程)
+    / 企业财务报表.在建工程 > 0.15
+  description: 合同单价超出市场均价30%以上，或大额支付向无实际经营的供应商，或合同总价与账面在建工程差异超过15%，均表示建设成本虚增。支付给异常供应商的金额超过贷款总额20%为严重违规。
+  audit_item: 骗取银行贷款或住房公积金项目贷款
+  suspicion: 虚增项目建设成本骗取贷款
+  regulation: "[\n  {\n    \"法规名称\": \"贷款通则\",\n    \"法规文号\": \"中国人民银行令1996年第2号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\":\
+    \ \"第二十条\",\n    \"内容概述\": \"借款人不得采取欺诈手段骗取贷款。\"\n  },\n  {\n    \"法规名称\": \"住房公积金管理条例\",\n    \"法规文号\": \"国务院令第350号\"\
+    ,\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第四十五条\",\n    \"内容概述\": \"以欺骗手段获得住房公积金贷款的，应责令限期退回资金。\"\n  }\n]"

@@ -1,0 +1,118 @@
+name: audit/登记台账类/用房台账
+type: model
+description: 从登记台账类类文档（用房台账）中提取结构化元数据。涵盖字段如：产权单位、使用性质、占用房屋位置、租金标准、腾退状态、面积。文档范围包括：占用用房台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 用房台账
+  member_count: 1
+  member_details:
+  - 占用用房台账
+output:
+  fields:
+  - name: 产权单位
+    type: string
+    description: 提取 产权单位 的文本值
+  - name: 使用性质
+    type: string
+    description: 提取 使用性质 的文本值
+  - name: 占用房屋位置
+    type: string
+    description: 提取 占用房屋位置 的文本值
+  - name: 租金标准
+    type: string
+    description: 提取 租金标准 的文本值
+  - name: 腾退状态
+    type: boolean
+    description: 提取 腾退状态 的布尔值（是/否）
+  - name: 面积
+    type: string
+    description: 提取 面积 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 占用房屋位置台账.产权单位 IN 行政机关名单 AND 占用房屋位置台账.使用性质 = '占用' AND (占用房屋位置台账.租金标准 = 0 OR 占用房屋位置台账.租金标准 < 市场租金评估价 * 0.5) AND
+    占用房屋位置台账.腾退状态 = '未腾退'
+  description: 协会仍占用行政机关房产，且未支付租金或租金严重低于市场价50%以上，且未完成腾退即触发。面积>0即生成疑点。
+  audit_item: 未按规定与行业协会商会脱钩
+  suspicion: 未清理腾退行业协会商会占用行政用房
+  regulation: "[\n  {\n    \"法规名称\": \"关于全面推开行业协会商会与行政机关脱钩改革的实施意见\",\n    \"法规文号\": \"发改经体〔2019〕1063号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"三、脱钩任务和措施（四）资产分离\",\n    \"内容概述\": \"行业协会商会占用的行政办公用房，应按照规定清理腾退，实现办公场所独立。\"\n  }\n]"

@@ -1,0 +1,141 @@
+name: audit/合同协议类/相关合同
+type: model
+description: 从合同协议类类文档（相关合同）中提取结构化元数据。涵盖字段如：受益部门、导游费用等、旅游服务合同、服务/物资的用途、服务内容。文档范围包括：相关合同等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 相关合同
+  member_count: 1
+  member_details:
+  - 相关合同
+output:
+  fields:
+  - name: 受益部门
+    type: string
+    description: 提取 受益部门 的文本值
+  - name: 导游费用等
+    type: number
+    description: 提取 导游费用等 的数值（含单位，如万元、吨等）
+  - name: 旅游服务合同
+    type: string
+    description: 提取 旅游服务合同 的文本值
+  - name: 服务-物资的用途
+    type: string
+    description: 提取 服务-物资的用途 的文本值
+  - name: 服务内容
+    type: string
+    description: 提取 服务内容 的文本值
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (会议/调研/考察活动通知及行程安排.门票费用 > 0) OR (会议/调研/考察活动通知及行程安排.公务内容占比 < 0.5) OR (差旅费报销汇总表.地点 属于旅游景区 AND DATEDIFF(差旅费报销汇总表.出差日期,
+    差旅费报销汇总表.差旅日期) > 公务天数 * 2)
+  description: 行程中含景点门票或导游费，或公务活动(会议、调研)时间不足总行程一半，或差旅天数明显多于公务所需天数(如公务1天差旅3天)，均触发变相旅游疑点。
+  audit_item: 公务接待管理不符合规定
+  suspicion: 以公务名义变相旅游
+  regulation: "[\n  {\n    \"法规名称\": \"党政机关国内公务接待管理规定\",\n    \"法规文号\": \"中办发〔2013〕22号\",\n    \"效力级别\": \"党内法规\",\n    \"\
+    条款号\": \"第六条\",\n    \"内容概述\": \"国内公务接待不得组织旅游和与公务活动无关的参观，不得以任何名义赠送礼金、有价证券、纪念品和土特产品等。\"\n  }\n]"
+- expression: (费用项目、摘要、金额、供应商.摘要包含‘行政’‘办公用房’‘非生产部门工资’等 且 金额 > 0) || (旅游服务合同、导游费用等、服务内容、受益部门、服务/物资的用途.受益部门为管理部门 && 费用记入制造费用科目)
+  description: 制造费用中包含应属于管理或销售性质的支出，或合同明确服务对象为非生产部门但计入生产成本，即构成费用分类错误。
+  audit_item: 未按规定确认成本费用
+  suspicion: 将期间费用计入生产成本
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第1号——存货\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第六条、第八条\",\n    \"内容概述\": \"存货成本仅包括与生产和劳务直接相关的支出，管理费用和销售费用应当作为期间费用处理。\"\n  },\n  {\n    \"法规名称\": \"企业会计准则第30号——财务报表列报\"\
+    ,\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第二十四条\",\n    \"内容概述\": \"费用应当按照功能分类，分为从事经营业务"
+- expression: (明细账.明细项目 IN ('维修费-生产线','模具费','质量检测费')) || (明细账.年度累计额 = 0 && 明细账.月度发生额 = 0)
+  description: 本应归集至制造费用或生产成本的支出错误计入期间费用，导致存货成本少计、当期费用虚增。辅助指标为生产成本池排空异常。
+  audit_item: 未按规定确认成本费用
+  suspicion: 将生产成本计入期间费用
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第1号——存货\",\n    \"法规文号\": \"财会〔2006〕3号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第八条\",\n    \"内容概述\": \"存货的加工成本包括直接人工以及按照一定方法分配的制造费用。制造费用应包括企业为生产产品和提供劳务而发生的各项间接费用。\"\n  }\n]"

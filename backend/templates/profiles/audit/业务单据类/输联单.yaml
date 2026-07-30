@@ -1,0 +1,118 @@
+name: audit/业务单据类/输联单
+type: model
+description: 从业务单据类类文档（输联单）中提取结构化元数据。涵盖字段如：接收单位、联单编号、起运单位、转运重量。文档范围包括：农膜回收运输联单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 输联单
+  member_count: 1
+  member_details:
+  - 农膜回收运输联单
+output:
+  fields:
+  - name: 接收单位
+    type: string
+    description: 提取 接收单位 的文本值
+  - name: 联单编号
+    type: string
+    description: 提取 联单编号 的文本值
+  - name: 起运单位
+    type: string
+    description: 提取 起运单位 的文本值
+  - name: 转运重量
+    type: string
+    description: 提取 转运重量 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 产品型号.销售总量 - 使用者信息.农膜用量合计 > 阈值 || 使用者信息.农膜用量合计 - 回收日期.回收重量合计 > 阈值 || (回收日期.回收日期 == NULL || 回收日期.交膜人（使用者） == NULL
+    || 回收日期.回收网点经办人签字 == NULL) || ABS(回收日期.回收重量合计 - 联单编号.转运重量 WHERE 关联联单编号) > 0.1 * 回收日期.回收重量合计 || 月度处理总重量.月度处理总重量 != SUM(联单编号.转运重量
+    WHERE 接收日期在当月)
+  description: 从台账不完整性和数据勾稽关系异常两方面判定违规：1）销售总量与田间使用登记总量、使用登记总量与回收总量之间存在巨大差异，表明台账记录缺失严重，阈值可结合区域回收率考核标准设定（如差异率>30%为可疑）；2）回收交接记录关键字段（日期、交膜人、签字）为空，判定为无效记录或虚假台账；3)运输联单转运重量与回收交接记录重量的偏差超过±10%，揭示台账数据不实；4）月度处理统计总量与当月所有联单实际接收重
+  audit_item: 废弃农膜回收利用方面不符合相关规定
+  suspicion: 未按规定建立销售使用回收台账
+  regulation: "[\n  {\n    \"法规名称\": \"农用薄膜管理办法\",\n    \"法规文号\": \"农业农村部令2020年第4号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第十条、第十一条、第十四条\",\n    \"内容概述\": \"农用薄膜生产者、销售者、使用者、回收网点均应当依法建立台账。生产者应记录销售日期、数量、购货者等信息；使用者应记录使用时间、地点、数量等；回收网点应记录回收日期、数量、交膜人等信息。台账保存期不少于两年。\"\
+    \n  }\n]"

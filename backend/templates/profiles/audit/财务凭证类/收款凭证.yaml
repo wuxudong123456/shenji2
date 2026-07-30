@@ -1,0 +1,68 @@
+name: audit/财务凭证类/收款凭证
+type: model
+description: 从财务凭证类类文档（收款凭证）中提取结构化元数据。涵盖字段如：交易对手、到账金额、实际到账日期、收款日期、金额。文档范围包括：市县财政收款凭证、银行收款凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 收款凭证
+  member_count: 1
+  member_details:
+  - 市县财政收款凭证
+  - 银行收款凭证
+output:
+  fields:
+  - name: 交易对手
+    type: string
+    description: 提取 交易对手 的文本值
+  - name: 到账金额
+    type: number
+    description: 提取 到账金额 的数值（含单位，如万元、吨等）
+  - name: 实际到账日期
+    type: date
+    description: 提取 实际到账日期 的日期值，格式 YYYY-MM-DD
+  - name: 收款日期
+    type: date
+    description: 提取 收款日期 的日期值，格式 YYYY-MM-DD
+  - name: 金额
+    type: number
+    description: 提取 金额 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (收款凭证.实际到账日期 - 分解文件.收到中央资金日期) > 管理办法.省级分解下达规定时限（如30日内） && (无统筹规划正式文件或不可抗力说明)
+  description: 规定时限通常为省级收到中央资金后30日内；超期即构成滞留；滞留超过60天或跨年滞留的为严重违规。
+  audit_item: 财政部门未按规定分配下达保障性安居工程专项资金
+  suspicion: 省级财政部门层层滞留中央下达专项资金
+  regulation: "[\n  {\n    \"法规名称\": \"省级财政保障性安居工程专项资金管理办法\",\n    \"法规文号\": \"某省财综〔2022〕X号\",\n    \"效力级别\": \"制度文件\",\n\
+    \    \"条款号\": \"第十二条\",\n    \"内容概述\": \"省级财政部门应在收到中央补助资金后30日内，全部分解下达至市县财政部门。\"\n  }\n]"

@@ -1,0 +1,129 @@
+name: audit/合同协议类/相关协议
+type: model
+description: 从合同协议类类文档（相关协议）中提取结构化元数据。涵盖字段如：协议条款中的收费约定、合作事项描述、固定收益支付义务、担保措施、是否存在强制回购条款。文档范围包括：与政府部门合作/授权相关协议、项目借贷合同“名股实债”相关协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 协议
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 相关协议
+  member_count: 1
+  member_details:
+  - 与政府部门合作/授权相关协议
+  - 项目借贷合同“名股实债”相关协议
+output:
+  fields:
+  - name: 协议条款中的收费约定
+    type: number
+    description: 提取 协议条款中的收费约定 的数值（含单位，如万元、吨等）
+  - name: 合作事项描述
+    type: string
+    description: 提取 合作事项描述 的文本值
+  - name: 固定收益支付义务
+    type: string
+    description: 提取 固定收益支付义务 的文本值
+  - name: 担保措施
+    type: string
+    description: 提取 担保措施 的文本值
+  - name: 是否存在强制回购条款
+    type: number
+    description: 提取 是否存在强制回购条款 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 签订日期
+    type: date
+    description: 合同签订日期，格式 YYYY-MM-DD
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 合同金额
+    type: number
+    description: 合同总金额（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: (协议条款中的收费约定 LIKE %企业须加入协会% OR 协议条款中的收费约定 LIKE %强制购买服务%) && (收款事由摘要 LIKE %培训费% OR 收款事由摘要 LIKE %服务费%) && (委托方（政府部门）
+    IN (政府部门名单))
+  description: 筛查与政府部门签订的合作协议中，是否含有要求企业加入协会、缴纳特定服务费才能通过审批或年检的条款，并溯源政府部门资金往来明细表中是否存在大量由特定政府部门委托、面向行业内企业的固定服务费收入。
+  audit_item: 行业协会商会违规收费
+  suspicion: 利用行政影响力捆绑强制收费
+  regulation: "[\n  {\n    \"法规名称\": \"行业协会商会综合监管办法（试行）\",\n    \"法规文号\": \"发改经体〔2016〕2657号\",\n    \"效力级别\": \"制度文件\",\n\
+    \    \"条款号\": \"第三条（四）\",\n    \"内容概述\": \"严禁政府部门通过行业协会商会向企业违法违规收费。行业协会商会不得依托政府部门委托事项强制企业参加培训、评比等活动并收费。\"\n  }\n]"

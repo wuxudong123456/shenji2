@@ -1,0 +1,79 @@
+name: audit/记录留痕类/分配记录
+type: model
+description: 从记录留痕类类文档（分配记录）中提取结构化元数据。涵盖字段如：分配床位号、学号、学生姓名、实住学生姓名、宿舍号、床位数。文档范围包括：寄宿学生床位分配记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 分配记录
+  member_count: 1
+  member_details:
+  - 寄宿学生床位分配记录
+output:
+  fields:
+  - name: 分配床位号
+    type: string
+    description: 提取 分配床位号 的文本值
+  - name: 学号
+    type: string
+    description: 提取 学号 的文本值
+  - name: 学生姓名
+    type: string
+    description: 提取 学生姓名 的文本值
+  - name: 实住学生姓名
+    type: string
+    description: 提取 实住学生姓名 的文本值
+  - name: 宿舍号
+    type: string
+    description: 提取 宿舍号 的文本值
+  - name: 床位数
+    type: string
+    description: 提取 床位数 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 核查表.生均面积计算值 < 3.0 || (核查台账.实数床位数 > 核查台账.额定住宿人数 * 1.1) || (分配记录中存在同一分配床位号分配多名学生且无轮换制度)
+  description: 生均宿舍面积低于3平方米（《农村普通中小学校建设标准》强制要求）即判定为生活设施不达标；实住人数超过核定床位数的10%以上，或明显存在多人共用一张床且无正规轮宿安排，即为“大通铺”违规形态。
+  audit_item: 工作开展不到位
+  suspicion: 寄宿制学校生活设施不达标存在“大通铺”现象
+  regulation: "[\n  {\n    \"法规名称\": \"农村普通中小学校建设标准\",\n    \"法规文号\": \"建标109-2008\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"第三十五条第三款\",\n    \"内容概述\": \"学生宿舍的生均使用面积不宜小于3.0㎡，并应配备必要的洗浴、厕所等生活设施，杜绝“大通铺”。\"\n  }\n]"
+- expression: (核查表.计算所得人均面积 < 3) || (分配记录.实住学生姓名 > 核查台账.实有床位数) || (核查台账.卫生间及淋浴间数量 / 核查表.寄宿生总人数 > 15)
+  description: 判定逻辑：1）根据国家基础标准，寄宿制学校生均宿舍面积不得低于3平方米，小于该阈值即违规；2）对比床位分配记录中的实际住宿学生数与台账登记的实有床位数，若学生数大于床位数，说明存在超标住宿；3）公共卫生设施服务人数比超过15人/个，视为生活设施不达标。
+  audit_item: 工作开展不到位
+  suspicion: 寄宿制学校存在大通铺且生活设施不达标
+  regulation: "[\n  {\n    \"法规名称\": \"农村普通中小学校建设标准\",\n    \"法规文号\": \"建标109-2008\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"相关学生宿舍条款\",\n    \"内容概述\": \"规定学生宿舍的居室，每室居住人数不宜超过规定人数，并应保证生均居住面积。\"\n  }\n]"

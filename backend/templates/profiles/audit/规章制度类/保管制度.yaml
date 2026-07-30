@@ -1,0 +1,62 @@
+name: audit/规章制度类/保管制度
+type: model
+description: 从规章制度类类文档（保管制度）中提取结构化元数据。涵盖字段如：保管环境要求、备份频率、归档时限。文档范围包括：会计档案保管制度等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 保管制度
+  member_count: 1
+  member_details:
+  - 会计档案保管制度
+output:
+  fields:
+  - name: 保管环境要求
+    type: string
+    description: 提取 保管环境要求 的文本值
+  - name: 备份频率
+    type: string
+    description: 提取 备份频率 的文本值
+  - name: 归档时限
+    type: string
+    description: 提取 归档时限 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: ((检查记录.渗水痕迹 = '是' OR 检查记录.消防设备状态 = '失效') AND (会计凭证.字迹清晰度 > 10% OR 会计凭证.霉变程度 > 5%)) OR (交接登记表.缺失记录 > 0) OR (保管环境要求（防火、防潮、防盗、防鼠）、归档时限、备份频率.归档时限未定义
+    OR 保管环境要求（防火、防潮、防盗、防鼠）、归档时限、备份频率.备份频率 = '无')
+  description: 保管环境不达标导致凭证霉变、字迹模糊（损坏率超过10%或霉变超过5%），或交接记录不完整导致资料丢失，或未制定归档与备份制度，均判定为未按规定保管会计资料。
+  audit_item: 违反会计管理规定的行为
+  suspicion: 未按规定保管会计资料致毁损灭失
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国会计法\",\n    \"法规文号\": \"中华人民共和国主席令第24号（2017年修正）\",\n    \"效力级别\": \"法律\",\n\
+    \    \"条款号\": \"第二十三条、第四十二条\",\n    \"内容概述\": \"各单位对会计凭证、会计账簿、财务会计报告和其他会计资料应当建立档案，妥善保管。未按照规定保管会计资料，致使会计资料毁损、灭失的，由县级以上人民政府财政部门给予处罚。\"\
+    \n  }\n]"

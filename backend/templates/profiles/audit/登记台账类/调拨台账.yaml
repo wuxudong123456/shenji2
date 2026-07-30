@@ -1,0 +1,115 @@
+name: audit/登记台账类/调拨台账
+type: model
+description: 从登记台账类类文档（调拨台账）中提取结构化元数据。涵盖字段如：用途、调入部门、调出部门、调拨金额。文档范围包括：部门间资金调拨台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 金额
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 调拨台账
+  member_count: 1
+  member_details:
+  - 部门间资金调拨台账
+output:
+  fields:
+  - name: 用途
+    type: string
+    description: 提取 用途 的文本值
+  - name: 调入部门
+    type: string
+    description: 提取 调入部门 的文本值
+  - name: 调出部门
+    type: string
+    description: 提取 调出部门 的文本值
+  - name: 调拨金额
+    type: number
+    description: 提取 调拨金额 的数值（含单位，如万元、吨等）
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 资金拨付明细.收款单位 NOT IN (部门年度预算批复文件.预算单位) AND (SELECT COUNT(*) FROM 预算调整审批记录 WHERE 调入单位 = 资金拨付明细.收款单位 AND 调剂金额 =
+    资金拨付明细.金额 AND 财政部批复文号 IS NOT NULL) = 0
+  description: 筛查收款单位为非预算单位、下属单位或其他部门的资金拨付记录，若无法匹配到经财政部审批的预算调剂批复，即判定为违规。排除正常政府采购、工资发放等常规支出后，重点关注大额、异常转账。
+  audit_item: 预算调剂不规范
+  suspicion: 未经批准在部门内外调剂预算资金
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"2018年修正版\",\n    \"效力级别\": \"法律\",\n    \"条款号\": \"\
+    第七十三条\",\n    \"内容概述\": \"各级政府、各部门、各单位的支出必须以经批准的预算为依据，未列入预算的不得支出。各部门、各单位应当加强对预算支出的管理，严格执行预算和财政制度，不得擅自扩大支出范围、提高开支标准。\"\n\
+    \  },\n  {\n    \"法规名称\": \"中华人民共和国预算法实施条例\",\n    \"法规文号\": \"国务院令第729号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第七十二条\""

@@ -1,0 +1,116 @@
+name: audit/清单名册类/设施清单
+type: model
+description: 从清单名册类类文档（设施清单）中提取结构化元数据。涵盖字段如：主要设备名称、功能必要性说明、单价、消毒设备名称、用途、设备名称、采购数量、额定功率。文档范围包括：用电设施清单、食堂设备设施清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 采购
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 设施清单
+  member_count: 1
+  member_details:
+  - 用电设施清单
+  - 食堂设备设施清单
+output:
+  fields:
+  - name: 主要设备名称
+    type: string
+    description: 提取 主要设备名称 的文本值
+  - name: 功能必要性说明
+    type: string
+    description: 提取 功能必要性说明 的文本值
+  - name: 单价
+    type: number
+    description: 提取 单价 的数值（含单位，如万元、吨等）
+  - name: 消毒设备名称
+    type: string
+    description: 提取 消毒设备名称 的文本值
+  - name: 用途
+    type: string
+    description: 提取 用途 的文本值
+  - name: 设备名称
+    type: string
+    description: 提取 设备名称 的文本值
+  - name: 采购数量
+    type: number
+    description: 提取 采购数量 的数值（含单位，如万元、吨等）
+  - name: 额定功率
+    type: string
+    description: 提取 额定功率 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (用户编号.用电类别 = '农业生产用电' && 用户编号.月均用电量 > 同类型农业用户均值的3倍) && (设施清单.额定功率 / 总设备功率 > 0.3)
+  description: 月用电量显著超过同类纯农业生产用电户（超出3倍标准差），且现场核查发现存在冷链加工、商业办公等高耗能非农设备，未按规定分表计量，可能将高价电转嫁为农业电价。
+  audit_item: 相关支持政策落实不到位
+  suspicion: 高耗能农业设施违规全额享受农业电价
+  regulation: "[\n  {\n    \"法规名称\": \"国家发展改革委关于调整销售电价分类结构有关问题的通知\",\n    \"法规文号\": \"发改价格〔2013〕973号\",\n    \"效力级别\": \"\
+    部门规章\",\n    \"条款号\": \"第二条、第三条\",\n    \"内容概述\": \"对包含非农业生产用电的混合用电，应分表计量，按不同电价类别分别计费，不得擅自将非农用电并入农业电价收取。\"\n  }\n]"
+- expression: (食堂卫生检查评分表.总分 < 70) || (食堂卫生检查报告及整改记录.发现问题 != '' && 食堂卫生检查报告及整改记录.整改完成日期 == '') || 消毒设备.最近使用日期 < (当前日期 - [此处填充文本])
+  description: 卫生检查评分低于70分（假设满分100）属于严重脏乱差；检查发现问题但无后续整改完成记录，表明问题未闭环管理；消毒设备长期无使用记录（如超过3天），怀疑餐具未经消毒。任一条件触发即判定为卫生管理不合规。
+  audit_item: 食堂建设管理不符合规定
+  suspicion: 食堂加工操作间卫生不达标
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国食品安全法\",\n    \"法规文号\": \"中华人民共和国主席令第22号\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第三十三条\",\n    \"内容概述\": \"食品生产经营应当具有与生产经营的食品品种、数量相适应的生产经营设备或者设施，有相应的消毒、更衣、盥洗、采光、照明、通风、防腐、防尘、防蝇、防鼠、防虫、洗涤以及处理废水、存放垃圾和废弃物的设备或者设施。\"\
+    \n  },\n  {\n    \"法规名称\": \"学校食品安全与营养健康管理规定\",\n    \"法规文号\": \"教育部、国家市场监督管理总局、国家卫生健康委员会令第45号\""
+- expression: (建筑面积 > 批准面积 * 1.0) || (决算金额 > 预算金额 * 1.1) || (装修材料清单 包含 '大理石' || '高档实木' && 超标准建设审批文件 == '无')
+  description: 实际建筑面积超出批准面积即违规；决算超预算10%以上且无合理变更依据，可能存在铺张浪费或虚报工程量；使用高价值豪华装修材料（如大理石）却无任何超标准特批文件，直接判定为豪华装修。以上任一条件满足即为超标准建设。
+  audit_item: 食堂建设管理不符合规定
+  suspicion: 食堂建设项目超标准建设
+  regulation: "[\n  {\n    \"法规名称\": \"楼堂馆所建设管理暂行条例\",\n    \"法规文号\": \"国务院令第15号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第六条、第九条\",\n    \"内容概述\": \"楼堂馆所的建设必须经过严格的审批程序；项目建设必须遵循勤俭节约、经济实用的原则，严格执行国家规定的建设标准。\"\n  },\n  {\n    \"法规名称\": \"\
+    党政机关厉行节约反对浪费条例\",\n    \"法规文号\": \"中发〔2013〕13号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"第三十八条\",\n    \"内容概述\": \"\
+    党政机关办公用房建设应当"

@@ -1,0 +1,124 @@
+name: audit/规章制度类/技术方案
+type: model
+description: 从规章制度类类文档（技术方案）中提取结构化元数据。涵盖字段如：具体部位使用的检测方法、划定总面积、划定标准、合同约定的检测范围、工艺类型、检测项目清单、测试仪器名称及型号、设计进出水水质。文档范围包括：技术方案、永久基本农田划定技术方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 合同
+- 项目
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 技术方案
+  member_count: 1
+  member_details:
+  - 技术方案
+  - 永久基本农田划定技术方案
+output:
+  fields:
+  - name: 具体部位使用的检测方法
+    type: string
+    description: 提取 具体部位使用的检测方法 的文本值
+  - name: 划定总面积
+    type: string
+    description: 提取 划定总面积 的文本值
+  - name: 划定标准
+    type: string
+    description: 提取 划定标准 的文本值
+  - name: 合同约定的检测范围
+    type: string
+    description: 提取 合同约定的检测范围 的文本值
+  - name: 工艺类型
+    type: string
+    description: 提取 工艺类型 的文本值
+  - name: 检测项目清单
+    type: string
+    description: 提取 检测项目清单 的文本值
+  - name: 测试仪器名称及型号
+    type: string
+    description: 提取 测试仪器名称及型号 的文本值
+  - name: 设计进出水水质
+    type: string
+    description: 提取 设计进出水水质 的文本值
+  - name: 黑土地占比
+    type: string
+    description: 提取 黑土地占比 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (计算纳入比例 = SUM(地块信息登记表.面积 WHERE 是否黑土地 = '是') / SUM(黑土地调查台账.面积) < 0.8) || ( EXISTS (SELECT 1 FROM 黑土地调查台账 a LEFT
+    JOIN 地块信息登记表 b ON a.地块编码 = b.地块编码 WHERE a.有机质含量 > 3 AND b.地块编码 IS NULL)) || (地块信息登记表.划定标准未明确优先将优质黑土纳入)
+  description: 判定违规场景：1.已划入永久基本农田的黑土地面积占黑土地总面积比例低于80%，未达到应划尽划要求；2.对账发现有机质含量超过3%的优质黑土未出现在基本农田登记表中，表明优质地块被刻意遗漏；3.划定技术方案中未明确优质黑土优先纳入的原则。
+  audit_item: 黑土地保护机制不完善
+  suspicion: 优质黑土地耕地未纳入永久基本农田严格保护
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"中华人民共和国主席令第八十七号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第二十条\",\n    \"内容概述\": \"国家将黑土地优质耕地划入永久基本农田，实行严格保护。永久基本农田的划定和调整，不得减少黑土地优质耕地的数量。\"\n  }\n]"
+- expression: (汇总表.实际进水水质 > 技术方案.设计进出水水质 * 1.5 AND 汇总表.出水达标率 < 60%) OR (研究报告.专家论证意见 AND 技术方案.采纳情况) OR (技术方案.工艺类型 < 2)
+  description: 实际进水水质严重偏离设计值且出水长期不达标，或专家意见已指出技术缺陷但仍被采用，或未进行多方案比选，均表明技术选择不科学，导致处理效果达不到预期。
+  audit_item: 污水治理项目建设、运营、管护不到位
+  suspicion: 污水处理技术模式与当地水质及环境条件不匹配
+  regulation: "[\n  {\n    \"法规名称\": \"城镇排水与污水处理条例\",\n    \"法规文号\": \"国务院令第641号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\"\
+    : \"第十二条\",\n    \"内容概述\": \"城镇排水与污水处理设施建设，应当符合城镇排水与污水处理规划，并执行国家规定的建设程序和技术标准，工艺选择应合理可行，满足处理要求。\"\n  }\n]"

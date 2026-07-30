@@ -1,0 +1,74 @@
+name: audit/审查报告类/公示报告
+type: model
+description: 从审查报告类类文档（公示报告）中提取结构化元数据。涵盖字段如：股东、董监高人员。文档范围包括：企业信用信息公示报告等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 审查报告类
+- 审计
+- 人员
+- 元数据提取
+template_class:
+  category: 审查报告类
+  member_types:
+  - 公示报告
+  member_count: 1
+  member_details:
+  - 企业信用信息公示报告
+output:
+  fields:
+  - name: 股东
+    type: string
+    description: 提取 股东 的文本值
+  - name: 董监高人员
+    type: string
+    description: 提取 董监高人员 的文本值
+  - name: 报告名称
+    type: string
+    description: 报告/文档标题全称
+    required: false
+  - name: 报告类型
+    type: string
+    description: 报告类型（审计/评估/检测/验收/总结等）
+    required: false
+  - name: 报告日期
+    type: date
+    description: 报告日期，格式 YYYY-MM-DD
+    required: false
+  - name: 编制单位
+    type: string
+    description: 报告编制单位全称
+    required: false
+  - name: 密级
+    type: string
+    description: 密级（公开/内部/秘密/机密/绝密）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 报告结论
+    type: string
+    description: 审查报告的最终结论或意见
+    required: false
+  - name: 问题清单
+    type: string
+    description: 审查中发现的问题列表或摘要
+    required: false
+  - name: 被审查对象
+    type: string
+    description: 被审查的单位、项目或个人
+    required: false
+violations:
+- expression: 交易对手 NOT IN 关联方清单.已披露关联方名单 && (通过穿透发现与企业管理层存在关联) && (销售合同.单价 > 分析表.非关联方可比价格 * 1.2 或 < 分析表.非关联方可比价格 * 0.8)
+  description: 交易对手虽未披露为关联方，但实际存在关联关系，且交易价格偏离市场公允价值20%以上，属于规避披露的关联不公允交易。
+  audit_item: 未按规定确认收入
+  suspicion: 通过未披露关联方进行显失公允的交易
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第36号——关联方披露\",\n    \"法规文号\": \"财会[2006]3号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第四条\",\n    \"内容概述\": \"下列各方构成企业的关联方：……（十）该企业主要投资者个人、关键管理人员或与其关系密切的家庭成员控制、共同控制或施加重大影响的其他企业。\"\n  }\n]"

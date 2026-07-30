@@ -1,0 +1,126 @@
+name: audit/登记台账类/信息台账
+type: model
+description: 从登记台账类类文档（信息台账）中提取结构化元数据。涵盖字段如：享受类别、发放账号、证件编号、身份证号。文档范围包括：抚恤优待对象基本信息台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 信息台账
+  member_count: 1
+  member_details:
+  - 抚恤优待对象基本信息台账
+output:
+  fields:
+  - name: 享受类别
+    type: string
+    description: 提取 享受类别 的文本值
+  - name: 发放账号
+    type: string
+    description: 提取 发放账号 的文本值
+  - name: 证件编号
+    type: string
+    description: 提取 证件编号 的文本值
+  - name: 身份证号
+    type: string
+    description: 提取 身份证号 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: (比对表.死亡日期 IS NOT NULL && 明细表.发放日期 > 比对表.死亡日期) || (COUNT(信息台账.身份证号) OVER (PARTITION BY 信息台账.身份证号) > 1) || (记录表.异常类型
+    IN ('非本人账户代领','多人共用账户'))
+  description: 条件1：死亡日期早于发放日期，说明已死亡仍发放资金，属家属冒领；条件2：同一身份证号在多地存在有效记录，说明重复享受抚恤待遇；条件3：银行流水异常类型为非本人代领或多人共用同一账户，说明资金被冒领或账户混用。任一条件触发即视为冒领疑点。
+  audit_item: 抚恤优待对象违反抚恤优待政策
+  suspicion: 冒领抚恤金、优待金、补助金
+  regulation: "[\n  {\n    \"法规名称\": \"军人抚恤优待条例\",\n    \"法规文号\": \"国务院、中央军委令第788号（2024年修订）\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"第四十六条\",\n    \"内容概述\": \"抚恤优待对象被判处有期徒刑、剥夺政治权利或者被通缉期间，中止其抚恤优待；弄虚作假、伪造证明材料骗取抚恤金、优待金、补助金的，由县级以上地方人民政府退役军人事务部门给予警告，限期退回非法所得；情节严重的，停止其享受的抚恤优待；构成犯罪的，依法追究刑事责任。\"\
+    \n  }\n]"
+- expression: (证件编号.证件编号 NOT IN (签发记录.证件编号)) || (证件编号.作废记录 = '是' && 信息台账.证件编号 = '有效') || (同一证件编号补办次数 > 2)
+  description: 条件1：证件编号在签发系统无记录，表明证件系伪造；条件2：证件已作废但台账仍有效且继续享受待遇，属持假证或失效证件冒领；条件3：证件频繁补办，可能被多家冒用或转卖，属异常风险。
+  audit_item: 抚恤优待对象违反抚恤优待政策
+  suspicion: 伪造优抚证件骗取抚恤优待待遇
+  regulation: "[\n  {\n    \"法规名称\": \"军人抚恤优待条例\",\n    \"法规文号\": \"国务院、中央军委令第788号（2024年修订）\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"第四十六条\",\n    \"内容概述\": \"伪造证明材料骗取抚恤金、优待金、补助金的，给予警告，限期退回非法所得；情节严重的，停止其享受的抚恤优待；构成犯罪的，依法追究刑事责任。\"\n  }\n\
+    ]"
+- expression: (身份证号、在押/通缉状态、状态起始日期.在押/通缉状态 = '是' || 通缉标识 = '是') && 身份证号、发放时间、发放金额、领取记录、发放日期.发放日期 >= 身份证号、在押/通缉状态、状态起始日期.状态起始日期
+  description: 只要抚恤对象在状态起始日期之后仍存在发放记录，即违反中止发放规定，无论家属代领还是本人领取均视为违规。
+  audit_item: 抚恤优待对象违反抚恤优待政策
+  suspicion: 在押或通缉期间违规享受抚恤优待
+  regulation: "[\n  {\n    \"法规名称\": \"军人抚恤优待条例\",\n    \"法规文号\": \"国务院、中央军委令第788号（2024年修订）\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"第四十六条\",\n    \"内容概述\": \"抚恤优待对象被判处有期徒刑、剥夺政治权利或者被通缉期间，中止其抚恤优待。\"\n  }\n]"

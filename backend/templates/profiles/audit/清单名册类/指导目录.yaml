@@ -1,0 +1,98 @@
+name: audit/清单名册类/指导目录
+type: model
+description: 从清单名册类类文档（指导目录）中提取结构化元数据。涵盖字段如：淘汰类生产工艺和装备条目、禁止类、限制类、限制类项目清单。文档范围包括：产业结构调整指导目录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 指导目录
+  member_count: 1
+  member_details:
+  - 产业结构调整指导目录
+output:
+  fields:
+  - name: 淘汰类生产工艺和装备条目
+    type: string
+    description: 提取 淘汰类生产工艺和装备条目 的文本值
+  - name: 禁止类
+    type: string
+    description: 提取 禁止类 的文本值
+  - name: 限制类
+    type: string
+    description: 提取 限制类 的文本值
+  - name: 限制类项目清单
+    type: string
+    description: 提取 限制类项目清单 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: （备案表.项目名称 LIKE '%技术改造%' AND 备案表.备案产能 - 验收报告.验收时实际建成产能 > 0 AND 明细表.置换比例 < 政策规定比例） OR （备案表.所属行业 IN 限制类、淘汰类生产工艺和装备条目、禁止类、限制类项目清单.限制类
+    AND 备案表.备案产能 > 0）
+  description: 技术改造项目原则上应不新增产能或在政策允许范围内等量置换。若技改备案产能大于原有产能且未执行产能置换或置换比例不足，即属变相扩产。同时，若项目属于产业结构调整目录限制类而违规备案新增产能，则直接触发违规。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 以技改之名违规扩增落后产能
+  regulation: "[\n  {\n    \"法规名称\": \"国务院关于化解产能严重过剩矛盾的指导意见\",\n    \"法规文号\": \"国发〔2013〕41号\",\n    \"效力级别\": \"行政法规\",\n\
+    \    \"条款号\": \"三、（二）严禁建设新增产能项目\",\n    \"内容概述\": \"严禁各地备案和建设新增产能项目，确有必要新建的必须实行产能等量或减量置换。\"\n  },\n  {\n    \"法规名称\":\
+    \ \"企业投资项目核准和备案管理条例\",\n    \"法规文号\": \"国务院令第673号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十三条\",\n    \"内容概述\": \"\
+    项目应当符合国家产业政策"
+- expression: 备案表.项目行业类别 IN 限制类、淘汰类生产工艺和装备条目 OR （备案表.项目行业类别 IN 限制类、淘汰类生产工艺和装备条目 AND 备案表.备案时间 > 目录发布日期）
+  description: 若项目所属行业或工艺在产业结构调整指导目录中被列为禁止类，无论任何情况均不得新建；若属于限制类，则原则上不得新建，除非经国务院投资主管部门核准。违规表达式直接检测项目是否属于禁止类或属于限制类但已备案，以此判定违规建设。
+  audit_item: 未按规定落实去产能政策措施
+  suspicion: 新建项目类别违背产业结构调整目录
+  regulation: "[\n  {\n    \"法规名称\": \"产业结构调整指导目录（2019年本）\",\n    \"法规文号\": \"国家发展改革委令第29号\",\n    \"效力级别\": \"部门规章\",\n \
+    \   \"条款号\": \"第一类至第三类说明\",\n    \"内容概述\": \"禁止类项目一律不得投资建设；限制类项目禁止新建，确需新建的须报国务院投资主管部门核准。\"\n  },\n  {\n    \"法规名称\": \"\
+    企业投资项目核准和备案管理条例\",\n    \"法规文号\": \"国务院令第673号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"第十一条\",\n    \"内容概述\": \"对于限制类项目，由国务院投"

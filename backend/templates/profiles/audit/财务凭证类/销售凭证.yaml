@@ -1,0 +1,64 @@
+name: audit/财务凭证类/销售凭证
+type: model
+description: 从财务凭证类类文档（销售凭证）中提取结构化元数据。涵盖字段如：产品名称、批号、数量、销售对象。文档范围包括：农药生产企业出厂销售凭证等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 财务凭证类
+- 审计
+- 元数据提取
+template_class:
+  category: 财务凭证类
+  member_types:
+  - 销售凭证
+  member_count: 1
+  member_details:
+  - 农药生产企业出厂销售凭证
+output:
+  fields:
+  - name: 产品名称
+    type: string
+    description: 提取 产品名称 的文本值
+  - name: 批号
+    type: string
+    description: 提取 批号 的文本值
+  - name: 数量
+    type: number
+    description: 提取 数量 的数值（含单位，如万元、吨等）
+  - name: 销售对象
+    type: string
+    description: 提取 销售对象 的文本值
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: 采购台账.供应商名称 IS NULL && 销售凭证.销售对象(经营单位) = '该经营单位' OR (销售台账.购买方名称 IS NULL && 销售凭证.数量 > 0)
+  description: 经营单位有实际采购(依据生产企业销售给该经营单位的凭证)但采购台账无记录或关键字段缺失;或有销售记录但销售台账未建立或缺失购买方信息。任一条件成立,即判定未按规定建立台账。
+  audit_item: 农药生产经营管理不符合规定
+  suspicion: 农药经营者未建立采购销售台账
+  regulation: "[\n  {\n    \"法规名称\": \"《农药管理条例》\",\n    \"法规文号\": \"国务院令第677号\",\n    \"效力级别\": \"行政法规\",\n    \"条款号\": \"\
+    第二十六条、第二十七条\",\n    \"内容概述\": \"农药经营者应当建立采购台账,如实记录农药名称、数量、登记证号和供货商信息;应当建立销售台账,如实记录销售农药的名称、数量、购买方、销售日期等内容。经营台账应当保存2年以上。\"\
+    \n  }\n]"

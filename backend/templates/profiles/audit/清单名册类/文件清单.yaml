@@ -1,0 +1,83 @@
+name: audit/清单名册类/文件清单
+type: model
+description: 从清单名册类类文档（文件清单）中提取结构化元数据。涵盖字段如：产权登记号、资产所有人。文档范围包括：资产权属证明文件清单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 清单名册类
+- 审计
+- 登记
+- 资产
+- 元数据提取
+template_class:
+  category: 清单名册类
+  member_types:
+  - 文件清单
+  member_count: 1
+  member_details:
+  - 资产权属证明文件清单
+output:
+  fields:
+  - name: 产权登记号
+    type: string
+    description: 提取 产权登记号 的文本值
+  - name: 资产所有人
+    type: string
+    description: 提取 资产所有人 的文本值
+  - name: 名单名称
+    type: string
+    description: 名单/清单全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 名单条目数
+    type: number
+    description: 名单包含的条目/人数
+    required: false
+  - name: 名单类型
+    type: string
+    description: 名单类型（人员/单位/物品等）
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (记录表.接收方名称 in (文件清单) && (记录表.转移费用 = 0 || 资产使用条款.费用约定 = '无偿使用')) && (批准文件.批准状态 != '已批准' || 评估报告.评估价值 != 资产使用条款.费用约定)
+  description: 向职工持股企业调拨资产且未收取任何费用或无对价约定，同时缺少董事会关联交易批准或评估定价依据缺失的，直接构成违规无偿提供资产。
+  audit_item: 资产管理方面存在的问题
+  suspicion: 无偿向职工持股企业提供资产
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国企业国有资产法\",\n    \"法规文号\": \"中华人民共和国主席令第五号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第四十四条\",\n    \"内容概述\": \"国有独资企业、国有独资公司、国有资本控股公司不得无偿向关联方提供资金、商品、服务或者其他资产，不得以不公平的价格与关联方进行交易。\"\n  }\n]"

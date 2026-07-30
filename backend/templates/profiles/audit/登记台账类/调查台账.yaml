@@ -1,0 +1,158 @@
+name: audit/登记台账类/调查台账
+type: model
+description: 从登记台账类类文档（调查台账）中提取结构化元数据。涵盖字段如：农户编号、农药购买量、化肥购买量、土壤类型、地块编码、坐标、所在村、有机质含量。文档范围包括：农户化肥农药购买使用抽样调查台账、黑土地调查台账、黑土地资源现状调查台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 调查台账
+  member_count: 1
+  member_details:
+  - 农户化肥农药购买使用抽样调查台账
+  - 黑土地调查台账
+  - 黑土地资源现状调查台账
+output:
+  fields:
+  - name: 农户编号
+    type: string
+    description: 提取 农户编号 的文本值
+  - name: 农药购买量
+    type: string
+    description: 提取 农药购买量 的文本值
+  - name: 化肥购买量
+    type: string
+    description: 提取 化肥购买量 的文本值
+  - name: 土壤类型
+    type: string
+    description: 提取 土壤类型 的文本值
+  - name: 地块编码
+    type: string
+    description: 提取 地块编码 的文本值
+  - name: 坐标
+    type: string
+    description: 提取 坐标 的文本值
+  - name: 所在村
+    type: string
+    description: 提取 所在村 的文本值
+  - name: 有机质含量
+    type: string
+    description: 提取 有机质含量 的文本值
+  - name: 种植面积
+    type: string
+    description: 提取 种植面积 的文本值
+  - name: 调查时间
+    type: date
+    description: 提取 调查时间 的日期值，格式 YYYY-MM-DD
+  - name: 质量等级
+    type: string
+    description: 提取 质量等级 的文本值
+  - name: 面积
+    type: string
+    description: 提取 面积 的文本值
+  - name: 黑土层厚度
+    type: string
+    description: 提取 黑土层厚度 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: ( ( [统计表.化肥使用量（吨）] - [统计表.化肥使用量（吨）] ) / [统计表.化肥使用量（吨）] > 0 ) || ( ( [统计表.农药使用量（吨）] - [统计表.农药使用量（吨）] ) / [统计表.农药使用量（吨）]
+    > 0 ) || ( [评分表.考核结果] == '达标' && ( [数据表.年度水体氮含量（mg/L）] > [数据表.年度水体氮含量（mg/L）]*1.1 || [调查台账.化肥购买量（吨）]按区域汇总 > [统计表.化肥使用量（吨）]*1.15
+    ) )
+  description: 以2015年为基准年，计算当年化肥或农药使用量增长率，若大于0即未实现零增长；同时引入环保监测数据和农户抽样数据作为验证条件：若考核结果声称达标，但水体氮含量同比上升超过10%或抽样调查汇总用量超过统计表用量15%以上，则涉嫌数据造假掩盖未达标事实。阈值1.1和1.15为审计经验值，可根据实际基线调整。
+  audit_item: 目标任务未完成、进展慢，支持政策未落实
+  suspicion: 化肥农药使用量未实现零增长
+  regulation: "[\n  {\n    \"法规名称\": \"到2020年化肥使用量零增长行动方案\",\n    \"法规文号\": \"农农发〔2015〕2号\",\n    \"效力级别\": \"部门规范性文件\",\n\
+    \    \"条款号\": \"全文\",\n    \"内容概述\": \"力争到2020年主要农作物化肥使用量实现零增长\"\n  },\n  {\n    \"法规名称\": \"到2020年农药使用量零增长行动方案\",\n \
+    \   \"法规文号\": \"农农发〔2015〕2号\",\n    \"效力级别\": \"部门规范性文件\",\n    \"条款号\": \"全文\",\n    \"内容概述\": \"力争到2020年主要农作物农药使用量实现零增长\"\
+    \n  }\n]"
+- expression: (调查台账为空) || (MAX(调查台账.调查时间) < '审计年度-5年') || (COUNT(调查台账 WHERE 坐标 IS NULL OR 面积 IS NULL OR 质量等级 IS NULL) > 0)
+    || (调查实施方案为空)
+  description: 满足以下任一条件即构成违规：1.无调查台账或台账空白；2.最近一次调查时间距审计年度已超过5年，且无更新记录；3.调查台账中大量地块缺少坐标、面积、质量等级等关键字段；4.未编制调查实施方案或未形成正式的调查报告。
+  audit_item: 黑土地保护机制不完善
+  suspicion: 未对黑土地情况进行调查并建立档案
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"中华人民共和国主席令第八十七号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第十八条\",\n    \"内容概述\": \"县级以上人民政府应当组织开展黑土地调查，建立黑土地档案，全面掌握黑土地数量、质量、分布和利用状况。\"\n  }\n]"
+- expression: (计算纳入比例 = SUM(地块信息登记表.面积 WHERE 是否黑土地 = '是') / SUM(黑土地调查台账.面积) < 0.8) || ( EXISTS (SELECT 1 FROM 黑土地调查台账 a LEFT
+    JOIN 地块信息登记表 b ON a.地块编码 = b.地块编码 WHERE a.有机质含量 > 3 AND b.地块编码 IS NULL)) || (地块信息登记表.划定标准未明确优先将优质黑土纳入)
+  description: 判定违规场景：1.已划入永久基本农田的黑土地面积占黑土地总面积比例低于80%，未达到应划尽划要求；2.对账发现有机质含量超过3%的优质黑土未出现在基本农田登记表中，表明优质地块被刻意遗漏；3.划定技术方案中未明确优质黑土优先纳入的原则。
+  audit_item: 黑土地保护机制不完善
+  suspicion: 优质黑土地耕地未纳入永久基本农田严格保护
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国黑土地保护法\",\n    \"法规文号\": \"中华人民共和国主席令第八十七号\",\n    \"效力级别\": \"法律\",\n    \"\
+    条款号\": \"第二十条\",\n    \"内容概述\": \"国家将黑土地优质耕地划入永久基本农田，实行严格保护。永久基本农田的划定和调整，不得减少黑土地优质耕地的数量。\"\n  }\n]"

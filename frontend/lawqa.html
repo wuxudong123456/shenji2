@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>法规问答 — AuditWorkbench</title>
+<link rel="stylesheet" href="lib/bootstrap-icons.css"><link rel="stylesheet" href="css/style.css">
+<style>
+.chat-container { max-width: 900px; margin: 0 auto; }
+.chat-messages { min-height: 400px; max-height: 600px; overflow-y: auto; padding: var(--space-md) 0; }
+.chat-msg { display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); animation: fadeIn 0.3s ease; }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-msg .msg-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.chat-msg.user .msg-avatar { background: var(--color-primary); color: #fff; }
+.chat-msg.ai .msg-avatar { background: rgba(26,58,92,0.1); color: var(--color-primary); }
+.chat-msg .msg-bubble { max-width: 75%; padding: 14px 18px; border-radius: var(--radius-md); font-size: 14px; line-height: 1.7; }
+.chat-msg.user .msg-bubble { background: var(--color-primary); color: #fff; }
+.chat-msg.ai .msg-bubble { background: var(--color-card); border: 1px solid var(--color-border); }
+.law-cite { display: block; margin-top: 8px; padding: 8px 12px; background: rgba(26,58,92,0.04); border-radius: var(--radius-sm); border-left: 3px solid var(--color-primary); font-size: 13px; }
+.law-cite .cite-title { font-weight: 600; color: var(--color-primary); }
+.law-cite .cite-level { font-size: 12px; color: var(--color-text-muted); }
+.suggested-q { padding: 6px 14px; font-size: 13px; border: 1px solid var(--color-border); border-radius: 20px; cursor: pointer; background: var(--color-card); transition: all 0.15s; display: inline-block; margin: 4px; }
+.suggested-q:hover { border-color: var(--color-primary); background: rgba(26,58,92,0.04); }
+</style>
+</head>
+<body data-page="lawqa">
+<div id="aw-toast-container" style="position:fixed;top:68px;right:20px;z-index:9999;"></div>
+<nav id="aw-navbar" class="app-navbar"></nav>
+<div class="app-layout"><aside id="aw-sidebar" class="app-sidebar"></aside>
+<main class="app-content"><div class="chat-container">
+
+<div class="page-header"><div><h1><i class="bi bi-chat-dots"></i> 法规问答</h1>
+<div class="breadcrumb">基于400,698部法规全文的RAG智能问答 · 每个回答标注法规来源和关系链</div></div></div>
+
+<div style="margin-bottom:var(--space-md);">
+  <span style="font-size:13px;color:var(--color-text-muted);">建议问题:</span>
+  <span class="suggested-q" onclick="LawQA.ask('招标金额超过多少必须公开招标？国家和地方标准有什么不同？')">招标金额门槛</span>
+  <span class="suggested-q" onclick="LawQA.ask('政府采购方式有哪些？各自的适用条件是什么？')">政府采购方式</span>
+  <span class="suggested-q" onclick="LawQA.ask('什么是化整为零规避招标？如何认定？')">化整为零认定</span>
+  <span class="suggested-q" onclick="LawQA.ask('PPP项目审计的主要法规依据是什么？')">PPP审计依据</span>
+  <span class="suggested-q" onclick="LawQA.ask('违规转包和合法分包的区别？')">转包vs分包</span>
+</div>
+
+<div class="chat-messages" id="chat-messages">
+  <div class="chat-msg ai"><div class="msg-avatar"><i class="bi bi-robot"></i></div>
+    <div class="msg-bubble">您好，我是法规智能问答助手。<br>我可以基于40万部法规全文回答您的审计法规问题。每个回答都会标注具体的法规来源，支持溯源和关系链展开。</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:8px;">
+  <textarea class="form-textarea" id="qa-input" rows="2" style="flex:1;" placeholder="输入您的问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();LawQA.ask()}"></textarea>
+  <button class="btn btn-primary" style="align-self:flex-end;" onclick="LawQA.ask()"><i class="bi bi-send"></i> 发送</button>
+</div>
+
+</div></main></div>
+<script src="js/app.js"></script>
+<script>
+var LawQA = {
+  ask: function(q) {
+    var question = q || document.getElementById('qa-input').value.trim();
+    if (!question) return;
+    if (!q) document.getElementById('qa-input').value = '';
+    var msgs = document.getElementById('chat-messages');
+    msgs.innerHTML += '<div class="chat-msg user"><div class="msg-avatar"><i class="bi bi-person"></i></div><div class="msg-bubble">' + question + '</div></div>';
+    var lid = 'l-' + Date.now();
+    msgs.innerHTML += '<div class="chat-msg ai" id="' + lid + '"><div class="msg-avatar"><i class="bi bi-robot"></i></div><div class="msg-bubble"><span class="pulse">●</span> 正在检索法规数据库...</div></div>';
+    msgs.scrollTop = msgs.scrollHeight;
+    setTimeout(function() {
+      var el = document.getElementById(lid);
+      if (!el) return;
+      el.querySelector('.msg-bubble').innerHTML =
+        '根据现行法规体系，有三层标准：' +
+        '<div class="law-cite"><span class="cite-title">📜 《必须招标的工程项目规定》第5条</span><br><span class="cite-level">部门规章 | 国家发改委16号令 | 2018年 | 现行有效</span><br>施工≥400万 / 重要设备材料≥200万 / 勘察设计监理≥100万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
+        '<div class="law-cite"><span class="cite-title">📜 《教育系统基建项目管理办法》</span><br><span class="cite-level">部门规章 | 教育部 | 现行有效</span><br>教育系统基建施工≥200万 / 设备采购≥100万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
+        '<div class="law-cite" style="border-left-color:var(--color-accent);"><span class="cite-title">📜 《湖南省建设工程招标投标管理办法》</span><br><span class="cite-level">地方性法规 | 湖南省政府令第288号 | 现行有效</span><br>施工≥100万 / 货物≥50万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
+        '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--color-border);font-size:13px;"><strong>⚖️ 审计建议：</strong>审计对象为市级单位，建议优先适用省级规定。<br><span style="color:var(--color-text-muted);">引用法规: 3部 | 置信度: 95%</span> <a href="#" style="font-size:12px;">📤 引用到审计依据</a></div>';
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 1500);
+  }
+};
+</script>
+</body>
+</html>

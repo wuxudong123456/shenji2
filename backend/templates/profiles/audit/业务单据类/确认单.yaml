@@ -1,0 +1,115 @@
+name: audit/业务单据类/确认单
+type: model
+description: 从业务单据类类文档（确认单）中提取结构化元数据。涵盖字段如：实际完成工程量百分比、监理确认进度百分比。文档范围包括：工程进度确认单、进度确认单等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 业务单据类
+- 审计
+- 工程
+- 元数据提取
+template_class:
+  category: 业务单据类
+  member_types:
+  - 确认单
+  member_count: 1
+  member_details:
+  - 工程进度确认单
+  - 进度确认单
+output:
+  fields:
+  - name: 实际完成工程量百分比
+    type: string
+    description: 提取 实际完成工程量百分比 的文本值
+  - name: 监理确认进度百分比
+    type: string
+    description: 提取 监理确认进度百分比 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 单据类型
+    type: string
+    description: 单据类型
+    required: false
+  - name: 单据编号
+    type: string
+    description: 单据唯一编号
+    required: false
+  - name: 审批人
+    type: string
+    description: 审批人姓名
+    required: false
+  - name: 业务内容
+    type: string
+    description: 业务内容描述
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: ABS(测完进度百分比.测完进度百分比 - 确认单.监理确认进度百分比) > 5% || (合同约定进度款比例 ≠ 分析表.预收账款余额与合同进度对应/合同总金额 且 按进度应确认收入未确认)
+  description: 企业自行测算的履约进度与独立监理确认进度偏差超过5%，或已按进度收款却未相应确认收入，均提示履约进度核算违规。
+  audit_item: 未按规定确认收入
+  suspicion: 未在资产负债表日按履约进度确认收入
+  regulation: "[\n  {\n    \"法规名称\": \"企业会计准则第14号——收入\",\n    \"法规文号\": \"财会[2017]22号\",\n    \"效力级别\": \"部门规章\",\n    \"\
+    条款号\": \"第十二条\",\n    \"内容概述\": \"对于在某一时段内履行的履约义务，企业应当在该段时间内按照履约进度确认收入。\"\n  }\n]"

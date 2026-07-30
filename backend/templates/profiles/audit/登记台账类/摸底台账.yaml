@@ -1,0 +1,144 @@
+name: audit/登记台账类/摸底台账
+type: model
+description: 从登记台账类类文档（摸底台账）中提取结构化元数据。涵盖字段如：坐落位置、坐落坐标、层数、居住人数、建造年代、房屋编号、排查人、排查日期。文档范围包括：农村自建房排查摸底台账等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 登记台账类
+- 审计
+- 元数据提取
+template_class:
+  category: 登记台账类
+  member_types:
+  - 摸底台账
+  member_count: 1
+  member_details:
+  - 农村自建房排查摸底台账
+output:
+  fields:
+  - name: 坐落位置
+    type: string
+    description: 提取 坐落位置 的文本值
+  - name: 坐落坐标
+    type: string
+    description: 提取 坐落坐标 的文本值
+  - name: 层数
+    type: string
+    description: 提取 层数 的文本值
+  - name: 居住人数
+    type: number
+    description: 提取 居住人数 的数值（含单位，如万元、吨等）
+  - name: 建造年代
+    type: string
+    description: 提取 建造年代 的文本值
+  - name: 房屋编号
+    type: string
+    description: 提取 房屋编号 的文本值
+  - name: 排查人
+    type: string
+    description: 提取 排查人 的文本值
+  - name: 排查日期
+    type: date
+    description: 提取 排查日期 的日期值，格式 YYYY-MM-DD
+  - name: 是否重点排查
+    type: boolean
+    description: 提取 是否重点排查 的布尔值（是/否）
+  - name: 用途
+    type: string
+    description: 提取 用途 的文本值
+  - name: 结构类型
+    type: string
+    description: 提取 结构类型 的文本值
+  - name: 隐患等级
+    type: string
+    description: 提取 隐患等级 的文本值
+  - name: 票据类型
+    type: string
+    description: 票据类型（发票/收据/行程单/凭证等）
+    required: false
+  - name: 票据编号
+    type: string
+    description: 票据唯一编号
+    required: false
+  - name: 开具日期
+    type: date
+    description: 票据开具日期，格式 YYYY-MM-DD
+    required: false
+  - name: 开具单位
+    type: string
+    description: 票据开具单位全称
+    required: false
+  - name: 接收单位
+    type: string
+    description: 票据接收单位/购买方全称
+    required: false
+  - name: 金额合计
+    type: number
+    description: 票据金额合计（含币种）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种（人民币/美元等），默认人民币
+    required: false
+  - name: 经办人
+    type: string
+    description: 经办人/经手人姓名
+    required: false
+  - name: 摘要
+    type: string
+    description: 业务摘要/事项说明
+    required: false
+  - name: 台账名称
+    type: string
+    description: 台账全称
+    required: false
+  - name: 台账期间
+    type: string
+    description: 台账记录的起止日期
+    required: false
+  - name: 登记日期
+    type: date
+    description: 登记/录入日期，格式 YYYY-MM-DD
+    required: false
+  - name: 登记人
+    type: string
+    description: 登记人/录入人姓名
+    required: false
+  - name: 登记事项
+    type: string
+    description: 登记事项/内容摘要
+    required: false
+  - name: 数量
+    type: number
+    description: 涉及数量
+    required: false
+  - name: 金额
+    type: number
+    description: 涉及金额
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+violations:
+- expression: 摸底台账不存在 || (ABS(摸底台账.房屋总数 - 档案.户籍登记户数) / 档案.户籍登记户数 > 0.2) || 摸底台账.建造年代 || 摸底台账.结构类型 > 0.1
+  description: 若排查台账缺失，或台账登记房屋数量与户籍、宅基地数据差异率超过20%，或关键风险分级字段缺失比例超过10%，则判定为未有效开展排查摸底。
+  audit_item: 未按要求开展农村房屋安全隐患排查整治
+  suspicion: 未开展排查摸底且未建立整治台账
+  regulation: "[\n  {\n    \"法规名称\": \"全国自建房安全专项整治工作方案\",\n    \"法规文号\": \"国办发明电〔2022〕10号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第一部分 全面排查摸底\",\n    \"内容概述\": \"要求对所有农村自建房进行全面排查，建立“一栋一档”台账，确保不漏一栋一户，并明确排查内容包含房屋结构安全、使用安全、地质和周边环境安全等。\"\n\
+    \  }\n]"
+- expression: (摸底台账.用途（经营/非经营） = '非经营性' && 数据.工商登记地址匹配成功) || (摸底台账.层数 >= 3 && 摸底台账.是否重点排查 = '否') || (摸底台账.居住人数 >= 10 && 摸底台账.是否重点排查
+    = '否') || (图.地质灾害隐患点坐标在灾害点200米内 && 摸底台账中无对应记录)
+  description: 筛选出：经营性房屋被错误标记为非经营性；层数≥3层或居住人数≥10人但未标记为重点排查对象；位于地质灾害点200米缓冲区内的房屋未纳入排查台账。满足任一条件即视为摸排流于形式。
+  audit_item: 未按要求开展农村房屋安全隐患排查整治
+  suspicion: 摸排流于形式且重点区域未纳入排查
+  regulation: "[\n  {\n    \"法规名称\": \"全国自建房安全专项整治工作方案\",\n    \"法规文号\": \"国办发明电〔2022〕10号\",\n    \"效力级别\": \"部门规章\",\n  \
+    \  \"条款号\": \"第一部分 全面排查摸底--突出排查重点\",\n    \"内容概述\": \"重点排查3层及以上、人员密集、违规改扩建等容易造成重大安全事故的经营性自建房，以及地质灾害易发区等危险区域房屋。\"\n  }\n\
+    ]"

@@ -1,0 +1,77 @@
+name: audit/记录留痕类/工作记录
+type: model
+description: 从记录留痕类类文档（工作记录）中提取结构化元数据。涵盖字段如：报告文号、挂牌完成日期、村落名称、评价日期。文档范围包括：传统村落挂牌工作记录、绩效评价报告或考核工作记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 工作记录
+  member_count: 1
+  member_details:
+  - 传统村落挂牌工作记录
+  - 绩效评价报告或考核工作记录
+output:
+  fields:
+  - name: 报告文号
+    type: string
+    description: 提取 报告文号 的文本值
+  - name: 挂牌完成日期
+    type: date
+    description: 提取 挂牌完成日期 的日期值，格式 YYYY-MM-DD
+  - name: 村落名称
+    type: string
+    description: 提取 村落名称 的文本值
+  - name: 评价日期
+    type: date
+    description: 提取 评价日期 的日期值，格式 YYYY-MM-DD
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (挂牌工作完成情况对照表.是否挂牌 == '否') || (DATEDIFF(传统村落挂牌工作记录.挂牌完成日期, 传统村落挂牌工作记录.挂牌完成日期) > 365) || (传统村落挂牌工作记录.牌体悬挂照片 IS
+    NULL)
+  description: 判定规则：列入中国传统村落名录后1年内（365天）未在村落主要出入口悬挂统一制作的保护标识牌，或挂牌工作台账记录为'否'、无挂牌影像资料，均视为违规。
+  audit_item: 传统村落保护不到位
+  suspicion: 列入名录村落后未按时悬挂保护标识牌
+  regulation: "[\n  {\n    \"法规名称\": \"住房城乡建设部关于做好中国传统村落保护项目组织实施工作的通知\",\n    \"法规文号\": \"建村函〔2014〕121号\",\n    \"效力级别\":\
+    \ \"部门规章\",\n    \"条款号\": \"第三条\",\n    \"内容概述\": \"列入中国传统村落名录的村庄，应在1年内完成中国传统村落保护标志牌的设置工作，标志牌须悬挂于村落主要出入口或重要公共活动场所。\"\n\
+    \  }\n]"
+- expression: 汇总表.评价状态 == '未开展' || 评价报告数量 == 0 || (汇总表.评价年份 < 当前年份 -1 AND 汇总表.评价状态 IS NULL)
+  description: 核查汇总表中是否存在评价记录，若某应评项目连续两年无任何评价报告或考核记录，或状态字段显示'未开展'，即判定违规。应评项目指已执行完毕且资金使用达100%的专项。
+  audit_item: 绩效管理不到位
+  suspicion: 未开展绩效评价或考核工作
+  regulation: "[\n  {\n    \"法规名称\": \"中华人民共和国预算法\",\n    \"法规文号\": \"主席令第12号（2014年修正）\",\n    \"效力级别\": \"法律\",\n    \"条款号\"\
+    : \"第五十七条\",\n    \"内容概述\": \"各级政府、各部门、各单位应当对预算支出情况开展绩效评价。\"\n  },\n  {\n    \"法规名称\": \"财政支出绩效评价管理暂行办法\",\n    \"法规文号\"\
+    : \"财预〔2011〕285号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第六条\",\n    \"内容概述\": \"财政部门和各预算部门（单位）是绩效评价的主体，应当按规定组织实施绩效评价。"

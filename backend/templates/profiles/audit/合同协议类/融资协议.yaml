@@ -1,0 +1,162 @@
+name: audit/合同协议类/融资协议
+type: model
+description: 从合同协议类类文档（融资协议）中提取结构化元数据。涵盖字段如：借款性质、借款条件、利率、合同利息、合同签订日期、合同金额、承诺用途、收费标准。文档范围包括：融资协议等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 合同协议类
+- 审计
+- 合同
+- 金额
+- 项目
+- 元数据提取
+template_class:
+  category: 合同协议类
+  member_types:
+  - 融资协议
+  member_count: 1
+  member_details:
+  - 融资协议
+output:
+  fields:
+  - name: 借款性质
+    type: number
+    description: 提取 借款性质 的数值（含单位，如万元、吨等）
+  - name: 借款条件
+    type: number
+    description: 提取 借款条件 的数值（含单位，如万元、吨等）
+  - name: 利率
+    type: string
+    description: 提取 利率 的文本值
+  - name: 合同利息
+    type: string
+    description: 提取 合同利息 的文本值
+  - name: 合同签订日期
+    type: date
+    description: 提取 合同签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 合同金额
+    type: number
+    description: 提取 合同金额 的数值（含单位，如万元、吨等）
+  - name: 承诺用途
+    type: string
+    description: 提取 承诺用途 的文本值
+  - name: 收费标准
+    type: number
+    description: 提取 收费标准 的数值（含单位，如万元、吨等）
+  - name: 收费项目名称
+    type: number
+    description: 提取 收费项目名称 的数值（含单位，如万元、吨等）
+  - name: 放款条件条款
+    type: number
+    description: 提取 放款条件条款 的数值（含单位，如万元、吨等）
+  - name: 服务内容条款
+    type: number
+    description: 提取 服务内容条款 的数值（含单位，如万元、吨等）
+  - name: 期限
+    type: string
+    description: 提取 期限 的文本值
+  - name: 用途
+    type: string
+    description: 提取 用途 的文本值
+  - name: 签订日期
+    type: date
+    description: 提取 签订日期 的日期值，格式 YYYY-MM-DD
+  - name: 融资金额
+    type: number
+    description: 提取 融资金额 的数值（含单位，如万元、吨等）
+  - name: 费用金额
+    type: number
+    description: 提取 费用金额 的数值（含单位，如万元、吨等）
+  - name: 合同编号
+    type: string
+    description: 合同唯一编号
+    required: false
+  - name: 合同名称
+    type: string
+    description: 合同/协议全称
+    required: false
+  - name: 合同类型
+    type: string
+    description: 合同分类（买卖/服务/租赁/承揽/借款等）
+    required: false
+  - name: 生效日期
+    type: date
+    description: 合同生效日期，格式 YYYY-MM-DD
+    required: false
+  - name: 终止日期
+    type: date
+    description: 合同终止/到期日期，格式 YYYY-MM-DD
+    required: false
+  - name: 甲方名称
+    type: string
+    description: 甲方（委托方/发包方/买方）全称
+    required: false
+  - name: 乙方名称
+    type: string
+    description: 乙方（受托方/承包方/卖方）全称
+    required: false
+  - name: 丙方名称
+    type: string
+    description: 丙方全称（如有）
+    required: false
+  - name: 币种
+    type: string
+    description: 金额币种
+    required: false
+  - name: 合同标的
+    type: string
+    description: 合同标的/服务内容/项目概述
+    required: false
+  - name: 履约期限
+    type: string
+    description: 履约期限/工期
+    required: false
+  - name: 履约地点
+    type: string
+    description: 履约地点/项目所在地
+    required: false
+  - name: 付款方式
+    type: string
+    description: 付款方式/结算方式
+    required: false
+  - name: 违约责任
+    type: string
+    description: 违约责任条款摘要
+    required: false
+  - name: 争议解决方式
+    type: string
+    description: 争议解决方式（仲裁/诉讼）
+    required: false
+  - name: 签订地点
+    type: string
+    description: 合同签订地点/城市
+    required: false
+  - name: 联系电话
+    type: string
+    description: 主要联系电话
+    required: false
+  - name: 统一社会信用代码
+    type: string
+    description: 统一社会信用代码/纳税人识别号（甲方或乙方）
+    required: false
+violations:
+- expression: ((中标文件.楼面价/数据.区域楼面均价) > 1.5) && (溢价率 > 100%)
+  description: 溢价率=（成交总价-起始价）/起始价。当溢价率超过100%且成交楼面价超过同期同区域同类地块楼面均价1.5倍时，视为异常高价竞地。房地产主业国企参与此类竞拍，直接推高地价预期，助长房价，与国家去库存和稳地价政策相抵触。
+  audit_item: 未按规定落实去库存政策措施
+  suspicion: 房地产主业企业异常高价竞地推高房价
+  regulation: "[\n  {\n    \"法规名称\": \"国务院办公厅关于进一步做好房地产市场调控工作有关问题的通知\",\n    \"法规文号\": \"国办发〔2011〕1号\",\n    \"效力级别\": \"\
+    行政法规\",\n    \"条款号\": \"相关条文\",\n    \"内容概述\": \"要求加强土地出让管理，坚决防止出现高价地，对存在捂地、捂盘行为的房地产开发企业应暂停其土地竞买资格，确保房地产市场平稳健康发展。\"\n\
+    \  }\n]"
+- expression: (融资协议.承诺用途 != 融资资金用途对照表.实际用途) && (融资资金用途对照表.实际用途 LIKE '%房地产%') && (融资主体.主业非房地产)
+  description: 当融资主体的主业不属于房地产，却将融资资金实际用于房地产项目（包括购地、开发、归还房地产借款等），则构成违规改变资金用途。常见手法包括：签订虚假的工程或贸易合同，将资金转付给关联房地产企业。
+  audit_item: 未按规定落实去库存政策措施
+  suspicion: 违规变相融资用于房地产开发
+  regulation: "[\n  {\n    \"法规名称\": \"贷款通则\",\n    \"法规文号\": \"中国人民银行令〔1996〕第2号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\"\
+    : \"第二十条\",\n    \"内容概述\": \"借款人不得套取贷款用于借贷牟取非法收入，必须按借款合同约定用途使用贷款。\"\n  },\n  {\n    \"法规名称\": \"公司债券发行与交易管理办法\",\n   \
+    \ \"法规文号\": \"中国证券监督管理委员会令第180号\",\n    \"效力级别\": \"部门规章\",\n    \"条款号\": \"第六十条\",\n    \"内容概述\": \"发行人应当保证募集资金按照约定用途使用，不得擅自改变。改变"

@@ -1,0 +1,84 @@
+name: audit/记录留痕类/变更记录
+type: model
+description: 从记录留痕类类文档（变更记录）中提取结构化元数据。涵盖字段如：受让方姓名、变更日期、收费项目、有效期、许可证编号、转让价格、转让方姓名、转让股权比例。文档范围包括：企业股权变更记录、收费许可证变更记录等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 记录留痕类
+- 审计
+- 项目
+- 元数据提取
+template_class:
+  category: 记录留痕类
+  member_types:
+  - 变更记录
+  member_count: 1
+  member_details:
+  - 企业股权变更记录
+  - 收费许可证变更记录
+output:
+  fields:
+  - name: 受让方姓名
+    type: string
+    description: 提取 受让方姓名 的文本值
+  - name: 变更日期
+    type: date
+    description: 提取 变更日期 的日期值，格式 YYYY-MM-DD
+  - name: 收费项目
+    type: number
+    description: 提取 收费项目 的数值（含单位，如万元、吨等）
+  - name: 有效期
+    type: string
+    description: 提取 有效期 的文本值
+  - name: 许可证编号
+    type: string
+    description: 提取 许可证编号 的文本值
+  - name: 转让价格
+    type: number
+    description: 提取 转让价格 的数值（含单位，如万元、吨等）
+  - name: 转让方姓名
+    type: string
+    description: 提取 转让方姓名 的文本值
+  - name: 转让股权比例
+    type: number
+    description: 提取 转让股权比例 的数值（含单位，如万元、吨等）
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+  - name: 涉及金额
+    type: number
+    description: 文档涉及的总金额（如有，含币种）
+    required: false
+violations:
+- expression: (企业股东及股权变更记录.受让方姓名 IN 领导干部直系亲属及特定关系人名单.亲属姓名) && (企业股东及股权变更记录.转让价格 < 企业净资产负债比例对应股权价值*0.7 OR 企业股东及股权变更记录.转让价格为0
+    OR 企业股东及股权变更记录.转让方与受让方为无对价转让) && (银行账户流水.付款方==领导干部 OR 银行账户流水.付款方==领导干部配偶 && 银行账户流水.资金用途 CONTAINS '投资款' OR '股权款') && 党员领导干部个人有关事项报告表.未填报该亲属名下的企业投资
+  description: 筛选股权变更记录中受让方为领导干部直系亲属或特定关系人，且转让价格明显低于公允价值（低于70%）甚至无偿转让，同时存在领导干部或其配偶账户向原股东或亲属支付大额款项的痕迹，并且领导干部未在个人事项报告中申报亲属的该笔投资。表达式考虑了代持行为核心特征：低价转让、资金来源于领导干部、未如实申报。
+  audit_item: 党员领导干部个人或者借他人名义经商、办企业
+  suspicion: 以他人名义入股形式经办企业
+  regulation: "[\n  {\n    \"法规名称\": \"中国共产党纪律处分条例\",\n    \"法规文号\": \"2023年修订\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"\
+    第一百零三条第一款第（一）项、第（二）项\",\n    \"内容概述\": \"违反规定从事营利活动，经商办企业，或者拥有非上市公司（企业）的股份或者证券的，给予相应处分。以他人名义持股仍属违规。\"\n  },\n  {\n   \
+    \ \"法规名称\": \"关于领导干部报告个人有关事项的规定\",\n    \"法规文号\": \"中办发〔2017〕12号\",\n    \"效力级别\": \"党内法规\",\n    \"条款号\": \"第四条\",\n\
+    \    \"内容概"

@@ -1,0 +1,101 @@
+name: audit/规章制度类/规划方案
+type: model
+description: 从规章制度类类文档（规划方案）中提取结构化元数据。涵盖字段如：水厂选址、水源保护区划定、规划取水半径、设计供水能力。文档范围包括：取水点规划方案等。
+guideline: '1. 从文档内容中提取所有可识别的元数据字段，逐字段返回原文精确值，不做归纳概括。
+
+  2. 文档中未出现的字段返回「未提供」。
+
+  3. 重点关注日期、金额、当事方名称/身份、审批/决策节点、合规性标志。
+
+  4. 金额字段保留币种和单位（万元/亿元），日期格式统一为 YYYY-MM-DD。'
+domain: audit
+tags:
+- 规章制度类
+- 审计
+- 元数据提取
+template_class:
+  category: 规章制度类
+  member_types:
+  - 规划方案
+  member_count: 1
+  member_details:
+  - 取水点规划方案
+output:
+  fields:
+  - name: 水厂选址
+    type: string
+    description: 提取 水厂选址 的文本值
+  - name: 水源保护区划定
+    type: string
+    description: 提取 水源保护区划定 的文本值
+  - name: 规划取水半径
+    type: string
+    description: 提取 规划取水半径 的文本值
+  - name: 设计供水能力
+    type: string
+    description: 提取 设计供水能力 的文本值
+  - name: 方案名称
+    type: string
+    description: 方案/计划全称
+    required: false
+  - name: 编制单位
+    type: string
+    description: 方案编制单位
+    required: false
+  - name: 编制日期
+    type: date
+    description: 编制日期，格式 YYYY-MM-DD
+    required: false
+  - name: 目标
+    type: string
+    description: 方案目标/预期成果
+    required: false
+  - name: 实施期限
+    type: string
+    description: 实施起止时间
+    required: false
+  - name: 预算金额
+    type: number
+    description: 预算总金额（含币种）
+    required: false
+  - name: 资金来源
+    type: string
+    description: 资金来源/拨款渠道
+    required: false
+  - name: 实施步骤
+    type: string
+    description: 主要实施步骤/阶段
+    required: false
+  - name: 责任人
+    type: string
+    description: 主要责任人
+    required: false
+  - name: 文档标题
+    type: string
+    description: 文档/文件的实际标题
+    required: false
+  - name: 文档日期
+    type: date
+    description: 文档创建/生成日期，格式 YYYY-MM-DD
+    required: false
+  - name: 文档编号
+    type: string
+    description: 文档唯一编号/文号（如有）
+    required: false
+  - name: 涉及单位
+    type: string
+    description: 文档涉及的主要单位/机构名称
+    required: false
+  - name: 涉及人员
+    type: string
+    description: 文档涉及的主要人员姓名
+    required: false
+violations:
+- expression: (受益清单.与最近取水点直线距离 > 800) || (水源保护区划定.设计供水能力 / 统计表.日均需水量 < 1.0) || (水源保护区划定.周边污染源种类及距离 < 30) || (统计表.规划供水户数 /
+    统计表.户籍人口数 < 0.8)
+  description: 表达式设定了四项布局合理性判定规则：1）任一受益户至取水点的距离超过800米，违反取水半径标准；2）供水能力与日均需水量之比小于1.0，存在供需缺口；3）取水点与最近污染源距离小于30米，违反卫生防护要求；4）实际供水覆盖率（已通水户数/户籍人口）低于80%，表明选址盲区或设计遗漏。
+  audit_item: 工程建设和资金使用不符合规定
+  suspicion: 取水点布局不合理
+  regulation: "[\n  {\n    \"法规名称\": \"农村饮水安全评价准则\",\n    \"法规文号\": \"T/CHES 18-2018\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\"\
+    : \"第4.1条\",\n    \"内容概述\": \"人力取水方便程度：人力取水往返时间不超过20分钟，或取水水平距离不超过800米。\"\n  },\n  {\n    \"法规名称\": \"村镇供水工程技术规范\",\n \
+    \   \"法规文号\": \"SL 310-2019\",\n    \"效力级别\": \"行业规范\",\n    \"条款号\": \"第3.0.5条\",\n    \"内容概述\": \"取水构筑物与污染源的距离应符合现行相关标准，水源保护"
