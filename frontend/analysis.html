@@ -199,7 +199,7 @@
           <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;">📎 上传被审计单位说明材料（AI将重新评估）</div>
           <div style="display:flex;gap:6px;align-items:center;">
             <button class="btn btn-sm btn-outline" onclick="AW.uploadFile()"><i class="bi bi-cloud-upload"></i> 上传说明材料</button>
-            <button class="btn btn-sm btn-primary" onclick="this.disabled=true;this.innerHTML='<span class=pulse>●</span> 评估中...';var self=this;setTimeout(function(){self.innerHTML='✅ 评估完成';self.className='btn btn-sm';self.style.background='var(--color-success)';self.style.color='#fff';self.closest('div').nextElementSibling.innerHTML='<div style=margin-top:8px;padding:8px;background:rgba(45,125,70,0.06);border-radius:6px;font-size:12px;><strong>🔄 重新评估结果：</strong>未检测到豁免审批文件。违规定性维持不变。建议在审计报告中注明已要求被审计单位补充说明。</div>';AuditWorkbench.toast('AI已根据现有材料重新评估','success')},2000)"><i class="bi bi-arrow-repeat"></i> 提交重新评估</button>
+            <button class="btn btn-sm btn-primary" onclick="AW.submitReassess(this)"><i class="bi bi-arrow-repeat"></i> 提交重新评估</button>
           </div>
           <div id="s6-reassess-1"></div>
         </div>

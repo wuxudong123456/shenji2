@@ -13,20 +13,40 @@ var AW = {
     if (this._dataLoaded) return Promise.resolve();
     var self = this;
     return Promise.all([
-      fetch(this._apiBase + '/knowledge/violations?per_page=100').then(function(r){return r.json();}).then(function(d){
-        self.violationDB = (d.violations || []).map(function(v, i){
-          return {
-            id: 'v' + (i + 1),
-            name: v.violation_title || '',
-            risk: v.severity === 'high' ? '高' : (v.severity === 'low' ? '低' : '中'),
-            match: Math.floor(Math.random() * 20 + 75),
-            symptom: v.description || '',
-            materials: [],
-            regulations: [{law: v.expression_text || '', type: '主依据', note: v.description || ''}]
-          };
-        });
-        if (self.violationDB.length === 0) self.violationDB = self._fallbackViolations();
-      }).catch(function(){ self.violationDB = self._fallbackViolations(); }),
+      (function(){
+        // 按项目上下文提取关键词，避免出现与项目无关的违规类型（如采购项目混入农药类）
+        var kws = self._projectKeywords();
+        var primaryQ = self._primaryViolationQuery(kws);
+        var buildUrl = function(q){ return self._apiBase + '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
+        // 按关键词命中数计算真实匹配度并排序，只取 Top 8
+        var rank = function(list){
+          return (list||[]).map(function(v){
+            var title = v.violation_title || '';
+            var desc = v.description || '';
+            var text = title + ' ' + desc;
+            var hits = 0, titleHit = false;
+            kws.forEach(function(k){ if(k.length<2) return; if(text.indexOf(k)>=0){ hits++; if(title.indexOf(k)>=0) titleHit=true; } });
+            var score = Math.min(99, 52 + hits*12 + (titleHit?12:0));
+            return {
+              id: '', name: title,
+              risk: v.severity === 'high' ? '高' : (v.severity === 'low' ? '低' : '中'),
+              match: score, symptom: desc, materials: [],
+              regulations: [{law: v.expression_text || '', type: '主依据', note: desc}]
+            };
+          }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
+        };
+        return fetch(buildUrl(primaryQ)).then(function(r){return r.json();}).then(function(d){
+          var ranked = rank(d.violations || []);
+          // 命中过少则放宽关键词再取一次，保证有足够相关条目
+          if(ranked.length < 5 && primaryQ){
+            return fetch(buildUrl('')).then(function(r){return r.json();}).then(function(d2){ return rank(d2.violations || []); });
+          }
+          return ranked;
+        }).then(function(ranked){
+          ranked.forEach(function(v,i){ v.id = 'v'+(i+1); });
+          self.violationDB = ranked.length ? ranked : self._fallbackViolations();
+        }).catch(function(){ self.violationDB = self._fallbackViolations(); });
+      })(),
 
       fetch(this._apiBase + '/knowledge/regulations?per_page=50').then(function(r){return r.json();}).then(function(d){
         self._regulations = (d.regulations || []).slice(0, 20);
@@ -39,6 +59,50 @@ var AW = {
       {id:'v1',name:'化整为零规避公开招标',risk:'高',match:97,symptom:'将应公开招标项目拆分为多个小额项目',materials:[],regulations:[{law:'《招标投标法》第4条',type:'主依据',note:'禁止规避招标'}]},
       {id:'v2',name:'违规采用询价方式采购',risk:'高',match:89,symptom:'应公开招标却采用询价等非公开竞争方式',materials:[],regulations:[{law:'《政府采购法》第28条',type:'主依据',note:'公开招标门槛'}]},
     ];
+  },
+
+  /** 从项目背景提取业务关键词（用于违规类型相关性过滤与排序）*/
+  _projectKeywords: function() {
+    var pm = this.mem.project || {};
+    try { if(!pm.title) pm = JSON.parse(localStorage.getItem('aw_project_memory')||'{}') || {}; } catch(e){}
+    var kws = [];
+    var raw = [pm.title, pm.domain, pm.items, pm.concerns].join(' ');
+    // 关注环节里的【标签】是最干净的业务类别，如【招标投标】【采购方式】
+    var brackets = raw.match(/【([^】]+)】/g) || [];
+    brackets.forEach(function(b){ kws.push(b.replace(/[【】]/g,'')); });
+    // concerns 各行首词
+    if(pm.concerns){
+      pm.concerns.split(/[\n,，、]/).forEach(function(line){
+        var t = line.replace(/^【[^】]*】/,'').trim();
+        if(t.length>=2) kws.push(t.substring(0,4));
+      });
+    }
+    // 标题里的业务名词（去年份/通用词）
+    if(pm.title){
+      var t = pm.title.replace(/\d+/g,'').replace(/审计|项目|方案|工作|局|年/g,'').trim();
+      if(t.length>=2) kws.push(t);
+    }
+    if(pm.domain) kws.push(pm.domain);
+    // 去重、过滤过短/通用词
+    var generic = {'审计':1,'项目':1,'工作':1,'方案':1,'管理':1,'分析':1};
+    var seen = {}, out = [];
+    kws.forEach(function(k){
+      k = (k||'').trim();
+      if(k.length<2 || generic[k] || seen[k]) return;
+      seen[k] = 1; out.push(k);
+    });
+    return out.length ? out : ['采购','招标'];
+  },
+
+  /** 选一个覆盖面最好的关键词作为后端 q（后端 LIKE 单串匹配）*/
+  _primaryViolationQuery: function(kws) {
+    var pref = ['采购','招标','投标','合同','资金','预算','资产','发票','收费','补贴','社保','扶贫','专项','采购'];
+    for(var i=0;i<pref.length;i++){
+      for(var j=0;j<kws.length;j++){
+        if(kws[j].indexOf(pref[i])===0) return pref[i];
+      }
+    }
+    return kws.length ? kws[0].substring(0,2) : '';
   },
 
   /** 添加消息到聊天区 */
@@ -180,7 +244,7 @@ var AW = {
       fetch('/api/audit/documents/batch', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({context: {project_title: (self.mem.project||{}).title || '审计项目', analysis_summary: (self._scanResult ? '扫描'+self._scanResult.total+'条命中'+self._scanResult.hits+'条' : ''), domain: (self.mem.project||{}).domain || '', audit_period: (self.mem.project||{}).period || ''}})
+        body: JSON.stringify({context: self._buildDocContext()})
       }).then(function(r){return r.json();}).then(function(data){
         self._documentData = data;
         self.renderS7();
@@ -444,15 +508,66 @@ var AW = {
   showStep: function(n) {
     document.querySelectorAll('.step-panel').forEach(function(e){e.classList.remove('active');});
     var R = document.getElementById('right-panel');
-    if(n>=5) {
+    if(n===7) {
+      // 第七步用动态渲染（卡片真实可预览），避免静态死壳/假预览
+      this.renderS7();
+      if(R) R.style.display = 'block';
+    } else if(n>=5) {
       var p = document.getElementById('s'+n);
       if(p && R) {
         R.innerHTML = '<div class="card">'+p.innerHTML+'</div>';
         R.style.display = 'block';
+        // 给静态面板里的死链溯源图标接上真实点击
+        if(n===5) this._wireS5TraceLinks(R);
       }
     } else if(n>=1 && n<=4) {
       if(R) R.style.display = 'block';
     }
+  },
+
+  /** 第五步渲染（聊天流调用，避免未定义抛错；复用静态面板并接线）*/
+  renderS5: function() {
+    this.showStep(5);
+    this.updateStepBar(5);
+  },
+
+  /** 打开审计资料原始文件 */
+  openMaterial: function(fileName) {
+    if(!fileName) return AuditWorkbench.toast('未提供文件名','warning');
+    window.open('doc-viewer.html?file=' + encodeURIComponent(fileName), '_blank');
+  },
+
+  /** 疑点核实：提交被审计单位说明材料（诚实版——不伪造AI重评结果）*/
+  submitReassess: function(btn) {
+    if(btn) { btn.disabled = true; btn.innerHTML = '<span class="pulse">●</span> 已提交'; }
+    var box = document.getElementById('s6-reassess-1');
+    if(box) {
+      box.innerHTML = '<div style="margin-top:8px;padding:8px 10px;background:rgba(184,94,26,0.06);border-radius:6px;font-size:12px;line-height:1.7;">' +
+        '<strong>📝 已收到说明材料。</strong>AI 重新评估功能开发中，当前疑点定性暂维持不变；功能上线后将自动结合补充材料进行复核。</div>';
+    }
+    AuditWorkbench.toast('材料已提交，AI重评功能开发中', 'info');
+  },
+
+  /** 给第五步面板的 📍 溯源图标按上下文绑真实点击 */
+  _wireS5TraceLinks: function(scope) {
+    var links = scope.querySelectorAll('.trace-link');
+    Array.prototype.forEach.call(links, function(a){
+      if(a.getAttribute('data-wired')) return;
+      a.setAttribute('data-wired','1');
+      a.style.cursor = 'pointer';
+      a.title = '点击溯源';
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var line = (a.parentElement && a.parentElement.textContent) || '';
+        var fm = line.match(/([一-龥\w]+\.(?:pdf|csv|xlsx|xls|docx?))/i);
+        if(fm){ AW.openMaterial(fm[1]); return; }
+        var lm = line.match(/《([^》]+)》/);
+        if(lm){ AW.traceLawSource('《'+lm[1]+'》'); return; }
+        var vm = line.match(/(化整为零|询价|采购公告|围标|串标|挪用|截留|违规[^\s·]*)/);
+        if(vm){ AuditWorkbench.toast('📍 违规语料库：'+line.replace(/📍语料库|📍/g,'').trim(),'info'); return; }
+        AuditWorkbench.toast('📍 '+line.trim(),'info');
+      });
+    });
   },
 
   // ====== 右侧面板渲染 ======
@@ -940,6 +1055,31 @@ var AW = {
     AuditWorkbench.toast(title+'已下载','success');
   },
 
+  /** 导出审计文书为 Word(.docx)；docType 缺省=导出四件套 zip */
+  exportDocWord: function(docType) {
+    var cn = {evidence:'取证单',workpaper:'审计底稿',report:'审计报告',review:'审理复核意见书'};
+    var body = { context: this._buildDocContext() };
+    if (docType) body.doc_type = docType;
+    AuditWorkbench.toast(docType ? ('正在导出'+(cn[docType]||'文书')+'…') : '正在生成并打包四件套，报告需 AI 推理、可能稍候…', 'info');
+    fetch('/api/audit/documents/export', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      return res.blob();
+    }).then(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = docType ? (docType+'.docx') : '审计文书四件套.zip';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 200);
+      AuditWorkbench.toast('文书已导出，请到下载目录查看', 'success');
+    }).catch(function(err){
+      AuditWorkbench.toast('导出失败：'+(err&&err.message?err.message:'服务端异常')+'，可重试或查看后端日志', 'danger');
+    });
+  },
+
   /** 刷新底部摘要 */
   refreshS2Summary: function() {
     var c = document.getElementById('s2-summary');
@@ -1085,7 +1225,7 @@ var AW = {
           '<div style="font-size:12px;color:var(--color-text-muted);margin-top:2px;">'+r.summary+'</div></td>'+
           '<td>'+r.scope+'</td>'+
           '<td><span class="badge '+tb+'">'+r.type+'</span></td>'+
-          '<td><a class="trace-link" href="#" onclick="event.preventDefault();AuditWorkbench.toast(\'MCP溯源\',\'info\')">📍</a></td></tr>';
+          '<td><a class="trace-link" href="#" onclick="event.preventDefault();AW.traceLawSource(\''+r.law.replace(/'/g,'\\\'')+'\')" title="溯源到法规库原文">📍</a></td></tr>';
       });
       html += '</tbody></table></div></div>';
     });
@@ -1107,6 +1247,67 @@ var AW = {
     this.updateS3Selection();
   },
 
+  /** 法规溯源：按名称检索法规库 → 取详情 → 弹窗展示真实出处 */
+  traceLawSource: function(lawName) {
+    var name = (lawName||'').replace(/[《》]/g,'').trim();
+    if(!name) return AuditWorkbench.toast('未提供法规名称','warning');
+    var self = this;
+    AuditWorkbench.toast('正在溯源到法规库原文...','info');
+    fetch(this._apiBase + '/knowledge/regulations?q=' + encodeURIComponent(name) + '&per_page=1').then(function(r){return r.json();}).then(function(d){
+      var hit = (d.regulations || [])[0];
+      if(!hit) { self._showLawSourceModal(null, name); return; }
+      fetch(self._apiBase + '/knowledge/regulation/' + encodeURIComponent(hit.id)).then(function(r){return r.json();}).then(function(det){
+        var merged = Object.assign({}, hit, (det && det.law) ? det.law : {});
+        self._showLawSourceModal(merged, name);
+      }).catch(function(){ self._showLawSourceModal(hit, name); });
+    }).catch(function(){ AuditWorkbench.toast('溯源失败：法规库暂不可用','danger'); });
+  },
+
+  _showLawSourceModal: function(law, name) {
+    if(!law) {
+      AuditWorkbench.toast('法规库未收录「'+name+'」的原文记录','warning');
+      this.say('ai','📍 <strong>溯源结果</strong>：法规库（audit_law.sys_core_law_allaudit）未匹配到《'+name+'》的原文记录。可能为地方/单位内部制度，未纳入常用法规库。');
+      return;
+    }
+    var region = law.region_type===1 ? '地方性法规' : '国家法规';
+    var content = law.pro_content || law.content || '';
+    if(content && law.pro_content) { /* pro_content 已是 HTML */ }
+    else if(content) { content = content.replace(/\n/g,'<br>'); }
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:820px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
+        '<div style="padding:14px 20px;border-bottom:2px solid var(--color-border);position:sticky;top:0;background:#fff;z-index:2;display:flex;align-items:center;gap:8px;">'+
+          '<div><h3 style="margin:0;font-size:16px;">📍 '+this._esc(law.title || name)+'</h3>'+
+          '<div style="font-size:12px;color:var(--color-text-muted);">溯源自 audit_law.sys_core_law · 数据库原文</div></div>'+
+          '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div>'+
+        '<div style="padding:16px 20px;font-size:14px;line-height:1.9;">'+
+          this._lawSourceGrid(law, region)+
+          (content ? '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--color-border);"><strong>条款原文：</strong><div style="margin-top:6px;color:var(--color-text-muted);">'+content+'</div></div>' : '<div style="margin-top:12px;color:var(--color-text-muted);">（原文正文暂未收录）</div>')+
+        '</div>'+
+        '<div style="padding:12px 20px;border-top:1px solid var(--color-border);">'+
+          '<button class="btn btn-sm btn-outline" onclick="this.closest(\'[style*=fixed]\').remove();">关闭</button></div>'+
+      '</div>';
+    modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
+    document.body.appendChild(modal);
+  },
+
+  _lawSourceGrid: function(law, region) {
+    var rows = [
+      ['发布机关', law.issue_unit], ['文号', law.issue_no],
+      ['效力级别', law.potency_level], ['地域', region],
+      ['发布日期', law.issue_date], ['施行日期', law.implement_date],
+      ['时效性', law.timeliness], ['失效/废止日期', law.invalid_date || law.repeal_date]
+    ];
+    var html = '<div style="display:grid;grid-template-columns:90px 1fr 90px 1fr;gap:8px 12px;">';
+    rows.forEach(function(r){
+      html += '<div style="color:var(--color-text-muted);font-size:13px;">'+r[0]+'</div><div style="font-size:13px;">'+(r[1] || '—')+'</div>';
+    });
+    return html + '</div>';
+  },
+
+  _esc: function(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+
   /** 打开法规全文，可选跳转到条款 */
   openLawText: function(law, docNo, clause) {
     var fullText = this.getLawContent(law, docNo);
@@ -1121,7 +1322,7 @@ var AW = {
       '<div style="padding:20px 24px;font-size:14px;line-height:2;max-height:60vh;overflow-y:auto;" id="law-full-text">'+fullText+'</div>'+
       '<div style="padding:12px 20px;border-top:1px solid var(--color-border);display:flex;gap:8px;">'+
       '<button class="btn btn-sm btn-outline" onclick="this.closest(\'[style*=fixed]\').remove();">关闭</button>'+
-      '<a class="trace-link" href="#" style="margin-left:auto;">📍 MCP溯源到数据库原文</a></div></div>';
+      '<a class="trace-link" href="#" onclick="event.preventDefault();this.closest(\'[style*=fixed]\').remove();AW.traceLawSource(\''+law.replace(/'/g,'\\\'')+'\')" style="margin-left:auto;">📍 MCP溯源到数据库原文</a></div></div>';
     modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
     document.body.appendChild(modal);
 
@@ -1199,7 +1400,7 @@ var AW = {
 
       // 业务阈值与法规条款对照表
       '<div style="margin-bottom:16px;border:1px solid var(--color-border);border-radius:10px;overflow:hidden;">'+
-      '<div style="padding:10px 16px;background:var(--color-bg);font-weight:600;font-size:14px;color:var(--color-primary);border-bottom:2px solid var(--color-primary);">业务阈值 × 法规条款对照表</div>'+
+      '<div style="padding:10px 16px;background:var(--color-bg);font-weight:600;font-size:14px;color:var(--color-primary);border-bottom:2px solid var(--color-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">业务阈值 × 法规条款对照表 <span class="badge badge-warning" style="font-size:11px;font-weight:500;">示例（内置采购审计典型场景，非本次上传数据自动汇总）</span></div>'+
       '<div class="table-wrap"><table class="table" style="font-size:14px;margin:0;"><thead><tr style="background:var(--color-bg);"><th style="width:100px;">业务事项</th><th style="width:140px;">判断阈值</th><th>法规条款</th><th style="width:80px;">效力级别</th><th style="width:110px;">适用结论</th></tr></thead><tbody>'+
       '<tr><td rowspan="2" style="vertical-align:middle;"><strong>货物采购招标</strong></td><td style="font-weight:600;">≥200万须公开招标</td><td>《招标投标法》第3条</td><td><span class="badge badge-accent">法律</span></td><td>国家强制要求</td></tr>'+
       '<tr><td style="font-weight:600;">≥200万须公开招标</td><td>《必须招标的工程项目规定》第5条</td><td><span class="badge badge-primary">部门规章</span></td><td>细化国家标准</td></tr>'+
@@ -1385,6 +1586,16 @@ var AW = {
       for(var i=0;i<input.files.length;i++){
         var f = input.files[i];
         var list = document.getElementById('s4-uploaded');
+        if(!list) {
+          // 当前步骤（如疑点核实）没有专用上传区，就地创建反馈区，避免文件被静默丢弃
+          var host = document.querySelector('#right-panel .card') || document.getElementById('right-panel');
+          if(host) {
+            list = document.createElement('div');
+            list.id = 's4-uploaded';
+            list.style.cssText = 'margin-top:10px;padding:10px;border:1px dashed var(--color-border);border-radius:8px;';
+            host.appendChild(list);
+          }
+        }
         var div = document.createElement('div');
         div.className = 'rec-item';
         div.innerHTML = '<i class="bi bi-file-earmark-text" style="font-size:20px;color:var(--color-primary);"></i><div style="flex:1;"><strong>'+f.name+'</strong><div style="font-size:12px;color:var(--color-text-muted);">'+(f.size/1024).toFixed(1)+'KB · OCR解析中...</div></div><div class="progress" style="width:80px;"><div class="progress-bar" style="width:30%;animation:pulse 1.5s infinite;"></div></div>';
@@ -1600,7 +1811,8 @@ var AW = {
       '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="checkbox" id="s7-revw"> 定性复核</label>' +
       '<div style="flex:1;"></div>' +
       '<button class="btn btn-accent btn-lg" onclick="AW.batchGenerateDocuments()"><i class="bi bi-play-fill"></i> 一键生成全部</button>' +
-      '<button class="btn btn-outline" onclick="AW.generateFinalReport()"><i class="bi bi-clipboard-data"></i> 仅导出结论报告</button></div></div>';
+      '<button class="btn btn-primary" onclick="AW.exportDocWord(null)"><i class="bi bi-file-earmark-zip"></i> 导出全部(Word)</button>' +
+      '<button class="btn btn-outline" onclick="AW.generateFinalReport()"><i class="bi bi-clipboard-data"></i> 仅查看结论报告</button></div></div>';
 
     // 预览区（默认隐藏）
     html += '<div id="s7-preview" style="display:none;margin-top:12px;"></div>';
@@ -1617,6 +1829,118 @@ var AW = {
   },
 
   // ====== 方案A 新增：文书预览 ======
+
+  /** 汇集流程中真实积累的数据，供文书生成/渲染使用（取代硬编码假数据）*/
+  _buildDocContext: function() {
+    var self = this;
+    var proj = this.mem.project || {};
+    var viols = this.selectedViolations.map(function(id){
+      return self.violationDB.find(function(x){return x.id===id;});
+    }).filter(Boolean);
+
+    var suspReport = (this._suspicionData && this._suspicionData.output && this._suspicionData.output.suspicion_report) || null;
+    var suspicions = [];
+    if(suspReport && Array.isArray(suspReport.items) && suspReport.items.length){
+      suspicions = suspReport.items.map(function(it){
+        return {
+          violation_title: it.violation_title || it.title || it.name || '',
+          description: it.description || it.finding || it.symptom || '',
+          involved_amount: it.involved_amount || it.amount || '',
+          involved_period: it.involved_period || proj.period || ''
+        };
+      });
+    } else {
+      suspicions = viols.map(function(v){
+        return { violation_title: v.name, description: v.symptom||'', involved_amount: '', involved_period: proj.period||'' };
+      });
+    }
+
+    var lawMap = {}, laws = [];
+    viols.forEach(function(v){
+      (v.regulations||[]).forEach(function(r){
+        var key = r.law || r.note || '';
+        if(key && !lawMap[key]){ lawMap[key]=1; laws.push({law_title:key, clause:r.type||''}); }
+      });
+    });
+
+    var amt = 0, amtOk = false;
+    suspicions.forEach(function(s){
+      var m = (''+(s.involved_amount||'')).replace(/[^\d.]/g,'');
+      if(m){ amt += parseFloat(m)||0; amtOk = true; }
+    });
+    if(!amtOk && proj.amount){ var pm=(''+proj.amount).replace(/[^\d.]/g,''); if(pm){amt=parseFloat(pm)||0; amtOk=true;} }
+
+    return {
+      project_title: proj.title || '审计项目',
+      project_unit: proj.unit || '被审计单位',
+      audit_period: proj.period || '',
+      domain: proj.domain || '',
+      violations: viols,
+      suspicions: suspicions,
+      laws: laws,
+      analysis_summary: this._scanResult ? ('扫描'+this._scanResult.total+'条，命中'+this._scanResult.hits+'条') : '',
+      analysis_results: [{violation_model:'违规分析', scan_summary: this._scanResult||{}}],
+      total_amount: amtOk ? amt : null,
+      scan_total: this._scanResult ? this._scanResult.total : null,
+      scan_hits: this._scanResult ? this._scanResult.hits : null,
+      susp_total: suspReport ? suspReport.total_suspicions : suspicions.length
+    };
+  },
+
+  /** 把后端返回的文书对象渲染成可读 HTML（取代原来的 JSON 堆砌）*/
+  _renderApiDoc: function(type, doc) {
+    var self = this;
+    doc = doc || {};
+    var body = '';
+    if(type==='evidence'){
+      var items = Array.isArray(doc.audit_items) ? doc.audit_items : [];
+      body += '<p><strong>一、取证事项：</strong>'+items.length+'项</p>';
+      body += items.length ? items.map(function(it,i){
+        var basis = (it.legal_basis||[]).map(function(l){ return (l.law||'')+(l.clause?('·'+l.clause):''); }).filter(Boolean).join('；') || '—';
+        return '<p style="margin-left:16px;"><strong>'+(i+1)+'. '+(it.audit_item||'')+'</strong></p>'+
+          '<p style="margin-left:32px;">'+(it.finding||'')+(it.amount?('（涉及金额：'+it.amount+'）'):'')+'</p>'+
+          '<p style="margin-left:32px;color:var(--color-text-muted);font-size:12px;">法规依据：'+basis+'</p>';
+      }).join('') : '<p style="margin-left:16px;color:var(--color-text-muted);">（暂无取证事项，请在前面步骤确认疑点与法规）</p>';
+    } else if(type==='workpaper'){
+      var procs = (doc.procedures||[]).map(function(p,i){ return '<p style="margin-left:32px;">'+(i+1)+'. '+p+'</p>'; }).join('');
+      body += '<p><strong>一、审计程序</strong></p>'+procs+
+        '<p><strong>二、审计发现</strong></p><p style="margin-left:32px;">'+(doc.findings||'—')+'</p>';
+    } else if(type==='report'){
+      var sus = (doc.suspicions||[]).map(function(s,i){
+        var t = s.violation_title||s.title||s.name||('疑点'+(i+1));
+        return '<p style="margin-left:32px;"><strong>'+(i+1)+'. '+t+'</strong>'+(s.description?('：'+s.description):'')+'</p>';
+      }).join('');
+      var recs = (doc.recommendations||[]).map(function(r,i){ return '<p style="margin-left:32px;">'+(i+1)+'. '+r+'</p>'; }).join('');
+      body += '<p><strong>一、审计概况：</strong>'+this._esc(doc.summary||'—')+'</p>'+
+        '<p><strong>二、疑点统计：</strong>共'+(doc.total_suspicions||0)+'条，其中高风险'+(doc.high_risk_count||0)+'条</p>'+
+        '<p><strong>三、主要疑点</strong></p>'+(sus||'<p style="margin-left:32px;">—</p>')+
+        '<p><strong>四、审计建议</strong></p>'+(recs||'<p style="margin-left:32px;">—</p>');
+    } else if(type==='review'){
+      body += (doc.review_items||[]).map(function(r,i){
+        return '<p style="margin-left:32px;"><strong>'+(i+1)+'. '+self._esc(r.item||'')+'</strong>　AI评估：'+self._esc(r.ai_assessment||'—')+'　人工复核：'+self._esc(r.human_review||'待填写')+'</p>';
+      }).join('') || '<p style="margin-left:16px;color:var(--color-text-muted);">—</p>';
+    }
+    return this._docShell(doc.title||'审计文书', doc.code, doc.project, doc.date, body);
+  },
+
+  _docShell: function(title, code, project, date, bodyHtml) {
+    return '<div style="background:#fff;border:1px solid var(--color-border);padding:24px;font-size:14px;line-height:2;max-height:520px;overflow-y:auto;">'+
+      '<h2 style="text-align:center;margin-bottom:12px;">'+this._esc(title)+'</h2>'+
+      '<p style="color:var(--color-text-muted);font-size:12px;">编号：'+this._esc(code||'—')+'　·　日期：'+this._esc(date||'—')+(project?('　·　项目：'+this._esc(project)):'')+'</p><hr>'+
+      bodyHtml+
+      '<br><p style="text-align:right;color:var(--color-text-muted);">审计员：________　复核人：________</p></div>';
+  },
+
+  /** 涉及金额文案（取自真实疑点/项目金额，无则诚实标注）*/
+  _amountText: function() {
+    var ctx = this._buildDocContext();
+    return ctx.total_amount ? ('约¥' + Number(ctx.total_amount).toLocaleString() + '元') : '（金额以实际凭证为准）';
+  },
+  /** 涉及记录数文案 */
+  _recordCountText: function() {
+    var ctx = this._buildDocContext();
+    return ctx.scan_total || ctx.violations.length || '—';
+  },
 
   /** 预览单类文书 */
   previewDocument: function(type) {
@@ -1641,10 +1965,9 @@ var AW = {
     var content = '';
     var apiDoc = useApiDocs ? apiData.documents[type] : null;
     if (apiDoc) {
-      content = '<div style="padding:16px;background:rgba(45,125,70,0.03);border-radius:8px;margin-bottom:8px;">' +
-        '<span class="badge badge-success">AI Agent 生成</span> <span style="font-size:12px;color:var(--color-text-muted);">基于 SuspicionGenerator 自动填充</span></div>' +
-        '<div style="padding:12px;font-family:monospace;font-size:12px;line-height:1.8;white-space:pre-wrap;background:var(--color-bg);border-radius:6px;">' +
-        JSON.stringify(apiDoc, null, 2).replace(/</g,'&lt;') + '</div>';
+      content = '<div style="padding:10px 14px;background:rgba(45,125,70,0.03);border-radius:8px;margin-bottom:8px;">' +
+        '<span class="badge badge-success">AI Agent 生成</span> <span style="font-size:12px;color:var(--color-text-muted);">基于流程中的疑点/法规数据填充</span></div>' +
+        self._renderApiDoc(type, apiDoc);
     } else if (type === 'evidence') {
       content = self._buildEvidenceContent(projTitle, projUnit, today, numbers[type]);
     } else if (type === 'workpaper') {
@@ -1657,7 +1980,7 @@ var AW = {
 
     panel.innerHTML = '<div class="card">' +
       '<div class="card-header"><h3><i class="bi ' + icons[type] + '"></i> ' + titles[type] + '</h3>' +
-      '<div><button class="btn btn-sm btn-primary" onclick="AuditWorkbench.toast(\'已导出Word\',\'success\')"><i class="bi bi-download"></i> 导出Word</button>' +
+      '<div><button class="btn btn-sm btn-primary" onclick="AW.exportDocWord(\'' + type + '\')"><i class="bi bi-download"></i> 导出 Word</button>' +
       '<button class="btn btn-sm btn-outline" onclick="document.getElementById(\'s7-preview\').style.display=\'none\'"><i class="bi bi-x-lg"></i></button></div></div>' +
       content + '</div>';
     panel.scrollIntoView({ behavior: 'smooth' });
@@ -1721,7 +2044,7 @@ var AW = {
       '<p><strong>三、证据链</strong></p>' +
       '<p>采购合同汇总.pdf → 合同金额/采购方式/供应商字段 → 比对违规表达式 → 命中疑点</p>' +
       '<p><strong>四、审计结论</strong></p>' +
-      '<p>经审计，发现' + violations.length + '项违规问题，涉及金额约¥4,850,000元。建议依法依规处理，并完善内部采购管理制度。</p>' +
+      '<p>经审计，发现' + violations.length + '项违规问题，涉及金额' + self._amountText() + '。建议依法依规处理，并完善内部采购管理制度。</p>' +
       '<p><strong>五、溯源链</strong></p>' +
       '<p style="color:var(--color-text-muted);">📍 所有结论可追溯到OCR原始文档页码和坐标位置</p>' +
       '<br><p style="text-align:right;"><strong>审计员：</strong>________ &nbsp; <strong>复核人：</strong>________</p></div>';
@@ -1739,7 +2062,7 @@ var AW = {
       '<p><strong>编号：</strong>' + number + ' &nbsp; <strong>日期：</strong>' + today + '</p>' +
       '<p><strong>被审计单位：</strong>' + projUnit + '</p><hr>' +
       '<p><strong>一、审计基本情况</strong></p>' +
-      '<p>根据年度审计计划，对' + projUnit + '的' + projTitle + '进行了审计。审计期间为2026年1月至6月，涉及采购合同5份，总金额约¥4,850,000元。</p>' +
+      '<p>根据年度审计计划，对' + projUnit + '的' + projTitle + '进行了审计。审计期间为' + (this.mem.project && this.mem.project.period ? this.mem.project.period : '本审计期间') + '，涉及' + self._recordCountText() + '条记录，总金额' + self._amountText() + '。</p>' +
       '<p><strong>二、审计评价</strong></p>' +
       '<p>该单位在教学设备采购管理方面存在以下问题：采购程序不够规范，存在化整为零规避公开招标的情况；部分采购方式选用不当，未按规定履行公开招标程序。</p>' +
       '<p><strong>三、审计发现的主要问题</strong></p>' +
@@ -1855,7 +2178,7 @@ var AW = {
     var conclusionText = '';
     if (highRisk > 0) {
       conclusionText = '经审计分析，发现<strong>' + violations.length + '项违规疑点</strong>，其中<strong style="color:var(--color-accent);">' +
-        highRisk + '项高风险</strong>、' + midRisk + '项中风险。涉及金额约¥4,850,000元，涉及合同5份。' +
+        highRisk + '项高风险</strong>、' + midRisk + '项中风险。涉及金额' + self._amountText() + '，涉及记录' + self._recordCountText() + '条。' +
         '建议：（1）对高风险疑点立即启动进一步核查程序；（2）调取原始招标文件和评标记录补充证据；' +
         '（3）根据确认结果依法依规进行责任追究。';
     } else {
@@ -1922,7 +2245,7 @@ var AW = {
 
       // 操作按钮
       '<div style="display:flex;gap:8px;margin-top:16px;">' +
-      '<button class="btn btn-accent btn-lg" style="flex:1;" onclick="AuditWorkbench.toast(\'Word报告已导出\',\'success\')"><i class="bi bi-file-earmark-word"></i> 导出 Word</button>' +
+      '<button class="btn btn-primary btn-lg" style="flex:1;" onclick="AW.exportDocWord(\'report\')"><i class="bi bi-file-earmark-word"></i> 导出 Word</button>' +
       '<button class="btn btn-outline" onclick="window.print()"><i class="bi bi-printer"></i> 打印</button>' +
       '<button class="btn btn-outline" onclick="this.closest(\'[style*=fixed]\').remove()">关闭</button></div>' +
       '</div></div>';
