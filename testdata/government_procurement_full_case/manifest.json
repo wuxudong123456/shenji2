@@ -1,0 +1,136 @@
+{
+  "case": "政府采购综合审计",
+  "file_count": 26,
+  "files": [
+    {
+      "path": "00_README/资料包说明.md",
+      "size": 276,
+      "sha256": "fbf77dde7b3168e3f6e428c2c58e522453fd2faf47c50ca8c5cac4b6d8d161b7"
+    },
+    {
+      "path": "01_项目立项/项目立项书.docx",
+      "size": 37140,
+      "sha256": "c23a95250e62a9c939544ffc34cd798c89812a6408f171e03334e39a8bdefa31"
+    },
+    {
+      "path": "01_项目立项/项目立项书.pdf",
+      "size": 45710,
+      "sha256": "9ebfb4b6db999c4a2dd9ea176bf44624df79c13c10eac8d1739990949396a4d6"
+    },
+    {
+      "path": "02_审计输入/审计意图.txt",
+      "size": 253,
+      "sha256": "90870fb364e8a8f6804fa53199a006922413b7773b1bf5f5d1894dded8dbe5ae"
+    },
+    {
+      "path": "03_原始资料/A_正常采购/DHJY-CG-2025-001_采购合同.docx",
+      "size": 37218,
+      "sha256": "c6b42153d7bc5d46dd460e10d23462354faeaa2367ba5bb9db1dacd767acc404"
+    },
+    {
+      "path": "03_原始资料/A_正常采购/DHJY-CG-2025-001_采购合同.pdf",
+      "size": 52090,
+      "sha256": "e0b929a65f2c3d61d4427199e5f87a011a7db5b88cf82182a11884facb2d5f3e"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-021_采购合同.docx",
+      "size": 37217,
+      "sha256": "410c7cb41a92bf6ae814fa899afcf88decfed6947c8bd8e292aaef9f3af6f7e8"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-021_采购合同.pdf",
+      "size": 49941,
+      "sha256": "e917cac66a33499fddd6a17a744af943476f5ec00cec7d578b12362c0f46d294"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-022_采购合同.docx",
+      "size": 37218,
+      "sha256": "3524fecc7505bf597a935884f24aeb5a70000616a5263f691794536d7a04a844"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-022_采购合同.pdf",
+      "size": 50336,
+      "sha256": "50c3c4d1aa9817c8adaa7b1681acd30ad98a854f1d58ffdaaa30ce713f4856fc"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-023_采购合同.docx",
+      "size": 37220,
+      "sha256": "6d017ec94a49f602421fa1eb61b853f07d8437cb1d9d6820609f5bf873893239"
+    },
+    {
+      "path": "03_原始资料/B_拆分采购/DHJY-CG-2025-023_采购合同.pdf",
+      "size": 50661,
+      "sha256": "59b44ef46f18d847a2c63d68482980423fbfee976468f7f997a6aa2132c00e40"
+    },
+    {
+      "path": "03_原始资料/C_保证金及履约异常/DHJY-CG-2025-031_采购合同.docx",
+      "size": 37222,
+      "sha256": "8ef11d9643c630af588bfc5d8f9438d76d340e8b2d4c21f9181ce2c862f2e90b"
+    },
+    {
+      "path": "03_原始资料/C_保证金及履约异常/DHJY-CG-2025-031_采购合同.pdf",
+      "size": 50262,
+      "sha256": "e3d32d35203a982269c11224f6284b7a31e8f5ba087e2b7e0c062d0accd44095"
+    },
+    {
+      "path": "04_结构化基准/csv/data_contracts.csv",
+      "size": 1506,
+      "sha256": "0f4ef8da2fb891875a08be230b692f19c46e336fd544e008232aa65aa5e43cbf"
+    },
+    {
+      "path": "04_结构化基准/golden_dataset.json",
+      "size": 3830,
+      "sha256": "edcfd63c6c7d76f7cd0500aff0ba00a8df88c0324da63e743972b8702078787f"
+    },
+    {
+      "path": "04_结构化基准/结构化提取金标准.xlsx",
+      "size": 6223,
+      "sha256": "c5c1c60043fe5a793dc3cded984b7cacb8350d473fcecaaaa2cd53414557ef18"
+    },
+    {
+      "path": "04_结构化基准/结构化提取金标准.xlsx.inspect.ndjson",
+      "size": 69130,
+      "sha256": "764ae6f5b10111244317c2fa22d49f9f3758bb0cb1f949783ed7e8427799cc1e"
+    },
+    {
+      "path": "05_违规规则/违规表达式与说明.md",
+      "size": 445,
+      "sha256": "e53aaf865eb34637c96fa1e7ee0238e1afd873ee0d17aeb7f69cd85cab61e865"
+    },
+    {
+      "path": "06_标准答案/预期违规命中.md",
+      "size": 530,
+      "sha256": "5a290d5006fd7a5b716d04e0fcf37cc1c3e1183d4723df304be3474528293f9a"
+    },
+    {
+      "path": "07_预期成果/审计疑点报告.docx",
+      "size": 37416,
+      "sha256": "28de0a54fc776c2e5c13836f30bdd7a3a75e01802fad86533e541596dea3f445"
+    },
+    {
+      "path": "07_预期成果/审计疑点报告.pdf",
+      "size": 68388,
+      "sha256": "70d6f302d6f5e080cba8a3b687b829cd21b5673c19bbc5bbd223f1e5f28a15ca"
+    },
+    {
+      "path": "08_操作手册/审计工坊完整业务流程操作手册.docx",
+      "size": 37437,
+      "sha256": "35daaeb8dd1f8f2d3007fbd000b020f7411c86ab9acd05bda6850864312f7844"
+    },
+    {
+      "path": "08_操作手册/审计工坊完整业务流程操作手册.pdf",
+      "size": 64058,
+      "sha256": "3d5834699ce84c3ff9a4704c41c759ec591786e708eb69f324cd4a45c0e8c5f2"
+    },
+    {
+      "path": "09_验收记录/全流程验收记录.xlsx",
+      "size": 4696,
+      "sha256": "23ff606922fbb69a981f8d374d313dabf24289da754199f82548201cead9e3d1"
+    },
+    {
+      "path": "09_验收记录/全流程验收记录.xlsx.inspect.ndjson",
+      "size": 25567,
+      "sha256": "7c4dd70a229b98c68f5d1623c249dd21912037c1dad5b029ab373e438f591eca"
+    }
+  ]
+}

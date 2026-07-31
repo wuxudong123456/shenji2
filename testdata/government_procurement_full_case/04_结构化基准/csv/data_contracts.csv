@@ -1,0 +1,6 @@
+﻿project_id,document_trace_id,template_name,doc_name,doc_type,party_a,party_b,amount,currency,sign_date,contract_no,procurement_method,extra_fields
+CASE-GP-2025,TRACE-A-CONTRACT,audit/合同协议类/合同,DHJY-CG-2025-001_采购合同.pdf,采购合同,东河县教育局（虚构）,东河数智设备有限公司,1680000,CNY,2025-03-18,DHJY-CG-2025-001,公开招标,"{""采购项目"": ""教学终端采购""}"
+CASE-GP-2025,TRACE-B1-CONTRACT,audit/合同协议类/合同,DHJY-CG-2025-021_采购合同.pdf,采购合同,东河县教育局（虚构）,东河优居家具有限公司,620000,CNY,2025-05-08,DHJY-CG-2025-021,询价,"{""采购项目"": ""办公家具采购（一）""}"
+CASE-GP-2025,TRACE-B2-CONTRACT,audit/合同协议类/合同,DHJY-CG-2025-022_采购合同.pdf,采购合同,东河县教育局（虚构）,东河优居商贸有限公司,590000,CNY,2025-05-15,DHJY-CG-2025-022,询价,"{""采购项目"": ""办公家具采购（二）""}"
+CASE-GP-2025,TRACE-B3-CONTRACT,audit/合同协议类/合同,DHJY-CG-2025-023_采购合同.pdf,采购合同,东河县教育局（虚构）,东河优居供应链有限公司,610000,CNY,2025-05-22,DHJY-CG-2025-023,询价,"{""采购项目"": ""办公家具采购（三）""}"
+CASE-GP-2025,TRACE-C-CONTRACT,audit/合同协议类/合同,DHJY-CG-2025-031_采购合同.pdf,采购合同,东河县教育局（虚构）,东河云维科技有限公司,800000,CNY,2025-07-01,DHJY-CG-2025-031,竞争性磋商,"{""采购项目"": ""信息系统运维服务""}"

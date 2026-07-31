@@ -1,0 +1,110 @@
+{
+  "project": {
+    "name": "东河县教育局2025年度政府采购专项审计",
+    "unit": "东河县教育局（虚构）",
+    "period": "2025-01-01至2025-12-31"
+  },
+  "data_contracts": [
+    {
+      "project_id": "CASE-GP-2025",
+      "document_trace_id": "TRACE-A-CONTRACT",
+      "template_name": "audit/合同协议类/合同",
+      "doc_name": "DHJY-CG-2025-001_采购合同.pdf",
+      "doc_type": "采购合同",
+      "party_a": "东河县教育局（虚构）",
+      "party_b": "东河数智设备有限公司",
+      "amount": 1680000,
+      "currency": "CNY",
+      "sign_date": "2025-03-18",
+      "contract_no": "DHJY-CG-2025-001",
+      "procurement_method": "公开招标",
+      "extra_fields": "{\"采购项目\": \"教学终端采购\"}"
+    },
+    {
+      "project_id": "CASE-GP-2025",
+      "document_trace_id": "TRACE-B1-CONTRACT",
+      "template_name": "audit/合同协议类/合同",
+      "doc_name": "DHJY-CG-2025-021_采购合同.pdf",
+      "doc_type": "采购合同",
+      "party_a": "东河县教育局（虚构）",
+      "party_b": "东河优居家具有限公司",
+      "amount": 620000,
+      "currency": "CNY",
+      "sign_date": "2025-05-08",
+      "contract_no": "DHJY-CG-2025-021",
+      "procurement_method": "询价",
+      "extra_fields": "{\"采购项目\": \"办公家具采购（一）\"}"
+    },
+    {
+      "project_id": "CASE-GP-2025",
+      "document_trace_id": "TRACE-B2-CONTRACT",
+      "template_name": "audit/合同协议类/合同",
+      "doc_name": "DHJY-CG-2025-022_采购合同.pdf",
+      "doc_type": "采购合同",
+      "party_a": "东河县教育局（虚构）",
+      "party_b": "东河优居商贸有限公司",
+      "amount": 590000,
+      "currency": "CNY",
+      "sign_date": "2025-05-15",
+      "contract_no": "DHJY-CG-2025-022",
+      "procurement_method": "询价",
+      "extra_fields": "{\"采购项目\": \"办公家具采购（二）\"}"
+    },
+    {
+      "project_id": "CASE-GP-2025",
+      "document_trace_id": "TRACE-B3-CONTRACT",
+      "template_name": "audit/合同协议类/合同",
+      "doc_name": "DHJY-CG-2025-023_采购合同.pdf",
+      "doc_type": "采购合同",
+      "party_a": "东河县教育局（虚构）",
+      "party_b": "东河优居供应链有限公司",
+      "amount": 610000,
+      "currency": "CNY",
+      "sign_date": "2025-05-22",
+      "contract_no": "DHJY-CG-2025-023",
+      "procurement_method": "询价",
+      "extra_fields": "{\"采购项目\": \"办公家具采购（三）\"}"
+    },
+    {
+      "project_id": "CASE-GP-2025",
+      "document_trace_id": "TRACE-C-CONTRACT",
+      "template_name": "audit/合同协议类/合同",
+      "doc_name": "DHJY-CG-2025-031_采购合同.pdf",
+      "doc_type": "采购合同",
+      "party_a": "东河县教育局（虚构）",
+      "party_b": "东河云维科技有限公司",
+      "amount": 800000,
+      "currency": "CNY",
+      "sign_date": "2025-07-01",
+      "contract_no": "DHJY-CG-2025-031",
+      "procurement_method": "竞争性磋商",
+      "extra_fields": "{\"采购项目\": \"信息系统运维服务\"}"
+    }
+  ],
+  "findings": [
+    [
+      "GP-001",
+      "拆分采购疑点",
+      "B1/B2/B3同属信息化提升预算项目，14日内同类家具合同合计182万元",
+      "高"
+    ],
+    [
+      "GP-002",
+      "超比例收取履约保证金",
+      "C合同80万元，履约保证金10万元，占比12.5%",
+      "高"
+    ],
+    [
+      "GP-003",
+      "验收时点异常",
+      "C项目验收日期2025-11-20，早于服务完成日2025-12-31",
+      "中"
+    ],
+    [
+      "GP-004",
+      "票款金额不一致",
+      "C项目发票80万元，实际付款78万元，差额2万元",
+      "中"
+    ]
+  ]
+}
