@@ -386,6 +386,16 @@ def register_audit_routes(app):
             },
         })
 
+    @app.route("/api/audit/knowledge/regulation/<law_id>", methods=["GET"])
+    def audit_regulation_detail(law_id):
+        """GET /api/audit/knowledge/regulation/<law_id> — 法规详情（溯源用）
+        返回发布机关/文号/施行日期/时效/效力级别/条款正文等。
+        """
+        detail = get_law_detail(law_id)
+        if not detail:
+            return jsonify({"success": False, "error": "法规不存在或已下线"}), 404
+        return jsonify({"success": True, "law": detail})
+
     @app.route("/api/audit/knowledge/regulation/<law_id>/graph", methods=["GET"])
     def audit_regulation_graph(law_id):
         """GET /api/audit/knowledge/regulation/<id>/graph — 法规关系图"""
