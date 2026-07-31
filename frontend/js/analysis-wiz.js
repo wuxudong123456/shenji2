@@ -563,11 +563,59 @@ var AW = {
         if(fm){ AW.openMaterial(fm[1]); return; }
         var lm = line.match(/《([^》]+)》/);
         if(lm){ AW.traceLawSource('《'+lm[1]+'》'); return; }
-        var vm = line.match(/(化整为零|询价|采购公告|围标|串标|挪用|截留|违规[^\s·]*)/);
-        if(vm){ AuditWorkbench.toast('📍 违规语料库：'+line.replace(/📍语料库|📍/g,'').trim(),'info'); return; }
+        var vm = line.match(/(化整为零|询价|采购公告|围标|串标|挪用|截留|违规)/);
+        if(vm){
+          var vName = line.replace(/[⚠️📍]/g,'').replace(/语料库/g,'').split('·')[0].trim() || vm[0];
+          AW.traceViolationCorpus(vName);
+          return;
+        }
         AuditWorkbench.toast('📍 '+line.trim(),'info');
       });
     });
+  },
+
+  /** 违规语料库：按名称检索违规库 → 弹窗展示详情 */
+  traceViolationCorpus: function(name) {
+    var nm = (name||'').trim();
+    if(!nm) return AuditWorkbench.toast('未识别到违规名称','warning');
+    var self = this;
+    AuditWorkbench.toast('正在查询违规语料库…','info');
+    fetch(this._apiBase + '/knowledge/violations?q=' + encodeURIComponent(nm) + '&per_page=1').then(function(r){return r.json();}).then(function(d){
+      self._showCorpusModal((d.violations||[])[0], nm);
+    }).catch(function(){ AuditWorkbench.toast('违规语料库暂不可用','danger'); });
+  },
+
+  _showCorpusModal: function(v, name) {
+    if(!v){
+      AuditWorkbench.toast('语料库未收录「'+name+'」的记录','warning');
+      this.say('ai','📍 <strong>语料库查询</strong>：未匹配到「'+name+'」的违规模型记录。可能为本次新增的违规情形，尚未入库。');
+      return;
+    }
+    var sev = v.severity==='high'?'高':(v.severity==='low'?'低':'中');
+    var rows = [
+      ['违规名称', v.violation_title || name],
+      ['所属领域', v.category_path || '—'],
+      ['风险等级', sev],
+      ['来源模板', v.source_file || '—']
+    ];
+    var grid = '<div style="display:grid;grid-template-columns:90px 1fr;gap:8px 12px;">';
+    rows.forEach(function(r){ grid += '<div style="color:var(--color-text-muted);font-size:13px;">'+r[0]+'</div><div style="font-size:13px;">'+(r[1]||'—')+'</div>'; });
+    grid += '</div>';
+    var body = grid +
+      '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--color-border);"><strong>常见表现：</strong><div style="margin-top:4px;color:var(--color-text-muted);">'+this._esc(v.description||'—')+'</div></div>' +
+      '<div style="margin-top:10px;"><strong>判定规则：</strong><div style="margin-top:4px;color:var(--color-text-muted);font-family:monospace;font-size:12px;">'+this._esc(v.expression_text||'—')+'</div></div>';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:680px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
+        '<div style="padding:14px 20px;border-bottom:2px solid var(--color-border);position:sticky;top:0;background:#fff;display:flex;align-items:center;gap:8px;">'+
+          '<div><h3 style="margin:0;font-size:16px;">📍 违规语料库</h3><div style="font-size:12px;color:var(--color-text-muted);">溯源自 tt.audit_violations · 违规行为库</div></div>'+
+          '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div>'+
+        '<div style="padding:16px 20px;font-size:14px;line-height:1.9;">'+body+'</div>'+
+        '<div style="padding:12px 20px;border-top:1px solid var(--color-border);"><button class="btn btn-sm btn-outline" onclick="this.closest(\'[style*=fixed]\').remove();">关闭</button></div>'+
+      '</div>';
+    modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
+    document.body.appendChild(modal);
   },
 
   // ====== 右侧面板渲染 ======
