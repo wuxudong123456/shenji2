@@ -6,10 +6,11 @@
   - 文书生成
 """
 import json
-from flask import request, jsonify
+from flask import request, jsonify, send_file
 from services.db import query, query_one, insert, execute
 from services.vector_store import get_vector_store
 from services.document_service import generate_document, batch_generate
+from services.document_export_service import export_single, export_all
 
 
 def register_phase6_routes(app):
@@ -171,3 +172,26 @@ def register_phase6_routes(app):
         data = request.get_json() or {}
         result = batch_generate(data.get("context", {}))
         return jsonify(result)
+
+    @app.route("/api/audit/documents/export", methods=["POST"])
+    def phase6_document_export():
+        """POST /api/audit/documents/export — 导出文书为 Word(.docx)
+        body: {context: {...}, doc_type?: "evidence"|"workpaper"|"report"|"review"}
+        - 给定 doc_type → 单文书 .docx
+        - 缺省 doc_type → 四件套 zip
+        """
+        data = request.get_json() or {}
+        context = data.get("context", {})
+        doc_type = data.get("doc_type")  # 可为 None → 导出全部
+        try:
+            if doc_type:
+                buf, filename = export_single(doc_type, context)
+                mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            else:
+                buf, filename = export_all(context)
+                mimetype = "application/zip"
+            return send_file(buf, as_attachment=True, download_name=filename, mimetype=mimetype)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+        except Exception as e:  # noqa: BLE001
+            return jsonify({"success": False, "error": f"导出失败: {e}"}), 500

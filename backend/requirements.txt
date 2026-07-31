@@ -9,3 +9,4 @@ langgraph
 langgraph-checkpoint
 langchain-core
 pydantic
+python-docx
