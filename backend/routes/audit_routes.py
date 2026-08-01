@@ -481,6 +481,16 @@ def register_audit_routes(app):
         result = execute_expression(expression, table, project_id)
         return jsonify(result)
 
+    @app.route("/api/audit/threshold/check", methods=["POST"])
+    def audit_threshold_check():
+        """POST /api/audit/threshold/check — 阈值规则批量扫描（③阈值对照）"""
+        data = request.get_json() or {}
+        project_id = data.get("project_id", "")
+        table = data.get("table", "data_contracts")
+        from services.threshold_service import check_thresholds
+        result = check_thresholds(project_id, table)
+        return jsonify(result)
+
     # ── 聚合表达式 SQL 人工确认（Submit→Confirm→Execute）──
     @app.route("/api/audit/expression-sql/pending", methods=["GET"])
     def audit_expression_sql_pending():

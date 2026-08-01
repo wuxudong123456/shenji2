@@ -1,0 +1,52 @@
+# 审计阈值规则库 — 可执行的行级表达式（表达式引擎直接扫 data_* 表）
+# 审计员可自行增删改规则，无需改代码。加一条规则 = 加几行 YAML。
+# expression 里的中文字段名会自动映射到表列名（如 金额→amount, 采购方式→procurement_method）。
+
+rules:
+  - id: TR001
+    name: 应公开招标未招标
+    expression: '金额 >= 2000000 AND 采购方式 != "公开招标"'
+    law_ref: 《招标投标法》第3条
+    threshold: 货物采购≥200万须公开招标
+    severity: high
+    table: data_contracts
+
+  - id: TR002
+    name: 询价方式超限额
+    expression: '采购方式 = "询价" AND 金额 >= 500000'
+    law_ref: 《政府采购法》第28条
+    threshold: 询价适用于限额以下采购
+    severity: high
+    table: data_contracts
+
+  - id: TR003
+    name: 竞争性磋商超限额
+    expression: '采购方式 = "竞争性磋商" AND 金额 >= 1000000'
+    law_ref: 《政府采购竞争性磋商采购方式管理暂行办法》
+    threshold: 磋商仅适用特定情形
+    severity: medium
+    table: data_contracts
+
+  - id: TR004
+    name: 大额合同重点关注
+    expression: '金额 >= 5000000'
+    law_ref: 审计关注事项
+    threshold: ≥500万合同重点审查
+    severity: medium
+    table: data_contracts
+
+  - id: TR005
+    name: 中等金额合同
+    expression: '金额 >= 1000000 AND 金额 < 5000000'
+    law_ref: 审计关注事项
+    threshold: 100万-500万区间关注
+    severity: low
+    table: data_contracts
+
+  - id: TR006
+    name: 违规处罚基准
+    expression: '金额 > 0'
+    law_ref: 《招标投标法》第49条
+    threshold: 合同金额5‰-10‰罚款
+    severity: info
+    table: data_contracts
