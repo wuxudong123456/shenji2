@@ -94,6 +94,25 @@ var AuditAPI = {
     }
   },
 
+  // ── 聚合表达式 SQL 人工确认 ──
+  expressionSql: {
+    listPending: function() {
+      return fetch(AuditAPI.base + '/api/audit/expression-sql/pending').then(function(r) { return r.json(); });
+    },
+    approve: function(cid, reviewer) {
+      return fetch(AuditAPI.base + '/api/audit/expression-sql/' + cid + '/approve', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reviewer: reviewer || 'admin'})
+      }).then(function(r) { return r.json(); });
+    },
+    reject: function(cid, reviewer) {
+      return fetch(AuditAPI.base + '/api/audit/expression-sql/' + cid + '/reject', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reviewer: reviewer || 'admin'})
+      }).then(function(r) { return r.json(); });
+    }
+  },
+
   // ── 疑点报告 ──
   suspicion: {
     generate: function(data) {

@@ -17,10 +17,13 @@ from typing import Any
 
 
 # ── Token 定义 ──
+# Q2.1 补强：增加 NOT IN / IN / 算术运算符 / 逗号
 _TOKEN_SPEC = [
     ("BETWEEN", r"\bBETWEEN\b"),
     ("AND_OP",  r"\bAND\b"),
     ("OR_OP",   r"\bOR\b"),
+    ("NOT_IN",  r"\bNOT\s+IN\b"),
+    ("IN",      r"\bIN\b"),
     ("AND",     r"&&"),
     ("OR",      r"\|\|"),
     ("GTE",     r">="),
@@ -29,8 +32,15 @@ _TOKEN_SPEC = [
     ("GT",      r">"),
     ("LT",      r"<"),
     ("EQ",      r"="),
+    ("PLUS",    r"\+"),
+    ("MINUS",   r"-"),
+    ("MUL",     r"\*"),
+    ("DIV",     r"/"),
     ("LPAREN",  r"\("),
     ("RPAREN",  r"\)"),
+    ("LBRACK",  r"\["),
+    ("RBRACK",  r"\]"),
+    ("COMMA",   r","),
     ("NUMBER",  r"\d+\.?\d*"),
     ("STRING",  r"'[^']*'|\"[^\"]*\""),
     ("NULL",    r"\bNULL\b"),
@@ -105,30 +115,112 @@ class _Parser:
         return left
 
     def _compare(self) -> dict:
-        """compare → primary (比较运算符 primary)? | primary BETWEEN primary AND primary"""
-        left = self._primary()
+        """compare → arith (比较运算符 arith)? | arith BETWEEN arith AND arith
+                    | arith IN (list) | arith NOT IN (list)
+
+        Q2.1 补强：增加 IN / NOT IN / 算术表达式支持
+        """
+        left = self._arithmetic()
 
         # 如果 left 已经是完整的比较/逻辑节点（来自括号内的表达式），直接返回
         if left.get("type") in ("GT", "LT", "EQ", "NE", "GTE", "LTE",
-                                "BETWEEN", "AND", "OR", "TRUTHY"):
+                                "BETWEEN", "AND", "OR", "IN", "NOT_IN", "TRUTHY"):
             return left
 
         tok = self._peek()
-        if tok and tok[0] == "BETWEEN":
+
+        # BETWEEN（仅对 field/literal 有效，ARITH 不支持 BETWEEN）
+        if tok and tok[0] == "BETWEEN" and left.get("type") != "ARITH":
             self._consume("BETWEEN")
-            lo = self._primary()
+            lo = self._arithmetic()
             self._consume("AND_OP")  # BETWEEN ... AND ...
-            hi = self._primary()
+            hi = self._arithmetic()
             return {"type": "BETWEEN", "field": left["value"], "low": lo["value"], "high": hi["value"]}
 
+        # IN / NOT IN（仅对 field 有效）
+        if tok and tok[0] in ("IN", "NOT_IN") and left.get("type") == "field":
+            op = self._consume(tok[0])[0]
+            values = self._parse_list()
+            node_type = "NOT_IN" if op == "NOT_IN" else "IN"
+            return {"type": node_type, "field": left["value"], "values": values}
+
+        # 比较运算符
         if tok and tok[0] in ("GT", "LT", "EQ", "NE", "GTE", "LTE"):
             op = self._consume(tok[0])[0]
-            right = self._primary()
+            right = self._arithmetic()
             op_map = {"GT": "GT", "LT": "LT", "EQ": "EQ", "NE": "NE", "GTE": "GTE", "LTE": "LTE"}
+            # 若右侧或左侧是算术表达式，包成 ARITH_CMP
+            if right.get("type") == "ARITH" or left.get("type") == "ARITH":
+                return {"type": "ARITH_CMP", "op": op_map[op],
+                        "left": left, "right": right}
             return {"type": op_map[op], "field": left["value"], "value": right["value"]}
 
-        # 单值节点（如字段引用本身 —— 在违规表达式中视为布尔真值）
+        # ARITH 节点（如括号内的 amount/10000）：原样返回，让外层匹配比较符
+        if left.get("type") == "ARITH":
+            return left
+
+        # 单值字段（如审批文件 IS NULL 场景）：视为布尔真值
         return {"type": "TRUTHY", "value": left.get("value", left)}
+
+    def _arithmetic(self) -> dict:
+        """arith → term (('+' | '-') term)*
+
+        Q2.1 新增：算术加减（用于 (金额/合同金额) > 0.03 这类比例表达式）
+        """
+        left = self._term()
+        while self._peek() and self._peek()[0] in ("PLUS", "MINUS"):
+            op = self._consume(self._peek()[0])[0]
+            right = self._term()
+            left = {"type": "ARITH", "op": "+" if op == "PLUS" else "-",
+                    "left": left, "right": right}
+        return left
+
+    def _term(self) -> dict:
+        """term → primary (('*' | '/') primary)*"""
+        left = self._primary()
+        while self._peek() and self._peek()[0] in ("MUL", "DIV"):
+            op = self._consume(self._peek()[0])[0]
+            right = self._primary()
+            left = {"type": "ARITH", "op": "*" if op == "MUL" else "/",
+                    "left": left, "right": right}
+        return left
+
+    def _parse_list(self) -> list:
+        """解析 IN/NOT IN 后的值列表: ( v1, v2, v3 ) 或 [ v1, v2 ] 或 v1、v2、v3
+
+        支持圆括号、方括号、中文顿号分隔
+        """
+        values = []
+        # 吃掉开括号
+        if self._peek() and self._peek()[0] in ("LPAREN", "LBRACK"):
+            self._consume(self._peek()[0])
+
+        while True:
+            tok = self._peek()
+            if tok is None:
+                break
+            if tok[0] in ("RPAREN", "RBRACK"):
+                self._consume(tok[0])
+                break
+            if tok[0] == "STRING":
+                v = self._consume("STRING")[1]
+                if (v.startswith("'") and v.endswith("'")) or \
+                   (v.startswith('"') and v.endswith('"')):
+                    v = v[1:-1]
+                values.append(v)
+            elif tok[0] == "NUMBER":
+                v = self._consume("NUMBER")[1]
+                values.append(float(v) if "." in v else int(v))
+            elif tok[0] == "FIELD":
+                # 列表里的裸词也当作字符串值（如 NOT IN ('公开招标', '邀请招标')）
+                values.append(self._consume("FIELD")[1])
+            elif tok[0] in ("COMMA",):
+                self._consume("COMMA")
+                continue
+            else:
+                break
+
+        return values
 
     def _primary(self) -> dict:
         """primary → NUMBER | STRING | NULL | FIELD | '(' expression ')'"""
@@ -157,7 +249,9 @@ class _Parser:
         if tok[0] == "LPAREN":
             self._consume("LPAREN")
             node = self._or_expr()
-            self._consume("RPAREN")
+            # 可能是 (expr) 也可能是 list 的开始（IN 场景已由 _parse_list 处理）
+            if self._peek() and self._peek()[0] == "RPAREN":
+                self._consume("RPAREN")
             return node
 
         if tok[0] == "FIELD":
@@ -217,6 +311,14 @@ def ast_to_str(ast: dict) -> str:
         return f"{ast['field']} BETWEEN {ast['low']} AND {ast['high']}"
     if t == "TRUTHY":
         return f"TRUTHY({ast['value']})"
+    if t == "IN":
+        return f"{ast['field']} IN {ast['values']}"
+    if t == "NOT_IN":
+        return f"{ast['field']} NOT IN {ast['values']}"
+    if t == "ARITH":
+        return f"({ast_to_str(ast['left'])} {ast['op']} {ast_to_str(ast['right'])})"
+    if t == "ARITH_CMP":
+        return f"({ast_to_str(ast['left'])} {ast['op']} {ast_to_str(ast['right'])})"
     if t in ("literal", "field"):
         return str(ast.get("value", "?"))
     return str(ast)
