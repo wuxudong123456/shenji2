@@ -23,11 +23,16 @@ def get_client() -> Minio:
     return _client
 
 
-def upload_file(file_data: bytes, object_path: str, content_type: str = 'application/octet-stream') -> str:
-    """上传文件到 MinIO，返回对象路径"""
+def upload_file(file_data: bytes, object_path: str, content_type: str = 'application/octet-stream', bucket: str = None) -> str:
+    """上传文件到 MinIO，返回对象路径
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）
+    """
     client = get_client()
+    target_bucket = bucket or Config.MINIO_BUCKET
     client.put_object(
-        Config.MINIO_BUCKET,
+        target_bucket,
         object_path,
         io.BytesIO(file_data),
         length=len(file_data),
@@ -36,10 +41,16 @@ def upload_file(file_data: bytes, object_path: str, content_type: str = 'applica
     return object_path
 
 
-def download_file(object_path: str) -> bytes:
-    """从 MinIO 下载文件"""
+def download_file(object_path: str, bucket: str = None) -> bytes:
+    """从 MinIO 下载文件
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）。
+                项目文件存在 audit-project-{project_id} bucket，必须显式传入。
+    """
     client = get_client()
-    response = client.get_object(Config.MINIO_BUCKET, object_path)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    response = client.get_object(target_bucket, object_path)
     return response.read()
 
 

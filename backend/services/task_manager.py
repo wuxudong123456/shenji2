@@ -124,22 +124,53 @@ def start_task(task_id: int) -> bool:
 
 
 def update_progress(task_id: int, progress: int) -> bool:
-    """更新任务进度 (0-100)"""
+    """更新任务进度 (0-100)
+
+    Q1.3 修复：已取消的任务不再更新进度（避免 worker 覆写 cancelled 状态）
+    """
     progress = max(0, min(100, progress))
     return execute(
-        "UPDATE audit_task_queue SET progress = %s WHERE id = %s",
+        "UPDATE audit_task_queue SET progress = %s WHERE id = %s "
+        "AND status NOT IN ('cancelled')",
         (progress, task_id), database="tt",
     ) > 0
 
 
 def complete_task(task_id: int, result: dict = None) -> bool:
-    """标记任务为 completed"""
+    """标记任务为 completed
+
+    Q1.3 修复：已取消的任务不覆写为 completed（仅 pending/processing 可完成）
+    """
     return execute(
         "UPDATE audit_task_queue SET status='completed', progress=100, "
-        "result=%s, completed_at=NOW() WHERE id = %s",
+        "result=%s, completed_at=NOW() WHERE id = %s "
+        "AND status IN ('pending', 'processing')",
         (json.dumps(result, ensure_ascii=False) if result else None, task_id),
         database="tt",
     ) > 0
+
+
+def recover_stuck_tasks() -> int:
+    """Q1.3 新增：进程重启时恢复卡住的任务
+
+    把状态为 'processing' 的任务改回 'pending'（进程重启后这些任务的 worker 已丢失）。
+    应在应用启动时调用一次。
+
+    Returns:
+        恢复的任务数量
+    """
+    try:
+        affected = execute(
+            "UPDATE audit_task_queue SET status='pending', progress=0, "
+            "error_msg='进程重启，任务重新排队' "
+            "WHERE status='processing'",
+            database="tt",
+        )
+        if affected > 0:
+            print(f"[task_manager] 恢复 {affected} 个卡住的任务")
+        return affected
+    except Exception:
+        return 0
 
 
 def fail_task(task_id: int, error_msg: str) -> bool:
@@ -158,7 +189,8 @@ def fail_task(task_id: int, error_msg: str) -> bool:
     )
     if row and row["retry_count"] < row["max_retries"]:
         execute(
-            "UPDATE audit_task_queue SET status='pending', progress=0, error_msg=NULL WHERE id = %s",
+            "UPDATE audit_task_queue SET status='pending', progress=0, "
+            "error_msg=CONCAT('重试中(第', retry_count, '次): ', error_msg) WHERE id = %s",
             (task_id,), database="tt",
         )
         return True  # 已自动重试

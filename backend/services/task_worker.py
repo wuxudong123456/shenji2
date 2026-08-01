@@ -81,132 +81,294 @@ def cancel_running_task(task_id: int) -> bool:
 # ── 任务处理函数 ──
 
 def _run_ocr_task(task_id: int, task_data: dict):
-    """OCR 文件解析任务"""
+    """OCR + 字段提取任务（Q1.2 改造：调 OntoSKU 原生引擎，字段映射入表）
+
+    流程:
+      1. 从 task.result 读 trace_id（不再靠 file_name 反查）
+      2. 从 MinIO 下载文件
+      3. 调 OntoSKU 提取（含 sku_profile 匹配）
+      4. 字段映射：OntoSKU 中文字段 → data_xxx 表英文列
+      5. 写入溯源记录 + 数据工坊表
+      失败兜底：OntoSKU 不可用时降级到本地 LLM 提取
+    """
     start_task(task_id)
     update_progress(task_id, 10)
 
-    project_id = task_data.get("project_id", "")
-    file_name = task_data.get("task_name", "")
+    # 1. 从 task.result 读 trace_id（修复脆弱的 file_name 反查）
+    task_payload = task_data.get("result") or {}
+    if isinstance(task_payload, str):
+        try:
+            task_payload = json.loads(task_payload)
+        except json.JSONDecodeError:
+            task_payload = {}
+    trace_id = task_payload.get("trace_id")
+    minio_bucket = task_payload.get("minio_bucket")
+    minio_path = task_payload.get("minio_path")
+    project_id = task_payload.get("project_id") or task_data.get("project_id", "")
+    filename = task_payload.get("filename") or task_data.get("task_name", "")
 
-    # 从文件记录中获取 MinIO 路径
-    from services.db import query_one
+    if not trace_id:
+        fail_task(task_id, "task 缺少 trace_id（result.trace_id）")
+        return
+
+    from services.db import query_one, execute, insert
     trace = query_one(
-        "SELECT * FROM audit_document_traces WHERE project_id = %s AND file_name = %s "
-        "ORDER BY id DESC LIMIT 1",
-        (project_id, file_name), database="tt",
+        "SELECT * FROM audit_document_traces WHERE id = %s",
+        (trace_id,), database="tt",
     )
-    if not trace or not trace.get("minio_path"):
-        fail_task(task_id, f"找不到文件记录: {file_name}")
+    if not trace:
+        fail_task(task_id, f"溯源记录不存在: {trace_id}")
+        return
+
+    update_progress(task_id, 20)
+
+    # 2. 从 MinIO 下载文件（从 task_payload 取项目 bucket，不能用默认 bucket）
+    path_to_fetch = minio_path or trace.get("minio_path")
+    try:
+        from services.minio_client import download_file
+        file_bytes = download_file(path_to_fetch, bucket=minio_bucket)
+    except Exception as e:
+        fail_task(task_id, f"从MinIO下载失败(bucket={minio_bucket}): {e}")
         return
 
     update_progress(task_id, 30)
 
-    # 从 MinIO 下载文件
+    # 3. 调 OntoSKU 提取（双引擎：OntoSKU 优先，失败降级本地 LLM）
+    ocr_result = None
+    extract_engine = None
     try:
-        from services.minio_client import download_file
-        from config import Config
-        file_bytes = download_file(trace["minio_path"])
-    except Exception as e:
-        fail_task(task_id, f"从MinIO下载失败: {e}")
-        return
-
-    update_progress(task_id, 50)
-
-    # OCR 解析
-    try:
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=_guess_suffix(filename))
         tmp.write(file_bytes)
         tmp.close()
-        from services.ocr_client import OCREngine
-        ocr_result = OCREngine.parse(tmp.name)
-        os.unlink(tmp.name)
+        try:
+            # 首选：OntoSKU（带 sku_profile，由分类预判或留空让服务端自动匹配）
+            from services.ontosku_client import get_client as get_ontosku
+            from services.ontosku_client import OntoSKUError
+            sku_profile = task_payload.get("sku_profile")  # 可由前端指定
+            try:
+                ontosku_result = get_ontosku().extract(tmp.name, sku_profile=sku_profile)
+                ocr_result = {
+                    "success": True,
+                    "engine": "ontosku",
+                    "text": ontosku_result.get("markdown", ""),
+                    "fields": ontosku_result.get("fields", {}),
+                    "document_id": ontosku_result.get("document_id", ""),
+                    "chunks": ontosku_result.get("chunks", []),
+                }
+                extract_engine = "ontosku"
+            except OntoSKUError as oe:
+                # OntoSKU 不可用 → 降级本地 LLM 提取
+                update_progress(task_id, 40)
+                ocr_result = _fallback_local_extract(tmp.name, trace.get("ocr_content") or "")
+                extract_engine = "local-llm(fallback)"
+        finally:
+            if os.path.exists(tmp.name):
+                os.unlink(tmp.name)
     except Exception as e:
-        fail_task(task_id, f"OCR解析失败: {e}")
+        fail_task(task_id, f"提取阶段异常: {e}")
         return
 
-    update_progress(task_id, 80)
+    if not ocr_result or not ocr_result.get("success"):
+        fail_task(task_id, f"提取失败: {ocr_result.get('error', '未知') if ocr_result else '无结果'}")
+        return
 
-    # 更新溯源记录
-    if ocr_result.get("success"):
-        ocr_text = str(ocr_result.get("text", "") or str(ocr_result))
-        from services.db import execute
-        execute(
-            "UPDATE audit_document_traces SET ocr_content = %s, ocr_version = 1 WHERE id = %s",
-            (ocr_text[:50000], trace["id"]), database="tt",
-        )
-        complete_task(task_id, {
-            "trace_id": trace["id"],
-            "ocr_engine": ocr_result.get("engine", "unknown"),
-            "text_length": len(ocr_text),
-        })
-    else:
-        fail_task(task_id, f"OCR返回失败: {ocr_result.get('error', '未知')}")
+    update_progress(task_id, 70)
+
+    # 4. 文档分类（确定写入哪张 data_xxx 表）
+    ocr_text = ocr_result.get("text", "") or ocr_result.get("markdown", "")
+    fields = ocr_result.get("fields", {}) or {}
+
+    category = _classify_for_table(ocr_text, filename)
+    table_name = _map_category_to_table(category)
+
+    # 5. 字段映射：中文字段 → 表英文列
+    from services.field_mapper import map_extracted_fields
+    row_dict, extra_fields = map_extracted_fields(table_name, fields)
+
+    # 溯源 chunks（JSON 序列化）
+    chunks_json = json.dumps(ocr_result.get("chunks", []),
+                             ensure_ascii=False) if ocr_result.get("chunks") else None
+
+    # 6. 更新溯源记录
+    execute(
+        "UPDATE audit_document_traces SET "
+        "ocr_content = %s, ocr_version = ocr_version + 1, "
+        "ontosku_template = %s, extracted_fields = %s, position_anchor = %s "
+        "WHERE id = %s",
+        (ocr_text[:50000], extract_engine,
+         json.dumps({"mapped": row_dict, "extra": extra_fields}, ensure_ascii=False),
+         chunks_json, trace_id),
+        database="tt",
+    )
+
+    update_progress(task_id, 85)
+
+    # 7. 写入数据工坊表
+    row_id = _insert_into_data_table(
+        table_name, project_id, trace_id, filename, ocr_text,
+        row_dict, extra_fields, task_payload.get("template_name"),
+    )
+
+    update_progress(task_id, 100)
+    complete_task(task_id, {
+        "trace_id": trace_id,
+        "table": table_name,
+        "row_id": row_id,
+        "engine": extract_engine,
+        "fields_mapped": len(row_dict),
+        "fields_extra": len(extra_fields),
+        "text_length": len(ocr_text),
+    })
 
 
+def _fallback_local_extract(file_path: str, existing_ocr: str = "") -> dict:
+    """OntoSKU 不可用时的降级：LiteParse OCR + 本地 LLM 提取
+
+    注意：必须显式用 LiteParseClient，不能用 OCREngine.parse()——
+    因为 OCREngine 受 OCR_ENGINE=mineru 配置控制，会再次调用 OntoSKU（已在主路径失败），形成死循环。
+    """
+    try:
+        from services.ocr_client import LiteParseClient
+        ocr = LiteParseClient().parse(file_path)
+        if not ocr.get("success"):
+            return ocr
+        markdown = ocr.get("text") or ocr.get("markdown") or ""
+        # 用本地 LLM 分类 + 提取
+        from services.extraction_service import auto_classify_and_extract
+        extract = auto_classify_and_extract(markdown)
+        fields = {}
+        if extract.get("success"):
+            fields = {f["name"]: f["value"] for f in extract.get("fields", [])}
+        return {
+            "success": True,
+            "engine": "local-llm",
+            "text": markdown,
+            "fields": fields,
+            "document_id": "",
+            "chunks": [],
+        }
+    except Exception as e:
+        return {"success": False, "engine": "local-llm", "error": str(e)}
+
+
+def _classify_for_table(ocr_text: str, filename: str) -> str:
+    """轻量分类（决定写入哪张 data_xxx 表）
+
+    优先用文件名/内容关键词快速判断，避免每次都调 LLM。
+    """
+    text = (filename + " " + ocr_text[:2000])
+    KEYWORD_CATEGORY = [
+        ("合同", "合同协议类"), ("采购", "合同协议类"), ("招标", "合同协议类"),
+        ("发票", "财务票据类"), ("凭证", "财务凭证类"), ("账簿", "财务账簿类"),
+        ("银行", "财务凭证类"), ("流水", "财务凭证类"),
+        ("判决", "法律文书类"), ("裁定", "法律文书类"), ("处罚", "法律文书类"),
+        ("登记", "登记台账类"), ("台账", "登记台账类"), ("名册", "登记台账类"),
+        ("执照", "资质证照类"), ("资质", "资质证照类"), ("证书", "资质证照类"),
+        ("许可证", "资质证照类"),
+    ]
+    for kw, cat in KEYWORD_CATEGORY:
+        if kw in text:
+            return cat
+    return "其他杂项类"  # → data_general
+
+
+def _insert_into_data_table(table_name: str, project_id: str, trace_id: int,
+                            filename: str, ocr_text: str,
+                            row_dict: dict, extra_fields: dict,
+                            template_name: str = None) -> int:
+    """把映射后的字段写入对应的 data_xxx 表"""
+    from services.db import insert
+    extra_json = json.dumps(extra_fields, ensure_ascii=False) if extra_fields else None
+    tmpl = template_name or row_dict.get("template_name") or ""
+
+    # 公共列
+    cols = ["project_id", "document_trace_id", "template_name", "doc_name",
+            "extra_fields", "raw_text"]
+    vals = [project_id, trace_id, tmpl, filename, extra_json, ocr_text[:10000]]
+
+    # 动态追加映射到的列（只 INSERT 有值的列）
+    for col, val in row_dict.items():
+        if col in ("project_id", "document_trace_id", "template_name", "doc_name"):
+            continue  # 已在公共列
+        cols.append(col)
+        vals.append(val)
+
+    placeholders = ",".join(["%s"] * len(cols))
+    col_names = ",".join(cols)
+    return insert(
+        f"INSERT INTO {table_name} ({col_names}) VALUES ({placeholders})",
+        tuple(vals), database="tt",
+    )
+
+
+def _guess_suffix(filename: str) -> str:
+    """根据文件名推断临时文件后缀"""
+    import os as _os
+    _, ext = _os.path.splitext(filename or "")
+    return ext or ".pdf"
+
+
+# 保留旧的 _run_extract_task 作为独立任务（前端手动触发重新提取时用）
 def _run_extract_task(task_id: int, task_data: dict):
-    """知识抽取任务: OCR文本 → 模板匹配 → LLM字段提取 → 数据工坊入库"""
+    """独立提取任务：对已 OCR 的文档重新提取（切换模板时用）"""
     start_task(task_id)
     update_progress(task_id, 10)
 
-    project_id = task_data.get("project_id", "")
-    trace_id = task_data.get("result", {}).get("trace_id") if isinstance(task_data.get("result"), dict) else None
+    task_payload = task_data.get("result") or {}
+    if isinstance(task_payload, str):
+        try:
+            task_payload = json.loads(task_payload)
+        except json.JSONDecodeError:
+            task_payload = {}
+    trace_id = task_payload.get("trace_id")
+    project_id = task_payload.get("project_id") or task_data.get("project_id", "")
+    template_name = task_payload.get("template_name")
 
-    # 查溯源记录
-    if trace_id:
-        from services.db import query_one
-        trace = query_one("SELECT * FROM audit_document_traces WHERE id = %s", (trace_id,), database="tt")
-    else:
-        trace = None
+    from services.db import query_one
+    trace = query_one(
+        "SELECT * FROM audit_document_traces WHERE id = %s",
+        (trace_id,), database="tt",
+    ) if trace_id else None
 
     if not trace or not trace.get("ocr_content"):
         fail_task(task_id, "无OCR内容可提取，请先完成文件解析")
         return
 
-    update_progress(task_id, 30)
+    update_progress(task_id, 40)
 
-    # 文档分类
-    from services.extraction_service import classify_document
+    # 用本地 LLM 重新提取
+    from services.extraction_service import extract_fields, auto_classify_and_extract
     try:
-        classify_result = classify_document(trace["ocr_content"])
-    except Exception as e:
-        fail_task(task_id, f"文档分类失败: {e}")
-        return
-
-    update_progress(task_id, 50)
-
-    if not classify_result.get("success") or not classify_result.get("matches"):
-        fail_task(task_id, "无法匹配到合适的提取模板")
-        return
-
-    # 用最佳模板提取
-    best_template = classify_result["matches"][0]["name"]
-    from services.extraction_service import extract_fields
-    try:
-        extract_result = extract_fields(best_template, trace["ocr_content"])
+        if template_name:
+            extract_result = extract_fields(template_name, trace["ocr_content"])
+        else:
+            extract_result = auto_classify_and_extract(trace["ocr_content"])
     except Exception as e:
         fail_task(task_id, f"字段提取失败: {e}")
         return
 
     update_progress(task_id, 80)
 
-    # 写入数据工坊（根据分类结果选择目标表）
-    table_name = _map_category_to_table(classify_result.get("classification", {}).get("category", ""))
-    if extract_result.get("success"):
-        from services.db import insert
-        fields_data = {f["name"]: f["value"] for f in extract_result.get("fields", [])}
-        row_id = insert(
-            f"INSERT INTO {table_name} (project_id, document_trace_id, template_name, doc_name, extra_fields, raw_text) "
-            f"VALUES (%s,%s,%s,%s,%s,%s)",
-            (project_id, trace_id, best_template, trace.get("file_name", ""),
-             json.dumps(fields_data, ensure_ascii=False), trace["ocr_content"][:10000]),
-            database="tt",
-        )
-        complete_task(task_id, {
-            "table": table_name, "row_id": row_id, "template": best_template,
-            "fields_count": len(extract_result.get("fields", [])),
-        })
-    else:
+    if not extract_result.get("success"):
         fail_task(task_id, extract_result.get("error", "提取失败"))
+        return
+
+    # 字段映射 + 入表
+    category = _classify_for_table(trace["ocr_content"], trace.get("file_name", ""))
+    table_name = _map_category_to_table(category)
+    fields_data = {f["name"]: f["value"] for f in extract_result.get("fields", [])}
+    from services.field_mapper import map_extracted_fields
+    row_dict, extra_fields = map_extracted_fields(table_name, fields_data)
+
+    row_id = _insert_into_data_table(
+        table_name, project_id, trace_id, trace.get("file_name", ""),
+        trace["ocr_content"], row_dict, extra_fields, template_name,
+    )
+
+    complete_task(task_id, {
+        "table": table_name, "row_id": row_id, "template": template_name,
+        "fields_count": len(extract_result.get("fields", [])),
+    })
 
 
 def _run_analysis_task(task_id: int, task_data: dict):

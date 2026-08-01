@@ -29,3 +29,5 @@ class Config:
     OCR_ENGINE = os.environ.get('OCR_ENGINE', 'liteparse')
     MINERU_BASE_URL = os.environ.get('MINERU_BASE_URL', 'http://192.168.3.189:5005')
     LITEPARSE_URL = os.environ.get('LITEPARSE_URL', 'http://127.0.0.1:5006')
+    # OntoSKU API Key（通过 /v1/sku/local-api-key 获取，也可在此固定）
+    ONTOSKU_API_KEY = os.environ.get('ONTOSKU_API_KEY', '')

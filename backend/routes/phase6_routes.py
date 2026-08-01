@@ -8,9 +8,17 @@
 import json
 from flask import request, jsonify, send_file
 from services.db import query, query_one, insert, execute
-from services.vector_store import get_vector_store
 from services.document_service import generate_document, batch_generate
 from services.document_export_service import export_single, export_all
+
+
+def _get_vector_store():
+    """延迟导入 vector_store（torch/sentence_transformers 可能加载失败）"""
+    try:
+        from services.vector_store import get_vector_store as _gvs
+        return _gvs()
+    except Exception as e:
+        raise RuntimeError(f"FAISS 向量检索不可用（依赖加载失败）: {e}")
 
 
 def register_phase6_routes(app):
@@ -26,8 +34,11 @@ def register_phase6_routes(app):
         top_k = request.args.get("top_k", 10, type=int)
         if not q:
             return jsonify({"success": False, "error": "请输入搜索词"}), 400
-        store = get_vector_store()
-        results = store.search_laws(q, top_k=top_k)
+        try:
+            store = _get_vector_store()
+            results = store.search_laws(q, top_k=top_k)
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 503
         return jsonify({"success": True, "query": q, "results": results, "total": len(results)})
 
     @app.route("/api/audit/search/violations", methods=["GET"])
@@ -37,8 +48,11 @@ def register_phase6_routes(app):
         top_k = request.args.get("top_k", 10, type=int)
         if not q:
             return jsonify({"success": False, "error": "请输入搜索词"}), 400
-        store = get_vector_store()
-        results = store.search_violations(q, top_k=top_k)
+        try:
+            store = _get_vector_store()
+            results = store.search_violations(q, top_k=top_k)
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 503
         return jsonify({"success": True, "query": q, "results": results, "total": len(results)})
 
     # ═══════════════════════════════════════════════════════

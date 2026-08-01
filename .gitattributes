@@ -1,0 +1,10 @@
+# 统一文本文件换行为 LF（根治 Windows 下 LF→CRLF 警告）
+*.py   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.sql  text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf

@@ -29,6 +29,7 @@ CREATE TABLE tt.audit_document_traces (
     id                INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     project_id        VARCHAR(32)   NOT NULL                COMMENT '关联项目ID',
     file_name         VARCHAR(500)                          COMMENT '原始文件名',
+    file_md5          VARCHAR(32)                           COMMENT '文件MD5（去重校验）',
     minio_path        VARCHAR(1000)                         COMMENT 'MinIO对象路径',
     ocr_version       INT           DEFAULT 1               COMMENT 'OCR版本号',
     ocr_content       LONGTEXT                              COMMENT 'OCR/Markdown内容',
@@ -38,7 +39,8 @@ CREATE TABLE tt.audit_document_traces (
     extracted_fields  JSON                                  COMMENT '抽取的元数据字段',
     created_at        DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     INDEX idx_project (project_id),
-    INDEX idx_file (file_name)
+    INDEX idx_file (file_name),
+    INDEX idx_project_md5 (project_id, file_md5)
 ) COMMENT '文档溯源—OCR结果可追溯到原始文件页码';
 
 -- ---------------------------------------------------------------------------

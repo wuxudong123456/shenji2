@@ -120,7 +120,15 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/<project_id>/upload", methods=["POST"])
     def audit_file_upload(project_id):
-        """POST /api/audit/projects/<id>/upload — 上传文件+OCR解析"""
+        """POST /api/audit/projects/<id>/upload — 上传文件，异步触发 OCR+提取
+
+        改造说明（Q1.1）:
+          原实现同步跑 OCR 阻塞请求；现改为：
+          1. 算 MD5 去重（同项目同文件不重复处理）
+          2. 存 MinIO + 建溯源记录
+          3. 提交异步任务（task_worker 后台跑 OCR+提取）
+          4. 立即返回 task_id，前端轮询进度
+        """
         if "file" not in request.files:
             return jsonify({"success": False, "error": "请选择文件"}), 400
 
@@ -129,11 +137,30 @@ def register_audit_routes(app):
         file_bytes = f.read()
         file_id = str(uuid.uuid4()).replace("-", "")[:12]
 
-        # 确定 MinIO 路径
+        # 1. 计算 MD5
+        import hashlib
+        file_md5 = hashlib.md5(file_bytes).hexdigest()
+
+        # 2. 去重检查：同项目同 MD5 的文件已存在则返回已有记录
+        existing = query_one(
+            "SELECT id, file_name, ocr_content IS NOT NULL AS ocr_done "
+            "FROM audit_document_traces WHERE project_id = %s AND file_md5 = %s "
+            "ORDER BY id DESC LIMIT 1",
+            (project_id, file_md5), database="tt",
+        )
+        if existing:
+            return jsonify({
+                "success": True,
+                "deduplicated": True,
+                "file_name": existing["file_name"],
+                "trace_id": existing["id"],
+                "ocr_status": "completed" if existing.get("ocr_done") else "pending",
+                "message": "文件已存在，跳过重复处理",
+            })
+
+        # 3. 存入 MinIO
         bucket = f"audit-project-{project_id}"
         minio_path = f"{project_id}/raw/{file_id}/{filename}"
-
-        # 存入 MinIO
         try:
             from services.minio_client import get_client
             client = get_client()
@@ -146,29 +173,39 @@ def register_audit_routes(app):
         except Exception as e:
             return jsonify({"success": False, "error": f"文件存储失败: {e}"}), 500
 
-        # 创建溯源记录
+        # 4. 创建溯源记录（含 MD5）
         trace_id = insert(
             "INSERT INTO audit_document_traces "
-            "(project_id, file_name, minio_path, ocr_version, created_at) "
-            "VALUES (%s,%s,%s,1,NOW())",
-            (project_id, filename, minio_path), database="tt",
+            "(project_id, file_name, file_md5, minio_path, ocr_version, created_at) "
+            "VALUES (%s,%s,%s,%s,1,NOW())",
+            (project_id, filename, file_md5, minio_path), database="tt",
         )
 
-        # OCR 解析（异步非阻塞——失败不中断）
-        ocr_content = None
-        try:
-            import tempfile, os
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-            tmp.write(file_bytes)
-            tmp.close()
-            from services.ocr_client import OCREngine
-            ocr_result = OCREngine.parse(tmp.name)
-            if ocr_result.get("success"):
-                from services.ocr_client import MinerUClient
-                ocr_content = str(ocr_result.get("text", "") or str(ocr_result))
-            os.unlink(tmp.name)
-        except Exception:
-            pass  # OCR 失败不阻塞上传
+        # 5. 提交异步 OCR 任务（task_worker 后台处理）
+        from services.task_manager import create_task
+        from services.task_worker import submit_task
+        import json as _json
+        task_result = create_task(
+            task_name=filename,
+            task_type="ocr",
+            project_id=project_id,
+        )
+        task_id = task_result.get("task", {}).get("id")
+
+        # 把 trace_id + minio 信息塞进 task 的 result 字段（task_worker 读取）
+        if task_id:
+            execute(
+                "UPDATE audit_task_queue SET result = %s WHERE id = %s",
+                (_json.dumps({
+                    "trace_id": trace_id,
+                    "minio_bucket": bucket,
+                    "minio_path": minio_path,
+                    "filename": filename,
+                    "project_id": project_id,
+                }, ensure_ascii=False), task_id),
+                database="tt",
+            )
+            submit_task(task_id)
 
         return jsonify({
             "success": True,
@@ -177,7 +214,9 @@ def register_audit_routes(app):
             "minio_bucket": bucket,
             "minio_path": minio_path,
             "trace_id": trace_id,
-            "ocr_status": "completed" if ocr_content else "pending",
+            "task_id": task_id,
+            "ocr_status": "pending",
+            "message": "文件已上传，OCR+提取正在后台处理",
         })
 
     @app.route("/api/audit/projects/<project_id>/files", methods=["GET"])
@@ -428,6 +467,31 @@ def register_audit_routes(app):
 
         result = execute_expression(expression, table, project_id)
         return jsonify(result)
+
+    # ── 聚合表达式 SQL 人工确认（Submit→Confirm→Execute）──
+    @app.route("/api/audit/expression-sql/pending", methods=["GET"])
+    def audit_expression_sql_pending():
+        """GET /api/audit/expression-sql/pending — 列出待确认的 LLM 生成 SQL"""
+        from services.sql_generator import list_pending_sql
+        return jsonify({"success": True, "items": list_pending_sql()})
+
+    @app.route("/api/audit/expression-sql/<int:cid>/approve", methods=["POST"])
+    def audit_expression_sql_approve(cid):
+        """POST /api/audit/expression-sql/<id>/approve — 人工批准 SQL（批准后方可执行）"""
+        from services.sql_generator import approve_sql
+        reviewer = (request.get_json(silent=True) or {}).get("reviewer", "admin")
+        ok = approve_sql(cid, reviewer)
+        return jsonify({"success": ok, "id": cid,
+                        "review_status": "approved" if ok else "error"})
+
+    @app.route("/api/audit/expression-sql/<int:cid>/reject", methods=["POST"])
+    def audit_expression_sql_reject(cid):
+        """POST /api/audit/expression-sql/<id>/reject — 人工拒绝 SQL"""
+        from services.sql_generator import reject_sql
+        reviewer = (request.get_json(silent=True) or {}).get("reviewer", "admin")
+        ok = reject_sql(cid, reviewer)
+        return jsonify({"success": ok, "id": cid,
+                        "review_status": "rejected" if ok else "error"})
 
     @app.route("/api/audit/suspicion/generate", methods=["POST"])
     def audit_suspicion_generate():

@@ -392,32 +392,52 @@ const AnalysisWizard = {
     AuditWorkbench.toast('已选择 ' + checked + ' 份资料', 'info');
   },
 
-  /** Step 4: File handling — 真实上传到后端 OCR */
+  /** Step 4: File handling — 真实上传到后端 + 进度轮询 */
   handleFiles: function(fileList) {
     var self = this;
     for (var i = 0; i < fileList.length; i++) {
       var f = fileList[i];
-      var taskId = AuditWorkbench.addTask(f.name, 'ocr');
-      self.files.push({ name: f.name, size: f.size, status: 'uploading', taskId: taskId, traceId: null });
+      var uiTaskId = AuditWorkbench.addTask(f.name, 'ocr');
+      self.files.push({
+        name: f.name, size: f.size, status: 'uploading',
+        taskId: uiTaskId, backendTaskId: null, traceId: null, progress: 0
+      });
     }
     this.renderFileList();
 
     // 异步上传每个文件
     this.files.forEach(function(fileObj, idx) {
-      // 找到对应的 File 对象
       var file = fileList[idx];
       if (!file) return;
 
       AuditAPI.files.upload(self._projectId || 'default', file).then(function(resp) {
         if (resp.success) {
-          fileObj.status = 'parsed';
           fileObj.traceId = resp.trace_id || null;
-          fileObj.fileId = resp.file_id || null;
-          AuditWorkbench.completeTask(fileObj.taskId);
-          self.renderFileList();
-          AuditWorkbench.toast('✅ ' + fileObj.name + ' 上传成功' + (resp.ocr_status === 'completed' ? '（OCR已解析）' : '（OCR解析中...）'), 'success');
-          if (self.files.every(function(x) { return x.status === 'parsed'; })) {
-            self.showMetadata();
+          fileObj.backendTaskId = resp.task_id || null;
+          fileObj.deduplicated = resp.deduplicated || false;
+
+          if (resp.deduplicated) {
+            // MD5 去重命中，文件已处理过
+            fileObj.status = 'parsed';
+            fileObj.progress = 100;
+            AuditWorkbench.completeTask(fileObj.taskId);
+            self.renderFileList();
+            AuditWorkbench.toast('ℹ️ ' + fileObj.name + ' 已存在，跳过重复处理', 'info');
+            self._checkAllParsed();
+            return;
+          }
+
+          // 有 backend task_id → 轮询进度
+          if (resp.task_id) {
+            AuditWorkbench.toast('📤 ' + fileObj.name + ' 已上传，OCR+提取进行中', 'info');
+            self._pollTaskProgress(fileObj);
+          } else if (resp.ocr_status === 'completed') {
+            fileObj.status = 'parsed';
+            fileObj.progress = 100;
+            AuditWorkbench.completeTask(fileObj.taskId);
+            self.renderFileList();
+            AuditWorkbench.toast('✅ ' + fileObj.name + ' 解析完成', 'success');
+            self._checkAllParsed();
           }
         } else {
           fileObj.status = 'error';
@@ -431,7 +451,6 @@ const AnalysisWizard = {
       });
     });
 
-    // 提示异步处理
     document.getElementById('file-list').insertAdjacentHTML('beforeend',
       '<div class="alert alert-info" style="margin-top:8px;">' +
         '<i class="bi bi-info-circle"></i> <strong>异步处理已启动：</strong>文件上传和OCR解析在后台进行。' +
@@ -439,20 +458,77 @@ const AnalysisWizard = {
     );
   },
 
+  /** 轮询后端任务进度（Q1.5 进度反馈） */
+  _pollTaskProgress: function(fileObj) {
+    var self = this;
+    if (!fileObj.backendTaskId) return;
+
+    var pollOnce = function() {
+      AuditAPI.tasks.get(fileObj.backendTaskId).then(function(resp) {
+        if (!resp.success || !resp.task) return;
+        var t = resp.task;
+        fileObj.progress = t.progress || 0;
+        fileObj.status = t.status === 'completed' ? 'parsed' :
+                         t.status === 'failed' ? 'error' :
+                         t.status === 'cancelled' ? 'error' : 'processing';
+        self.renderFileList();
+
+        if (t.status === 'completed') {
+          AuditWorkbench.completeTask(fileObj.taskId);
+          var detail = '';
+          if (t.result && t.result.engine) detail = '（' + t.result.engine + '）';
+          AuditWorkbench.toast('✅ ' + fileObj.name + ' 解析完成' + detail, 'success');
+          self._checkAllParsed();
+        } else if (t.status === 'failed') {
+          AuditWorkbench.toast('❌ ' + fileObj.name + ' 解析失败: ' + (t.error_msg || ''), 'error');
+        } else if (t.status === 'cancelled') {
+          AuditWorkbench.toast('⚠️ ' + fileObj.name + ' 已取消', 'warning');
+        } else {
+          // 还在处理，2 秒后再查
+          setTimeout(pollOnce, 2000);
+        }
+      }).catch(function() {
+        // 网络抖动，3 秒后重试
+        if (fileObj.status !== 'parsed' && fileObj.status !== 'error') {
+          setTimeout(pollOnce, 3000);
+        }
+      });
+    };
+    pollOnce();
+  },
+
+  _checkAllParsed: function() {
+    if (this.files.every(function(x) { return x.status === 'parsed' || x.status === 'error'; }) &&
+        this.files.some(function(x) { return x.status === 'parsed'; })) {
+      this.showMetadata();
+    }
+  },
+
   renderFileList() {
-    document.getElementById('file-list').innerHTML = this.files.map(f => `
-      <div class="rec-item">
-        <i class="bi ${f.status === 'parsed' ? 'bi-file-earmark-check text-success' : 'bi-hourglass-split pulse'}" style="font-size:20px;"></i>
-        <div style="flex:1;">
-          <div style="font-weight:500;">${f.name}</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">
-            ${(f.size/1024).toFixed(1)}KB
-            ${f.status === 'parsed' ? ` · 提取 ${f.fields} 字段, ${f.records} 条记录` : ' · 解析中...'}
-          </div>
-        </div>
-        ${f.status === 'parsed' ? '<a class="trace-link" href="#"><i class="bi bi-geo-alt"></i> 溯源</a>' : '<div class="progress" style="width:80px;"><div class="progress-bar" style="width:60%"></div></div>'}
-      </div>
-    `).join('');
+    document.getElementById('file-list').innerHTML = this.files.map(f => {
+      var icon = f.status === 'parsed' ? 'bi-file-earmark-check text-success' :
+                 f.status === 'error' ? 'bi-file-earmark-x text-danger' :
+                 'bi-hourglass-split pulse';
+      var pct = f.progress || 0;
+      var statusText = f.status === 'parsed' ? ' · 已完成' :
+                       f.status === 'error' ? ' · 失败' :
+                       f.deduplicated ? ' · 已存在' :
+                       ' · ' + pct + '% 解析中';
+      var action = f.status === 'parsed'
+        ? '<a class="trace-link" href="#"><i class="bi bi-geo-alt"></i> 溯源</a>'
+        : (f.status === 'error'
+            ? '<span class="badge badge-warning">失败</span>'
+            : '<div class="progress" style="width:100px;"><div class="progress-bar" style="width:' + pct + '%"></div></div>');
+      return '<div class="rec-item">' +
+        '<i class="bi ' + icon + '" style="font-size:20px;"></i>' +
+        '<div style="flex:1;">' +
+          '<div style="font-weight:500;">' + f.name + '</div>' +
+          '<div style="font-size:12px;color:var(--color-text-muted);">' +
+            (f.size/1024).toFixed(1) + 'KB' + statusText +
+          '</div>' +
+        '</div>' + action +
+      '</div>';
+    }).join('');
   },
 
   showMetadata: function() {
@@ -517,6 +593,11 @@ const AnalysisWizard = {
     }
 
     AuditAPI.expression.execute(expression, this._projectId || '', 'data_contracts').then(function(resp) {
+      // 聚合表达式生成 SQL 后需人工确认（Submit→Confirm→Execute）
+      if (resp.needs_review) {
+        self._renderSqlReview(resp, expression);
+        return;
+      }
       if (!resp.success) {
         funnel.innerHTML = '<div class="alert alert-warning">表达式执行失败: ' + (resp.error || '未知错误') + '</div>';
         return;
@@ -582,6 +663,76 @@ const AnalysisWizard = {
 
     html += '</div>';
     funnel.innerHTML = html;
+  },
+
+  /** 聚合表达式 SQL 待确认卡片（Submit→Confirm→Execute）*/
+  _renderSqlReview: function(resp, expression) {
+    this._pendingReview = { cid: resp.sql_cache_id, expression: expression };
+    var funnel = document.getElementById('funnel-chart');
+    var esc = function(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    funnel.innerHTML =
+      '<div class="alert alert-warning" style="margin-top:var(--space-lg);">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+          '<i class="bi bi-shield-lock" style="font-size:18px;"></i> ' +
+          '<strong>该规则含聚合逻辑，已生成 SQL，请人工确认后执行</strong>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:6px;">原始表达式</div>' +
+        '<div style="font-family:monospace;font-size:13px;background:rgba(0,0,0,0.03);padding:8px;border-radius:6px;margin-bottom:10px;">' + esc(expression) + '</div>' +
+        '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:6px;">系统生成的 SQL（状态：待确认）</div>' +
+        '<pre style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.03);padding:8px;border-radius:6px;white-space:pre-wrap;max-height:240px;overflow:auto;margin-bottom:12px;">' + esc(resp.sql) + '</pre>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-primary" onclick="AnalysisWizard._approveSql()"><i class="bi bi-check-lg"></i> 批准并执行</button>' +
+          '<button class="btn btn-outline" onclick="AnalysisWizard._rejectSql()"><i class="bi bi-x-lg"></i> 拒绝</button>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--color-text-muted);margin-top:8px;">SQL 由 AI 生成并已通过只读白名单校验；确认无误后点击批准执行。</div>' +
+      '</div>';
+  },
+
+  _approveSql: function() {
+    var self = this;
+    var pr = this._pendingReview;
+    if (!pr || !pr.cid) { AuditWorkbench.toast('无待确认的 SQL', 'warning'); return; }
+    var funnel = document.getElementById('funnel-chart');
+    funnel.innerHTML = '<div style="text-align:center;padding:20px;"><i class="bi bi-hourglass-split pulse"></i> SQL 已批准，正在执行...</div>';
+    AuditAPI.expressionSql.approve(pr.cid).then(function(resp) {
+      if (!resp.success) {
+        funnel.innerHTML = '<div class="alert alert-warning">批准失败: ' + (resp.error || '未知错误') + '</div>';
+        return;
+      }
+      AuditWorkbench.toast('SQL 已批准，重新执行表达式', 'success');
+      // 批准后重新执行（此时缓存为 approved，直接出漏斗）
+      AuditAPI.expression.execute(pr.expression, self._projectId || '', 'data_contracts').then(function(r) {
+        if (r && r.needs_review) {
+          funnel.innerHTML = '<div class="alert alert-warning">SQL 已批准但仍返回待确认，请检查后端缓存状态</div>';
+          return;
+        }
+        if (!r || !r.success) {
+          funnel.innerHTML = '<div class="alert alert-warning">表达式执行失败: ' + ((r && r.error) || '未知错误') + '</div>';
+          return;
+        }
+        self._expressionResult = r;
+        self._renderFunnel(r, pr.expression);
+      }).catch(function() {
+        funnel.innerHTML = '<div class="alert alert-warning">重新执行失败，请确认后端服务已启动</div>';
+      });
+    }).catch(function() {
+      funnel.innerHTML = '<div class="alert alert-warning">批准请求失败，请确认后端服务已启动</div>';
+    });
+  },
+
+  _rejectSql: function() {
+    var self = this;
+    var pr = this._pendingReview;
+    if (!pr || !pr.cid) { AuditWorkbench.toast('无待确认的 SQL', 'warning'); return; }
+    AuditAPI.expressionSql.reject(pr.cid).then(function() {
+      AuditWorkbench.toast('已拒绝该 SQL，可重新选择违规模型', 'info');
+      self._pendingReview = null;
+      document.getElementById('funnel-chart').innerHTML =
+        '<div class="alert alert-info">已拒绝该聚合规则的 SQL。请在 Step ③ 重新选择违规模型或改用行级规则。</div>';
+    }).catch(function() { AuditWorkbench.toast('拒绝请求失败', 'error'); });
   },
 
   _showExprDetail: function(e) {

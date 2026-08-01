@@ -1,4 +1,12 @@
 """AuditWorkbench Flask API — MinIO 集成"""
+# 启用 faulthandler：后台线程原生崩溃时打印 Python 栈到 stderr（诊断进程被杀问题）
+import faulthandler
+faulthandler.enable()
+import os as _f_os
+# 同时把崩溃栈写进文件，防止进程退出时丢失
+_f = open(_f_os.path.join(_f_os.path.dirname(_f_os.path.abspath(__file__)), "crash.log"), "a", encoding="utf-8")
+faulthandler.enable(file=_f)
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from config import Config
@@ -390,4 +398,17 @@ def serve_page(page='index'):
     return send_from_directory(_FRONTEND_DIR, 'index.html')
 
 if __name__ == '__main__':
-    app.run(host=Config.FLASK_HOST, port=Config.FLASK_PORT, debug=True)
+    # Q1.3: 启动时恢复卡住的任务（进程重启前 processing 的任务）
+    try:
+        from services.task_manager import recover_stuck_tasks
+        recover_stuck_tasks()
+    except Exception as _e:
+        print(f"[startup] 任务恢复跳过: {_e}")
+
+    # Q1.5: 开启 threaded，避免上传等耗时请求阻塞其他请求
+    # debug 关闭：后台 worker 线程 + reloader 会导致进程被杀、任务卡 pending
+    # 如需调试可临时设为 True，但会牺牲后台任务稳定性
+    import os as _os
+    _debug = _os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host=Config.FLASK_HOST, port=Config.FLASK_PORT,
+            debug=_debug, use_reloader=_debug, threaded=True)

@@ -34,7 +34,10 @@ def _build_extraction_prompt(template: dict, markdown: str) -> tuple[str, str]:
     try:
         from prompts import load_prompt
         tmpl = load_prompt("extraction/extract_fields")
-        system_prompt = tmpl.format(guideline=guideline, fields_json=fields_json)
+        # 用 replace 而非 .format()，避免 guideline 内容含 {xxx} 时被误当占位符
+        system_prompt = (tmpl
+                         .replace("{guideline}", guideline)
+                         .replace("{fields_json}", fields_json))
     except FileNotFoundError:
         # 回退: 原内联逻辑（与 prompts/extraction/extract_fields.txt 等价）
         system_parts = [
@@ -245,10 +248,13 @@ def auto_classify_and_extract(markdown: str) -> dict:
     先用 LLM 分类文档类型，再匹配模板进行提取。
     """
     # Step 1: 用轻量 prompt 分类（从 prompts/extraction/classify_light.txt 加载）
+    # 注意：模板含 {"domain":...} 等 JSON 示例，不能用 .format()（会把 "domain" 当命名占位符报 KeyError）
+    # 改用字符串替换只换 {markdown} 占位符
     classify_prompt = ""
     try:
         from prompts import load_prompt
-        classify_prompt = load_prompt("extraction/classify_light").format(markdown=markdown[:3000])
+        tmpl = load_prompt("extraction/classify_light")
+        classify_prompt = tmpl.replace("{markdown}", markdown[:3000])
     except FileNotFoundError:
         classify_prompt = f"""请判断以下文档的类型。返回 JSON 格式：
 {{"domain": "审计领域（如 audit）", "category": "文档类别（如 合同协议类、业务单据类、财务凭证类）", "doc_type": "具体文档类型（如 采购合同、发票、入库单）", "reasoning": "判断依据"}}
