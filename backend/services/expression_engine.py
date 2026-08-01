@@ -267,10 +267,17 @@ def _execute_row(expression: str, table: str, project_id: str,
     except SyntaxError as e:
         return {"success": False, "error": f"表达式语法错误: {e}", "layer": "row"}
 
-    rows = query(
-        f"SELECT * FROM {table} WHERE project_id = %s LIMIT %s",
-        (project_id, limit), database="tt"
-    )
+    # project_id 可选：为空时扫全库（数据工坊全局视图），非空时按项目过滤
+    if project_id:
+        rows = query(
+            f"SELECT * FROM {table} WHERE project_id = %s LIMIT %s",
+            (project_id, limit), database="tt"
+        )
+    else:
+        rows = query(
+            f"SELECT * FROM {table} LIMIT %s",
+            (limit,), database="tt"
+        )
 
     hit_rows = []
     for row in rows:

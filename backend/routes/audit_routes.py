@@ -295,6 +295,21 @@ def register_audit_routes(app):
             })
         return jsonify({"success": True, "project_id": project_id, "tables": result})
 
+    @app.route("/api/audit/data/tables", methods=["GET"])
+    def audit_data_tables_global():
+        """GET /api/audit/data/tables — 6张数据表的全库行数（全局视图，不按项目过滤）"""
+        tables = ["data_contracts", "data_finance", "data_legal_docs",
+                  "data_registers", "data_credentials", "data_general"]
+        result = []
+        for t in tables:
+            row = query_one(f"SELECT COUNT(*) AS n FROM {t}", (), database="tt")
+            result.append({
+                "table": t,
+                "label": t.replace("data_", ""),
+                "rows": row["n"] if row else 0,
+            })
+        return jsonify({"success": True, "tables": result})
+
     @app.route("/api/audit/data/<table_name>/rows", methods=["GET"])
     def audit_data_rows(table_name):
         """GET /api/audit/data/<table>/rows — 数据浏览+分页"""

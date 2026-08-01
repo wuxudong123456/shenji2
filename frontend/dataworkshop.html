@@ -37,42 +37,27 @@
       <div class="page-header">
         <div>
           <h1><i class="bi bi-grid-3x3-gap"></i> 数据工坊</h1>
-          <div class="breadcrumb">非结构化 → 结构化 → 可查询 · 智能问数LLM自动生成表达式</div>
+          <div class="breadcrumb">非结构化 → 结构化 → 可查询 · 全局视图 · 智能问数LLM生成表达式</div>
         </div>
       </div>
 
-      <!-- Structured Data Tables -->
-      <h3>结构化数据表 <span class="text-sm text-muted">（从上传资料自动生成）</span></h3>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-lg);">
-        <div class="card" style="cursor:pointer;" onclick="DataWorkshop.selectTable('补贴发放')">
-          <div style="font-size:20px;margin-bottom:4px;"><i class="bi bi-table" style="color:var(--color-primary);"></i> 补贴发放明细_结构化表</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">来源: 补贴发放明细.pdf</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">15字段 · 1,248条 · 2026-07-04</div>
-        </div>
-        <div class="card" style="cursor:pointer;border:2px solid var(--color-primary);" onclick="DataWorkshop.selectTable('采购合同')">
-          <div style="font-size:20px;margin-bottom:4px;"><i class="bi bi-table" style="color:var(--color-primary);"></i> 采购合同_结构化表</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">来源: 采购合同汇总.pdf</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">8字段 · 5条 · 2026-07-03</div>
-          <div style="font-size:12px;color:var(--color-primary);margin-top:4px;">← 当前选中</div>
-        </div>
-        <div class="card" style="cursor:pointer;" onclick="DataWorkshop.selectTable('银行流水')">
-          <div style="font-size:20px;margin-bottom:4px;"><i class="bi bi-table" style="color:var(--color-warning);"></i> 银行流水_结构化表</div>
-          <div style="font-size:12px;color:var(--color-text-muted);">来源: 银行流水2026Q1.csv</div>
-          <div style="font-size:12px;color:var(--color-warning);">解析中...</div>
-        </div>
+      <!-- Structured Data Tables（全局，按类型；由 loadTables 动态渲染）-->
+      <h3>结构化数据表 <span class="text-sm text-muted">（全局·按类型·从上传资料自动生成，跨所有项目）</span></h3>
+      <div id="dw-tables" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-lg);">
+        <div class="card" style="grid-column:1/-1;text-align:center;color:var(--color-text-muted);padding:24px;">加载中…</div>
       </div>
 
       <!-- Smart Query -->
       <div class="smart-query-box">
         <h3 style="margin-bottom:8px;"><i class="bi bi-magic"></i> 智能问数</h3>
         <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:12px;">
-          口述查询需求，LLM自动映射到结构化表字段并生成比对表达式。确认后自动执行。
+          口述查询需求，LLM自动映射到结构化表字段并生成比对表达式。
         </p>
         <textarea class="form-textarea" id="nl-query" rows="2"
-          placeholder="例如：查2026年3月所有采购方式为询价但金额超过100万的合同，按金额从大到小排列"></textarea>
+          placeholder="例如：查采购方式为询价且金额超过100万的合同，按金额从大到小排列"></textarea>
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
           <button class="btn btn-primary" onclick="DataWorkshop.nlToExpression()"><i class="bi bi-magic"></i> AI生成表达式</button>
-          <span style="font-size:12px;color:var(--color-text-muted);">当前表: 采购合同_结构化表 (8字段, 5条)</span>
+          <span id="dw-current" style="font-size:12px;color:var(--color-text-muted);">当前表: data_contracts</span>
         </div>
         <div id="expression-result" style="margin-top:12px;"></div>
       </div>
@@ -80,10 +65,10 @@
       <!-- Multi-dimension Filter -->
       <h3>多维筛选</h3>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);" id="filters">
-        <div class="form-group"><label class="form-label">签订日期(起)</label><input type="date" class="form-input" value="2026-01-01"></div>
-        <div class="form-group"><label class="form-label">签订日期(止)</label><input type="date" class="form-input" value="2026-06-30"></div>
-        <div class="form-group"><label class="form-label">采购方式</label><select class="form-select"><option>全部</option><option>询价</option><option>公开招标</option></select></div>
-        <div class="form-group"><label class="form-label">金额范围</label><input type="number" class="form-input" placeholder="最低金额" value="0"></div>
+        <div class="form-group"><label class="form-label">签订日期(起)</label><input type="date" class="form-input"></div>
+        <div class="form-group"><label class="form-label">签订日期(止)</label><input type="date" class="form-input"></div>
+        <div class="form-group"><label class="form-label">采购方式</label><select class="form-select"><option>全部</option><option>询价</option><option>公开招标</option><option>竞争性磋商</option></select></div>
+        <div class="form-group"><label class="form-label">最低金额</label><input type="number" class="form-input" placeholder="如 1000000"></div>
       </div>
       <button class="btn btn-primary" onclick="DataWorkshop.executeQuery()"><i class="bi bi-search"></i> 执行查询</button>
 
@@ -93,106 +78,132 @@
   </div>
 
   <script src="js/app.js"></script>
+  <script src="js/api.js"></script>
   <script>
     const DataWorkshop = {
       currentTable: 'data_contracts',
-      currentProject: '',
+      TABLE_LABEL: {
+        data_contracts: '采购合同', data_finance: '财务凭证', data_legal_docs: '法律文书',
+        data_registers: '登记台账', data_credentials: '证照资质', data_general: '通用文档'
+      },
 
-      init() {
-        // 加载当前项目
-        try { var pm = JSON.parse(localStorage.getItem('aw_project_memory')||'{}'); this.currentProject = pm.id || '00917be56d5d'; } catch(e) {}
-        this.loadTables();
+      init() { this.loadTables(); },
+
+      _emptyHTML(msg) {
+        return '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--color-text-muted);padding:24px;">'+msg+'</div>';
       },
 
       loadTables() {
         var self = this;
-        fetch('/api/audit/projects/' + this.currentProject + '/data')
-          .then(function(r){return r.json();}).then(function(d){
-            if (d.success && d.tables && d.tables.length) {
-              var html = d.tables.map(function(t){
-                return '<div class="card" style="cursor:pointer;" onclick="DataWorkshop.selectTable(\''+t.table+'\')">'+
-                  '<div style="font-size:20px;margin-bottom:4px;"><i class="bi bi-table" style="color:var(--color-primary);"></i> '+t.label+'</div>'+
-                  '<div style="font-size:12px;color:var(--color-text-muted);">'+t.rows+' 条记录</div></div>';
-              }).join('');
-              document.querySelector('div[style*=\"grid-template-columns\"]').innerHTML = html;
-            }
-          }).catch(function(){});
+        var box = document.getElementById('dw-tables');
+        if (!box) return;
+        fetch('/api/audit/data/tables').then(function(r){return r.json();}).then(function(d){
+          var tables = (d && d.tables) || [];
+          if (!tables.length) { box.innerHTML = self._emptyHTML('暂无结构化数据表（上传文件后会自动生成）'); return; }
+          box.innerHTML = tables.map(function(t){
+            var active = t.table === self.currentTable;
+            var empty = (t.rows || 0) === 0;
+            return '<div class="card" style="cursor:pointer;'+(active?'border:2px solid var(--color-primary);':'')+'" onclick="DataWorkshop.selectTable(\''+t.table+'\')">'+
+              '<div style="font-size:18px;margin-bottom:4px;"><i class="bi bi-table" style="color:'+(empty?'var(--color-text-muted)':'var(--color-primary)')+';"></i> '+self.TABLE_LABEL[t.table]+'</div>'+
+              '<div style="font-size:12px;color:var(--color-text-muted);">'+t.table+' · '+(empty?'0 条':'<strong>'+t.rows+'</strong> 条')+'</div>'+
+              (active?'<div style="font-size:12px;color:var(--color-primary);margin-top:4px;">← 当前</div>':'')+
+              '</div>';
+          }).join('');
+        }).catch(function(){ box.innerHTML = self._emptyHTML('加载失败，请确认后端服务运行中（:5000）'); });
       },
 
+      selectTable(table) {
+        this.currentTable = table;
+        this.loadTables();
+        var cur = document.getElementById('dw-current');
+        if (cur) cur.textContent = '当前表: ' + table;
+        AuditWorkbench.toast('已选择: ' + (this.TABLE_LABEL[table] || table), 'info');
+      },
+
+      // 智能问数：自然语言 → 伪SQL（Layer3 改为生成后自动执行）
       nlToExpression() {
         var q = document.getElementById('nl-query').value.trim();
         if (!q) return AuditWorkbench.toast('请输入查询需求','warning');
         var self = this;
-        document.getElementById('expression-result').innerHTML = '<div style=\"padding:12px;color:var(--color-text-muted);\"><span class=\"pulse\">●</span> AI正在理解您的需求...</div>';
+        document.getElementById('expression-result').innerHTML = '<div style="padding:12px;color:var(--color-text-muted);"><span class="pulse">●</span> AI正在理解您的需求...</div>';
         fetch('/api/audit/data/query', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({question: q, project_id: self.currentProject})
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question: q, project_id: ''})
         }).then(function(r){return r.json();}).then(function(d){
           if (d.success && d.pseudo_sql) {
             document.getElementById('expression-result').innerHTML =
-              '<div class="card" style="margin-top:8px;animation:fadeIn 0.3s ease;">'+
+              '<div class="card" style="margin-top:8px;">'+
               '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:4px;"><i class="bi bi-magic"></i> AI生成比对逻辑：</div>'+
               '<div style="background:var(--color-bg);padding:10px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:13px;">'+d.pseudo_sql+'</div>'+
               '<div style="margin-top:8px;display:flex;gap:8px;">'+
-              '<button class="btn btn-accent btn-sm" onclick=\"DataWorkshop.executeExpression(\''+d.pseudo_sql.replace(/'/g,\"\\\\'\")+'\')\"><i class=\"bi bi-check-lg\"></i> 确认并执行</button>'+
-              '<button class="btn btn-outline btn-sm" onclick=\"document.getElementById(\'expression-result\').innerHTML=\'\'\"><i class=\"bi bi-x-lg\"></i> 取消</button></div></div>';
+              '<button class="btn btn-accent btn-sm" onclick="DataWorkshop.executeExpression(\''+d.pseudo_sql.replace(/'/g,"\\'")+'\')"><i class="bi bi-check-lg"></i> 确认并执行</button>'+
+              '<button class="btn btn-outline btn-sm" onclick="document.getElementById(\'expression-result\').innerHTML=\'\'"><i class="bi bi-x-lg"></i> 取消</button></div></div>';
           } else {
             AuditWorkbench.toast('AI未能理解您的需求，请重新描述','warning');
           }
-        }).catch(function(){
-          AuditWorkbench.toast('AI服务暂时不可用','error');
-        });
+        }).catch(function(){ AuditWorkbench.toast('AI服务暂时不可用','warning'); });
       },
 
+      // 执行表达式（全局，project_id 为空；聚合层返回 needs_review 时提示审批）
       executeExpression(expr) {
         var self = this;
-        document.getElementById('query-result').innerHTML = '<div style=\"padding:16px;text-align:center;\"><span class=\"pulse\">●</span> 执行中...</div>';
+        document.getElementById('query-result').innerHTML = '<div style="padding:16px;text-align:center;color:var(--color-text-muted);"><span class="pulse">●</span> 执行中...</div>';
         fetch('/api/audit/expression/execute', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({expression: expr, table: self.currentTable, project_id: self.currentProject})
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({expression: expr, table: self.currentTable, project_id: ''})
         }).then(function(r){return r.json();}).then(function(d){
-          if (d.success) {
-            var rows = (d.rows||[]).slice(0, 20);
-            var th = rows.length ? Object.keys(rows[0].fields||{}).slice(0,6).map(function(k){return '<th>'+k+'</th>';}).join('') : '';
-            var tr = rows.map(function(r){ return '<tr>'+Object.values(r.fields||{}).slice(0,6).map(function(v){return '<td>'+String(v||'').substring(0,50)+'</td>';}).join('')+'</tr>'; }).join('');
-            document.getElementById('query-result').innerHTML =
-              '<div class="card"><div class="card-header"><h3>查询结果</h3>'+
-              '<span class=\"badge badge-accent\">命中 '+d.hits+' 条 / 扫描 '+d.total+' 条 (命中率 '+(d.hit_rate*100).toFixed(1)+'%)</span></div>'+
-              '<div class=\"table-wrap\"><table class=\"table\"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>'+
-              '<div style=\"margin-top:8px;font-size:12px;color:var(--color-text-muted);\"><i class=\"bi bi-check-circle\"></i> AI Agent生成表达式 · 数据来源: '+self.currentTable+'</div></div>';
-          }
-        }).catch(function(){ AuditWorkbench.toast('执行失败','error'); });
-      },
-      selectTable(table) {
-        this.currentTable = table;
-        AuditWorkbench.toast('已选择: ' + table.replace('data_',''), 'info');
+          self._renderResult(d);
+        }).catch(function(){ AuditWorkbench.toast('执行失败','warning'); });
       },
 
+      _renderResult(d) {
+        var self = this;
+        var box = document.getElementById('query-result');
+        // 聚合层待人工审批
+        if (d && d.needs_review) {
+          box.innerHTML = '<div class="card"><div class="card-header"><h3>需要审批</h3><span class="badge badge-warning">聚合统计</span></div>'+
+            '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px;">该查询为聚合统计，AI 生成的 SQL 需审批后执行：</div>'+
+            '<pre style="background:var(--color-bg);padding:10px;border-radius:6px;font-size:12px;white-space:pre-wrap;overflow-x:auto;">'+(d.sql||'')+'</pre>'+
+            '<div style="margin-top:8px;color:var(--color-text-muted);font-size:12px;">审批后执行：POST /api/audit/expression-sql/'+(d.sql_cache_id||'')+'/approve</div></div>';
+          return;
+        }
+        if (!d || !d.success) {
+          box.innerHTML = '<div class="card" style="color:var(--color-text-muted);">查询未返回结果：'+((d&&d.error)||'表达式可能不匹配任何记录')+'</div>';
+          return;
+        }
+        var rows = (d.rows||[]).slice(0, 50);
+        // 收集列，project_id 提到首位，最多 8 列
+        var keys = [];
+        rows.forEach(function(r){ Object.keys(r.fields||{}).forEach(function(k){ if(keys.indexOf(k)<0) keys.push(k); }); });
+        if (keys.indexOf('project_id') > 0) keys = ['project_id'].concat(keys.filter(function(k){return k!=='project_id';}));
+        keys = keys.slice(0, 8);
+        var th = keys.map(function(k){return '<th>'+k+'</th>';}).join('');
+        var tr = rows.map(function(r){
+          var f = r.fields || {};
+          return '<tr>'+keys.map(function(k){ var v = f[k]; return '<td>'+(v===null||v===undefined||v===''?'<span style="color:var(--color-text-muted);">—</span>':String(v).substring(0,40))+'</td>'; }).join('')+'</tr>';
+        }).join('');
+        box.innerHTML =
+          '<div class="card"><div class="card-header"><h3>查询结果</h3>'+
+          '<span class="badge badge-accent">命中 '+d.hits+' 条 / 扫描 '+d.total+' 条 (命中率 '+(d.hit_rate*100).toFixed(1)+'%) · 全局</span></div>'+
+          '<div class="table-wrap"><table class="table"><thead><tr>'+th+'</tr></thead><tbody>'+(tr||'<tr><td colspan="'+keys.length+'" style="color:var(--color-text-muted);text-align:center;">无命中</td></tr>')+'</tbody></table></div>'+
+          '<div style="margin-top:8px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-check-circle"></i> 数据来源: '+this.currentTable+'（全库，跨所有项目）</div></div>';
+      },
+
+      // 多维筛选：把筛选条件拼成表达式执行（全局）
       executeQuery() {
-        document.getElementById('query-result').innerHTML = `
-          <div class="card">
-            <div class="card-header"><h3>查询结果</h3><span class="badge badge-accent">命中 1 条</span></div>
-            <div class="result-bar">
-              <div class="result-stat"><div class="val text-muted">5</div><div class="lbl">扫描总数</div></div>
-              <div class="result-stat"><div class="val" style="color:var(--color-accent);">1</div><div class="lbl">命中数</div></div>
-              <div class="result-stat"><div class="val" style="color:var(--color-primary);">20%</div><div class="lbl">命中率</div></div>
-              <div class="result-stat"><div class="val" style="color:var(--color-accent);">¥1,200,000</div><div class="lbl">涉及金额</div></div>
-              <div style="margin-left:auto;display:flex;gap:4px;">
-                <button class="btn btn-sm btn-outline"><i class="bi bi-download"></i> 导出</button>
-                <button class="btn btn-sm btn-primary" onclick="location.href='analysis.html'">提交智能分析</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table class="table">
-                <thead><tr><th>合同号</th><th>金额</th><th>采购方式</th><th>供应商</th><th>签订日期</th><th>结果</th></tr></thead>
-                <tbody>
-                  <tr class="row-danger"><td>HT-003</td><td>¥1,200,000</td><td><span style="color:var(--color-accent);">询价</span></td><td>XX科技</td><td>2026-03-12</td><td><span class="badge badge-accent">🔴 命中</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>`;
+        var inputs = document.querySelectorAll('#filters .form-input, #filters .form-select');
+        var dStart = inputs[0] ? inputs[0].value : '';
+        var dEnd = inputs[1] ? inputs[1].value : '';
+        var method = inputs[2] ? inputs[2].value : '';
+        var amt = inputs[3] ? inputs[3].value : '';
+        var parts = [];
+        if (amt && amt !== '0') parts.push('合同金额 >= '+amt);
+        if (method && method !== '全部') parts.push('采购方式 = "'+method+'"');
+        if (dStart) parts.push('签订日期 >= "'+dStart+'"');
+        if (dEnd) parts.push('签订日期 <= "'+dEnd+'"');
+        var expr = parts.join(' AND ');
+        if (!expr) { AuditWorkbench.toast('请至少填一个筛选条件','warning'); return; }
+        this.executeExpression(expr);
       }
     };
     document.addEventListener('DOMContentLoaded', function() { DataWorkshop.init(); });
