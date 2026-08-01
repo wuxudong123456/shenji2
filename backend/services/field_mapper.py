@@ -250,3 +250,30 @@ def get_all_aliases(table: str) -> dict[str, str]:
     """获取某张表的全部字段别名（调试/管理界面用）"""
     table = _normalize_table_name(table)
     return FIELD_ALIAS_MAP.get(table, {}).copy()
+
+
+def enrich_fields_from_text(fields: dict, markdown: str) -> dict:
+    """从 OCR 文本里 regex 补抽 LLM 可能漏掉的关键审计字段。
+
+    只填充缺失/空/未提供 的字段——绝不覆盖已有真值。
+    适用于"采购方式 公开招标"这种键值对格式（OCR 常见）。
+    """
+    if not markdown:
+        return fields
+    # 关键审计字段 → 正则（匹配 "字段名: 值" / "字段名  值" 等格式）
+    _PATTERNS = {
+        "采购方式": r"采购方式[\s:：]+(\S+)",
+        "合同金额": r"(?:合同金额|合同总价|合同总额)[\s:：]+([0-9,，.]+\s*[万元元亿吨]*)",
+        "合同编号": r"(?:合同编号|合同号)[\s:：]+([A-Za-z0-9\-]+)",
+        "供应商": r"(?:供应商|乙方|中标人|中标单位)[\s:：]+(\S+)",
+        "采购人": r"(?:采购人|甲方|采购单位)[\s:：]+(\S+)",
+        "签订日期": r"(?:签订日期|签署日期|签约日期)[\s:：]+([0-9\-/年月日]+)",
+    }
+    for cn_name, pattern in _PATTERNS.items():
+        existing = fields.get(cn_name)
+        if existing and str(existing).strip() and str(existing).strip() not in ("未提供", "无", "未知", "暂无", "-"):
+            continue  # 已有真值，跳过
+        m = re.search(pattern, markdown, re.MULTILINE)
+        if m:
+            fields[cn_name] = m.group(1).strip()
+    return fields

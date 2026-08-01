@@ -178,6 +178,10 @@ def _run_ocr_task(task_id: int, task_data: dict):
     ocr_text = ocr_result.get("text", "") or ocr_result.get("markdown", "")
     fields = ocr_result.get("fields", {}) or {}
 
+    # 补抽：从 OCR 文本 regex 捞 LLM 可能漏掉的关键审计字段（采购方式/金额/合同号/供应商/日期）
+    from services.field_mapper import enrich_fields_from_text
+    fields = enrich_fields_from_text(fields, ocr_text)
+
     category = _classify_for_table(ocr_text, filename)
     table_name = _map_category_to_table(category)
 
@@ -357,6 +361,9 @@ def _run_extract_task(task_id: int, task_data: dict):
     category = _classify_for_table(trace["ocr_content"], trace.get("file_name", ""))
     table_name = _map_category_to_table(category)
     fields_data = {f["name"]: f["value"] for f in extract_result.get("fields", [])}
+    # 补抽：从 OCR 文本 regex 捞 LLM 漏掉的关键审计字段
+    from services.field_mapper import enrich_fields_from_text
+    fields_data = enrich_fields_from_text(fields_data, trace.get("ocr_content", ""))
     from services.field_mapper import map_extracted_fields
     row_dict, extra_fields = map_extracted_fields(table_name, fields_data)
 
