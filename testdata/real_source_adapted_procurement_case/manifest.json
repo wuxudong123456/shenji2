@@ -1,0 +1,152 @@
+{
+  "name": "真实来源改编政府采购审计案例包",
+  "source": "https://www.audit.gov.cn/n5/n1482/c140763/part/73697.pdf",
+  "file_count": 29,
+  "files": [
+    {
+      "path": "00_使用说明/README.md",
+      "size": 200,
+      "sha256": "932cfa94feb2352c12ea7027acb31aad8ef2b6dd79746a4c90844d3c3b4702aa"
+    },
+    {
+      "path": "01_公开来源证据/公开来源证据台账.md",
+      "size": 929,
+      "sha256": "e914e0bb44a420ecc37ebbb370219bb63a3c699e29e07a5a2bd93a799f90a91d"
+    },
+    {
+      "path": "02_真实事实与补建边界/事实边界清单.md",
+      "size": 342,
+      "sha256": "a3bf43cd9ef5e3120791fac8d152951fb82d59eb384c73654aab26f2a3981958"
+    },
+    {
+      "path": "03_审计意图/可粘贴审计意图.txt",
+      "size": 232,
+      "sha256": "029fe0c9724e67b59ef1f63fa2bba2933453c0e06089fe60043144867b963ad5"
+    },
+    {
+      "path": "04_补建原始资料/U01_信息化设备采购.docx",
+      "size": 37303,
+      "sha256": "381bb82179feaed2d74704ee728c240d49a28a6841e7d4a34a438ede417c649f"
+    },
+    {
+      "path": "04_补建原始资料/U01_信息化设备采购.pdf",
+      "size": 57163,
+      "sha256": "ff84e7603ead2d96804b55f2bfa606d70e4d8c7fafb9c3b713853a4db5a9f7d9"
+    },
+    {
+      "path": "04_补建原始资料/U02_办公设备采购.docx",
+      "size": 37303,
+      "sha256": "1fd78db5024374bdafe6fc849da95dc3ca9dd13a65c79c139e381ecd57ffa3ea"
+    },
+    {
+      "path": "04_补建原始资料/U02_办公设备采购.pdf",
+      "size": 57181,
+      "sha256": "cfad62dcefd9f1035d29ea7f03b4b9443ad6784a5188748489bb63ab21c79360"
+    },
+    {
+      "path": "04_补建原始资料/U03_物业服务采购.docx",
+      "size": 37301,
+      "sha256": "67f37d36a3e315315782e64f8c6acd2e7e54a12a42409f56c3a3bee5d5a9cbef"
+    },
+    {
+      "path": "04_补建原始资料/U03_物业服务采购.pdf",
+      "size": 56849,
+      "sha256": "c6278eb5fbf9678dd82df0f3371278ad9811fbde5206f358b4013975a2c54666"
+    },
+    {
+      "path": "04_补建原始资料/U04_实验设备采购.docx",
+      "size": 37302,
+      "sha256": "4fce0cab69bf8ae918a270ed27a378c126866f4baf3bd63f0b4d967aff442ca7"
+    },
+    {
+      "path": "04_补建原始资料/U04_实验设备采购.pdf",
+      "size": 57434,
+      "sha256": "7fc804799836d8f215fbb52426140280ec8569017d53e2e5251a0766f06f8878"
+    },
+    {
+      "path": "04_补建原始资料/U05_印刷服务采购.docx",
+      "size": 37301,
+      "sha256": "17379dab55a2aec76d51c61a94a52f588df8398b9c37e8b21e3a6b179f89a2cd"
+    },
+    {
+      "path": "04_补建原始资料/U05_印刷服务采购.pdf",
+      "size": 57075,
+      "sha256": "48e0511ff132ddd1e90834cbfef8e6ea59973d926b7772e27ceea8f769f59a51"
+    },
+    {
+      "path": "04_补建原始资料/U06_软件运维服务采购.docx",
+      "size": 37307,
+      "sha256": "a2604636b12fff9671793379bd2729a7515f459f47fe4321ff82d820999297d1"
+    },
+    {
+      "path": "04_补建原始资料/U06_软件运维服务采购.pdf",
+      "size": 57870,
+      "sha256": "46f0c997a045a4a22a037151e31131af517897975e2778358f135c166496da59"
+    },
+    {
+      "path": "04_补建原始资料/U07_办公家具采购.docx",
+      "size": 37301,
+      "sha256": "028a000a662186026e77d2dc4dbef47972af599a463a6d4ab4f7858259eae36b"
+    },
+    {
+      "path": "04_补建原始资料/U07_办公家具采购.pdf",
+      "size": 57191,
+      "sha256": "ad7f460a522d78c64a028101a5fc4448944e7ddcb90fd3ca64dd6fcdde55135f"
+    },
+    {
+      "path": "05_结构化金标准/csv/data_contracts.csv",
+      "size": 2324,
+      "sha256": "f56e144f8a52d9b116959ce9f4fae42fd2b9c5132b3fb8a69a30428c37ff91d7"
+    },
+    {
+      "path": "05_结构化金标准/golden_dataset.json",
+      "size": 4626,
+      "sha256": "d5d24ab088235daae22c3b5d53166ba1379e9e0f089cce865623a12ca28fe857"
+    },
+    {
+      "path": "05_结构化金标准/真实来源改编结构化金标准.xlsx",
+      "size": 6047,
+      "sha256": "431a891ebf11ea560fd9ec6e36dd41898b7a61ac717e26d677f9cd09bd9fed20"
+    },
+    {
+      "path": "05_结构化金标准/真实来源改编结构化金标准.xlsx.inspect.ndjson",
+      "size": 63659,
+      "sha256": "9b3ceaa6c1f7d2f35fd9fbbc1918b748309c0962a3ac0c4a92a7d8c98b1ddd5a"
+    },
+    {
+      "path": "06_违规规则/规则与表达式.md",
+      "size": 351,
+      "sha256": "4068afd70564fad9fd5f18643569e951d366f05ba6ebbda23f5e0da2046c9a4b"
+    },
+    {
+      "path": "07_标准答案/预期命中.md",
+      "size": 200,
+      "sha256": "2e5f789e89556bdc4f7e1b5d652e7a101092582335a5cc30f0a549d597ec29f9"
+    },
+    {
+      "path": "08_疑点成果/真实来源改编案例疑点报告.docx",
+      "size": 37306,
+      "sha256": "8a63128473aeb9b605f1576d440648379709082fb82062ec6cf2936878e62a69"
+    },
+    {
+      "path": "08_疑点成果/真实来源改编案例疑点报告.pdf",
+      "size": 58115,
+      "sha256": "80802e7c8ee5043282702eb217170492ef770519fdaf2d4404a086e7c980edb1"
+    },
+    {
+      "path": "09_数据库导入/audit_cases_import.sql",
+      "size": 468,
+      "sha256": "ad6d2108bf8d01b137785a01f14f66f51433e4cce2aa527bcd88f8d26ac53f88"
+    },
+    {
+      "path": "10_操作手册/真实来源改编案例操作手册.docx",
+      "size": 37427,
+      "sha256": "682e57e63b2920241c25aa4daa76063ee02c0a4849e7c1ee19b2d0788afc5bdb"
+    },
+    {
+      "path": "10_操作手册/真实来源改编案例操作手册.pdf",
+      "size": 65689,
+      "sha256": "ee730c06a4e0f707af2642e77a33b7c33cc7795806e59bee7151b0477ba043c5"
+    }
+  ]
+}

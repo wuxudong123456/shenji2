@@ -45,3 +45,11 @@ Thumbs.db
 *.tmp
 temp/
 tmp/
+
+# ======================
+# 测试案例包二进制（可由 scripts/case_pack 重建，不入库）
+# ======================
+testdata/**/*.pdf
+testdata/**/*.docx
+testdata/**/*.xlsx
+testdata/**/*.doc
