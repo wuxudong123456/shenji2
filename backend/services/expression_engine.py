@@ -39,15 +39,11 @@ def _eval_ast(ast: dict, row: dict) -> bool:
         if "." in field_name:
             field_name = field_name.split(".")[-1]
 
-        # 不区分大小写匹配列名
-        row_value = None
-        for k, v in row.items():
-            if k.lower() == field_name.lower():
-                row_value = v
-                break
+        # 取字段值（支持英文列名 + 中文别名，如 金额→amount）
+        row_value = _get_row_value(row, field_name)
 
         if row_value is None:
-            return False  # 列不存在，默认不命中
+            return False  # 字段不存在，默认不命中
 
         # 类型统一：数字比较
         if isinstance(target, (int, float)) and row_value is not None:
@@ -82,11 +78,7 @@ def _eval_ast(ast: dict, row: dict) -> bool:
         if "." in field_name:
             field_name = field_name.split(".")[-1]
 
-        row_value = None
-        for k, v in row.items():
-            if k.lower() == field_name.lower():
-                row_value = v
-                break
+        row_value = _get_row_value(row, field_name)
 
         if row_value is None:
             return False
@@ -101,12 +93,8 @@ def _eval_ast(ast: dict, row: dict) -> bool:
     # TRUTHY: 字段存在且非空/非0
     if t == "TRUTHY":
         val = ast.get("value", "")
-        if "." in str(val):
-            val = str(val).split(".")[-1]
-        for k, v in row.items():
-            if k.lower() == str(val).lower():
-                return v is not None and v != "" and v != 0
-        return False
+        v = _get_row_value(row, val)
+        return v is not None and v != "" and v != 0
 
     # Q2.1 新增：IN / NOT IN
     if t in ("IN", "NOT_IN"):
@@ -157,19 +145,27 @@ def _eval_ast(ast: dict, row: dict) -> bool:
 
 
 def _get_row_value(row: dict, field_name: str):
-    """从行中取字段值（不区分大小写，处理 表.字段 格式）"""
+    """从行中取字段值（不区分大小写，处理 表.字段 格式，支持中文别名）"""
     if "." in str(field_name):
         field_name = str(field_name).split(".")[-1]
+    fn = str(field_name)
+    # 1) 直接列名匹配（英文列名，不区分大小写）
     for k, v in row.items():
-        if k.lower() == str(field_name).lower():
+        if k.lower() == fn.lower():
             return v
-    # 尝试通过字段映射找列（中文→英文列名）
+    # 2) 中文别名 → 英文列名：遍历 field_mapper 全量别名表（覆盖所有 data_* 表的所有别名）
     try:
-        from services.field_mapper import get_column_for_expr_field
-        for k in row.keys():
-            cn_for_this_col = _col_to_cn(k)
-            if cn_for_this_col == str(field_name):
-                return row[k]
+        from services.field_mapper import FIELD_ALIAS_MAP
+        # 精确
+        for table_aliases in FIELD_ALIAS_MAP.values():
+            col = table_aliases.get(fn)
+            if col and col in row:
+                return row[col]
+        # 模糊（别名键互为子串）
+        for table_aliases in FIELD_ALIAS_MAP.values():
+            for ak, ac in table_aliases.items():
+                if (ak in fn or fn in ak) and ac in row:
+                    return row[ac]
     except Exception:
         pass
     return None
@@ -179,7 +175,7 @@ def _col_to_cn(col: str) -> str:
     """英文列名→中文字段名（反向映射，用于表达式字段对齐）"""
     # 简单的内置反向映射
     REVERSE = {
-        "party_a": "甲方", "party_b": "乙方", "amount": "金额", "amount": "合同金额",
+        "party_a": "甲方", "party_b": "乙方", "amount": "金额",
         "procurement_method": "采购方式", "sign_date": "签订日期",
         "account_name": "账户名称", "debit_amount": "借方金额", "credit_amount": "贷方金额",
         "voucher_no": "凭证号", "quantity": "数量",

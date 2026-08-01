@@ -34,9 +34,11 @@ class OntoSKUClient:
                          "http://192.168.3.189:5005").rstrip("/")
         # API key：优先参数 > 配置 > 动态获取
         self.api_key = api_key or getattr(Config, "ONTOSKU_API_KEY", None)
-        self.timeout = 300
-        self.poll_interval = 5
-        self.max_wait = 600  # OCR+提取可能较慢，最大等 10 分钟
+        # 超时/轮询/重试 均从 Config(.env) 读取，运维可调
+        self.timeout = getattr(Config, "ONTOSKU_TIMEOUT", 300)
+        self.poll_interval = getattr(Config, "ONTOSKU_POLL_INTERVAL", 5)
+        self.max_wait = getattr(Config, "ONTOSKU_MAX_WAIT", 600)
+        self.retries = getattr(Config, "ONTOSKU_RETRIES", 2)
 
     def _headers(self) -> dict:
         """带认证的请求头"""
@@ -115,7 +117,7 @@ class OntoSKUClient:
     # ── 步骤实现 ──
 
     def _create_job(self, file_name: str, sku_profile: str = None) -> dict:
-        """POST /v1/jobs — 创建任务，拿到 presigned upload_url"""
+        """POST /v1/jobs — 创建任务，拿到 presigned upload_url（带重试）"""
         payload = {
             "source_type": "file",
             "file_name": file_name,
@@ -123,26 +125,37 @@ class OntoSKUClient:
         }
         if sku_profile:
             payload["sku_profiles"] = sku_profile
-        try:
-            r = requests.post(f"{self.base_url}/v1/jobs", json=payload,
-                              headers=self._headers(), timeout=15)
-        except requests.RequestException as e:
-            raise OntoSKUError(f"创建 job 失败: {e}") from e
-        if r.status_code != 200:
-            raise OntoSKUError(f"创建 job HTTP {r.status_code}: {r.text[:300]}")
-        return r.json()
+        last = None
+        for attempt in range(self.retries + 1):
+            try:
+                r = requests.post(f"{self.base_url}/v1/jobs", json=payload,
+                                  headers=self._headers(), timeout=15)
+                if r.status_code == 200:
+                    return r.json()
+                last = f"HTTP {r.status_code}: {r.text[:300]}"
+            except requests.RequestException as e:
+                last = str(e)
+            if attempt < self.retries:
+                time.sleep(1.5 * (attempt + 1))
+        raise OntoSKUError(f"创建 job 失败（重试 {self.retries} 次）: {last}")
 
     def _upload_file(self, upload_url: str, file_bytes: bytes,
                      upload_headers: dict):
-        """PUT 文件字节到 presigned MinIO URL"""
+        """PUT 文件字节到 presigned MinIO URL（带重试）"""
         headers = {"Content-Type": "application/octet-stream"}
         headers.update(upload_headers)
-        try:
-            r = requests.put(upload_url, data=file_bytes, headers=headers, timeout=120)
-        except requests.RequestException as e:
-            raise OntoSKUError(f"上传文件失败: {e}") from e
-        if r.status_code not in (200, 204):
-            raise OntoSKUError(f"上传文件 HTTP {r.status_code}: {r.text[:300]}")
+        last = None
+        for attempt in range(self.retries + 1):
+            try:
+                r = requests.put(upload_url, data=file_bytes, headers=headers, timeout=120)
+                if r.status_code in (200, 204):
+                    return
+                last = f"HTTP {r.status_code}: {r.text[:300]}"
+            except requests.RequestException as e:
+                last = str(e)
+            if attempt < self.retries:
+                time.sleep(1.5 * (attempt + 1))
+        raise OntoSKUError(f"上传文件失败（重试 {self.retries} 次）: {last}")
 
     def _confirm_upload(self, job_id: str):
         """POST /v1/jobs/{id}/confirm-upload — 触发处理"""

@@ -269,22 +269,41 @@ def auto_classify_and_extract(markdown: str) -> dict:
 
     # Step 2: 用分类结果搜索匹配模板
     category = classify_result.get("category", "")
-    from services.template_service import search_templates, list_templates
-    from services.template_service import _get_desc
+    doc_type = classify_result.get("doc_type", "")
+    from services.template_service import search_templates, list_templates, get_template
 
-    # 先按类别精确匹配
     candidates = list_templates(category=category)
     if not candidates:
-        # 按文档类型关键词搜索
-        doc_type = classify_result.get("doc_type", "")
         candidates = search_templates(doc_type, limit=10)
     if not candidates:
-        # 最后的兜底
         candidates = search_templates(category, limit=10)
+
+    # 确保该类别的通用模板在候选池（避免字母序取到不相关模板）
+    CATEGORY_DEFAULT = {
+        "合同协议类": "audit/合同协议类/合同",
+        "业务单据类": "audit/业务单据类/单据",
+        "财务凭证类": "audit/财务凭证类/凭证",
+        "财务票据类": "audit/财务凭证类/票据",
+        "数据表格类": "audit/数据表格类/表格",
+    }
+    default_name = CATEGORY_DEFAULT.get(category)
+    if default_name and default_name not in {c.get("name") for c in candidates}:
+        dt = get_template(default_name)
+        if dt:
+            fields = dt.get("output", {}).get("fields", [])
+            candidates.append({"name": default_name, "field_count": len(fields)})
 
     if not candidates:
         return {"success": False, "error": "未找到匹配的模板"}
 
-    # Step 3: 用最佳匹配模板提取
-    best_template = candidates[0]["name"]
+    # Step 3: 按 doc_type/类别关键词打分选最佳模板（不再取字母序 candidates[0]）
+    def _tmpl_score(t):
+        name = t.get("name", "")
+        s = 0.0
+        for kw in (doc_type, category):
+            if kw and kw in name:
+                s += 100
+        s += min(t.get("field_count", 0) or 0, 30) * 0.2
+        return s
+    best_template = max(candidates, key=_tmpl_score)["name"]
     return extract_fields(best_template, markdown)

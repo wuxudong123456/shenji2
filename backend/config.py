@@ -31,3 +31,8 @@ class Config:
     LITEPARSE_URL = os.environ.get('LITEPARSE_URL', 'http://127.0.0.1:5006')
     # OntoSKU API Key（通过 /v1/sku/local-api-key 获取，也可在此固定）
     ONTOSKU_API_KEY = os.environ.get('ONTOSKU_API_KEY', '')
+    # OntoSKU 超时与轮询（.env 可调，远程服务慢时调大 max_wait）
+    ONTOSKU_TIMEOUT = int(os.environ.get('ONTOSKU_TIMEOUT', '300'))
+    ONTOSKU_POLL_INTERVAL = int(os.environ.get('ONTOSKU_POLL_INTERVAL', '5'))
+    ONTOSKU_MAX_WAIT = int(os.environ.get('ONTOSKU_MAX_WAIT', '600'))
+    ONTOSKU_RETRIES = int(os.environ.get('ONTOSKU_RETRIES', '2'))

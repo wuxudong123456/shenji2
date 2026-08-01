@@ -18,18 +18,22 @@ from typing import Any
 FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
     "data_contracts": {
         # 甲方
-        "甲方": "party_a", "采购人": "party_a", "采购单位": "party_a", "买方": "party_a", "订购方": "party_a",
+        "甲方": "party_a", "采购人": "party_a", "采购单位": "party_a", "采购单位名称": "party_a",
+        "甲方名称": "party_a", "买方": "party_a", "订购方": "party_a", "采购方": "party_a",
         # 乙方
         "乙方": "party_b", "供应商": "party_b", "供应商名称": "party_b", "中标人": "party_b",
-        "中标单位": "party_b", "卖方": "party_b", "供货方": "party_b", "承包方": "party_b",
-        "合同乙方名称": "party_b",
+        "中标单位": "party_b", "中标供应商": "party_b", "卖方": "party_b", "供货方": "party_b",
+        "供货单位": "party_b", "承包方": "party_b", "合同乙方名称": "party_b",
         # 金额
         "合同金额": "amount", "金额": "amount", "采购金额": "amount", "合同总价": "amount",
         "总价": "amount", "中标金额": "amount", "成交金额": "amount", "价款": "amount",
+        "合同总额": "amount", "总额": "amount", "合计金额": "amount", "价税合计": "amount",
+        "不含税金额": "amount", "合同不含税金额": "amount", "预算金额": "amount",
         # 币种
         "币种": "currency", "货币": "currency",
         # 日期
         "签订日期": "sign_date", "合同签订日期": "sign_date", "签署日期": "sign_date", "订立日期": "sign_date",
+        "签约日期": "sign_date", "合同日期": "sign_date",
         "生效日期": "effective_date", "起效日期": "effective_date",
         "终止日期": "expiry_date", "到期日期": "expiry_date", "结束日期": "expiry_date", "履约期限": "expiry_date",
         # 编号
@@ -137,16 +141,15 @@ def map_extracted_fields(table: str, extracted_fields: dict | list) -> tuple[dic
     extra_fields = {}
 
     for cn_name, value in flat.items():
-        col = alias.get(cn_name)
+        col = alias.get(cn_name) or _fuzzy_match_alias(cn_name, alias)
         if col:
-            row_dict[col] = _cast_value(col, value, table)
+            casted = _cast_value(col, value, table)
+            # 防 last-wins 覆盖：仅当列未赋值或现值为空(None/"")时才写入。
+            # 这样允许 None→真值（后续真值补上），但阻止真值被后面的"未提供"→None 覆盖。
+            if row_dict.get(col) in (None, ""):
+                row_dict[col] = casted
         else:
-            # 模糊匹配：别名表中包含该中文名
-            matched = _fuzzy_match_alias(cn_name, alias)
-            if matched:
-                row_dict[matched] = _cast_value(matched, value, table)
-            else:
-                extra_fields[cn_name] = value
+            extra_fields[cn_name] = value
 
     return row_dict, extra_fields
 
@@ -174,8 +177,15 @@ def _cast_value(col: str, value: Any, table: str) -> Any:
     NUMERIC_COLS = {"amount", "debit_amount", "credit_amount", "quantity"}
     if col in NUMERIC_COLS:
         try:
-            num_str = re.sub(r"[^\d.\-]", "", str(value).replace(",", ""))
-            return float(num_str) if num_str else None
+            s = str(value)
+            # 识别"万/亿"单位并换算（与模板 guideline"保留万元/亿元单位"一致）
+            mult = 1
+            if "亿" in s:
+                mult = 100000000
+            elif "万" in s:
+                mult = 10000
+            num_str = re.sub(r"[^\d.\-]", "", s.replace(",", ""))
+            return float(num_str) * mult if num_str else None
         except (ValueError, TypeError):
             return None
 
