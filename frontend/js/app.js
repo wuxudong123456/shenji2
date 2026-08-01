@@ -44,6 +44,55 @@ const AuditWorkbench = {
     this.renderSidebar();
     this.bindEvents();
     this.updateTaskBadge();
+    // 启动时同步后端真实任务状态，修正 localStorage 里"永远处理中"的脏数据
+    this.syncTasksWithBackend();
+  },
+
+  // 用后端真实状态同步本地任务徽章（解决本地漏调 completeTask 导致永远"处理中"）
+  // 启动时调用：清理幽灵任务 + 同步真实状态
+  syncTasksWithBackend() {
+    var self = this;
+    if (typeof AuditAPI === 'undefined' || !AuditAPI.tasks) return;
+    AuditAPI.tasks.list({ limit: 20 }).then(function(resp) {
+      if (!resp || !resp.success || !resp.tasks) return;
+      var backendByName = {};
+      resp.tasks.forEach(function(t) { backendByName[t.task_name] = t; });
+      var changed = false;
+
+      // 第一遍：同步状态 + 标记幽灵任务（后端找不到对应的本地 processing 任务）
+      self.backgroundTasks.forEach(function(localTask) {
+        var bt = backendByName[localTask.name];
+        if (bt) {
+          // 后端有对应任务，同步真实状态
+          var newStatus = bt.status === 'completed' ? 'completed' :
+                          (bt.status === 'failed' || bt.status === 'cancelled' ? 'failed' : 'processing');
+          if (newStatus !== localTask.status) {
+            localTask.status = newStatus;
+            if (newStatus === 'completed' && !localTask.completedAt) {
+              localTask.completedAt = new Date().toISOString();
+            }
+            changed = true;
+          }
+        } else if (localTask.status === 'processing') {
+          // 后端找不到对应任务 + 本地还显示处理中 → 幽灵任务，标记完成
+          localTask.status = 'completed';
+          localTask.completedAt = new Date().toISOString();
+          localTask._ghost = true;  // 标记为幽灵，第二遍清除
+          changed = true;
+        }
+      });
+
+      // 第二遍：清除幽灵任务 + 超过 20 条的旧记录
+      var before = self.backgroundTasks.length;
+      self.backgroundTasks = self.backgroundTasks.filter(function(t) { return !t._ghost; });
+      // 只保留最近 20 条
+      if (self.backgroundTasks.length > 20) {
+        self.backgroundTasks = self.backgroundTasks.slice(0, 20);
+      }
+      if (self.backgroundTasks.length !== before) changed = true;
+
+      if (changed) { self.saveTasks(); self.updateTaskBadge(); }
+    }).catch(function() {});
   },
 
   renderNavbar() {
@@ -251,9 +300,41 @@ const AuditWorkbench = {
   },
 
   showTasks() {
+    var self = this;
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
-    var tasks = this.backgroundTasks.slice(0, 10);
+    document.body.appendChild(modal);
+
+    // 先用本地数据快速渲染，再异步查后端真实状态刷新
+    self._renderTaskModal(modal, self.backgroundTasks.slice(0, 10));
+
+    // 异步查后端真实任务状态（修正本地 localStorage 里"永远处理中"的脏数据）
+    if (typeof AuditAPI !== 'undefined' && AuditAPI.tasks) {
+      AuditAPI.tasks.list({ limit: 10 }).then(function(resp) {
+        if (resp && resp.success && resp.tasks) {
+          // 用 task_name（文件名）匹配本地任务，同步后端真实状态
+          var backendByName = {};
+          resp.tasks.forEach(function(t) { backendByName[t.task_name] = t; });
+          self.backgroundTasks.forEach(function(localTask) {
+            var bt = backendByName[localTask.name];
+            if (bt) {
+              localTask.status = bt.status === 'completed' ? 'completed' :
+                                 (bt.status === 'failed' || bt.status === 'cancelled' ? 'failed' : 'processing');
+              if (localTask.status === 'completed' && !localTask.completedAt) {
+                localTask.completedAt = new Date().toISOString();
+              }
+            }
+          });
+          self.saveTasks();
+          self.updateTaskBadge();
+          self._renderTaskModal(modal, self.backgroundTasks.slice(0, 10));
+        }
+      }).catch(function() {});
+    }
+  },
+
+  _renderTaskModal(modal, tasks) {
+    var self = this;
     var processing = tasks.filter(function(t) { return t.status === 'processing'; }).length;
     var completed = tasks.filter(function(t) { return t.status === 'completed'; }).length;
     var total = this.backgroundTasks.length;
@@ -274,14 +355,28 @@ const AuditWorkbench = {
         '<div style="flex:1;"><div style="font-size:14px;">' + t.name + '</div><div style="font-size:12px;color:var(--color-text-muted);">' + (t.status==='completed'?'已完成':'处理中...') + '</div></div>' +
         (t.status==='processing'?'<div class="progress" style="width:60px;"><div class="progress-bar" style="width:65%;animation:pulse 1.5s infinite;"></div></div>':'') + '</div>';
     });
+    var footerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
+      '<a href="index.html" style="font-size:13px;">在首页待办中查看详情 &rarr;</a>' +
+      (completed > 0 ? '<button class="btn btn-sm btn-outline" onclick="AuditWorkbench.clearCompletedTasks()"><i class="bi bi-trash"></i> 清除已完成</button>' : '') +
+      '</div>';
+
     modal.innerHTML = '<div style="background:#fff;border-radius:var(--radius-lg);max-width:500px;width:90%;padding:24px;box-shadow:var(--shadow-lg);">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
       '<h3 style="margin:0;"><i class="bi bi-hourglass-split"></i> 后台任务</h3>' +
       '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button></div>' +
-      itemsHtml +
-      '<div style="text-align:center;margin-top:12px;"><a href="index.html" style="font-size:13px;">在首页待办中查看详情 &rarr;</a></div></div>';
-    modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
-    document.body.appendChild(modal);
+      itemsHtml + footerHtml + '</div>';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+  },
+
+  // 清除本地已完成的任务记录（不动后端，只清理前端 localStorage + 徽章）
+  clearCompletedTasks() {
+    this.backgroundTasks = this.backgroundTasks.filter(function(t) { return t.status !== 'completed'; });
+    this.saveTasks();
+    this.updateTaskBadge();
+    // 关闭并重新打开面板
+    var stale = document.querySelector('[style*="fixed"][style*="z-index:9999"]');
+    if (stale) stale.remove();
+    this.showTasks();
   },
 
   /** Toggle user dropdown */
