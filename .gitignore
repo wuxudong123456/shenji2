@@ -45,6 +45,7 @@ Thumbs.db
 *.tmp
 temp/
 tmp/
+/.worktrees/
 
 # ======================
 # 测试案例包二进制（可由 scripts/case_pack 重建，不入库）
