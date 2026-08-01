@@ -103,7 +103,7 @@
           box.innerHTML = tables.map(function(t){
             var active = t.table === self.currentTable;
             var empty = (t.rows || 0) === 0;
-            return '<div class="card" style="cursor:pointer;'+(active?'border:2px solid var(--color-primary);':'')+'" onclick="DataWorkshop.selectTable(\''+t.table+'\')">'+
+            return '<div class="card" style="cursor:pointer;'+(active?'border:2px solid var(--color-primary);':'')+'" onclick="DataWorkshop.viewTable(\''+t.table+'\')">'+
               '<div style="font-size:18px;margin-bottom:4px;"><i class="bi bi-table" style="color:'+(empty?'var(--color-text-muted)':'var(--color-primary)')+';"></i> '+self.TABLE_LABEL[t.table]+'</div>'+
               '<div style="font-size:12px;color:var(--color-text-muted);">'+t.table+' · '+(empty?'0 条':'<strong>'+t.rows+'</strong> 条')+'</div>'+
               (active?'<div style="font-size:12px;color:var(--color-primary);margin-top:4px;">← 当前</div>':'')+
@@ -118,6 +118,47 @@
         var cur = document.getElementById('dw-current');
         if (cur) cur.textContent = '当前表: ' + table;
         AuditWorkbench.toast('已选择: ' + (this.TABLE_LABEL[table] || table), 'info');
+      },
+
+      // 点击表卡片：加载并展示该表数据行（全局，跨所有项目）
+      viewTable(table) {
+        this.currentTable = table;
+        this.loadTables();
+        var cur = document.getElementById('dw-current');
+        if (cur) cur.textContent = '当前表: ' + table;
+        var box = document.getElementById('query-result');
+        if (box) box.innerHTML = '<div style="padding:16px;text-align:center;color:var(--color-text-muted);"><span class="pulse">●</span> 加载 '+table+' ...</div>';
+        var self = this;
+        fetch('/api/audit/data/' + table + '/rows?per_page=20').then(function(r){return r.json();}).then(function(d){
+          self._renderRows(d, table);
+        }).catch(function(){ if (box) box.innerHTML = '<div class="card" style="color:var(--color-text-muted);">加载失败，请确认后端运行中</div>'; });
+        AuditWorkbench.toast('已切换到: ' + (this.TABLE_LABEL[table] || table), 'info');
+      },
+
+      _renderRows(d, table) {
+        var box = document.getElementById('query-result');
+        var label = this.TABLE_LABEL[table] || table;
+        if (!d || !d.success || !(d.rows || []).length) {
+          box.innerHTML = '<div class="card"><div class="card-header"><h3>'+label+'</h3><span class="badge badge-muted">0 条</span></div>'+
+            '<div style="color:var(--color-text-muted);padding:20px;text-align:center;">该表暂无数据（上传对应类型文件后会自动生成并出现在这里）</div></div>';
+          return;
+        }
+        var rows = d.rows;
+        var keys = [];
+        rows.forEach(function(r){ Object.keys(r).forEach(function(k){ if(keys.indexOf(k)<0 && k!=='raw_text' && k!=='extra_fields') keys.push(k); }); });
+        if (keys.indexOf('project_id') > 0) keys = ['project_id'].concat(keys.filter(function(k){return k!=='project_id';}));
+        keys = keys.slice(0, 9);
+        var th = keys.map(function(k){return '<th>'+k+'</th>';}).join('');
+        var tr = rows.map(function(r){
+          return '<tr>' + keys.map(function(k){ var v = r[k];
+            return '<td>' + (v===null||v===undefined||v==='' ? '<span style="color:var(--color-text-muted);">—</span>' : String(v).substring(0,40)) + '</td>';
+          }).join('') + '</tr>';
+        }).join('');
+        box.innerHTML =
+          '<div class="card"><div class="card-header"><h3>'+label+' <span style="font-size:12px;color:var(--color-text-muted);font-weight:400;">'+table+'</span></h3>'+
+          '<span class="badge badge-accent">共 '+d.total+' 条（全局·显示前 '+rows.length+'）</span></div>'+
+          '<div class="table-wrap"><table class="table"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>'+
+          '<div style="margin-top:8px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 点击表卡片浏览全部数据；用上方"多维筛选"或"智能问数"做条件查询。</div></div>';
       },
 
       // 智能问数：自然语言 → 伪SQL（Layer3 改为生成后自动执行）
