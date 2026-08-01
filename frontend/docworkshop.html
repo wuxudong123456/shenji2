@@ -29,16 +29,18 @@
       transition: all 0.15s; position: relative;
     }
     .fm-item:hover { border-color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .fm-item .fm-icon {
-      font-size: 40px; margin-bottom: 8px; line-height: 1;
-    }
+    .fm-item .fm-icon { font-size: 40px; margin-bottom: 8px; line-height: 1; }
     .fm-item .fm-name {
       font-size: 13px; font-weight: 500; line-height: 1.3;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .fm-item .fm-meta {
-      font-size: 11px; color: var(--color-text-muted); margin-top: 4px;
+    .fm-item .fm-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; }
+    .fm-item .fm-badge {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px;
+      margin-top: 4px;
     }
+    .fm-badge.ocr-done { background: rgba(45,125,70,0.1); color: var(--color-success); }
+    .fm-badge.ocr-pending { background: rgba(184,94,26,0.1); color: var(--color-warning); }
     .fm-item .fm-actions {
       display: none; position: absolute; top: 8px; right: 8px; gap: 4px;
     }
@@ -78,6 +80,38 @@
       cursor: pointer; font-size: 14px; color: var(--color-text-muted);
     }
     .view-toggle button.on { background: #fff; color: var(--color-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
+    /* 资料查看器弹窗 */
+    .doc-viewer-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 9998; justify-content: center; align-items: center;
+    }
+    .doc-viewer-overlay.show { display: flex; }
+    .doc-viewer {
+      background: #fff; border-radius: 12px; width: 80%; max-width: 900px;
+      max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .doc-viewer-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--color-border);
+    }
+    .doc-viewer-header h3 { margin: 0; font-size: 16px; }
+    .doc-viewer-tabs { display: flex; gap: 4px; padding: 8px 20px 0; }
+    .doc-viewer-tabs button {
+      padding: 6px 14px; border: none; background: transparent; cursor: pointer;
+      font-size: 13px; border-bottom: 2px solid transparent; color: var(--color-text-muted);
+    }
+    .doc-viewer-tabs button.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+    .doc-viewer-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .doc-viewer-body pre {
+      white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6;
+      background: var(--color-bg); padding: 12px; border-radius: 8px; max-height: 60vh;
+    }
+    .doc-field-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .doc-field-table th, .doc-field-table td {
+      padding: 8px 10px; border-bottom: 1px solid var(--color-border); text-align: left;
+    }
+    .doc-field-table th { background: var(--color-bg); font-weight: 600; width: 35%; }
   </style>
 </head>
 <body data-page="docworkshop">
@@ -98,209 +132,329 @@
     <!-- Toolbar -->
     <div class="fm-toolbar">
       <button class="btn btn-primary btn-sm" onclick="FileManager.upload()"><i class="bi bi-cloud-upload"></i> 上传</button>
-      <button class="btn btn-outline btn-sm" onclick="FileManager.newFolder()"><i class="bi bi-folder-plus"></i> 新建文件夹</button>
+      <button class="btn btn-outline btn-sm" onclick="FileManager.newProject()"><i class="bi bi-folder-plus"></i> 新建项目</button>
       <input type="text" class="form-input form-input-sm" placeholder="搜索文件..." style="width:200px;margin-left:auto;" oninput="FileManager.filter(this.value)">
-      <div class="view-toggle">
-        <button class="on" onclick="FileManager.setView('grid',this)"><i class="bi bi-grid-3x3-gap"></i></button>
-        <button onclick="FileManager.setView('list',this)"><i class="bi bi-list-ul"></i></button>
-      </div>
       <button class="btn btn-outline btn-sm" onclick="FileManager.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
     </div>
 
     <!-- Breadcrumb -->
     <div class="fm-breadcrumb" id="fm-breadcrumb">
-      <a href="#" onclick="FileManager.navTo('')"><i class="bi bi-cloud"></i> 全部资料</a>
+      <a href="#" onclick="FileManager.navTo('')"><i class="bi bi-cloud"></i> 全部项目</a>
     </div>
 
     <!-- File Grid -->
-    <div class="fm-grid active" id="fm-grid"></div><div class="fm-list" id="fm-list"></div>
+    <div class="fm-grid active" id="fm-grid"></div>
 
   </main>
+</div>
+
+<!-- 资料查看器弹窗 -->
+<div class="doc-viewer-overlay" id="doc-viewer-overlay" onclick="if(event.target===this)FileManager.closeViewer()">
+  <div class="doc-viewer">
+    <div class="doc-viewer-header">
+      <h3 id="doc-viewer-title">文档查看</h3>
+      <button class="btn btn-sm btn-outline" onclick="FileManager.closeViewer()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="doc-viewer-tabs">
+      <button class="active" id="tab-ocr" onclick="FileManager.switchTab('ocr')">OCR 文本</button>
+      <button id="tab-fields" onclick="FileManager.switchTab('fields')">提取字段</button>
+      <button id="tab-trace" onclick="FileManager.switchTab('trace')">溯源信息</button>
+    </div>
+    <div class="doc-viewer-body" id="doc-viewer-body"></div>
+  </div>
 </div>
 
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 <script>
 var FileManager = {
-  currentPath: '',
+  currentProjectId: '',   // 当前项目 UUID
+  currentProjectName: '',// 当前项目名（展示用）
 
   init: function() {
     this.refresh();
   },
 
+  // ── 项目列表（真实 MySQL 项目，UUID）──
   refresh: function() {
     var self = this;
     var grid = document.getElementById('fm-grid');
     grid.innerHTML = '<div class="fm-empty"><i class="bi bi-hourglass-split" style="font-size:24px;"></i><p>加载中...</p></div>';
+    this.currentProjectId = '';
 
-    // Load from MinIO API
-    MinioAPI.listProjects().then(function(data) {
-      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败</div>'; return; }
-      self.renderProjects(data.projects);
+    AuditAPI.projects.list().then(function(data) {
+      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败，请确认后端服务已启动</div>'; return; }
+      self.renderProjects(data.projects || []);
     }).catch(function() {
-      // Fallback: show mock data
-      self.renderProjects([
-        {name:'教育局2026教学设备采购审计',file_count:3,total_size:6500000},
-        {name:'农业农村局2026补贴核查',file_count:2,total_size:3800000},
-        {name:'审计模板库',file_count:2,total_size:1500000}
-      ]);
+      grid.innerHTML = '<div class="fm-empty">无法连接后端服务</div>';
     });
   },
 
   renderProjects: function(projects) {
     var grid = document.getElementById('fm-grid');
-    if (projects.length === 0) {
-      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i><p style="margin-top:12px;">暂无资料</p><p style="font-size:13px;">点击「上传」添加审计资料</p></div>';
+    if (!projects || projects.length === 0) {
+      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i><p style="margin-top:12px;">暂无项目</p><p style="font-size:13px;">点击「新建项目」或前往智能分析创建</p></div>';
       return;
     }
-
     var html = '';
     projects.forEach(function(p) {
-      var size = FileManager.formatSize(p.total_size || 0);
-      html += '<div class="fm-item folder" onclick="FileManager.openFolder(\'' + p.name + '\')">'+
+      var statusBadge = p.status === 'completed' ? '<span class="fm-badge ocr-done">已完成</span>' :
+                        p.status === 'active' ? '<span class="fm-badge ocr-done">进行中</span>' :
+                        '<span class="fm-badge ocr-pending">草稿</span>';
+      html += '<div class="fm-item folder" onclick="FileManager.openProject(\'' + p.id + '\',\'' + (p.name||'').replace(/'/g,'') + '\')">'+
         '<div class="fm-actions">'+
-        '<button onclick="event.stopPropagation();FileManager.renameFolder(\''+p.name+'\')" title="重命名"><i class="bi bi-pencil"></i></button>'+
-        '<button onclick="event.stopPropagation();FileManager.deleteFolder(\''+p.name+'\')" title="删除"><i class="bi bi-trash"></i></button></div>'+
+        '<button onclick="event.stopPropagation();FileManager.deleteProject(\''+p.id+'\',\''+(p.name||'').replace(/'/g,'')+'\')" title="删除" style="color:var(--color-accent);"><i class="bi bi-trash"></i></button></div>'+
         '<div class="fm-icon"><i class="bi bi-folder-fill"></i></div>'+
-        '<div class="fm-name">' + p.name + '</div>'+
-        '<div class="fm-meta">' + (p.file_count||0) + ' 份资料 · ' + size + '</div></div>';
+        '<div class="fm-name">' + (p.name||'未命名') + '</div>'+
+        '<div class="fm-meta">' + (p.audit_period||'') + '</div>'+
+        statusBadge + '</div>';
     });
-
     grid.innerHTML = html;
   },
 
-  openFolder: function(name) {
+  // ── 进入项目，显示文件列表（带 OCR 状态）──
+  openProject: function(projectId, projectName) {
     var self = this;
-    this.currentPath = name;
-    document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部资料</a> / <strong>' + name + '</strong>';
+    this.currentProjectId = projectId;
+    this.currentProjectName = projectName;
+    document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部项目</a> / <strong>' + projectName + '</strong>';
 
     var grid = document.getElementById('fm-grid');
-    grid.innerHTML = '<div class="fm-empty">加载中...</div>';
+    grid.innerHTML = '<div class="fm-empty"><i class="bi bi-hourglass-split"></i> 加载中...</div>';
 
-    MinioAPI.listFiles(name).then(function(data) {
+    AuditAPI.files.list(projectId).then(function(data) {
       if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败</div>'; return; }
-      var html = '';
-      data.files.forEach(function(f) {
-        var ext = f.name.split('.').pop().toLowerCase();
-        var cls = ext === 'pdf' ? 'file-pdf' : (ext === 'xlsx' || ext === 'xls' || ext === 'csv') ? 'file-xlsx' : (ext === 'png' || ext === 'jpg') ? 'file-img' : 'file-pdf';
-        var icon = ext === 'pdf' ? 'bi-file-earmark-pdf' : (ext === 'xlsx'||ext==='xls'||ext==='csv') ? 'bi-file-earmark-spreadsheet' : (ext==='png'||ext==='jpg') ? 'bi-file-earmark-image' : (ext==='docx'||ext==='doc') ? 'bi-file-earmark-word' : 'bi-file-earmark';
-        html += '<div class="fm-item ' + cls + '" ondblclick="FileManager.download(\''+name+'\',\''+f.name+'\')">'+
-          '<div class="fm-actions">'+
-          '<button onclick="event.stopPropagation();FileManager.download(\''+name+'\',\''+f.name+'\')" title="下载"><i class="bi bi-download"></i></button>'+
-          '<button onclick="event.stopPropagation();FileManager.deleteFile(\''+name+'\',\''+f.name+'\')" title="删除"><i class="bi bi-trash"></i></button></div>'+
-          '<div class="fm-icon"><i class="bi ' + icon + '"></i></div>'+
-          '<div class="fm-name">' + f.name + '</div>'+
-          '<div class="fm-meta">' + self.formatSize(f.size) + ' · ' + (f.last_modified||'').substring(0,10) + '</div></div>';
-      });
-      grid.innerHTML = html || '<div class="fm-empty">空文件夹</div>';
+      self.renderFiles(data.files || []);
     }).catch(function() {
-      grid.innerHTML = '<div class="fm-empty">加载失败，请检查后端服务</div>';
+      grid.innerHTML = '<div class="fm-empty">该项目暂无资料，请上传文件</div>';
     });
   },
 
-  navTo: function(path) {
-    if (!path) { this.currentPath = ''; this.refresh(); document.getElementById('fm-path').innerHTML = '/'; }
-    else { this.openFolder(path); }
+  renderFiles: function(files) {
+    var grid = document.getElementById('fm-grid');
+    if (!files || files.length === 0) {
+      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i><p style="margin-top:12px;">暂无资料</p><p style="font-size:13px;">点击「上传」添加审计资料，将自动 OCR 解析</p></div>';
+      return;
+    }
+    var self = this;
+    var html = '';
+    files.forEach(function(f) {
+      var ext = (f.file_name||'').split('.').pop().toLowerCase();
+      var icon = ext === 'pdf' ? 'bi-file-earmark-pdf' :
+                 (ext === 'xlsx'||ext==='xls'||ext==='csv') ? 'bi-file-earmark-spreadsheet' :
+                 (ext==='png'||ext==='jpg'||ext==='jpeg') ? 'bi-file-earmark-image' :
+                 (ext==='docx'||ext==='doc') ? 'bi-file-earmark-word' : 'bi-file-earmark';
+      var ocrBadge = f.ocr_done ?
+        '<span class="fm-badge ocr-done"><i class="bi bi-check-circle"></i> 已解析</span>' :
+        '<span class="fm-badge ocr-pending"><i class="bi bi-hourglass"></i> 解析中</span>';
+      var viewBtn = f.ocr_done ?
+        '<button onclick="event.stopPropagation();FileManager.viewDoc('+f.id+')" title="查看OCR内容"><i class="bi bi-eye"></i></button>' : '';
+      html += '<div class="fm-item" onclick="FileManager.viewDoc('+f.id+')">'+
+        '<div class="fm-actions">'+
+        viewBtn +
+        '<button onclick="event.stopPropagation();FileManager.download(\''+f.id+'\',\''+(f.file_name||'').replace(/'/g,'')+'\')" title="下载"><i class="bi bi-download"></i></button>'+
+        '</div>'+
+        '<div class="fm-icon"><i class="bi ' + icon + '"></i></div>'+
+        '<div class="fm-name">' + (f.file_name||'未知') + '</div>'+
+        '<div class="fm-meta">' + ((f.created_at||'').substring(0,10)) + '</div>'+
+        ocrBadge + '</div>';
+    });
+    grid.innerHTML = html;
   },
 
+  navTo: function(path) {
+    if (!path) { this.refresh(); document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部项目</a>'; }
+  },
+
+  // ── 上传 + 轮询 OCR 进度 ──
   upload: function() {
     var self = this;
+    if (!this.currentProjectId) {
+      AuditWorkbench.toast('请先进入一个项目，再上传资料', 'warning');
+      return;
+    }
     var input = document.createElement('input');
     input.type = 'file'; input.multiple = true;
     input.onchange = function() {
-      var project = self.currentPath || '教育局2026采购审计';
-    if (!self.currentPath) { AuditWorkbench.toast('请先进入一个项目文件夹再上传，或在此页面默认上传到 教育局2026采购审计', 'info'); }
-      if (!project) return;
       for (var i = 0; i < input.files.length; i++) {
-        var f = input.files[i];
-        MinioAPI.upload(project, f).then(function(r) {
-          if (r.success) { AuditWorkbench.toast(f.name + ' 已上传', 'success'); self.openFolder(project); }
-          else { AuditWorkbench.toast('上传失败', 'danger'); }
-        });
+        self._uploadOne(input.files[i]);
       }
     };
     input.click();
   },
 
-  download: function(project, filename) {
-    MinioAPI.getDownloadUrl(project, filename).then(function(r) {
-      if (r.url) window.open(r.url, '_blank');
-    });
-  },
-
-  deleteFile: function(project, filename) {
-    if (!confirm('删除 ' + filename + ' ？')) return;
-    MinioAPI.deleteFile(project, filename).then(function(r) {
-      if (r.success) { AuditWorkbench.toast('已删除', 'info'); FileManager.openFolder(project); }
-    });
-  },
-
-  newFolder: function() {
-    var name = prompt('文件夹名称：');
-    if (!name) return;
+  _uploadOne: function(file) {
     var self = this;
-    fetch(MinioAPI.base + '/api/projects', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name: name})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      AuditWorkbench.toast(d.success ? '已创建：'+name : '失败', d.success?'success':'danger');
-      if(d.success) self.refresh();
-    }).catch(function(){ self.refresh(); });
-  },
+    var projectId = this.currentProjectId;
+    AuditWorkbench.toast('正在上传 ' + file.name + '...', 'info');
 
-  renameFolder: function(oldName) {
-    var newName = prompt('重命名为：', oldName);
-    if (!newName || newName === oldName) return;
-    var self = this;
-    fetch(MinioAPI.base + '/api/projects/' + encodeURIComponent(oldName) + '/rename', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({new_name: newName})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      AuditWorkbench.toast(d.success ? '已重命名' : '失败', d.success?'success':'danger');
-      if(d.success) self.refresh();
+    AuditAPI.files.upload(projectId, file).then(function(resp) {
+      if (!resp.success) {
+        AuditWorkbench.toast('上传失败: ' + (resp.error || '未知'), 'error');
+        return;
+      }
+      if (resp.deduplicated) {
+        AuditWorkbench.toast(file.name + ' 已存在，跳过', 'info');
+        self.openProject(projectId, self.currentProjectName);
+        return;
+      }
+      // 上传成功，轮询 OCR 任务进度
+      if (resp.task_id) {
+        AuditWorkbench.toast(file.name + ' 已上传，OCR 解析进行中...', 'info');
+        self._pollOcrTask(resp.task_id, file.name, projectId);
+      } else {
+        AuditWorkbench.toast(file.name + ' 已上传', 'success');
+        self.openProject(projectId, self.currentProjectName);
+      }
+    }).catch(function() {
+      AuditWorkbench.toast(file.name + ' 上传网络错误', 'error');
     });
   },
 
-  deleteFolder: function(name) {
-    if (!confirm('确定删除文件夹「' + name + '」及其所有文件？此操作不可恢复！')) return;
+  _pollOcrTask: function(taskId, fileName, projectId) {
     var self = this;
-    fetch(MinioAPI.base + '/api/projects/' + encodeURIComponent(name) + '/delete', { method: 'DELETE' })
-    .then(function(r){ return r.json(); }).then(function(d){
-      AuditWorkbench.toast(d.success ? '已删除' : '失败', d.success?'info':'danger');
-      if(d.success) self.refresh();
+    var pollOnce = function() {
+      AuditAPI.tasks.get(taskId).then(function(resp) {
+        if (!resp.success || !resp.task) { setTimeout(pollOnce, 3000); return; }
+        var t = resp.task;
+        if (t.status === 'completed') {
+          AuditWorkbench.toast('✅ ' + fileName + ' OCR 解析完成', 'success');
+          self.openProject(projectId, self.currentProjectName);
+        } else if (t.status === 'failed') {
+          AuditWorkbench.toast('❌ ' + fileName + ' 解析失败: ' + (t.error_msg||''), 'error');
+          self.openProject(projectId, self.currentProjectName);
+        } else if (t.status === 'cancelled') {
+          AuditWorkbench.toast('⚠️ ' + fileName + ' 已取消', 'warning');
+        } else {
+          // processing / pending，继续轮询
+          setTimeout(pollOnce, 4000);
+        }
+      }).catch(function() {
+        setTimeout(pollOnce, 5000);  // 网络抖动重试
+      });
+    };
+    pollOnce();
+  },
+
+  // ── 资料查看器 ──
+  _viewerDocId: null,
+  _viewerTrace: null,
+
+  viewDoc: function(docId) {
+    var self = this;
+    this._viewerDocId = docId;
+    document.getElementById('doc-viewer-body').innerHTML = '<p style="text-align:center;color:var(--color-text-muted);"><i class="bi bi-hourglass-split"></i> 加载中...</p>';
+    document.getElementById('doc-viewer-overlay').classList.add('show');
+
+    AuditAPI.files.trace(docId).then(function(resp) {
+      if (!resp.success || !resp.trace) {
+        document.getElementById('doc-viewer-body').innerHTML = '<div class="alert alert-warning">无法加载文档内容' + (resp.error ? '：'+resp.error : '') + '</div>';
+        return;
+      }
+      var trace = resp.trace;
+      self._viewerTrace = trace;
+      document.getElementById('doc-viewer-title').textContent = trace.file_name || '文档查看';
+      self.switchTab('ocr');
+    }).catch(function() {
+      document.getElementById('doc-viewer-body').innerHTML = '<div class="alert alert-warning">加载失败</div>';
     });
   },
 
-  setView: function(view, btn) {
-    document.querySelectorAll('.view-toggle button').forEach(function(b){ b.classList.remove('on'); });
-    btn.classList.add('on');
-    if (view === 'grid') {
-      document.getElementById('fm-grid').classList.remove('hide');
-      document.getElementById('fm-list').classList.remove('show');
-    } else {
-      document.getElementById('fm-grid').classList.add('hide');
-      document.getElementById('fm-list').classList.add('show');
-      this.renderList();
+  closeViewer: function() {
+    document.getElementById('doc-viewer-overlay').classList.remove('show');
+  },
+
+  switchTab: function(tab) {
+    // 切换 tab 高亮
+    ['ocr','fields','trace'].forEach(function(t) {
+      document.getElementById('tab-'+t).classList.toggle('active', t === tab);
+    });
+    var body = document.getElementById('doc-viewer-body');
+    var trace = this._viewerTrace || {};
+
+    if (tab === 'ocr') {
+      var ocr = trace.ocr_content || '';
+      if (!ocr) {
+        body.innerHTML = '<div class="alert alert-info">该文档尚未完成 OCR 解析</div>';
+        return;
+      }
+      // 截断超长内容
+      var display = ocr.length > 5000 ? ocr.substring(0, 5000) + '\n\n... (共 ' + ocr.length + ' 字，已截断显示前 5000 字)' : ocr;
+      body.innerHTML = '<pre>' + FileManager._escape(display) + '</pre>';
+
+    } else if (tab === 'fields') {
+      var ef = trace.extracted_fields;
+      var fields = {};
+      if (ef) {
+        try { fields = typeof ef === 'string' ? JSON.parse(ef) : ef; } catch(e) { fields = {}; }
+      }
+      // fields 可能是 {mapped:{...}, extra:{...}} 或直接的 {字段:值}
+      var mapped = fields.mapped || {};
+      var extra = fields.extra || {};
+      if (Object.keys(mapped).length === 0 && Object.keys(extra).length === 0 && Object.keys(fields).length > 0) {
+        // 没有 mapped/extra 结构，直接当字段列表
+        extra = fields;
+      }
+      var rows = '';
+      var renderRow = function(k, v) {
+        return '<tr><th>' + FileManager._escape(k) + '</th><td>' + FileManager._escape(String(v||'未提供').substring(0,200)) + '</td></tr>';
+      };
+      if (Object.keys(mapped).length > 0) {
+        rows += '<tr><th colspan="2" style="background:var(--color-primary);color:#fff;">已映射字段（入表）</th></tr>';
+        Object.keys(mapped).forEach(function(k){ rows += renderRow(k, mapped[k]); });
+      }
+      if (Object.keys(extra).length > 0) {
+        rows += '<tr><th colspan="2" style="background:var(--color-bg);">其他提取字段</th></tr>';
+        var cnt = 0;
+        for (var k in extra) { if (cnt++ >= 50) { rows += '<tr><td colspan="2">... 还有更多字段未显示</td></tr>'; break; } rows += renderRow(k, extra[k]); }
+      }
+      body.innerHTML = rows ? '<table class="doc-field-table">' + rows + '</table>' : '<div class="alert alert-info">暂无提取字段</div>';
+
+    } else if (tab === 'trace') {
+      var html = '<table class="doc-field-table">'+
+        renderRow2('文件名', trace.file_name) +
+        renderRow2('OCR 版本', trace.ocr_version) +
+        renderRow2('OCR 引擎', trace.ontosku_template) +
+        renderRow2('页码', trace.page_number) +
+        renderRow2('MinIO 路径', trace.minio_path) +
+        '</table>';
+      var anchor = trace.position_anchor;
+      if (anchor) {
+        try {
+          var chunks = typeof anchor === 'string' ? JSON.parse(anchor) : anchor;
+          if (chunks && chunks.length) {
+            html += '<h4 style="margin-top:16px;">溯源 chunks（' + chunks.length + ' 个）</h4>';
+            html += '<p style="font-size:13px;color:var(--color-text-muted);">每个 chunk 可定位到原始 PDF 的页码和坐标</p>';
+          }
+        } catch(e) {}
+      }
+      body.innerHTML = html;
     }
   },
 
-  renderList: function() {
-    var container = document.getElementById('fm-list');
-    if (!container) return;
+  // ── 下载 / 删除 / 新建项目 ──
+  download: function(docId, filename) {
+    // 通过 trace 拿 minio_path 生成下载（简化：直接提示）
+    AuditWorkbench.toast('下载功能：请通过溯源信息中的 MinIO 路径获取', 'info');
+  },
+
+  deleteProject: function(projectId, name) {
+    if (!confirm('确定删除项目「' + name + '」？此操作不可恢复！')) return;
     var self = this;
-    MinioAPI.listProjects().then(function(data) {
-      if (!data.success) return;
-      var html = '<div class="fm-list-hdr"><span style="width:32px;"></span><span style="flex:1;">名称</span><span style="width:100px;text-align:right;">大小</span><span style="width:120px;text-align:right;">文件数</span></div>';
-      data.projects.forEach(function(p) {
-        html += '<div class="fm-list-row" ondblclick="FileManager.openFolder(\''+p.name+'\')">'+
-          '<span class="fm-icon"><i class="bi bi-folder-fill" style="color:var(--color-primary);"></i></span>'+
-          '<span class="fm-name">'+p.name+'</span>'+
-          '<span class="fm-meta">'+self.formatSize(p.total_size||0)+'</span>'+
-          '<span class="fm-date">'+(p.file_count||0)+' 份</span>'+
-          '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();FileManager.renameFolder(\''+p.name+'\')" title="重命名"><i class="bi bi-pencil"></i></button>'+
-          '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();FileManager.deleteFolder(\''+p.name+'\')" title="删除" style="color:var(--color-accent);"><i class="bi bi-trash"></i></button></div>';
-      });
-      container.innerHTML = html;
+    AuditAPI.projects.delete(projectId).then(function(resp) {
+      AuditWorkbench.toast(resp.success ? '已删除' : '删除失败', resp.success ? 'info' : 'error');
+      if (resp.success) self.refresh();
+    });
+  },
+
+  newProject: function() {
+    var name = prompt('项目名称：');
+    if (!name) return;
+    var period = prompt('审计期间（如 2026年度，可留空）：') || '';
+    var self = this;
+    AuditAPI.projects.create({name: name, audit_period: period}).then(function(resp) {
+      AuditWorkbench.toast(resp.success ? '已创建项目：' + name : '创建失败', resp.success ? 'success' : 'error');
+      if (resp.success) self.refresh();
     });
   },
 
@@ -308,8 +462,13 @@ var FileManager = {
     var items = document.querySelectorAll('.fm-item');
     items.forEach(function(item) {
       var name = (item.querySelector('.fm-name')||{}).textContent || '';
-      item.style.display = !q || name.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+      item.style.display = !q || name.toLowerCase().indexOf(q.toLowerCase()) >= 0 ? '' : 'none';
     });
+  },
+
+  // ── 工具函数 ──
+  _escape: function(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   },
 
   formatSize: function(bytes) {
@@ -319,6 +478,11 @@ var FileManager = {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 };
+
+// 辅助：trace tab 渲染单行
+function renderRow2(label, val) {
+  return '<tr><th>' + (label||'') + '</th><td>' + FileManager._escape(val||'—') + '</td></tr>';
+}
 
 document.addEventListener('DOMContentLoaded', function() { FileManager.init(); });
 </script>
