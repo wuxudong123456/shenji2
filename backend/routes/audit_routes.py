@@ -373,12 +373,10 @@ def register_audit_routes(app):
             prompt = load_prompt("query/nl2sql").format(question=question)
         except FileNotFoundError:
             prompt = (
-                f"根据以下问题，生成伪SQL表达式用于查询数据工坊的6张表。\n"
-                f"6张表: data_contracts(合同协议), data_finance(财务), data_legal_docs(法律文书), "
-                f"data_registers(登记台账), data_credentials(资质证照), data_general(综合)。\n"
-                f"支持的语法: > < = != >= <= AND OR BETWEEN LIKE\n"
-                f"只返回伪SQL表达式，不要其他内容。\n\n"
-                f"问题: {question}"
+                f"把问题转成【行级筛选表达式】（只输出WHERE后面的条件，禁止SELECT/FROM/WHERE/分号/表名）。\n"
+                f"字段用中文名，字符串用双引号，支持 > < = != >= <= AND OR BETWEEN LIKE。\n"
+                f"示例：金额超过100万且询价 → 金额 > 1000000 AND 采购方式 = \"询价\"\n"
+                f"只输出表达式本身。\n\n问题: {question}"
             )
         try:
             pseudo_sql = call_llm(prompt, max_tokens=512, temperature=0)

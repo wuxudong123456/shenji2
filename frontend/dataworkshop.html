@@ -138,6 +138,8 @@
               '<div style="margin-top:8px;display:flex;gap:8px;">'+
               '<button class="btn btn-accent btn-sm" onclick="DataWorkshop.executeExpression(\''+d.pseudo_sql.replace(/'/g,"\\'")+'\')"><i class="bi bi-check-lg"></i> 确认并执行</button>'+
               '<button class="btn btn-outline btn-sm" onclick="document.getElementById(\'expression-result\').innerHTML=\'\'"><i class="bi bi-x-lg"></i> 取消</button></div></div>';
+            // 行级查询自动执行（一条龙）；聚合层会返回 needs_review，由 _renderResult 提示审批
+            self.executeExpression(d.pseudo_sql);
           } else {
             AuditWorkbench.toast('AI未能理解您的需求，请重新描述','warning');
           }
