@@ -1445,37 +1445,44 @@ var AW = {
     modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:800px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
       '<div style="padding:16px 20px;border-bottom:2px solid var(--color-border);"><h3 style="margin:0;"><i class="bi bi-check2-all"></i> 审计依据确认汇总</h3><span class="badge badge-muted">'+names.length+'部法规</span></div>'+
       '<div style="padding:20px;">'+
-
-      // 业务阈值与法规条款对照表
-      '<div style="margin-bottom:16px;border:1px solid var(--color-border);border-radius:10px;overflow:hidden;">'+
-      '<div style="padding:10px 16px;background:var(--color-bg);font-weight:600;font-size:14px;color:var(--color-primary);border-bottom:2px solid var(--color-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">业务阈值 × 法规条款对照表 <span class="badge badge-warning" style="font-size:11px;font-weight:500;">示例（内置采购审计典型场景，非本次上传数据自动汇总）</span></div>'+
-      '<div class="table-wrap"><table class="table" style="font-size:14px;margin:0;"><thead><tr style="background:var(--color-bg);"><th style="width:100px;">业务事项</th><th style="width:140px;">判断阈值</th><th>法规条款</th><th style="width:80px;">效力级别</th><th style="width:110px;">适用结论</th></tr></thead><tbody>'+
-      '<tr><td rowspan="2" style="vertical-align:middle;"><strong>货物采购招标</strong></td><td style="font-weight:600;">≥200万须公开招标</td><td>《招标投标法》第3条</td><td><span class="badge badge-accent">法律</span></td><td>国家强制要求</td></tr>'+
-      '<tr><td style="font-weight:600;">≥200万须公开招标</td><td>《必须招标的工程项目规定》第5条</td><td><span class="badge badge-primary">部门规章</span></td><td>细化国家标准</td></tr>'+
-      '<tr style="background:linear-gradient(90deg,rgba(45,125,70,0.08),transparent);"><td rowspan="1" style="vertical-align:middle;"><strong>货物采购招标</strong></td><td style="font-weight:700;color:var(--color-success);font-size:14px;">≥50万</td><td>《湖南省建设工程招标投标管理办法》第5条</td><td><span class="badge badge-success">地方性法规</span></td><td style="color:var(--color-success);font-weight:700;"><i class="bi bi-check-circle-fill"></i> 市级优先适用</td></tr>'+
-      '<tr style="background:linear-gradient(90deg,rgba(196,30,58,0.06),transparent);border-left:3px solid var(--color-accent);"><td style="vertical-align:middle;"><strong>货物采购方式</strong></td><td style="font-weight:700;color:var(--color-accent);font-size:14px;">≥10万</td><td>《被审计单位采购管理办法》全文</td><td><span class="badge badge-accent">单位制度</span></td><td style="color:var(--color-accent);font-weight:700;"><i class="bi bi-star-fill"></i> 审计对象直接适用</td></tr>'+
-      '<tr><td rowspan="2" style="vertical-align:middle;"><strong>化整为零认定</strong></td><td style="font-weight:600;">拆分项目规避招标</td><td>《招标投标法》第4条</td><td><span class="badge badge-accent">法律</span></td><td>禁止性规定</td></tr>'+
-      '<tr><td style="font-weight:600;">具体认定标准</td><td>《政府采购法实施条例》第67条</td><td><span class="badge badge-primary">行政法规</span></td><td>认定依据</td></tr>'+
-      '<tr><td style="vertical-align:middle;"><strong>违规处罚</strong></td><td style="font-weight:600;">合同金额5‰-10‰</td><td>《招标投标法》第49条</td><td><span class="badge badge-warning">法律·追责</span></td><td>处罚条款</td></tr>'+
-      '</tbody></table></div></div>'+
-
-      // 法规适用顺序
-      '<div style="padding:12px 16px;background:rgba(184,94,26,0.06);border-radius:8px;border:1px solid var(--color-warning);margin-bottom:10px;">'+
-      '<div style="font-size:14px;font-weight:600;color:var(--color-warning);margin-bottom:8px;"><i class="bi bi-exclamation-triangle"></i> 法规适用顺序（冲突时按以下优先级）</div>'+
-      '<div style="display:flex;gap:10px;font-size:12px;">'+
-      '<span style="background:#fff;padding:6px 10px;border-radius:4px;flex:1;"><strong>① 上位法优于下位法</strong><br><span style="color:var(--color-text-muted);">法律 > 行政法规 > 部门规章 > 地方法规</span></span>'+
-      '<span style="background:#fff;padding:6px 10px;border-radius:4px;flex:1;"><strong>② 新法优于旧法</strong><br><span style="color:var(--color-text-muted);">2017修订版 > 1999版(已废止)</span></span>'+
-      '<span style="background:#fff;padding:6px 10px;border-radius:4px;flex:1;"><strong>③ 特别法优于一般法</strong><br><span style="color:var(--color-text-muted);">市教育局制度(≥10万) > 国家法(≥200万)</span></span></div></div>'+
-
-      // 冲突结论
-      '<div style="padding:10px 14px;background:rgba(196,30,58,0.04);border-radius:6px;border-left:3px solid var(--color-accent);font-size:14px;margin-bottom:16px;">'+
-      '<i class="bi bi-arrow-left-right" style="color:var(--color-accent);"></i> <strong>审计判断：</strong>该市教育局采购99万/子项目，按国家法未达200万门槛，但已超过<strong>省级门槛(≥50万)</strong>和<strong>单位制度(≥10万)</strong>。根据特别法优于一般法，应<strong>优先适用地方规定</strong>认定为违规。</div>'+
-
+      '<div id="s3-threshold-result" style="margin-bottom:16px;"><div style="padding:20px;text-align:center;color:var(--color-text-muted);"><span class="pulse">●</span> 正在扫描阈值规则...</div></div>'+
       '<div style="display:flex;gap:8px;">'+
       '<button class="btn btn-accent btn-lg" style="flex:1;" onclick="var m=this.closest(\'[style*=fixed]\');m.remove();AW.step=4;AW.showStep(4);AW.updateStepBar(4);AW.renderS4();AW.say(\'ai\',\'已确认审计依据：'+names.slice(0,3).join('、')+'等'+names.length+'部。进入第四步：资料分析。\')"><i class="bi bi-check-lg"></i> 确认，进入上传资料</button>'+
       '<button class="btn btn-outline" onclick="this.closest(\'[style*=fixed]\').remove()">返回修改</button></div></div></div>';
     modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
     document.body.appendChild(modal);
+    // 异步加载阈值规则扫描结果（③阈值对照）
+    this._loadThresholdResult();
+  },
+
+  /** 加载阈值规则实时扫描结果（替换原来的写死表）*/
+  _loadThresholdResult: function() {
+    var box = document.getElementById('s3-threshold-result');
+    if(!box) return;
+    fetch('/api/audit/threshold/check', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({project_id: '', table: 'data_contracts'})
+    }).then(function(r){return r.json();}).then(function(d){
+      var results = d.results || [];
+      var s = d.summary || {};
+      var rows = results.map(function(r){
+        var badge = r.status==='违规' ? 'badge-accent' : (r.status==='合规' ? 'badge-success' : 'badge-muted');
+        var stText = r.status==='违规' ? ('⚠️ 违规 '+r.hits+'条') : (r.status==='合规' ? '✅ 合规' : '— 数据不足');
+        return '<tr><td><strong>'+r.name+'</strong><div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">'+r.expression+'</div></td>'+
+          '<td style="font-size:13px;">'+r.threshold+'<br><span style="color:var(--color-text-muted);font-size:11px;">'+r.law_ref+'</span></td>'+
+          '<td><span class="badge '+badge+'" style="white-space:nowrap;">'+stText+'</span><div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">扫描 '+r.total+' 条</div></td></tr>';
+      }).join('');
+      var sumBadge = s.violated>0 ? 'badge-accent' : 'badge-success';
+      box.innerHTML =
+        '<div style="border:1px solid var(--color-border);border-radius:10px;overflow:hidden;">'+
+        '<div style="padding:10px 16px;background:var(--color-bg);font-weight:600;font-size:14px;color:var(--color-primary);border-bottom:2px solid var(--color-primary);">阈值规则实时扫描 '+
+        '<span class="badge '+sumBadge+'" style="font-size:11px;margin-left:4px;">'+(s.violated||0)+'违规 / '+(s.compliant||0)+'合规</span></div>'+
+        '<div class="table-wrap"><table class="table" style="font-size:13px;margin:0;"><thead><tr style="background:var(--color-bg);"><th>规则</th><th>阈值 / 法规</th><th style="width:110px;">扫描结果</th></tr></thead><tbody>'+
+        rows+'</tbody></table></div>'+
+        '<div style="padding:8px 16px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 基于已上传数据的实时扫描结果（全局，跨所有项目）。</div></div>';
+    }).catch(function(){
+      box.innerHTML = '<div class="alert alert-warning" style="font-size:13px;">阈值扫描暂不可用（后端 /api/audit/threshold/check 未响应）</div>';
+    });
   },
 
   renderS4: function() {
