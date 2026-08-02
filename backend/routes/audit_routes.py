@@ -751,6 +751,24 @@ def register_audit_routes(app):
 
         task_id = str(uuid.uuid4()).replace("-", "")[:16]
 
+        # P1.4: 按 project_id 从 DB 读完整项目上下文，注入工作流 state
+        # （P1.6 守卫修复后，IntentAnalyzer 不会用空串覆盖这些 DB 值）
+        project_context = {}
+        if project_id:
+            proj = query_one(
+                "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+                (project_id,), database="tt",
+            )
+            if proj:
+                p = _project_to_dto(proj)
+                project_context = {
+                    "domain": p.get("audit_type", "") or p.get("domain", ""),
+                    "audit_item": p.get("name", ""),
+                    "audit_period": p.get("audit_period", ""),
+                    "target_level": p.get("target_level", "") or p.get("level", ""),
+                    "target_unit": p.get("audited_unit", "") or p.get("unit", ""),
+                }
+
         # 启动 LangGraph 工作流
         config = {"configurable": {"thread_id": task_id}}
         state = _analysis_graph.invoke({
@@ -758,6 +776,7 @@ def register_audit_routes(app):
             "project_id": project_id,
             "session_id": task_id,
             "user_intent": user_intent,
+            **project_context,  # P1.4: 注入 DB 项目上下文
         }, config)
 
         # 持久化到 MySQL
