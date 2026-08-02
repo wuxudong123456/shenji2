@@ -1632,33 +1632,45 @@ var AW = {
 
   /** 从资料工坊引入资料 */
   importFromWorkshop: function(name) {
+    var self = this;
     var projectName = (this.mem.project && this.mem.project.title) ? this.mem.project.title : '当前项目';
+    var pid = (this.mem.project && this.mem.project.id) || '';
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
       '<div style="padding:20px 24px;border-bottom:1px solid var(--color-border);">'+
       '<h3 style="margin:0 0 4px;"><i class="bi bi-folder-symlink"></i> 从资料工坊引入</h3>'+
-      '<p style="font-size:14px;color:var(--color-text-muted);margin:0;">项目：<strong>'+projectName+'</strong> · 资料文件夹自动按项目名称创建</p></div>'+
+      '<p style="font-size:14px;color:var(--color-text-muted);margin:0;">项目：<strong>'+projectName+'</strong> · 选择文件引入到当前分析</p></div>'+
       '<div style="padding:16px 24px;">'+
-      '<div style="margin-bottom:12px;font-size:14px;color:var(--color-text-muted);"><i class="bi bi-folder"></i> 项目资料文件夹 · 共3份资料 · 创建于2026-07-04</div>'+
-      '<div class="rec-item" style="cursor:pointer;" onclick="this.style.background=\'rgba(45,125,70,0.06)\';this.querySelector(\'input\').checked=true;">'+
-      '<input type="radio" name="ws-file" style="margin-right:10px;" checked>'+
-      '<i class="bi bi-file-earmark-pdf" style="color:var(--color-accent);font-size:22px;"></i>'+
-      '<div style="flex:1;"><strong>采购合同汇总.pdf</strong><div style="font-size:12px;color:var(--color-text-muted);">3.4MB · 8字段 · 5条记录 · 上传于07-04 09:30 · 已解析</div></div></div>'+
-      '<div class="rec-item" style="cursor:pointer;" onclick="this.style.background=\'rgba(45,125,70,0.06)\';this.querySelector(\'input\').checked=true;">'+
-      '<input type="radio" name="ws-file" style="margin-right:10px;">'+
-      '<i class="bi bi-file-earmark-spreadsheet" style="color:var(--color-success);font-size:22px;"></i>'+
-      '<div style="flex:1;"><strong>银行流水2026Q1.csv</strong><div style="font-size:12px;color:var(--color-text-muted);">856KB · 5字段 · 126条记录 · 上传于07-04 10:00 · 已解析</div></div></div>'+
-      '<div class="rec-item" style="cursor:pointer;" onclick="this.style.background=\'rgba(45,125,70,0.06)\';this.querySelector(\'input\').checked=true;">'+
-      '<input type="radio" name="ws-file" style="margin-right:10px;">'+
-      '<i class="bi bi-file-earmark-text" style="color:var(--color-primary);font-size:22px;"></i>'+
-      '<div style="flex:1;"><strong>招标公告截图.png</strong><div style="font-size:12px;color:var(--color-text-muted);">2.1MB · OCR解析中 · 上传于07-04 14:00</div></div></div>'+
+      '<div id="ws-file-list" style="margin-bottom:12px;font-size:14px;color:var(--color-text-muted);"><span class="pulse">●</span> 加载项目文件...</div>'+
       '<div style="display:flex;gap:8px;margin-top:16px;">'+
-      '<button class="btn btn-primary" onclick="this.closest(\'[style*=fixed]\').remove();AuditWorkbench.toast(\'已从资料工坊引入到当前项目\',\'success\');"><i class="bi bi-check-lg"></i> 确认引入</button>'+
+      '<button class="btn btn-primary" onclick="var c=this.closest(\'[style*=fixed]\');var s=c.querySelector(\'input[name=ws-file]:checked\');if(!s){AuditWorkbench.toast(\'请选择文件\',\'warning\');return;}c.remove();AuditWorkbench.toast(\'已引入所选文件到当前分析\',\'success\');"><i class="bi bi-check-lg"></i> 确认引入</button>'+
       '<button class="btn btn-outline" onclick="this.closest(\'[style*=fixed]\').remove()">取消</button>'+
       '<a href="docworkshop.html" target="_blank" class="btn btn-outline btn-sm" style="margin-left:auto;">前往资料工坊</a></div></div></div>';
     modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
     document.body.appendChild(modal);
+
+    // 2.4: 异步加载真实文件列表
+    var listEl = modal.querySelector('#ws-file-list');
+    if (!pid) { listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-muted);">暂无项目，请先选择项目</div>'; return; }
+    AuditAPI.files.list(pid).then(function(resp) {
+      var files = (resp && resp.files) || [];
+      if (!files.length) {
+        listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-muted);">项目暂无文件，请先到资料工坊上传</div>';
+        return;
+      }
+      listEl.innerHTML = '<div style="margin-bottom:8px;color:var(--color-text-muted);">共 '+files.length+' 份文件</div>' + files.map(function(f,i){
+        var fn = f.file_name || f.name || '未命名';
+        var icon = /\.pdf$/i.test(fn) ? 'bi-file-earmark-pdf' : /\.(xlsx|csv)$/i.test(fn) ? 'bi-file-earmark-spreadsheet' : 'bi-file-earmark-text';
+        var st = f.ocr_done ? '已解析' : '待解析';
+        return '<div class="rec-item" style="cursor:pointer;" onclick="this.querySelector(\'input\').checked=true;">'+
+          '<input type="radio" name="ws-file" value="'+f.id+'" style="margin-right:10px;" '+(i===0?'checked':'')+'>'+
+          '<i class="bi '+icon+'" style="color:var(--color-primary);font-size:22px;"></i>'+
+          '<div style="flex:1;"><strong>'+fn+'</strong><div style="font-size:12px;color:var(--color-text-muted);">'+st+' · '+(f.created_at||'').substring(0,10)+'</div></div></div>';
+      }).join('');
+    }).catch(function() {
+      listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-muted);">加载失败，请确认后端服务运行中</div>';
+    });
   },
 
   /** 查看已解析文件的结构化数据 */
