@@ -99,6 +99,14 @@ def execute(sql: str, params=None, database: str | None = None) -> int:
         with conn.cursor() as cur:
             affected = cur.execute(sql, params)
             conn.commit()
+            # 记录写操作日志（防递归：日志表的写入不再记录）
+            try:
+                sql_str = (sql or "").strip().upper()
+                if sql_str.startswith(("INSERT", "UPDATE", "DELETE")) and "audit_logs" not in (sql or "").lower():
+                    from services.audit_logger import log_db_write
+                    log_db_write(sql, params, affected)
+            except Exception:
+                pass
             return affected
     except Exception:
         conn.rollback()
@@ -125,6 +133,14 @@ def insert(sql: str, params=None, database: str | None = None) -> int:
         with conn.cursor() as cur:
             cur.execute(sql, params)
             conn.commit()
+            # 记录写操作日志（防递归：日志表的写入不再记录）
+            try:
+                sql_str = (sql or "").strip().upper()
+                if sql_str.startswith("INSERT") and "audit_logs" not in (sql or "").lower():
+                    from services.audit_logger import log_db_write
+                    log_db_write(sql, params, cur.rowcount)
+            except Exception:
+                pass
             return cur.lastrowid
     except Exception:
         conn.rollback()

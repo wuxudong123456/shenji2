@@ -118,6 +118,14 @@ class BaseAgent:
             )
             timing["llm_ms"] = int((time.perf_counter() - t_llm) * 1000)
             self._last_raw_response = raw
+
+            # 记录 LLM 调用日志（推理溯源）
+            try:
+                from services.audit_logger import log_llm_call
+                log_llm_call(self.defn.agent_id, user_prompt, raw,
+                             duration_ms=timing["llm_ms"], trace_id=trace_id)
+            except Exception:
+                pass
         except Exception as e:
             return self._failure(trace_id, ctx, f"LLM 调用异常: {e}", timing, t_start)
 

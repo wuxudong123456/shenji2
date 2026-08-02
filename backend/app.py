@@ -372,6 +372,10 @@ register_phase6_routes(app)
 from routes.agent_routes import register_agent_routes
 register_agent_routes(app)
 
+# 注册请求日志中间件（自动记录每个 API 请求）
+from middleware.request_logger import register_request_logger
+register_request_logger(app)
+
 # ---- 前端静态文件服务 ----
 import os as _os
 _FRONTEND_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'frontend')

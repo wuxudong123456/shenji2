@@ -772,6 +772,22 @@ def register_audit_routes(app):
         custom_regulations = data.get("custom_regulations", [])
         action = data.get("action", "confirm")  # confirm / reject
 
+        # 记录用户确认操作（审计留痕）
+        try:
+            from services.audit_logger import log_operation
+            ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr or ""
+            log_operation(
+                user=data.get("user", "system"),
+                action=f"{action}_analysis",
+                target_type="analysis_task",
+                target_id=task_id,
+                before={"violations": snapshot.values.get("matches", [])},
+                after={"violations": selected_violations, "laws": selected_laws},
+                ip=ip,
+            )
+        except Exception:
+            pass
+
         # 注入用户确认数据（as_node 指向确认节点，消除并行后的歧义更新）
         _analysis_graph.update_state(config, {
             "selected_violations": selected_violations,
