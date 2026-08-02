@@ -183,13 +183,11 @@ const KnowledgeWorkshop = {
   },
 
   renderRegulations() {
-    var regs = this.regulations.length > 0 ? this.regulations : [
-      { title:'《中华人民共和国招标投标法》', no:'主席令第21号', unit:'全国人大常委会', level:'法律', date:'2017-12-27', status:'现行有效', related:'45部法规' },
-      { title:'《必须招标的工程项目规定》', no:'国家发改委16号令', unit:'国家发改委', level:'部门规章', date:'2018-06-01', status:'现行有效', related:'12部法规' },
-      { title:'《中华人民共和国政府采购法》', no:'主席令第68号', unit:'全国人大常委会', level:'法律', date:'2014-08-31', status:'现行有效', related:'38部法规' },
-      { title:'《湖南省建设工程招标投标管理办法》', no:'湖南省政府令第288号', unit:'湖南省政府', level:'地方性法规', date:'2020-03-15', status:'现行有效', related:'8部法规' },
-    ];
-    document.getElementById('regulations-list').innerHTML = regs.map(function(r){
+    if (this.regulations.length === 0) {
+      document.getElementById('regulations-list').innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted);font-size:14px;">暂无法规数据</div>';
+      return;
+    }
+    document.getElementById('regulations-list').innerHTML = this.regulations.map(function(r){
       return '<div class="association-card">'+
         '<div style="display:flex;justify-content:space-between;align-items:start;">'+
           '<div><strong style="font-size:16px;">'+r.title+'</strong>'+
@@ -296,12 +294,11 @@ const KnowledgeWorkshop = {
   },
 
   renderCases() {
-    var cases = this.cases.length > 0 ? this.cases : [
-      { title:'某市教育局教学设备采购规避招标案', domain:'部门预算执行审计', violation:'化整为零规避公开招标', law:'《招标投标法》第4条/第49条', amount:'¥4,850,000', method:'拆分为5个99万子项目，同一供应商中标' },
-      { title:'某市卫健委医疗设备采购拆分案', domain:'部门预算执行审计', violation:'化整为零规避公开招标', law:'《招标投标法》第4条', amount:'¥3,200,000', method:'拆分为4个80万子项目' },
-      { title:'某县农业局虚报补贴面积案', domain:'农业农村审计', violation:'虚报冒领补贴资金', law:'《农业法》第42条', amount:'¥1,200,000', method:'虚报种植面积350亩，实际230亩' },
-    ];
-    document.getElementById('cases-list').innerHTML = cases.map(function(c){
+    if (this.cases.length === 0) {
+      document.getElementById('cases-list').innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted);font-size:14px;">暂无案例数据</div>';
+      return;
+    }
+    document.getElementById('cases-list').innerHTML = this.cases.map(function(c){
       return '<div class="association-card">'+
         '<div style="display:flex;justify-content:space-between;align-items:start;">'+
           '<div style="flex:1;"><strong style="font-size:16px;">'+c.title+'</strong>'+

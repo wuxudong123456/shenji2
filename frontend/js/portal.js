@@ -91,7 +91,7 @@ var Portal = window.Portal = {
     Promise.all([
       fetch('/api/audit/projects').then(function(r){return r.json();}).catch(function(){return {projects:[]};}),
       fetch('/api/audit/tasks?limit=1').then(function(r){return r.json();}).catch(function(){return {total:0,completed:0};}),
-      fetch('/api/audit/knowledge/violations?per_page=1').then(function(r){return r.json();}).catch(function(){return {total:2231};})
+      fetch('/api/audit/knowledge/violations?per_page=1').then(function(r){return r.json();}).catch(function(){return {total:0};})
     ]).then(function(results){
       var projects = results[0].projects || [];
       var tasks = results[1];
@@ -100,7 +100,7 @@ var Portal = window.Portal = {
         projects: projects.length || 0,
         tasks: tasks.total || 0,
         completed: tasks.completed || 0,
-        cases: violations.total || 2231
+        cases: violations.total || 0
       };
       countUp(document.getElementById('stat-projects'), stats.projects, 800);
       countUp(document.getElementById('stat-tasks'),    stats.tasks,    1000);
@@ -111,7 +111,7 @@ var Portal = window.Portal = {
       countUp(document.getElementById('stat-projects'), 0, 800);
       countUp(document.getElementById('stat-tasks'),    0, 1000);
       countUp(document.getElementById('stat-completed'),0, 1200);
-      countUp(document.getElementById('stat-cases'),   2231, 1400);
+      countUp(document.getElementById('stat-cases'),   0, 1400);
     });
   }
 
@@ -191,32 +191,28 @@ var Portal = window.Portal = {
 
   // ---- Load document status ----
   function loadDocStatus() {
-    // From background tasks + mock data
-    const tasks = AuditWorkbench.backgroundTasks;
-    const processing = tasks.filter(t => t.status === 'processing' && t.type === 'ocr').length;
-    const total = 6;  // Mock total
-    const parsed = total - processing - 1;
-    const pending = 1;
+    // 3.2: 基于 backgroundTasks 真实统计，去除 mock（total=6 / 假"银行流水2026Q1.csv"）
+    const tasks = (AuditWorkbench.backgroundTasks || []);
+    const ocrTasks = tasks.filter(t => t.type === 'ocr');
+    const processing = ocrTasks.filter(t => t.status === 'processing').length;
+    const completed = ocrTasks.filter(t => t.status === 'completed' || t.status === 'done').length;
+    const total = ocrTasks.length;
+    const pending = Math.max(0, total - completed - processing);
 
     countUp(document.getElementById('stat-total-docs'), total, 600);
-    countUp(document.getElementById('stat-parsed-docs'), parsed, 800);
+    countUp(document.getElementById('stat-parsed-docs'), completed, 800);
     countUp(document.getElementById('stat-processing-docs'), processing, 1000);
     countUp(document.getElementById('stat-pending-docs'), pending, 1200);
 
-    // Show processing items
+    // Show processing items（无则空状态，不塞假项）
     const list = document.getElementById('doc-processing-list');
     if (!list) return;
-
-    const items = [];
-    tasks.filter(t => t.status === 'processing').forEach(t => {
-      items.push({ name: t.name, status: 'processing', type: 'ocr' });
-    });
-    // Add mock items if empty
-    if (items.length === 0) {
-      items.push({ name: '银行流水2026Q1.csv', status: 'processing', type: 'ocr' });
+    const procItems = ocrTasks.filter(t => t.status === 'processing');
+    if (!procItems.length) {
+      list.innerHTML = '<div style="padding:14px;font-size:13px;color:var(--color-text-muted);text-align:center;">暂无处理中文档</div>';
+      return;
     }
-
-    list.innerHTML = items.map(item => `
+    list.innerHTML = procItems.map(item => `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;">
         <span class="pulse" style="color:var(--color-warning);">●</span>
         <span>${item.name}</span>

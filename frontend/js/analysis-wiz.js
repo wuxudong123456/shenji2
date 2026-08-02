@@ -44,8 +44,8 @@ var AW = {
           return ranked;
         }).then(function(ranked){
           ranked.forEach(function(v,i){ v.id = 'v'+(i+1); });
-          self.violationDB = ranked.length ? ranked : self._fallbackViolations();
-        }).catch(function(){ self.violationDB = self._fallbackViolations(); });
+          self.violationDB = ranked.length ? ranked : [];
+        }).catch(function(){ self.violationDB = []; });
       })(),
 
       fetch(this._apiBase + '/knowledge/regulations?per_page=50').then(function(r){return r.json();}).then(function(d){
@@ -55,10 +55,7 @@ var AW = {
   },
 
   _fallbackViolations: function() {
-    return [
-      {id:'v1',name:'化整为零规避公开招标',risk:'高',match:97,symptom:'将应公开招标项目拆分为多个小额项目',materials:[],regulations:[{law:'《招标投标法》第4条',type:'主依据',note:'禁止规避招标'}]},
-      {id:'v2',name:'违规采用询价方式采购',risk:'高',match:89,symptom:'应公开招标却采用询价等非公开竞争方式',materials:[],regulations:[{law:'《政府采购法》第28条',type:'主依据',note:'公开招标门槛'}]},
-    ];
+    return [];  // 3.5: 失败返回空（不再塞假违规），由调用方显示空状态
   },
 
   /** 从项目背景提取业务关键词（用于违规类型相关性过滤与排序）*/
@@ -372,7 +369,19 @@ var AW = {
           if(t) t.value = pm.title||'';
           if(d) d.value = pm.domain||'预算执行审计';
           if(p) p.value = pm.period||'2023-2025年';
-          if(c) c.value = pm.concerns||'招标投标\n采购方式\n供应商管理\n资金支付';
+          if(c) c.value = pm.concerns || '';
+          // 3.6: 无 concerns 时调 AI 推断（替代写死的"招标投标/采购方式..."默认）
+          if(!pm.concerns && pm.title){
+            fetch('/api/audit/projects/infer-concerns', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({project_name: pm.title, domain: pm.domain||''})
+            }).then(function(r){return r.json();}).then(function(resp){
+              if(resp && resp.success && resp.concerns && resp.concerns.length){
+                var cc = document.getElementById('s1-concerns');
+                if(cc && !cc.value.trim()) cc.value = resp.concerns.join('\n');
+              }
+            }).catch(function(){});
+          }
         },500);
 
         // 构建项目摘要卡片
@@ -465,7 +474,7 @@ var AW = {
       var title = pm.title || '—';
       var domain = pm.domain || '预算执行审计';
       var period = pm.period || '2023-2025年';
-      var concerns = pm.concerns || '招标投标\n采购方式\n供应商管理\n资金支付';
+      var concerns = pm.concerns || '';
       document.getElementById('s1-title').value = title;
       document.getElementById('s1-domain').value = domain;
       document.getElementById('s1-period').value = period;
@@ -648,32 +657,11 @@ var AW = {
       '<button class="btn btn-accent w-100" onclick="AW.cacheS1();AW.step=2;AW.showStep(2);AW.updateStepBar(2);AW.renderS2();AW.say(\'ai\',\'已确认，进入方法推荐。\')">确认，进入推荐 →</button></div>';
   },
 
-  /** 违规模型数据库 */
-  violationDB: [
-    {id:'v1',name:'化整为零规避公开招标',risk:'高',match:97,
-      symptom:'同一供应商多次中标小额项目，合同总金额超200万但单笔均低于门槛，采购方式均为非公开招标',
-      materials:['采购合同及补充协议（合同金额、采购方式、供应商）','中标通知书及评标报告（中标金额、评委名单）','招标公告发布记录（公告日期、发布媒体）'],
-      regulations:[{law:'《招标投标法》第4条',type:'主依据',note:'禁止化整为零或以其他方式规避招标'},{law:'《招标投标法》第49条',type:'追责依据',note:'处合同金额5‰-10‰罚款'},{law:'《必须招标的工程项目规定》第5条',type:'量化依据',note:'货物≥200万须公开招标'}]},
-    {id:'v2',name:'违规采用询价方式采购',risk:'高',match:89,
-      symptom:'达到公开招标门槛的采购项目未公开招标，改用询价、竞争性谈判等方式，且未见非公开招标审批文件',
-      materials:['采购方式审批文件（非公开招标理由说明）','招标公告发布记录（公告日期、发布媒体）','采购信息公示截图'],
-      regulations:[{law:'《政府采购法》第28条',type:'主依据',note:'公开招标应为主要采购方式'},{law:'《政府采购法实施条例》第67条',type:'认定标准',note:'化整为零的具体认定'}]},
-    {id:'v3',name:'未按规定发布采购公告',risk:'中',match:78,
-      symptom:'采购项目达到公告门槛但未在指定媒体（中国政府采购网等）发布公告，或公告内容不完整、公示期不足',
-      materials:['指定媒体发布记录（中国政府采购网截图）','采购信息公示截图（公示起止日期）'],
-      regulations:[{law:'《招标投标法》第16条',type:'主依据',note:'招标公告应在指定媒体发布'},{law:'《招标公告和公示信息发布管理办法》',type:'具体规定',note:'公告发布媒体和时限'}]},
-    {id:'v4',name:'供应商围标串标',risk:'高',match:65,
-      symptom:'多家投标供应商存在相同股东或高管、投标文件高度雷同、报价呈规律性差异、中标后在多家供应商间轮流',
-      materials:['供应商工商登记信息（信用代码、法人、股东）','投标文件（报价明细、技术方案）','评标委员会评分记录'],
-      regulations:[{law:'《招标投标法实施条例》第67条',type:'主依据',note:'围标串标的认定'},{law:'《刑法》第223条',type:'追责依据',note:'串通投标罪'}]},
-    {id:'v5',name:'截留挪用专项资金',risk:'中',match:55,
-      symptom:'专项资金拨付后被转出至非项目账户，或支出方向与批复用途不一致，资金使用明细与项目进度不匹配',
-      materials:['专项资金拨付文件','银行付款凭证（付款日期、金额、收款方）','资金使用明细账'],
-      regulations:[{law:'《预算法》第53条',type:'主依据',note:'专项资金不得截留挪用'},{law:'《财政违法行为处罚处分条例》',type:'追责依据',note:'处罚标准'}]}
-  ],
+  /** 违规模型数据库 — 3.5: 初始空，由 _initData 从 /knowledge/violations 加载真实数据 */
+  violationDB: [],
 
   /** 当前选中的违规模型 */
-  selectedViolations: ['v1','v2'],
+  selectedViolations: [],
 
   renderS2: function() {
     var self = this;

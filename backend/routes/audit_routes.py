@@ -158,6 +158,32 @@ def register_audit_routes(app):
             return jsonify({"success": False, "error": result["error"]}), 503
         return jsonify({"success": True, "extracted": result})
 
+    @app.route("/api/audit/projects/infer-concerns", methods=["POST"])
+    def audit_project_infer_concerns():
+        """POST /api/audit/projects/infer-concerns — AI 推断审计关注业务环节
+
+        供 analysis-wiz 第一步使用：项目无 concerns 时，根据项目名/类型推断 3-5 个关注环节，
+        替代写死的"招标投标\\n采购方式..."默认。
+        """
+        data = request.get_json() or {}
+        project_name = (data.get("project_name") or "").strip()
+        domain = (data.get("domain") or "").strip()
+        if not project_name:
+            return jsonify({"success": False, "error": "请提供项目名称"}), 400
+
+        from services.llm_client import call_llm_json
+        system_prompt = "你是审计专家。根据审计项目信息，推断 3-5 个应重点关注的业务环节，环节须与该项目类型直接相关。"
+        prompt = (
+            "根据以下审计项目，推断 3-5 个应重点关注的业务环节，返回 JSON：\n"
+            '{"concerns": ["环节1", "环节2", "环节3"]}\n\n'
+            "项目名称：" + project_name + "\n审计类型：" + (domain or "未指定") + "\n"
+            "要求：环节须与该项目类型相关（如采购审计关注招标/采购方式/供应商/资金；农业农村审计关注补贴发放/资金流向等），不要泛泛而谈。"
+        )
+        result = call_llm_json(prompt, system_prompt=system_prompt, temperature=0.2, timeout=60)
+        if "error" in result:
+            return jsonify({"success": False, "error": result["error"]}), 503
+        return jsonify({"success": True, "concerns": result.get("concerns", [])})
+
     # ═══════════════════════════════════════════════════════════
     #  文件管理
     # ═══════════════════════════════════════════════════════════
