@@ -31,6 +31,20 @@ def _clean_row(row: dict) -> dict:
 def _clean_rows(rows: list) -> list:
     return [_clean_row(r) for r in rows] if rows else []
 
+
+def _project_to_dto(row: dict | None) -> dict:
+    """项目 DTO：DB 行 → 统一字段 + 旧别名兼容（前端 title/unit/domain/level）
+
+    P1.2: 立项全字段（project_code/audited_unit/audit_type/target_level/...）是新权威字段，
+    同时保留旧别名让前端老代码（读 title/unit/domain/level）不破。
+    """
+    d = _clean_row(dict(row)) if row else {}
+    d["title"] = d.get("name", "")
+    d["unit"] = d.get("audited_unit", "") or ""
+    d["domain"] = d.get("audit_type", "") or ""
+    d["level"] = d.get("target_level", "") or ""
+    return d
+
 from services.db import query, query_one, execute, insert
 from services.knowledge_service import (
     search_laws, count_laws, get_law_detail,
@@ -53,33 +67,36 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects", methods=["GET"])
     def audit_projects_list():
-        """GET /api/audit/projects — 项目列表"""
+        """GET /api/audit/projects — 项目列表（P1.2: 返回立项全字段）"""
         rows = query(
-            "SELECT id, name, description, audit_period, status, "
-            "creator, create_time, update_time "
-            "FROM audit_projects WHERE deleted = 0 ORDER BY create_time DESC",
+            "SELECT * FROM audit_projects WHERE deleted = 0 ORDER BY create_time DESC",
             database="tt",
         )
-        return jsonify({"success": True, "projects": _clean_rows(rows)})
+        return jsonify({"success": True, "projects": [_project_to_dto(r) for r in rows]})
 
     @app.route("/api/audit/projects", methods=["POST"])
     def audit_projects_create():
-        """POST /api/audit/projects — 创建项目"""
+        """POST /api/audit/projects — 创建项目（P1.2: 接收立项全字段）"""
         data = request.get_json() or {}
         name = data.get("name", "").strip()
         if not name:
             return jsonify({"success": False, "error": "项目名称不能为空"}), 400
 
         pid = str(uuid.uuid4()).replace("-", "")[:12]
-        description = data.get("description", "")
-        audit_period = data.get("audit_period", "")
         minio_bucket = f"audit-project-{pid}"
-
+        # P1.2: 立项业务字段（向后兼容，旧调用不传则为 NULL）
         insert(
             "INSERT INTO audit_projects (id, name, description, audit_period, "
-            "minio_bucket, status, creator, create_time) "
-            "VALUES (%s,%s,%s,%s, %s,'active','system',NOW())",
-            (pid, name, description, audit_period, minio_bucket),
+            "minio_bucket, status, creator, create_time, "
+            "project_code, audited_unit, audit_type, audit_method, target_level, "
+            "leader, auditor, objective, scope, amount) "
+            "VALUES (%s,%s,%s,%s, %s,'active','system',NOW(), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (pid, name, data.get("description", ""), data.get("audit_period", ""),
+             minio_bucket,
+             data.get("project_code", ""), data.get("audited_unit", ""),
+             data.get("audit_type", ""), data.get("audit_method", ""),
+             data.get("target_level", ""), data.get("leader", ""), data.get("auditor", ""),
+             data.get("objective", ""), data.get("scope", ""), data.get("amount", "")),
             database="tt",
         )
 
@@ -92,18 +109,41 @@ def register_audit_routes(app):
         except Exception:
             pass  # MinIO 不可用时仍创建项目记录
 
-        return jsonify({"success": True, "id": pid, "name": name, "bucket": minio_bucket})
+        row = query_one("SELECT * FROM audit_projects WHERE id = %s", (pid,), database="tt")
+        return jsonify({"success": True, "project": _project_to_dto(row), "bucket": minio_bucket})
 
     @app.route("/api/audit/projects/<project_id>", methods=["GET"])
     def audit_project_detail(project_id):
-        """GET /api/audit/projects/<id> — 项目详情"""
+        """GET /api/audit/projects/<id> — 项目详情（P1.2: 返回立项全字段+旧别名）"""
         row = query_one(
             "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
             (project_id,), database="tt",
         )
         if not row:
             return jsonify({"success": False, "error": "项目不存在"}), 404
-        return jsonify({"success": True, "project": _clean_row(dict(row))})
+        return jsonify({"success": True, "project": _project_to_dto(row)})
+
+    @app.route("/api/audit/projects/<project_id>", methods=["PUT"])
+    def audit_project_update(project_id):
+        """PUT /api/audit/projects/<id> — 更新立项信息（P1.2 新增）"""
+        data = request.get_json() or {}
+        allowed = ["name", "description", "audit_period", "project_code", "audited_unit",
+                   "audit_type", "audit_method", "target_level", "leader", "auditor",
+                   "objective", "scope", "amount"]
+        updates = {k: data.get(k) for k in allowed if k in data}
+        if not updates:
+            return jsonify({"success": False, "error": "没有可更新字段"}), 400
+        set_clauses = ", ".join(f"{k} = %s" for k in updates)
+        params = list(updates.values()) + [project_id]
+        execute(
+            f"UPDATE audit_projects SET {set_clauses}, update_time = NOW() "
+            f"WHERE id = %s AND deleted = 0",
+            params, database="tt",
+        )
+        row = query_one("SELECT * FROM audit_projects WHERE id = %s", (project_id,), database="tt")
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        return jsonify({"success": True, "project": _project_to_dto(row)})
 
     @app.route("/api/audit/projects/<project_id>", methods=["DELETE"])
     def audit_project_delete(project_id):
