@@ -35,7 +35,7 @@ _checkpoint_conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
 # ── 节点函数 ──
 
 def _node_intent_analyzer(state: AnalysisState) -> dict:
-    """Step①: 意图分析"""
+    """Step①: 意图分析（P1.6: 守卫式补全，不空串覆盖 P1.4 注入的 DB 值）"""
     agent = _registry.create_agent("intent_analyzer")
     result = agent.run({"intent": state.get("user_intent", "")})
 
@@ -43,37 +43,48 @@ def _node_intent_analyzer(state: AnalysisState) -> dict:
         return {"errors": [f"IntentAnalyzer失败: {result.get('error')}"], "current_step": 1}
 
     out = result["output"]
-    return {
-        "intent_result": out,
-        "domain": out.get("domain", ""),
-        "audit_item": out.get("item", ""),
-        "audit_period": out.get("period", ""),
-        "target_level": out.get("target_level", ""),
-        "target_unit": out.get("target_unit", ""),
-        "current_step": 1,
-    }
+    # P1.6 守卫: LLM 抽到非空才写，空串/None 不覆盖 P1.4 注入的 DB 上下文
+    updates = {"intent_result": out, "current_step": 1}
+    for llm_key, state_key in [("domain", "domain"), ("item", "audit_item"),
+                                ("period", "audit_period"), ("target_level", "target_level"),
+                                ("target_unit", "target_unit"), ("concerns", "concerns")]:
+        val = out.get(llm_key)
+        if val:  # 非空才覆盖（空串/None/空列表保留 DB 值）
+            updates[state_key] = val
+    return updates
 
 
 def _node_violation_matcher(state: AnalysisState) -> dict:
-    """Step②-A: 违规模型匹配"""
+    """Step②-A: 违规模型匹配（P1.6: 传concerns + 转换为前端格式）"""
     agent = _registry.create_agent("violation_matcher")
     result = agent.run({
         "domain": state.get("domain", ""),
         "item": state.get("audit_item", ""),
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
+        "concerns": state.get("concerns", []),  # P1.6: 贯通 concerns（提升召回质量）
     })
 
     if not result["success"]:
         return {"errors": [f"ViolationMatcher失败: {result.get('error')}"], "current_step": 2}
 
     out = result["output"]
-    violations = out.get("matches", [])
-    # 资料推荐由 DataAdvisor 负责，此处不写 recommended_materials（避免并行写冲突+数据类型混乱）
-    return {
-        "matches": violations,
-        "current_step": 2,
-    }
+    raw_matches = out.get("matches", [])
+    # P1.6 转换层: LLM 输出 → 前端 violationDB 期望格式（id/name/risk/match/symptom）
+    risk_map = {"high": "高", "medium": "中", "low": "低"}
+    matches = []
+    for i, m in enumerate(raw_matches):
+        matches.append({
+            "id": m.get("violation_id") or m.get("id") or f"v{i+1}",
+            "name": m.get("violation_title", ""),
+            "risk": risk_map.get(m.get("risk_level", ""), "中"),
+            "match": round(m.get("relevance_score", 0) * 100),
+            "symptom": m.get("match_reason", ""),
+            "materials": [],
+            "regulations": [],
+            "key_checkpoints": m.get("key_checkpoints", []),
+        })
+    return {"matches": matches, "current_step": 2}
 
 
 def _node_data_advisor(state: AnalysisState) -> dict:
@@ -96,24 +107,32 @@ def _node_data_advisor(state: AnalysisState) -> dict:
 
 
 def _node_regulation_advisor(state: AnalysisState) -> dict:
-    """Step②-C: 法规顾问"""
+    """Step②-C: 法规顾问（P1.6: 传matches + 转换为前端格式）"""
     agent = _registry.create_agent("regulation_advisor")
     result = agent.run({
         "domain": state.get("domain", ""),
         "item": state.get("audit_item", ""),
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
+        "matches": state.get("matches", []),  # P1.6: 传 matches（关联违规模型，P1.7拓扑修正后生效）
     })
 
     if not result["success"]:
         return {"errors": [f"RegulationAdvisor失败: {result.get('error')}"], "current_step": 2}
 
     out = result["output"]
-    return {
-        "primary_laws": out.get("primary_laws", []),
-        "layer_advice": out.get("layer_advice", ""),
-        "current_step": 2,
-    }
+    raw_laws = out.get("primary_laws", [])
+    # P1.6 转换层: LLM 输出 → 前端 renderS3 期望格式（law/clause/type/rec）
+    laws = []
+    for l in raw_laws:
+        laws.append({
+            "law_id": l.get("law_id", ""),
+            "law": l.get("law_title", ""),
+            "clause": (l.get("applicable_clauses") or [""])[0],
+            "type": l.get("layer_suggestion", "主依据"),
+            "rec": True,
+        })
+    return {"primary_laws": laws, "layer_advice": out.get("layer_advice", ""), "current_step": 2}
 
 
 def _node_human_confirm(state: AnalysisState) -> dict:
@@ -140,6 +159,7 @@ def _node_audit_analyzer(state: AnalysisState) -> dict:
     result = agent.run({
         "domain": state.get("domain", ""),
         "item": state.get("audit_item", ""),
+        "project_id": state.get("project_id", ""),  # P1.6: 补 project_id（step_5 跑空根因修复）
         "matches": state.get("matches", []),
         "primary_laws": state.get("primary_laws", []),
         "uploaded_files": state.get("uploaded_files", []),
