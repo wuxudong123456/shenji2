@@ -696,25 +696,25 @@ var Proj = {
   },
 
   launchFromDetail: function() {
-    var name = document.getElementById('d-name').textContent;
-    var domain = document.getElementById('d-type').textContent;
-    var unit = document.getElementById('d-unit').textContent;
-    var objective = document.getElementById('d-objective').textContent;
+    // 2.0 解耦: 从缓存的项目对象读，不读详情页 DOM（避免详情显示改动波及分析上下文）
+    var p = this.currentDetail || (this._currentProjectId && this._projectMap[this._currentProjectId]) || {};
+    var name = p.name || '审计项目';
+    var unit = p.description || '';
+    var objective = p.description || ('对' + name + '进行审计，重点关注合规性与资金使用。');
 
-    // 完整项目记忆
     var fullMemory = {
       title: name,
-      domain: domain,
+      domain: '审计项目',           // 后端 audit_projects 无审计类型字段，用默认
       unit: unit,
       objective: objective,
-      level: document.getElementById('d-level').textContent,
-      period: document.getElementById('d-period').textContent,
+      level: '市级',
+      period: p.audit_period || '',
+      project_id: this._currentProjectId || '',  // 顺带带 id（2.2 前置）
       createdAt: new Date().toISOString()
     };
 
-    // 压缩记忆（给LLM的精简上下文）
     fullMemory.compressedPrompt = [
-      '【项目背景】' + name + '，审计' + unit + '，类型：' + domain + '。',
+      '【项目背景】' + name + '，审计' + (unit || '被审计单位') + '。',
       '【审计目标】' + objective + '。',
       '【审计层级】市级单位，优先适用地方规定。'
     ].join('\n');
@@ -1106,6 +1106,7 @@ var PhaseBoard = {
   showDetailById: function(projectId) {
     var p = this._projectMap[projectId];
     if (!p) return;
+    this.currentDetail = p;  // 2.0: 缓存完整项目对象，供 launchFromDetail 读取（不读 DOM，解耦）
     document.getElementById('view-list').style.display = 'none';
     document.getElementById('view-detail').style.display = 'block';
     document.getElementById('detail-title').innerHTML = '<i class="bi bi-folder2-open"></i> ' + (p.name || '未命名');
