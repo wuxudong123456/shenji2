@@ -108,6 +108,20 @@ class LiteParseClient:
             }
         return {'success': False, 'engine': 'liteparse', 'error': resp.text}
 
+    def to_markdown(self, file_path: str) -> dict:
+        """调用 LiteParse /md 接口 — 文档转 Markdown（含分页与文本坐标，供 doc-viewer 使用）
+
+        与 parse() 的区别: parse 返回精简 text+fields；to_markdown 返回完整 Markdown
+        结构（full_markdown / pages[] / text_items[]），是 doc-viewer 预览所需。
+        """
+        url = f"{self.base_url}/md"
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            resp = requests.post(url, files=files, timeout=180)
+        if resp.status_code == 200:
+            return resp.json()
+        return {'success': False, 'engine': 'liteparse', 'error': resp.text}
+
     def health(self) -> bool:
         try:
             r = requests.get(f"{self.base_url}/health", timeout=3)

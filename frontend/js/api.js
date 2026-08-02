@@ -278,5 +278,16 @@ var MinioAPI = {
   },
   listProjects: function() {
     return fetch(AuditAPI.base + '/api/audit/workspace/projects').then(function(r) { return r.json(); });
+  },
+
+  // LiteParse 文档转 Markdown — 走后端 /api/ocr/md 转发（方案A，避免前端直连 :5006 跨域）
+  liteparse: {
+    base: AuditAPI.base + '/api/ocr',
+    toMarkdown: function(file) {
+      var form = new FormData();
+      form.append('file', file);
+      return fetch(MinioAPI.liteparse.base + '/md', { method: 'POST', body: form })
+        .then(function(r) { return r.json(); });
+    }
   }
 };

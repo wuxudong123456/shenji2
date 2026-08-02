@@ -385,9 +385,11 @@ def _run_analysis_task(task_id: int, task_data: dict):
 
     from agents.registry import AgentRegistry
     agent = AgentRegistry().create_agent("audit_analyzer")
+    # 防御: _clean_task 清空 result 时保留键、值为 None，.get 默认值不生效 → None.get() 崩
+    task_result = task_data.get("result") or {}
     result = agent.run({
-        "domain": task_data.get("result", {}).get("domain", ""),
-        "item": task_data.get("result", {}).get("item", ""),
+        "domain": task_result.get("domain", ""),
+        "item": task_result.get("item", ""),
         "project_id": task_data.get("project_id", ""),
     })
 

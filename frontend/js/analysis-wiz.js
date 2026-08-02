@@ -209,12 +209,19 @@ var AW = {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({expression: expr, table: 'data_contracts', project_id: (self.mem.project||{}).id || ''})
       }).then(function(r){return r.json();}).then(function(data){
+        if (data && data.success === false) {
+          self._scanResult = {hits:0, total:0};
+          self.renderS5();
+          self.say('ai','❌ 违规表达式扫描失败：' + (data.error || '未知错误') + '。请检查表达式或数据后重试。');
+          return;
+        }
         self._scanResult = data;
         self.renderS5();
         self.say('ai','✅ 违规表达式扫描完成。总计 ' + (data.total||0) + ' 条，命中 ' + (data.hits||0) + ' 条（命中率 ' + ((data.hit_rate||0)*100).toFixed(1) + '%）。确认后说<strong>"疑点"</strong>进入疑点报告。');
-      }).catch(function(){
+      }).catch(function(err){
+        self._scanResult = {hits:0, total:0};
         self.renderS5();
-        self.say('ai','✅ 已完成数据比对（使用本地规则引擎）。确认后说<strong>"疑点"</strong>进入疑点报告。');
+        self.say('ai','❌ 违规表达式扫描失败：' + ((err && err.message) || '后端 /api/audit/expression/execute 不可用') + '。请稍后重试，或说<strong>"疑点"</strong>查看当前结果。');
       });
     }
     else if(lower.includes('疑点') || lower.includes('结果') || lower.includes('报告')) {
@@ -228,12 +235,17 @@ var AW = {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({analysis_results: [{violation_model: '违规分析', scan_summary: scanData}], overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常', project_id: (self.mem.project||{}).id || ''})
       }).then(function(r){return r.json();}).then(function(data){
+        if (data && data.success === false) {
+          self.renderS6();
+          self.say('ai','❌ 疑点报告生成失败：' + (data.error || '未知错误') + '。请稍后重试。');
+          return;
+        }
         self._suspicionData = data;
         self.renderS6();
         self.say('ai','✅ 已生成审计疑点报告。' + (data.output && data.output.suspicion_report ? ('共'+((data.output.suspicion_report.total_suspicions)||0)+'条疑点') : '') + '。每条疑点可溯源到原始数据、法规依据和推理过程。<br><br>确认后说<strong>"生成文书"</strong>进入最后一步。');
-      }).catch(function(){
+      }).catch(function(err){
         self.renderS6();
-        self.say('ai','已生成审计疑点报告。每条疑点可溯源到原始数据、法规依据和推理过程。<br><br>确认后说<strong>"生成文书"</strong>进入最后一步。');
+        self.say('ai','❌ 疑点报告生成失败：' + ((err && err.message) || '后端 /api/audit/suspicion/generate 不可用') + '。请稍后重试。');
       });
     }
     else if(lower.includes('文书') || lower.includes('取证') || lower.includes('底稿') || lower.includes('导出')) {
@@ -246,12 +258,17 @@ var AW = {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({context: self._buildDocContext()})
       }).then(function(r){return r.json();}).then(function(data){
+        if (data && data.success === false) {
+          self.renderS7();
+          self.say('ai','❌ 文书生成失败：' + (data.error || '未知错误') + '。请稍后重试。');
+          return;
+        }
         self._documentData = data;
         self.renderS7();
         self.say('ai','🎉 已通过AI Agent生成全部四件套文书：取证单、审计底稿、报告初稿、定性复核意见。点击右侧卡片预览或导出。所有结果均可溯源。');
-      }).catch(function(){
+      }).catch(function(err){
         self.renderS7();
-        self.say('ai','可生成取证单、审计底稿、报告初稿和定性复核意见。点击右侧卡片预览或导出。<br><br>🎉 全流程完成！所有结果均可溯源。');
+        self.say('ai','❌ 文书生成失败：' + ((err && err.message) || '后端 /api/audit/documents/batch 不可用') + '。请稍后重试。');
       });
     }
     else if(lower.includes('溯源') || lower.includes('定位')) {

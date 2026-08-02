@@ -199,6 +199,32 @@ def api_ocr_health():
     })
 
 
+@app.route('/api/ocr/md', methods=['POST'])
+def api_ocr_md():
+    """文档转 Markdown — 转发至 LiteParse /md
+
+    供 doc-viewer 使用（方案A: 后端代理，避免前端直连 :5006 的跨域问题）。
+    注意: /md 是 LiteParse 专属能力，与 OCR_ENGINE 配置无关，此处直连 LiteParseClient。
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': '请选择文件'}), 400
+
+    f = request.files['file']
+    import tempfile
+    suffix = os.path.splitext(f.filename)[1] if f.filename else '.pdf'
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    f.save(tmp.name)
+    tmp.close()
+
+    try:
+        from services.ocr_client import LiteParseClient
+        return jsonify(LiteParseClient().to_markdown(tmp.name))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        os.unlink(tmp.name)
+
+
 # ===== 模板管理 API =====
 
 
