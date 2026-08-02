@@ -69,6 +69,7 @@ agents:
       {
         "matches": [
           {
+            "violation_id": "上方候选清单中的违规ID（必须来自候选列表）",
             "violation_title": "违规行为名称",
             "match_reason": "匹配理由（为什么该违规模型与本次审计意图相关）",
             "relevance_score": 0.95,
@@ -151,6 +152,7 @@ agents:
       {
         "primary_laws": [
           {
+            "law_id": "上方候选法规列表中的法规ID（必须来自候选列表）",
             "law_title": "法规名称",
             "recommendation_reason": "推荐理由",
             "applicable_clauses": ["适用条款"],

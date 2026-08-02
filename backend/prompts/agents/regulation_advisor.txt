@@ -7,6 +7,7 @@
 {
   "primary_laws": [
     {
+      "law_id": "上方候选法规列表中的法规ID（必须来自候选列表）",
       "law_title": "法规名称",
       "recommendation_reason": "推荐理由",
       "applicable_clauses": ["适用条款"],
