@@ -198,27 +198,34 @@ var AW = {
       this.step = 5; this.showStep(5); this.updateStepBar(5);
       var self = this;
       self.say('ai','<span class="pulse">●</span> 正在执行违规表达式扫描...');
-      // Phase 7: 调用真实表达式引擎
-      var firstViolation = self.violationDB[0];
-      var expr = firstViolation ? firstViolation.regulations[0].law : 'amount > 100';
+      // P2.3: 遍历选中的违规（selectedViolations），调批量执行端点 + 存命中明细
+      var pid = (self.mem.project||{}).id || '';
+      var vIds = self.selectedViolations.length > 0 ? self.selectedViolations.slice()
+        : self.violationDB.map(function(v){return v.id;});
       fetch('/api/audit/expression/execute', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({expression: expr, table: 'data_contracts', project_id: (self.mem.project||{}).id || ''})
+        body: JSON.stringify({violation_ids: vIds, project_id: pid})
       }).then(function(r){return r.json();}).then(function(data){
         if (data && data.success === false) {
-          self._scanResult = {hits:0, total:0};
+          self._scanResult = {results:[], hits:0, total:0};
           self.renderS5();
-          self.say('ai','❌ 违规表达式扫描失败：' + (data.error || '未知错误') + '。请检查表达式或数据后重试。');
+          self.say('ai','❌ 违规表达式扫描失败：' + (data.error || '未知错误') + '。请稍后重试。');
           return;
         }
-        self._scanResult = data;
+        // P2.3: 存命中明细（每个违规的 rows），汇总计数
+        var results = (data && data.results) || [];
+        var totalHits = 0, totalScan = 0;
+        results.forEach(function(r){ totalHits += (r.hits||0); totalScan += (r.total||0); });
+        self._scanResult = {results: results, hits: totalHits, total: totalScan};
         self.renderS5();
-        self.say('ai','✅ 违规表达式扫描完成。总计 ' + (data.total||0) + ' 条，命中 ' + (data.hits||0) + ' 条（命中率 ' + ((data.hit_rate||0)*100).toFixed(1) + '%）。确认后说<strong>"疑点"</strong>进入疑点报告。');
+        var execCount = results.filter(function(r){return r.executable;}).length;
+        var skipCount = results.length - execCount;
+        self.say('ai','✅ 违规扫描完成。执行 '+execCount+' 个违规表达式，总计 ' + totalScan + ' 条数据，命中 ' + totalHits + ' 条。'+(skipCount>0?('另有 '+skipCount+' 个无表达式已跳过。'):'')+'确认后说<strong>"疑点"</strong>进入疑点报告。');
       }).catch(function(err){
-        self._scanResult = {hits:0, total:0};
+        self._scanResult = {results:[], hits:0, total:0};
         self.renderS5();
-        self.say('ai','❌ 违规表达式扫描失败：' + ((err && err.message) || '后端 /api/audit/expression/execute 不可用') + '。请稍后重试，或说<strong>"疑点"</strong>查看当前结果。');
+        self.say('ai','❌ 违规表达式扫描失败：' + ((err && err.message) || '后端不可用') + '。请稍后重试，或说<strong>"疑点"</strong>查看当前结果。');
       });
     }
     else if(lower.includes('疑点') || lower.includes('结果') || lower.includes('报告')) {
@@ -230,7 +237,13 @@ var AW = {
       fetch('/api/audit/suspicion/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({analysis_results: [{violation_model: '违规分析', scan_summary: scanData}], overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常', project_id: (self.mem.project||{}).id || ''})
+        body: JSON.stringify({
+          analysis_results: (scanData.results && scanData.results.length > 0) ? scanData.results.map(function(r){
+            return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total: r.total||0, rows: (r.rows||[]).slice(0,20)}};
+          }) : [{violation_model: '违规分析', scan_summary: scanData}],
+          overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常',
+          project_id: (self.mem.project||{}).id || ''
+        })
       }).then(function(r){return r.json();}).then(function(data){
         if (data && data.success === false) {
           self.renderS6();
@@ -2030,13 +2043,21 @@ var AW = {
       });
     }
 
-    var lawMap = {}, laws = [];
-    viols.forEach(function(v){
-      (v.regulations||[]).forEach(function(r){
-        var key = r.law || r.note || '';
-        if(key && !lawMap[key]){ lawMap[key]=1; laws.push({law_title:key, clause:r.type||''}); }
+    // P2.5: laws 优先用 RegulationAdvisor 推荐（_primaryLaws），fallback 从 violations 拼
+    var laws = [];
+    if (self._primaryLaws && self._primaryLaws.length > 0) {
+      laws = self._primaryLaws.map(function(l){
+        return {law_title: l.law || '', clause: l.clause || ''};
       });
-    });
+    } else {
+      var lawMap = {};
+      viols.forEach(function(v){
+        (v.regulations||[]).forEach(function(r){
+          var key = r.law || r.note || '';
+          if(key && !lawMap[key]){ lawMap[key]=1; laws.push({law_title:key, clause:r.type||''}); }
+        });
+      });
+    }
 
     var amt = 0, amtOk = false;
     suspicions.forEach(function(s){
