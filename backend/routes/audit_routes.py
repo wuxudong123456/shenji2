@@ -579,15 +579,26 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/expression/execute", methods=["POST"])
     def audit_expression_execute():
-        """POST /api/audit/expression/execute — 执行违规表达式"""
+        """POST /api/audit/expression/execute — 执行违规表达式（P2.1: 支持violation_ids批量+table自动探测）"""
         data = request.get_json() or {}
-        expression = data.get("expression", "")
-        table = data.get("table", "data_contracts")
         project_id = data.get("project_id", "")
 
-        if not expression:
-            return jsonify({"success": False, "error": "请提供违规表达式"}), 400
+        # P2.1: 批量模式（violation_ids → 每个违规取表达式+探测表+执行+命中明细）
+        violation_ids = data.get("violation_ids", [])
+        if violation_ids:
+            from services.execution_planner import build_and_execute
+            results = build_and_execute(violation_ids, project_id)
+            return jsonify({"success": True, "results": results})
 
+        # 兼容旧模式（单 expression）
+        expression = data.get("expression", "")
+        table = data.get("table", "")
+        if not expression:
+            return jsonify({"success": False, "error": "请提供违规表达式或 violation_ids"}), 400
+        # P2.1: table 为空时自动探测
+        if not table:
+            from services.execution_planner import detect_target_table
+            table = detect_target_table(expression, project_id)
         result = execute_expression(expression, table, project_id)
         return jsonify(result)
 
