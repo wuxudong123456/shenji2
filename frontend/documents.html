@@ -39,7 +39,7 @@
 <div class="card" style="margin-bottom:var(--space-md);">
   <div class="card-header"><h3><i class="bi bi-gear"></i> 生成操作</h3></div>
   <div style="display:flex;gap:var(--space-md);align-items:center;flex-wrap:wrap;">
-    <select class="form-select" style="width:280px;"><option>教育局2026采购审计 — 2条疑点</option><option>农业农村局补贴核查 — 5条疑点</option></select>
+    <select id="doc-project-select" class="form-select" style="width:280px;" onchange="DocProj.select(this.value)"><option value="">加载项目...</option></select>
     <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" checked> 取证单</label>
     <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" checked> 审计底稿</label>
     <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox"> 报告初稿</label>
@@ -190,6 +190,44 @@ var DocGen = {
     });
   }
 };
+
+// 2.7: 项目下拉联动 — 真实项目列表 + 选中写入 aw_project_memory（供 DocGen.preview 读取）
+var DocProj = {
+  _projects: [],
+  load: function() {
+    var sel = document.getElementById('doc-project-select');
+    if (!sel) return;
+    AuditAPI.projects.list().then(function(resp) {
+      var projects = (resp && resp.projects) || [];
+      DocProj._projects = projects;
+      if (!projects.length) {
+        sel.innerHTML = '<option value="">暂无项目，请先创建</option>';
+        return;
+      }
+      sel.innerHTML = projects.map(function(p) {
+        return '<option value="' + p.id + '">' + (p.name || '未命名') + '</option>';
+      }).join('');
+      sel.value = projects[0].id;
+      DocProj.select(sel.value);
+    }).catch(function() {
+      sel.innerHTML = '<option value="">加载失败，请确认后端服务</option>';
+    });
+  },
+  select: function(pid) {
+    var p = this._projects.find(function(x) { return x.id === pid; }) || {};
+    var mem = {
+      title: p.name || '审计项目',
+      domain: '审计项目',
+      unit: p.description || '',
+      period: p.audit_period || '',
+      project_id: pid,
+      createdAt: new Date().toISOString()
+    };
+    mem.compressedPrompt = '【项目】' + mem.title + '，' + (mem.unit || '') + '，期间' + (mem.period || '—') + '。';
+    localStorage.setItem('aw_project_memory', JSON.stringify(mem));
+  }
+};
+DocProj.load();
 </script>
 </body>
 </html>
