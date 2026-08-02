@@ -24,6 +24,11 @@ var AuditAPI = {
     },
     delete: function(id) {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id, {method: 'DELETE'}).then(function(r) { return r.json(); });
+    },
+    update: function(id, data) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      }).then(function(r) { return r.json(); });
     }
   },
 

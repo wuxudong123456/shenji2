@@ -409,7 +409,7 @@
           <div class="form-group"><label class="form-label">审计报告文号</label><input class="form-input" id="f-report-no" placeholder="如：审报〔2026〕001号"></div>
           <div class="form-group"><label class="form-label">被审计单位 <span class="text-danger">*</span></label><input class="form-input" id="f-unit" placeholder="如：某市教育局"></div>
           <div class="form-group"><label class="form-label">审计类型 <span class="text-danger">*</span></label><select class="form-select" id="f-type"><option>预算执行审计</option><option>专项审计调查</option><option>经济责任审计</option><option>固定资产投资审计</option><option>绩效审计</option><option>资源环境审计</option></select></div>
-          <div class="form-group"><label class="form-label">审计方式</label><select class="form-select"><option>就地审计</option><option>送达审计</option><option>联网审计</option></select></div>
+          <div class="form-group"><label class="form-label">审计方式</label><select class="form-select" id="f-method"><option>就地审计</option><option>送达审计</option><option>联网审计</option></select></div>
           <div class="form-group"><label class="form-label">项目开始日期</label><input type="date" class="form-input" id="f-start"></div>
           <div class="form-group"><label class="form-label">审计进点日期</label><input type="date" class="form-input" id="f-entry-date"></div>
           <div class="form-group"><label class="form-label">审计期间（起）</label><input type="date" class="form-input" id="f-period-start" value="2026-01-01"></div>
@@ -639,59 +639,79 @@ var Proj = {
   /** 从详情页启动智能分析（含压缩记忆） */
   /** 修改项目信息 — 跳转到项目立项页面 */
   editProject: function() {
-    this.backToList();
-    setTimeout(function(){ Proj.open(); }, 200);
-    AuditWorkbench.toast('项目信息加载中，可修改后保存','info');
+    // P1.3: 加载已有项目数据到立项表单，设 _editingProjectId 供 save() 判断 update
+    var pid = this._currentProjectId;
+    if (!pid) { AuditWorkbench.toast('请先选择项目','warning'); return; }
+    var self = this;
+    AuditAPI.projects.get(pid).then(function(resp) {
+      if (!resp || !resp.success || !resp.project) { AuditWorkbench.toast('加载失败','error'); return; }
+      var p = resp.project;
+      self._editingProjectId = pid;
+      self.backToList();
+      setTimeout(function(){
+        Proj.open();
+        setTimeout(function(){
+          var set = function(id, v){ var el = document.getElementById(id); if(el && v != null) el.value = v; };
+          set('f-name', p.name); set('f-code', p.project_code);
+          set('f-unit', p.audited_unit || p.unit); set('f-type', p.audit_type || p.domain);
+          set('f-level', p.target_level || p.level); set('f-amount', p.amount);
+          set('f-objective', p.objective); set('f-scope', p.scope);
+        }, 300);
+      }, 200);
+      AuditWorkbench.toast('项目信息已加载，修改后点保存','info');
+    }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   },
 
   /** 从卡片直接启动分析 — 2.2: 改收 projectId，从缓存取真实项目对象，带 id 传给智能分析 */
   launchFromCard: function(projectId) {
     var p = this._projectMap[projectId] || {};
-    var name = p.name || '审计项目';
-    var unit = p.description || '';
     var fullMemory = {
-      title: name,
-      domain: '审计项目',
-      unit: unit,
-      objective: p.description || ('对' + name + '进行审计，重点关注合规性与资金使用。'),
-      level: '市级',
+      title: p.name || p.title || '审计项目',
+      domain: p.audit_type || p.domain || '',
+      unit: p.audited_unit || p.unit || '',
+      objective: p.objective || '',
+      level: p.target_level || p.level || '市级',
       period: p.audit_period || '',
+      project_code: p.project_code || '',
+      leader: p.leader || '',
+      auditor: p.auditor || '',
+      scope: p.scope || '',
+      amount: p.amount || '',
       project_id: projectId,
       createdAt: new Date().toISOString()
     };
     fullMemory.compressedPrompt = [
-      '【项目背景】' + name + '，审计' + (unit || '被审计单位') + '。',
+      '【项目背景】' + fullMemory.title + '，审计' + (fullMemory.unit || '被审计单位') + '。',
       '【审计目标】' + fullMemory.objective + '。',
-      '【审计层级】市级单位，优先适用地方规定。'
+      '【审计层级】' + fullMemory.level + '单位。'
     ].join('\n');
     localStorage.setItem('aw_project_memory', JSON.stringify(fullMemory));
     location.href = 'analysis.html';
   },
 
   launchFromDetail: function() {
-    // 2.0 解耦: 从缓存的项目对象读，不读详情页 DOM（避免详情显示改动波及分析上下文）
+    // P1.3: 从缓存项目对象读全字段（P1.2 detail 返回了立项全字段+别名），写真实 memory
     var p = this.currentDetail || (this._currentProjectId && this._projectMap[this._currentProjectId]) || {};
-    var name = p.name || '审计项目';
-    var unit = p.description || '';
-    var objective = p.description || ('对' + name + '进行审计，重点关注合规性与资金使用。');
-
     var fullMemory = {
-      title: name,
-      domain: '审计项目',           // 后端 audit_projects 无审计类型字段，用默认
-      unit: unit,
-      objective: objective,
-      level: '市级',
+      title: p.name || p.title || '审计项目',
+      domain: p.audit_type || p.domain || '',
+      unit: p.audited_unit || p.unit || '',
+      objective: p.objective || '',
+      level: p.target_level || p.level || '市级',
       period: p.audit_period || '',
-      project_id: this._currentProjectId || '',  // 顺带带 id（2.2 前置）
+      project_code: p.project_code || '',
+      leader: p.leader || '',
+      auditor: p.auditor || '',
+      scope: p.scope || '',
+      amount: p.amount || '',
+      project_id: this._currentProjectId || '',
       createdAt: new Date().toISOString()
     };
-
     fullMemory.compressedPrompt = [
-      '【项目背景】' + name + '，审计' + (unit || '被审计单位') + '。',
-      '【审计目标】' + objective + '。',
-      '【审计层级】市级单位，优先适用地方规定。'
+      '【项目背景】' + fullMemory.title + '，审计' + (fullMemory.unit || '被审计单位') + '。',
+      '【审计目标】' + fullMemory.objective + '。',
+      '【审计层级】' + fullMemory.level + '单位。'
     ].join('\n');
-
     localStorage.setItem('aw_project_memory', JSON.stringify(fullMemory));
     location.href = 'analysis.html';
   },
@@ -932,7 +952,31 @@ var Proj = {
     localStorage.setItem('aw_project_memory',JSON.stringify({title:n,domain:d,createdAt:new Date().toISOString()}));
     location.href='analysis.html';
   },
-  save: function() { AuditWorkbench.toast('项目已保存','success'); }
+  save: function() {
+    // P1.3: 读立项表单 → 调 create/update（替代空壳 toast）
+    var get = function(id){ var el = document.getElementById(id); return el ? (el.value||'').trim() : ''; };
+    var data = {
+      name: get('f-name'), project_code: get('f-code'),
+      audited_unit: get('f-unit'), audit_type: get('f-type'),
+      audit_method: get('f-method'), target_level: get('f-level'),
+      audit_period: get('f-period-start') + '至' + get('f-period-end'),
+      amount: get('f-amount') || null, objective: get('f-objective'),
+      scope: get('f-scope')
+    };
+    if (!data.name) { AuditWorkbench.toast('请填写项目名称','warning'); return; }
+    var self = this;
+    var afterSave = function(r) {
+      if (r && r.success) {
+        if (r.project) self._editingProjectId = r.project.id;
+        AuditWorkbench.toast('项目已保存','success');
+      } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
+    };
+    if (self._editingProjectId) {
+      AuditAPI.projects.update(self._editingProjectId, data).then(afterSave).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+    } else {
+      AuditAPI.projects.create(data).then(afterSave).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+    }
+  }
 };
 
 // ====== 督办提醒看板 ======
