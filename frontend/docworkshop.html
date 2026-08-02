@@ -434,8 +434,21 @@ var FileManager = {
 
   // ── 下载 / 删除 / 新建项目 ──
   download: function(docId, filename) {
-    // 通过 trace 拿 minio_path 生成下载（简化：直接提示）
-    AuditWorkbench.toast('下载功能：请通过溯源信息中的 MinIO 路径获取', 'info');
+    // 4.4: 真实下载（替代 toast 提示）— trace 拿 project_id/file_name → workspace/download 预签名 URL
+    AuditWorkbench.toast('正在获取下载链接...', 'info');
+    AuditAPI.files.trace(docId).then(function(resp){
+      if(!resp || !resp.success){ AuditWorkbench.toast('下载失败：'+((resp&&resp.error)||'文档不存在'), 'error'); return; }
+      var t = resp.trace || {};
+      var pid = t.project_id || '';
+      var fn = t.file_name || filename || '';
+      if(!pid || !fn){ AuditWorkbench.toast('下载失败：缺少项目/文件信息', 'error'); return; }
+      return fetch(AuditAPI.base + '/api/audit/workspace/download?project=' + encodeURIComponent(pid) + '&file=' + encodeURIComponent(fn))
+        .then(function(r){ return r.json(); });
+    }).then(function(resp){
+      if(!resp) return;
+      if(resp.success && resp.url){ window.open(resp.url, '_blank'); }
+      else { AuditWorkbench.toast('下载失败：'+(resp.error||'未获取到下载链接'), 'error'); }
+    }).catch(function(){ AuditWorkbench.toast('下载失败：网络错误', 'error'); });
   },
 
   deleteProject: function(projectId, name) {

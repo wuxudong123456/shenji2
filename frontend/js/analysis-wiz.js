@@ -715,7 +715,7 @@ var AW = {
       '<button class="btn btn-sm btn-outline" style="font-size:11px;flex:1;" onclick="event.preventDefault();AW.refreshRecommendations()">'+
       '<i class="bi bi-arrow-repeat"></i> 换一批</button>'+
       '<button class="btn btn-sm btn-outline" style="font-size:11px;" onclick="event.preventDefault();AW.recommendMoreMethods()">'+
-      '<i class="bi bi-magic"></i> AI 推荐更多</button></div></details>';
+      '<i class="bi bi-plus-lg"></i> 补充常用方法</button></div></details>';
 
     methodsHTML += '</div></div>';
 
@@ -879,38 +879,31 @@ var AW = {
     this.say('ai','🔄 已根据项目上下文换了一批推荐方法：<br>· '+recs.map(function(r){return r.name;}).join('<br>· '));
   },
 
-  /** AI 推荐更多审计方法 */
+  /** 补充常用审计方法（基于关键词匹配的静态池，非 LLM）*/
   recommendMoreMethods: function() {
     if(this.violationDB.length >= 10) {
       AuditWorkbench.toast('已达上限：推荐列表已有'+this.violationDB.length+'个方法','warning');
       this.say('ai','⚠️ 列表已有 '+this.violationDB.length+' 个方法，已达上限。请先取消不需要的方法再添加。');
       return;
     }
-    var extra = [
-      {id:'v6',name:'合同履约验收不合规',risk:'中',match:72,
-        symptom:'采购合同履行完毕后未组织正式验收即付款，或验收报告内容缺失关键验收指标',
-        materials:['验收报告（验收日期、验收结论）','合同履约进度表（履约完成率）'],
-        regulations:[{law:'《政府采购法》第41条',type:'主依据',note:'采购人应按合同约定组织验收'}]},
-      {id:'v7',name:'资产入账不及时',risk:'低',match:58,
-        symptom:'设备已交付使用超过3个月但仍未登记入固定资产台账，采购合同签订日期与入账日期间隔过长',
-        materials:['固定资产台账（入账日期、设备编码）','采购合同签订日期与入账日期间隔'],
-        regulations:[{law:'《行政单位国有资产管理暂行办法》第20条',type:'主依据',note:'资产形成后应及时入账'}]},
-      {id:'v8',name:'采购价格明显偏高',risk:'中',match:45,
-        symptom:'同类设备采购价格高于同期市场价20%以上，或高于其他地区同类采购中标价，未见合理的价格说明',
-        materials:['同期市场询价记录','采购合同价格与预算批复价对比'],
-        regulations:[{law:'《政府采购法》第17条',type:'主依据',note:'采购价格应合理'}]}
-    ];
-    var added = [];
+    // 4.1-A: 复用 _pickRecommendations（基于项目关键词匹配），过滤已加的，转 violation 格式后补充
+    if(!this.recommendPool) this._initRecommendPool();
     var self = this;
-    extra.forEach(function(v){
-      if(!self.violationDB.find(function(x){return x.id===v.id;})) {
-        self.violationDB.push(v);
-        added.push(v.name);
-      }
+    var existingNames = {};
+    this.violationDB.forEach(function(v){ existingNames[v.name] = true; });
+    var picks = this._pickRecommendations().filter(function(r){ return !existingNames[r.name]; }).slice(0,3);
+    var added = [];
+    picks.forEach(function(r){
+      self.violationDB.push({
+        id: 'v' + (self.violationDB.length + 1),
+        name: r.name, risk: r.risk, match: 50,
+        symptom: r.symptom, materials: [], regulations: []
+      });
+      added.push(r.name);
     });
     if(added.length > 0) {
       this.renderS2();
-      this.say('ai','🤖 AI 根据项目特点推荐了 '+added.length+' 个补充审计方法：<br>· '+added.join('<br>· ')+'<br><br>已在表格中添加，可勾选纳入审计任务。');
+      this.say('ai','已补充 '+added.length+' 个常用审计方法（基于项目关键词匹配）：<br>· '+added.join('<br>· ')+'<br><br>已在表格中添加，可勾选纳入审计任务。');
     } else {
       this.say('ai','当前推荐列表已覆盖该项目的主要风险领域。如需特定方向的审计方法，请在聊天中描述。');
     }
@@ -1837,7 +1830,6 @@ var AW = {
     var highCount = findings.filter(function(f) { return f.risk === '高'; }).length;
     var scanResult = self._scanResult || {total: 5, hits: findings.length > 0 ? Math.min(2, findings.length) : 0};
     var hitRate = scanResult.total > 0 ? Math.round((scanResult.hits || 0) / scanResult.total * 100) : 0;
-    var mockAmounts = { v1: '¥4,850,000', v2: '¥4,850,000', v3: '¥3,200,000', v4: '¥2,100,000', v5: '¥1,500,000' };
 
     var html = '<div class="card"><div class="card-header"><h3>第六步：疑点报告</h3>' +
       '<span class="badge badge-muted">' + findings.length + '条疑点' + (useApi ? ' (AI生成)' : '') + '</span></div>';
@@ -1861,7 +1853,7 @@ var AW = {
       findings.forEach(function(f, i) {
         var riskBadge = f.risk === '高' ? 'badge-accent' : f.risk === '中' ? 'badge-warning' : 'badge-muted';
         var riskLabel = f.risk === '高' ? '高风险' : f.risk === '中' ? '中风险' : '低风险';
-        var amount = f.amount || mockAmounts[f.id] || '¥—';
+        var amount = f.amount || '¥—';  // 4.2: 无真实金额则留空，不套写死 mockAmounts
         var regNames = f.regulations.map(function(r) { return r.law; }).join('、');
 
         html += '<div class="finding-item" style="margin-bottom:12px;padding:14px 16px;border:1px solid var(--color-border);border-left:4px solid ' +
