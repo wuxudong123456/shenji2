@@ -96,7 +96,7 @@ def register_audit_routes(app):
              data.get("project_code", ""), data.get("audited_unit", ""),
              data.get("audit_type", ""), data.get("audit_method", ""),
              data.get("target_level", ""), data.get("leader", ""), data.get("auditor", ""),
-             data.get("objective", ""), data.get("scope", ""), data.get("amount", "")),
+             data.get("objective", ""), data.get("scope", ""), data.get("amount") or None),
             database="tt",
         )
 
