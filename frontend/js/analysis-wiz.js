@@ -1582,7 +1582,7 @@ var AW = {
         var safeName = name.replace(/'/g,'');
         return '<tr><td><strong>'+name+'</strong></td><td><select class="form-select form-select-sm" style="width:160px;font-size:12px;" onchange="AW.reExtract(this)"><option>采购合同及补充协议</option><option>银行付款凭证及流水</option><option>供应商工商登记信息</option></select></td><td>'+status+'</td>'+
           '<td><div style="display:flex;gap:4px;flex-wrap:wrap;">'+
-          '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\''+safeName+'\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
+          '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\''+f.id+'\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
           '<button class="btn btn-xs btn-outline" onclick="var sel=this.closest(\'tr\').querySelector(\'select\');AW.reExtract(sel)" title="重新提取"><i class="bi bi-arrow-repeat"></i> 重提取</button></div></td></tr>';
       }).join('');
     }).catch(function() {
@@ -1674,28 +1674,43 @@ var AW = {
   },
 
   /** 查看已解析文件的结构化数据 */
-  viewStructuredData: function(filename) {
+  viewStructuredData: function(docId) {
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:750px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">'+
       '<div style="padding:16px 20px;border-bottom:2px solid var(--color-border);display:flex;align-items:center;gap:8px;">'+
-      '<h3 style="margin:0;"><i class="bi bi-table"></i> '+filename+' — 结构化数据明细</h3>'+
-      '<span class="badge badge-success">OntoSKU 解析</span>'+
+      '<h3 style="margin:0;"><i class="bi bi-table"></i> 结构化数据明细</h3>'+
       '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div>'+
-      '<div style="padding:16px 20px;">'+
-      '<div class="table-wrap"><table class="table" style="font-size:14px;"><thead><tr><th>字段名</th><th>提取值</th><th>置信度</th><th>原始位置</th></tr></thead><tbody>'+
-      '<tr><td>合同编号</td><td>HT-2026-003</td><td><span class="badge badge-success">0.98</span></td><td>第1页 · 第3行</td></tr>'+
-      '<tr><td>合同金额</td><td>¥1,200,000</td><td><span class="badge badge-success">0.95</span></td><td>第1页 · 第8行</td></tr>'+
-      '<tr><td>采购方式</td><td>询价</td><td><span class="badge badge-success">0.92</span></td><td>第2页 · 第5行</td></tr>'+
-      '<tr><td>供应商名称</td><td>XX科技有限公司</td><td><span class="badge badge-success">0.98</span></td><td>第1页 · 第15行</td></tr>'+
-      '<tr><td>签订日期</td><td>2026-03-12</td><td><span class="badge badge-success">0.99</span></td><td>第1页 · 第2行</td></tr>'+
-      '</tbody></table></div>'+
-      '<div class="alert alert-info" style="font-size:12px;margin-top:8px;"><i class="bi bi-link-45deg"></i> 所有字段可通过 MinerU 定位到原始文档具体位置。解析引擎：OntoSKU · 模板：audit/业务单据类/合同</div>'+
-      '<div style="display:flex;gap:8px;margin-top:8px;">'+
-      '<button class="btn btn-sm btn-outline" onclick="this.closest(\'[style*=fixed]\').remove();"><i class="bi bi-x-lg"></i> 关闭</button>'+
-      '<button class="btn btn-sm btn-outline" onclick="AuditWorkbench.toast(\'已导出\',\'success\')"><i class="bi bi-download"></i> 导出 CSV</button></div></div></div>';
+      '<div id="vsd-body" style="padding:16px 20px;"><span class="pulse">●</span> 加载结构化数据...</div>'+
+      '<div style="padding:0 20px 16px;display:flex;gap:8px;">'+
+      '<button class="btn btn-sm btn-outline" onclick="this.closest(\'[style*=fixed]\').remove();"><i class="bi bi-x-lg"></i> 关闭</button></div></div>';
     modal.addEventListener('click',function(e){if(e.target===this)this.remove();});
     document.body.appendChild(modal);
+
+    // 2.5: 调 files.trace 取真实溯源数据（替代写死的假字段）
+    var bodyEl = modal.querySelector('#vsd-body');
+    if(!docId){ bodyEl.innerHTML = '<div class="alert alert-warning" style="font-size:13px;">缺少文档ID</div>'; return; }
+    AuditAPI.files.trace(docId).then(function(resp){
+      if(!resp || !resp.success){ bodyEl.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">加载失败：'+((resp&&resp.error)||'文档不存在')+'</div>'; return; }
+      var t = resp.trace || {};
+      var fn = t.file_name || ('文档#'+docId);
+      var parsed = t.ocr_done || t.ocr_content;
+      var html = '<div style="margin-bottom:12px;font-size:13px;color:var(--color-text-muted);">文件：<strong>'+fn+'</strong> · 状态：'+(parsed?'<span style="color:var(--color-success);">已解析</span>':'待解析')+' · 上传：'+(t.created_at||'').substring(0,10)+'</div>';
+      var fields = t.extracted_fields || t.fields;
+      if(fields && typeof fields === 'object' && Object.keys(fields).length){
+        var rows = Object.keys(fields).map(function(k){ return '<tr><td>'+k+'</td><td>'+fields[k]+'</td></tr>'; }).join('');
+        html += '<div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>字段名</th><th>提取值</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+      } else {
+        html += '<div class="alert alert-info" style="font-size:13px;">该文件暂无结构化提取字段（字段提取依赖 OntoSKU 模板配置）。以下为 OCR 解析全文：</div>';
+      }
+      if(t.ocr_content){
+        var snippet = t.ocr_content.length>1000 ? t.ocr_content.substring(0,1000)+'...' : t.ocr_content;
+        html += '<div style="background:var(--color-bg);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow-y:auto;margin-top:8px;">'+snippet+'</div>';
+      } else if(!fields){
+        html += '<div class="alert alert-warning" style="font-size:13px;">该文件尚未解析（无 OCR 内容）</div>';
+      }
+      bodyEl.innerHTML = html;
+    }).catch(function(){ bodyEl.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">网络错误，后端 trace 接口不可用</div>'; });
   },
 
   /** 更改分类后重新提取元数据 */
