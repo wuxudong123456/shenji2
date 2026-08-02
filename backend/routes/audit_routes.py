@@ -790,6 +790,12 @@ def register_audit_routes(app):
             **project_context,  # P1.4: 注入 DB 项目上下文
         }, config)
 
+        # P3.4: 清理同 project_id 的旧未完成任务（防僵尸堆积——每次 parseIntent 创建新任务前清理旧的）
+        execute(
+            "UPDATE audit_analysis_tasks SET status = 'cancelled' "
+            "WHERE project_id = %s AND status IN ('in_progress','awaiting_confirmation','awaiting_upload')",
+            (project_id,), database="tt",
+        )
         # 持久化到 MySQL
         insert(
             "INSERT INTO audit_analysis_tasks "
