@@ -318,6 +318,12 @@ var AW = {
       s1Cache: this.s1Cache,
       chatHTML: chat ? chat.innerHTML : '',
       rightPanelHTML: right ? right.innerHTML : '',
+      // P3.1: task_id + 分析数据持久化（刷新恢复）
+      taskId: this._taskId || '',
+      matches: this._matches || null,
+      primaryLaws: this._primaryLaws || null,
+      scanResult: this._scanResult || null,
+      suspicionData: this._suspicionData || null,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem('aw_analysis_progress', JSON.stringify(progress));
@@ -330,8 +336,14 @@ var AW = {
     try {
       var prog = JSON.parse(saved);
       this.step = prog.step;
-      this.selectedViolations = prog.selectedViolations || ['v1','v2'];
+      this.selectedViolations = prog.selectedViolations || [];
       this.s1Cache = prog.s1Cache || {};
+      // P3.2: 回填 task_id + 分析数据（刷新恢复）
+      this._taskId = prog.taskId || '';
+      this._matches = prog.matches || [];
+      this._primaryLaws = prog.primaryLaws || [];
+      this._scanResult = prog.scanResult || null;
+      this._suspicionData = prog.suspicionData || null;
       // Load project memory
       var pm = localStorage.getItem('aw_project_memory');
       if(pm) this.mem.project = JSON.parse(pm);
