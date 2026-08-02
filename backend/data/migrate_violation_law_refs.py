@@ -60,68 +60,94 @@ def _parse_regulation(raw_regulation) -> list[dict]:
 
 
 def _normalize_regulation_items(items: list) -> list[dict]:
-    """规范化法规引用条目，提取 law_title 和 clause"""
+    """规范化法规引用条目，提取 law_title 和 clause
+
+    P1-4 C: 修复键名映射——YAML 实际用中文键（法规名称/条款号），
+    之前只识别英文键（law/law_title/name），导致全部匹配失败。
+    """
     result = []
     for item in items:
         if isinstance(item, str):
             result.append({"law_title": item, "clause": ""})
         elif isinstance(item, dict):
-            result.append({
-                "law_title": item.get("law", item.get("law_title", item.get("name", ""))),
-                "clause": item.get("clause", item.get("article", item.get("条", ""))),
-            })
+            # 法规名称：支持中英文键
+            law_title = (item.get("法规名称") or item.get("law") or
+                        item.get("law_title") or item.get("name") or "")
+            # 条款号：支持中英文键
+            clause = (item.get("条款号") or item.get("clause") or
+                     item.get("article") or item.get("条") or "")
+            # 效力级别（额外提取，供后续使用）
+            potency = item.get("效力级别") or item.get("potency_level") or ""
+            if law_title:
+                result.append({"law_title": law_title, "clause": clause, "potency_level": potency})
     return [r for r in result if r["law_title"]]
 
 
 def _match_law_id(law_title: str) -> str | None:
-    """根据法规名称匹配 sys_core_law_allaudit.id
+    """根据法规名称匹配法规库 id（P1-4 C: 扩展到全量库）
 
-    策略:
-      1. 精确匹配 title = law_title
-      2. 子串匹配 title LIKE '%law_title%'
-      3. 用书名号提取后匹配: 《招标投标法》→ 匹配含"招标投标法"的 title
+    策略（按优先级）:
+      1. 审计常用库 sys_core_law_allaudit 精确匹配
+      2. 审计常用库 sys_core_law_allaudit 子串匹配
+      3. 全量库 sys_core_law 精确匹配（35万条，覆盖面广）
+      4. 全量库 sys_core_law 子串匹配
+      5. 书名号内容提取后重试
     """
     if not law_title:
         return None
 
-    # 去掉书名号和前后空格
     clean = law_title.strip().strip("《").strip("》").strip()
+    if not clean or len(clean) < 3:
+        return None
 
-    # 精确匹配
+    # 1. 审计常用库 - 精确
     row = query_one(
-        "SELECT id, title FROM sys_core_law_allaudit WHERE title = %s AND status = 1 LIMIT 1",
+        "SELECT id FROM sys_core_law_allaudit WHERE title = %s AND status = 1 LIMIT 1",
         (clean,), database="audit_law",
     )
     if row:
         return row["id"]
 
-    # 子串匹配
+    # 2. 审计常用库 - 子串
     row = query_one(
-        "SELECT id, title FROM sys_core_law_allaudit WHERE title LIKE %s AND status = 1 LIMIT 1",
+        "SELECT id FROM sys_core_law_allaudit WHERE title LIKE %s AND status = 1 LIMIT 1",
         (f"%{clean}%",), database="audit_law",
     )
     if row:
         return row["id"]
 
-    # 反向子串（law_title 包含在数据库 title 中）
+    # 3. 全量库 - 精确（35万条，覆盖面广）
     row = query_one(
-        "SELECT id, title FROM sys_core_law_allaudit WHERE %s LIKE CONCAT('%%', title, '%%') AND status = 1 LIMIT 1",
+        "SELECT id FROM sys_core_law WHERE title = %s LIMIT 1",
         (clean,), database="audit_law",
     )
     if row:
         return row["id"]
 
-    # 用书名号内容匹配：《中华人民共和国招标投标法》→ 招标投标法
+    # 4. 全量库 - 子串
+    row = query_one(
+        "SELECT id FROM sys_core_law WHERE title LIKE %s LIMIT 1",
+        (f"%{clean}%",), database="audit_law",
+    )
+    if row:
+        return row["id"]
+
+    # 5. 书名号内容匹配
     import re
     bracketed = re.findall(r'《([^》]+)》', law_title)
-    if bracketed:
-        for b in bracketed:
-            row = query_one(
-                "SELECT id, title FROM sys_core_law_allaudit WHERE title LIKE %s AND status = 1 LIMIT 1",
-                (f"%{b}%",), database="audit_law",
-            )
-            if row:
-                return row["id"]
+    for b in bracketed:
+        row = query_one(
+            "SELECT id FROM sys_core_law_allaudit WHERE title LIKE %s AND status = 1 LIMIT 1",
+            (f"%{b}%",), database="audit_law",
+        )
+        if row:
+            return row["id"]
+        row = query_one(
+            "SELECT id FROM sys_core_law WHERE title LIKE %s LIMIT 1",
+            (f"%{b}%",), database="audit_law",
+        )
+        if row:
+            return row["id"]
 
     return None
 
@@ -187,7 +213,7 @@ def migrate_violation_law_refs(dry_run: bool = True) -> dict:
 
         matched = 0
         unmatched = []
-        for law_title in sorted(unique_laws)[:30]:
+        for law_title in sorted(unique_laws):
             law_id = _match_law_id(law_title)
             if law_id:
                 matched += 1
