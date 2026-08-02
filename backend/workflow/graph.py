@@ -232,10 +232,10 @@ def build_analysis_graph():
     # 定义边（流程）
     workflow.set_entry_point("step_1_intent")
 
-    # Step① → Step② (三个Agent并行 → 汇总到 step_3)
+    # Step① → Step② (P1.7 方案A: ViolationMatcher串行前置 → DataAdvisor/RegulationAdvisor并行读matches)
     workflow.add_edge("step_1_intent", "step_2_violations")
-    workflow.add_edge("step_1_intent", "step_2_data_advice")
-    workflow.add_edge("step_1_intent", "step_2_regulations")
+    workflow.add_edge("step_2_violations", "step_2_data_advice")
+    workflow.add_edge("step_2_violations", "step_2_regulations")
 
     # Step② 三个并行节点 → Step③
     workflow.add_edge("step_2_violations", "step_3_confirm")
