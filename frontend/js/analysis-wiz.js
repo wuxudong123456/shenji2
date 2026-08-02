@@ -454,12 +454,17 @@ var AW = {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({project_id: pm.id || '', intent: msg || pm.title || pm.objective || ''})
     }).then(function(r){ return r.json(); }).then(function(data){
+      // P1.8: 保存 task_id + 真实推荐（供 renderS2/renderS3 消费）
+      self._taskId = (data && data.task_id) || '';
+      self._matches = (data && data.matches) || [];
+      self._primaryLaws = (data && data.primary_laws) || [];
+      self._recommendedMaterials = (data && data.recommended_materials) || [];
+
       var out = (data && data.intent_result) ? data.intent_result : null;
       var title = pm.title || (out ? out.item : '') || '—';
       var domain = out ? out.domain : (pm.domain || '预算执行审计');
       var period = out ? out.period : (pm.period || '2023-2025年');
-      var concerns = out ? (out.concerns || []).join('\n') : (pm.concerns ||
-        '【招标投标】审查是否依法公开招标\n【采购方式】审查采购方式选用是否合规\n【供应商管理】审查供应商资质和关联关系\n【资金支付】审查资金拨付和使用是否合规');
+      var concerns = out ? (out.concerns || []).join('\n') : (pm.concerns || '');
 
       document.getElementById('s1-title').value = title;
       document.getElementById('s1-domain').value = domain;
@@ -665,10 +670,16 @@ var AW = {
 
   renderS2: function() {
     var self = this;
-    // Phase 7: 确保数据已加载
-    this._initData().then(function() {
+    // P1.8: 优先用 ViolationMatcher 真推荐（self._matches），fallback 到 _initData 本地检索
+    if (self._matches && self._matches.length > 0) {
+      self.violationDB = self._matches;
       self._renderS2Content();
-    });
+    } else {
+      // Phase 7: 确保数据已加载
+      this._initData().then(function() {
+        self._renderS2Content();
+      });
+    }
   },
 
   _renderS2Content: function() {
@@ -1220,7 +1231,7 @@ var AW = {
 
   renderS3: function() {
     // 业务分类维度（可扩展，多分类不混乱）
-    var categories = [
+    var categories = (this._primaryLaws && this._primaryLaws.length > 0) ? [{name:'AI推荐法规',icon:'bi-shield-check',regs:this._primaryLaws.map(function(l){return {law:l.law||'',docNo:'',clause:l.clause||'',summary:'',timeliness:'现行有效',scope:'',type:l.type||'主依据',rec:true};})}] : [
       {name:'招标投标',icon:'bi-bullseye',regs:[
         {law:'《中华人民共和国招标投标法》',docNo:'主席令第21号',clause:'第3条',summary:'在中华人民共和国境内进行工程建设项目的勘察、设计、施工、监理以及与工程建设有关的重要设备、材料等的采购，必须进行招标。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
         {law:'《中华人民共和国招标投标法》',docNo:'主席令第21号',clause:'第4条',summary:'任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
