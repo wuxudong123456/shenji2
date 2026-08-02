@@ -109,11 +109,46 @@ def migrate_expression_sql():
     print(f"[migrate] + 表 {table}")
 
 
+def migrate_project_context_columns():
+    """Phase1 — audit_projects 增加立项业务字段（项目上下文持久化）
+
+    让"被审计单位/审计类型/层级/编号/目标"等立项信息真正落库，
+    供 /api/audit/analysis 按 project_id 读取注入 Agent 上下文。
+    幂等：每列/索引先查 information_schema，已存在则跳过。
+    """
+    table = "audit_projects"
+    columns = [
+        ("project_code", "VARCHAR(64) DEFAULT NULL COMMENT '项目编号（如审通〔2026〕001号）'"),
+        ("audited_unit", "VARCHAR(128) DEFAULT NULL COMMENT '被审计单位'"),
+        ("audit_type", "VARCHAR(32) DEFAULT NULL COMMENT '审计类型（预算执行/专项调查/经济责任等）'"),
+        ("audit_method", "VARCHAR(32) DEFAULT NULL COMMENT '审计方式（就地/送达/联网）'"),
+        ("target_level", "VARCHAR(16) DEFAULT NULL COMMENT '单位层级（省级/市级/县级）'"),
+        ("leader", "VARCHAR(32) DEFAULT NULL COMMENT '审计组长'"),
+        ("auditor", "VARCHAR(64) DEFAULT NULL COMMENT '审计员'"),
+        ("objective", "TEXT DEFAULT NULL COMMENT '审计目标'"),
+        ("scope", "TEXT DEFAULT NULL COMMENT '审计范围'"),
+        ("amount", "DECIMAL(14,2) DEFAULT NULL COMMENT '涉及金额'"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(table, col):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {table}.{col}")
+        else:
+            print(f"[migrate] = {table}.{col} 已存在，跳过")
+    for idx, col in [("idx_unit", "audited_unit"), ("idx_type", "audit_type")]:
+        if not _index_exists(table, idx):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD INDEX {idx} ({col})", database=DATABASE)
+            print(f"[migrate] + {table}.{idx}")
+        else:
+            print(f"[migrate] = {table}.{idx} 已存在，跳过")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
         migrate_trace_md5()
         migrate_expression_sql()
+        migrate_project_context_columns()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
