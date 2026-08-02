@@ -1158,32 +1158,37 @@ var AW = {
     this.filterViolationList('');
   },
 
-  /** 过滤违规列表 */
+  /** 过滤违规列表（P3-7: 调真实 API 搜索）*/
   filterViolationList: function(query) {
     var self = this;
     var list = document.getElementById('violation-list');
     if(!list) return;
-    var allViolations = [
-      {name:'化整为零规避公开招标',domain:'部门预算执行审计',desc:'将应公开招标项目拆分为多个小额项目'},
-      {name:'违规采用询价方式采购',domain:'部门预算执行审计',desc:'达到门槛的项目采用非公开竞争方式'},
-      {name:'未按规定发布采购公告',domain:'部门预算执行审计',desc:'未在指定媒体发布招标公告'},
-      {name:'供应商围标串标',domain:'部门预算执行审计',desc:'多家供应商协商报价或轮流中标'},
-      {name:'截留挪用专项资金',domain:'农业农村审计',desc:'将专项资金挪用于非指定用途'},
-      {name:'虚报冒领补贴资金',domain:'农业农村审计',desc:'虚报面积/数量套取财政补贴'},
-      {name:'超标配置公务用车',domain:'部门预算执行审计',desc:'超出规定标准配置公务用车'},
-      {name:'重复收费',domain:'国有企业审计',desc:'对同一服务事项重复收取费用'}
-    ];
-    var q = (query||'').toLowerCase();
-    var filtered = q ? allViolations.filter(function(v){return v.name.includes(q)||v.desc.includes(q)||v.domain.includes(q);}) : allViolations;
-    var total = filtered.length;
-    if(total > 10){ list.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:4px;">共'+total+'条，显示前10条（请缩小搜索范围）</div>'; }
-    else { list.innerHTML = ''; }
-    filtered.slice(0,10).forEach(function(v,i){
-      var already = self.selectedViolations.indexOf('v'+(i+1))>=0;
-      list.innerHTML += '<div class="rec-item" style="cursor:pointer;'+(already?'background:rgba(45,125,70,0.04);':'')+'" onclick="var cb=this.querySelector(\'input\');cb.checked=!cb.checked;this.style.background=cb.checked?\'rgba(45,125,70,0.04)\':\'\'">'+
-        '<input type="checkbox" '+(already?'checked':'')+' data-vname="'+v.name+'" style="width:15px;height:15px;margin-right:8px;accent-color:var(--color-primary);">'+
-        '<span style="font-weight:600;min-width:20px;">'+(i+1)+'.</span>'+
-        '<div style="flex:1;"><strong>'+v.name+'</strong><div style="font-size:12px;color:var(--color-text-muted);">'+v.desc+' · '+v.domain+'</div></div></div>';
+    list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--color-text-muted);"><span class="pulse">●</span> 搜索中...</div>';
+
+    AuditAPI.knowledge.violations({q: query || '', per_page: 10}).then(function(resp) {
+      if (!resp || !resp.success || !resp.violations || resp.violations.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--color-text-muted);">未找到匹配的违规模型</div>';
+        return;
+      }
+      var total = resp.total || resp.violations.length;
+      var html = '';
+      if (total > 10) {
+        html += '<div style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:4px;">共' + total + '条，显示前10条</div>';
+      }
+      resp.violations.forEach(function(v, i) {
+        var name = v.violation_title || v.name || '';
+        var desc = (v.description || '').substring(0, 60);
+        var domain = (v.category_path || '').split('/')[1] || '';
+        var vid = v.id || ('api' + i);
+        var already = self.selectedViolations.indexOf(String(vid)) >= 0;
+        html += '<div class="rec-item" style="cursor:pointer;' + (already ? 'background:rgba(45,125,70,0.04);' : '') + '" onclick="var cb=this.querySelector(\'input\');cb.checked=!cb.checked;this.style.background=cb.checked?\'rgba(45,125,70,0.04)\':\'\'">' +
+          '<input type="checkbox" ' + (already ? 'checked' : '') + ' data-vid="' + vid + '" data-vname="' + name.replace(/"/g, '') + '" style="width:15px;height:15px;margin-right:8px;accent-color:var(--color-primary);">' +
+          '<span style="font-weight:600;min-width:20px;">' + (i+1) + '.</span>' +
+          '<div style="flex:1;"><strong>' + name + '</strong><div style="font-size:12px;color:var(--color-text-muted);">' + desc + (domain ? ' · ' + domain : '') + '</div></div></div>';
+      });
+      list.innerHTML = html;
+    }).catch(function() {
+      list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--color-text-muted);">搜索失败，请确认后端服务已启动</div>';
     });
   },
 
@@ -1383,23 +1388,43 @@ var AW = {
     }
   },
 
-  /** 获取法规全文（Mock，实际通过MCP查询sys_core_law.content） */
+  /** 获取法规全文（P3-7: 调真实 API 查 sys_core_law_allaudit）*/
   getLawContent: function(law, docNo) {
-    if(law.indexOf('招标投标法')>=0 && law.indexOf('实施')<0) {
-      return '<div style="margin-bottom:12px;"><strong>第一章 总则</strong></div>'+
-        '<p><strong>第一条</strong> 为了规范招标投标活动，保护国家利益、社会公共利益和招标投标活动当事人的合法权益，提高经济效益，保证项目质量，制定本法。</p>'+
-        '<p><strong>第二条</strong> 在中华人民共和国境内进行招标投标活动，适用本法。</p>'+
-        '<p id="clause-3" style="background:rgba(45,125,70,0.08);padding:8px;border-radius:4px;border-left:3px solid var(--color-success);"><strong>第三条</strong> 在中华人民共和国境内进行下列工程建设项目包括项目的勘察、设计、施工、监理以及与工程建设有关的重要设备、材料等的采购，必须进行招标：<br>（一）大型基础设施、公用事业等关系社会公共利益、公众安全的项目；<br>（二）全部或者部分使用国有资金投资或者国家融资的项目；<br>（三）使用国际组织或者外国政府贷款、援助资金的项目。</p>'+
-        '<p id="clause-4" style="background:rgba(196,30,58,0.04);padding:8px;border-radius:4px;border-left:3px solid var(--color-accent);"><strong>第四条</strong> 任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。</p>'+
-        '<div style="margin:12px 0;"><strong>第六章 法律责任</strong></div>'+
-        '<p id="clause-49"><strong>第四十九条</strong> 违反本法规定，必须进行招标的项目而不招标的，将必须进行招标的项目化整为零或者以其他任何方式规避招标的，责令限期改正，可以处项目合同金额千分之五以上千分之十以下的罚款；对全部或者部分使用国有资金的项目，可以暂停项目执行或者暂停资金拨付；对单位直接负责的主管人员和其他直接责任人员依法给予处分。</p>';
-    } else if(law.indexOf('政府采购法')>=0 && law.indexOf('实施')<0) {
-      return '<p id="clause-28" style="background:rgba(45,125,70,0.08);padding:8px;border-radius:4px;border-left:3px solid var(--color-success);"><strong>第二十八条</strong> 采购人不得将应当以公开招标方式采购的货物或者服务化整为零或者以其他任何方式规避公开招标采购。</p>';
-    } else if(law.indexOf('必须招标的工程项目规定')>=0) {
-      return '<p id="clause-5" style="background:rgba(45,125,70,0.08);padding:8px;border-radius:4px;border-left:3px solid var(--color-success);"><strong>第五条</strong> 本规定第二条至第四条规定范围内的项目，其勘察、设计、施工、监理以及与工程建设有关的重要设备、材料等的采购达到下列标准之一的，必须招标：<br>（一）施工单项合同估算价在400万元人民币以上；<br>（二）重要设备、材料等货物的采购，单项合同估算价在200万元人民币以上；<br>（三）勘察、设计、监理等服务的采购，单项合同估算价在100万元人民币以上。</p>';
-    } else {
-      return '<p style="color:var(--color-text-muted);text-align:center;padding:40px;">法规全文将通过MCP查询 auditkm_factory.sys_core_law 数据库获取。<br>当前为示例文本。</p>';
-    }
+    // 同步返回占位，异步加载真实全文
+    var placeholderId = 'law-content-' + Date.now();
+    var self = this;
+
+    // 异步查法规全文
+    var cleanLaw = law.replace(/[《》]/g, '').trim();
+    AuditAPI.knowledge.regulations({q: cleanLaw, per_page: 1}).then(function(resp) {
+      if (resp.success && resp.regulations && resp.regulations.length > 0) {
+        var lawId = resp.regulations[0].id;
+        // 取法规详情（含全文）
+        fetch(self._apiBase + '/knowledge/regulation/' + lawId).then(function(r) { return r.json(); }).then(function(det) {
+          var lawData = det.law || det.regulation || det;
+          var content = lawData.content || lawData.pro_content || '';
+          var el = document.getElementById(placeholderId);
+          if (el) {
+            if (content) {
+              // 截断超长内容
+              var display = content.length > 5000 ? content.substring(0, 5000) + '\n\n...(共' + content.length + '字，已截断)' : content;
+              el.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.8;margin:0;max-height:400px;overflow-y:auto;">' + self._escapeHtml(display) + '</pre>';
+            } else {
+              el.innerHTML = '<p style="color:var(--color-text-muted);">该法规暂无全文数据</p>';
+            }
+          }
+        }).catch(function() {});
+      } else {
+        var el2 = document.getElementById(placeholderId);
+        if (el2) el2.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:20px;">未找到法规《' + cleanLaw + '》的全文</p>';
+      }
+    }).catch(function() {});
+
+    return '<div id="' + placeholderId + '" style="padding:20px;text-align:center;color:var(--color-text-muted);"><span class="pulse">●</span> 正在查询法规全文...</div>';
+  },
+
+  _escapeHtml: function(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   },
   switchS3Cat: function(i) {
     document.querySelectorAll('.s3-cat-tab').forEach(function(t,idx){
