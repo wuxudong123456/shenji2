@@ -55,3 +55,5 @@ testdata/**/*.docx
 testdata/**/*.xlsx
 testdata/**/*.doc
 backend/data/langgraph_checkpoints.db
+backend/data/langgraph_checkpoints.db-shm
+backend/data/langgraph_checkpoints.db-wal
