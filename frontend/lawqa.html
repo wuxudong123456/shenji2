@@ -54,7 +54,9 @@
 <script src="js/app.js"></script>
 <script>
 var LawQA = {
+  _sessionId: null,
   ask: function(q) {
+    var self = this;
     var question = q || document.getElementById('qa-input').value.trim();
     if (!question) return;
     if (!q) document.getElementById('qa-input').value = '';
@@ -63,17 +65,53 @@ var LawQA = {
     var lid = 'l-' + Date.now();
     msgs.innerHTML += '<div class="chat-msg ai" id="' + lid + '"><div class="msg-avatar"><i class="bi bi-robot"></i></div><div class="msg-bubble"><span class="pulse">●</span> 正在检索法规数据库...</div></div>';
     msgs.scrollTop = msgs.scrollHeight;
-    setTimeout(function() {
+
+    // P3-2: 调真实 /api/chat 端点
+    AuditAPI.chat.send(question, self._sessionId).then(function(resp) {
       var el = document.getElementById(lid);
       if (!el) return;
-      el.querySelector('.msg-bubble').innerHTML =
-        '根据现行法规体系，有三层标准：' +
-        '<div class="law-cite"><span class="cite-title">📜 《必须招标的工程项目规定》第5条</span><br><span class="cite-level">部门规章 | 国家发改委16号令 | 2018年 | 现行有效</span><br>施工≥400万 / 重要设备材料≥200万 / 勘察设计监理≥100万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
-        '<div class="law-cite"><span class="cite-title">📜 《教育系统基建项目管理办法》</span><br><span class="cite-level">部门规章 | 教育部 | 现行有效</span><br>教育系统基建施工≥200万 / 设备采购≥100万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
-        '<div class="law-cite" style="border-left-color:var(--color-accent);"><span class="cite-title">📜 《湖南省建设工程招标投标管理办法》</span><br><span class="cite-level">地方性法规 | 湖南省政府令第288号 | 现行有效</span><br>施工≥100万 / 货物≥50万<br><a href="#" style="font-size:12px;">📍 溯源</a> | <a href="#" style="font-size:12px;">🔗 关系链</a></div>' +
-        '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--color-border);font-size:13px;"><strong>⚖️ 审计建议：</strong>审计对象为市级单位，建议优先适用省级规定。<br><span style="color:var(--color-text-muted);">引用法规: 3部 | 置信度: 95%</span> <a href="#" style="font-size:12px;">📤 引用到审计依据</a></div>';
+      if (resp.success) {
+        self._sessionId = resp.session_id;
+        var reply = resp.reply;
+        var replyHtml = '';
+        // reply 可能是对象（IntentAnalyzer 的结构化输出）或字符串
+        if (typeof reply === 'object') {
+          if (reply.domain || reply.item) {
+            replyHtml = '<strong>审计意图解析：</strong><br>' +
+              '领域：' + (reply.domain || '—') + '<br>' +
+              '事项：' + (reply.item || '—') + '<br>' +
+              (reply.concerns ? '关注点：' + reply.concerns.join('、') : '');
+          } else {
+            replyHtml = '<pre style="white-space:pre-wrap;font-family:inherit;margin:0;">' + JSON.stringify(reply, null, 2) + '</pre>';
+          }
+        } else {
+          replyHtml = String(reply || '(无回复)');
+        }
+        el.querySelector('.msg-bubble').innerHTML = replyHtml;
+      } else {
+        el.querySelector('.msg-bubble').innerHTML = '<span style="color:var(--color-accent);">抱歉，检索失败：' + (resp.error || '服务不可用') + '</span>';
+      }
       msgs.scrollTop = msgs.scrollHeight;
-    }, 1500);
+    }).catch(function() {
+      var el = document.getElementById(lid);
+      if (el) el.querySelector('.msg-bubble').innerHTML = '<span style="color:var(--color-accent);">网络错误，请确认后端服务已启动</span>';
+    });
+
+    // 同时用语义搜索补充法规引用
+    if (typeof AuditAPI !== 'undefined' && AuditAPI.search) {
+      AuditAPI.search.laws(question, 3).then(function(sr) {
+        if (!sr || !sr.success || !sr.results || sr.results.length === 0) return;
+        var el = document.getElementById(lid);
+        if (!el) return;
+        var citeHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--color-border);"><strong style="font-size:13px;">相关法规：</strong>';
+        sr.results.forEach(function(law) {
+          citeHtml += '<div class="law-cite" style="font-size:12px;"><span class="cite-title">📜 ' + (law.title || '') + '</span><br><span class="cite-level">' + (law.potency_level || '') + ' | 相似度: ' + ((law.similarity || 0) * 100).toFixed(0) + '%</span></div>';
+        });
+        citeHtml += '</div>';
+        el.querySelector('.msg-bubble').innerHTML += citeHtml;
+        msgs.scrollTop = msgs.scrollHeight;
+      }).catch(function() {});
+    }
   }
 };
 </script>

@@ -45,35 +45,70 @@
 <script>
 var Qualification = {
   analyze: function() {
+    var self = this;
     var desc = document.getElementById('qual-desc').value.trim();
     if (!desc) return AuditWorkbench.toast('请输入违规事实描述','warning');
+    var results = document.getElementById('qual-results');
+    results.innerHTML = '<div class="card"><div class="card-header"><h3>正在分析...</h3></div><div style="text-align:center;padding:30px;"><span class="pulse">●</span> 搜索违规模型 + 匹配法规...</div></div>';
 
-    document.getElementById('qual-results').innerHTML =
-      '<div class="card" style="animation:fadeIn 0.3s ease;">' +
-      '<div class="card-header"><h3>📊 定性分析结果</h3><span class="badge badge-accent">AI分析</span></div>' +
+    // P3-4: 调真实 API 搜索违规模型
+    AuditAPI.knowledge.violations({q: desc, per_page: 5}).then(function(resp) {
+      if (!resp.success || !resp.violations || resp.violations.length === 0) {
+        results.innerHTML = '<div class="card"><div class="card-header"><h3>未匹配到违规模型</h3></div><div style="padding:20px;color:var(--color-text-muted);">请尝试用更具体的关键词描述违规事实，或<a href="knowledge.html">在知识工坊中搜索</a>。</div></div>';
+        return;
+      }
+      self._renderResults(resp.violations, desc);
+    }).catch(function() {
+      results.innerHTML = '<div class="card"><div style="padding:20px;color:var(--color-accent);">分析失败，请确认后端服务已启动。</div></div>';
+    });
+  },
 
-      '<div class="qual-result-card primary"><div style="display:flex;justify-content:space-between;align-items:start;">' +
-      '<div><span class="badge badge-accent">违规性质</span> <strong style="font-size:16px;">化整为零规避公开招标</strong></div>' +
-      '<span class="badge badge-success">匹配度 97%</span></div>' +
-      '<div style="margin-top:8px;font-size:14px;">将应公开招标的采购项目拆分为多个小额项目，以规避公开招标程序。</div></div>' +
+  _renderResults: function(violations, desc) {
+    var self = this;
+    var topV = violations[0];
+    var html = '<div class="card" style="animation:fadeIn 0.3s ease;">' +
+      '<div class="card-header"><h3>定性分析结果</h3><span class="badge badge-accent">' + violations.length + ' 个匹配模型</span></div>';
 
-      '<h4 style="margin-top:var(--space-md);">法规依据链</h4>' +
-      '<div class="qual-chain"><strong>主依据</strong> <span class="chain-arrow">→</span> ' +
-      '<span class="badge badge-accent">《招标投标法》第4条</span> <span class="chain-arrow">→</span> 禁止化整为零规避招标</div>' +
-      '<div class="qual-chain" style="margin-top:4px;"><strong>量化依据</strong> <span class="chain-arrow">→</span> ' +
-      '<span class="badge badge-primary">《必须招标的工程项目规定》第5条</span> <span class="chain-arrow">→</span> 货物≥200万须公开招标 · 500万>200万</div>' +
-      '<div class="qual-chain" style="margin-top:4px;"><strong>追责依据</strong> <span class="chain-arrow">→</span> ' +
-      '<span class="badge badge-warning">《招标投标法》第49条</span> <span class="chain-arrow">→</span> 处合同金额5‰-10‰罚款</div>' +
+    // 主匹配
+    html += '<div class="qual-result-card primary"><div style="display:flex;justify-content:space-between;align-items:start;">' +
+      '<div><span class="badge badge-accent">最匹配</span> <strong style="font-size:16px;">' + (topV.violation_title || '未命名') + '</strong></div>' +
+      '<span class="badge badge-' + (topV.severity === 'high' ? 'accent' : 'warning') + '">' + (topV.severity || 'medium') + '</span></div>' +
+      '<div style="margin-top:8px;font-size:14px;">' + (topV.description || '').substring(0, 200) + '</div></div>';
 
-      '<h4 style="margin-top:var(--space-md);">同类案例参考</h4>' +
-      '<div class="rec-item"><i class="bi bi-file-earmark-text"></i><div style="flex:1;"><strong>某市卫健委医疗设备采购拆分案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为4个80万子项目 · ¥3,200,000</div></div><a href="knowledge.html">查看</a></div>' +
-      '<div class="rec-item"><i class="bi bi-file-earmark-text"></i><div style="flex:1;"><strong>某县交通局道路工程规避招标案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为6个工程段 · ¥8,500,000</div></div><a href="knowledge.html">查看</a></div>' +
+    // 其他匹配
+    if (violations.length > 1) {
+      html += '<h4 style="margin-top:12px;">其他匹配模型</h4>';
+      violations.slice(1, 4).forEach(function(v) {
+        html += '<div class="rec-item" style="cursor:pointer;" onclick="Qualification._showDetail(' + v.id + ')">' +
+          '<i class="bi bi-exclamation-triangle" style="color:var(--color-warning);"></i>' +
+          '<div style="flex:1;"><strong>' + (v.violation_title || '') + '</strong>' +
+          '<div style="font-size:12px;color:var(--color-text-muted);">' + (v.description || '').substring(0, 80) + '</div></div>' +
+          '<span class="badge badge-' + (v.severity === 'high' ? 'accent' : 'warning') + '">' + (v.severity || '') + '</span></div>';
+      });
+    }
 
-      '<div class="alert alert-info" style="margin-top:var(--space-md);"><strong>LLM智能伴随：</strong>该定性基于审计对象为市教育局(市级)，处罚幅度建议取中位值7.5‰。如需更精准建议请补充审计对象的具体层级信息。</div>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;">' +
+    // 表达式
+    if (topV.expression_text) {
+      html += '<h4 style="margin-top:12px;">违规判定表达式</h4><div style="background:var(--color-bg);padding:10px;border-radius:8px;font-family:monospace;font-size:13px;">' + topV.expression_text.substring(0, 300) + '</div>';
+    }
+
+    html += '<div style="display:flex;gap:8px;margin-top:12px;">' +
       '<button class="btn btn-primary" onclick="AuditWorkbench.toast(\'定性意见已保存\',\'success\')"><i class="bi bi-check-lg"></i> 确认定性</button>' +
-      '<button class="btn btn-outline"><i class="bi bi-pencil"></i> 补充说明</button>' +
-      '<button class="btn btn-outline"><i class="bi bi-download"></i> 导出定性意见书</button></div></div>';
+      '<button class="btn btn-outline" onclick="Qualification._export()"><i class="bi bi-download"></i> 导出意见书</button></div></div>';
+    document.getElementById('qual-results').innerHTML = html;
+  },
+
+  _showDetail: function(vid) {
+    AuditWorkbench.toast('违规模型 #' + vid + ' 详情查看请前往知识工坊', 'info');
+  },
+
+  _export: function() {
+    var desc = document.getElementById('qual-desc').value.trim();
+    var mem = {}; try { mem = JSON.parse(localStorage.getItem('aw_project_memory') || '{}'); } catch(e) {}
+    AuditAPI.documents.generate({type: 'review', context: {project_title: mem.title || '审计项目', analysis_summary: desc}}).then(function(resp) {
+      if (resp.success) AuditWorkbench.toast('定性意见书已生成', 'success');
+      else AuditWorkbench.toast('生成失败: ' + (resp.error || ''), 'error');
+    }).catch(function() { AuditWorkbench.toast('网络错误', 'error'); });
   }
 };
 </script>

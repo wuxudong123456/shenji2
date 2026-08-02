@@ -140,49 +140,53 @@ var Portal = window.Portal = {
     });
   }
 
-  // ---- Load todos ----
+  // ---- Load todos ----（P3-6: 从 API 加载真实待办 + 后台任务）
   function loadTodos() {
     const list = document.getElementById('todo-list');
     if (!list) return;
-    // 读取当前项目
     var projMem = localStorage.getItem('aw_project_memory');
     var projName = '';
     try { var pm = JSON.parse(projMem); if(pm && pm.title) projName = pm.title; } catch(e) {}
-    var todos = [
-      { id:1, text:'复核Q2财务审计报告', deadline:'2026-07-05', priority:'high' },
-      { id:2, text:'提交内控评估报告', deadline:'2026-07-06', priority:'high' },
-      { id:3, text:'更新审计程序模板', deadline:'2026-07-08', priority:'medium' },
-    ];
-    // 督办提醒
-    if(projName) {
-      todos.unshift({
-        id:'supervise', text:'📋 '+projName+' · 审计通知书尚未上传，出具报告阶段资料空缺',
-        deadline:'立办', priority:'high', isSupervision:true
-      });
-    }
-    // Add background tasks from OCR queue
-    const bgTasks = AuditWorkbench.backgroundTasks.filter(t => t.status === 'processing');
-    bgTasks.forEach((t, i) => {
-      todos.push({
-        id: 'bg-' + t.id,
-        text: (t.type==='ocr'?'📄 ':'🤖 ') + t.name + (t.type==='ocr'?' (OCR解析中)':' (分析中)'),
-        deadline: '后台处理中',
-        priority: 'medium',
-        isBgTask: true
-      });
-    });
 
-    document.getElementById('todo-count').textContent = todos.length;
-    list.innerHTML = todos.map(t => `
-      <div class="todo-item" style="${t.isSupervision?'background:rgba(184,94,26,0.06);border-radius:var(--radius-sm);padding:6px 8px;':t.isBgTask?'background:rgba(184,94,26,0.05);border-radius:var(--radius-sm);':''}">
-        <div class="todo-priority ${t.priority}"></div>
-        <input type="checkbox" class="todo-check" id="todo-${t.id}" ${t.isBgTask||t.isSupervision?'':'onchange="this.parentElement.style.opacity=this.checked?\'0.5\':\'1\'"'}>
-        <label for="todo-${t.id}" style="flex:1;font-size:14px;${t.isSupervision?'font-weight:500;':''}">${t.text}</label>
-        <span class="todo-deadline" style="${t.isSupervision?'color:var(--color-accent);font-weight:600;':''}">${t.deadline}</span>
-        ${t.isSupervision ? '<a href="projects.html" style="font-size:11px;color:var(--color-primary);margin-left:4px;">查看详情 →</a>' : ''}
-        ${t.isBgTask ? '<span class="pulse" style="color:var(--color-warning);font-size:12px;">●</span>' : ''}
-      </div>
-    `).join('');
+    var todos = [];
+    // 督办提醒（项目上下文）
+    if(projName) {
+      todos.push({ id:'supervise', text:'📋 '+projName+' · 审计通知书尚未上传', deadline:'立办', priority:'high', isSupervision:true });
+    }
+    // 从后台任务系统取真实待办
+    if (typeof AuditAPI !== 'undefined' && AuditAPI.tasks) {
+      AuditAPI.tasks.list({status:'processing', limit:5}).then(function(resp) {
+        if (resp && resp.success && resp.tasks) {
+          resp.tasks.forEach(function(t) {
+            todos.push({
+              id: 'task-' + t.id,
+              text: (t.task_type==='ocr'?'📄 ':'🤖 ') + t.task_name + ' (' + t.progress + '%)',
+              deadline: '后台处理中', priority: 'medium', isBgTask: true
+            });
+          });
+        }
+        _renderTodos(todos);
+      }).catch(function() { _renderTodos(todos); });
+    } else {
+      _renderTodos(todos);
+    }
+
+    function _renderTodos(todos) {
+      var cnt = document.getElementById('todo-count');
+      if (cnt) cnt.textContent = todos.length;
+      if (todos.length === 0) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-muted);">暂无待办事项</div>';
+        return;
+      }
+      list.innerHTML = todos.map(function(t) {
+        return '<div class="todo-item" style="' + (t.isSupervision?'background:rgba(184,94,26,0.06);border-radius:var(--radius-sm);padding:6px 8px;':t.isBgTask?'background:rgba(184,94,26,0.05);border-radius:var(--radius-sm);':'') + '">' +
+          '<div class="todo-priority ' + t.priority + '"></div>' +
+          '<label style="flex:1;font-size:14px;' + (t.isSupervision?'font-weight:500;':'') + '">' + t.text + '</label>' +
+          '<span class="todo-deadline" style="' + (t.isSupervision?'color:var(--color-accent);font-weight:600;':'') + '">' + t.deadline + '</span>' +
+          (t.isBgTask ? '<span class="pulse" style="color:var(--color-warning);font-size:12px;">●</span>' : '') +
+        '</div>';
+      }).join('');
+    }
   }
 
   // ---- Load document status ----
@@ -235,29 +239,49 @@ var SmartSearch = window.SmartSearch = {
       '<strong style="font-size:16px;">智能检索: ' + q + '</strong>' +
       '<span class="pulse" style="color:var(--color-warning);margin-left:8px;font-size:12px;">● 检索中...</span>' +
       '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;">&times;</button></div>' +
-      '<div style="padding:20px;" id="search-results"><p style="text-align:center;color:var(--color-text-muted);">正在检索 400,698部法规 + 2,195违规模型 + 2,231案例...</p></div></div>';
+      '<div style="padding:20px;" id="search-results"><p style="text-align:center;color:var(--color-text-muted);">正在检索法规库 + 违规模型库...</p></div></div>';
     modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
     document.body.appendChild(modal);
 
-    setTimeout(function() {
-      var container = document.getElementById('search-results');
-      if (!container) return;
-      container.innerHTML =
-        '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-exclamation-triangle"></i> 违规模型 (2条匹配)</h4>' +
-        '<div class="rec-item" style="cursor:pointer;" onclick="location.href=\'knowledge.html#violations\'"><div style="flex:1;"><strong>化整为零规避公开招标</strong><div style="font-size:12px;color:var(--color-text-muted);">将应公开招标项目拆分为多个小额项目 · 匹配度97%</div></div><span class="badge badge-primary">部门预算执行</span></div>' +
-        '<div class="rec-item" style="cursor:pointer;"><div style="flex:1;"><strong>违规采用询价方式采购</strong><div style="font-size:12px;color:var(--color-text-muted);">达到门槛的项目采用非公开方式 · 匹配度89%</div></div><span class="badge badge-primary">部门预算执行</span></div>' +
-        '<h4 style="color:var(--color-primary);margin-top:12px;margin-bottom:8px;"><i class="bi bi-journal-text"></i> 法规依据 (3条匹配)</h4>' +
-        '<div class="rec-item" style="cursor:pointer;" onclick="location.href=\'knowledge.html#regulations\'"><div style="flex:1;"><strong>《招标投标法》第4条</strong><div style="font-size:12px;color:var(--color-text-muted);">禁止化整为零或以其他方式规避招标 · 法律 · 现行有效</div></div><a class="trace-link" href="#">溯源</a></div>' +
-        '<div class="rec-item" style="cursor:pointer;"><div style="flex:1;"><strong>《必须招标的工程项目规定》第5条</strong><div style="font-size:12px;color:var(--color-text-muted);">货物采购≥200万须公开招标 · 部门规章 · 现行有效</div></div><a class="trace-link" href="#">溯源</a></div>' +
-        '<div class="rec-item" style="cursor:pointer;"><div style="flex:1;"><strong>《政府采购法》第28条</strong><div style="font-size:12px;color:var(--color-text-muted);">公开招标应为主要采购方式 · 法律 · 现行有效</div></div><a class="trace-link" href="#">溯源</a></div>' +
-        '<h4 style="color:var(--color-primary);margin-top:12px;margin-bottom:8px;"><i class="bi bi-files"></i> 相关案例 (2条匹配)</h4>' +
-        '<div class="rec-item" style="cursor:pointer;" onclick="location.href=\'knowledge.html#cases\'"><div style="flex:1;"><strong>某市教育局教学设备采购规避招标案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为5个99万子项目 · ¥4,850,000</div></div><span class="badge badge-accent">同类</span></div>' +
-        '<div class="rec-item" style="cursor:pointer;"><div style="flex:1;"><strong>某市卫健委医疗设备采购拆分案</strong><div style="font-size:12px;color:var(--color-text-muted);">拆分为4个80万子项目 · ¥3,200,000</div></div><span class="badge badge-accent">同类</span></div>' +
-        '<h4 style="color:var(--color-primary);margin-top:12px;margin-bottom:8px;"><i class="bi bi-robot"></i> LLM智能回答</h4>' +
-        '<div class="alert alert-info" style="margin-bottom:0;">根据检索结果，<strong>化整为零规避公开招标</strong>是您关注的核心问题。《招标投标法》第4条明确规定禁止此类行为。处罚依据为第49条，处合同金额5‰-10‰罚款。<br><span style="font-size:12px;color:var(--color-text-muted);">引用法规: 3部 | 违规模型: 2个 | 案例: 2个</span></div>' +
-        '<div style="margin-top:12px;display:flex;gap:8px;"><button class="btn btn-primary btn-sm" onclick="location.href=\'lawqa.html\'"><i class="bi bi-chat-dots"></i> 深入对话</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="location.href=\'analysis.html\'"><i class="bi bi-play-fill"></i> 启动智能分析</button></div>';
-    }, 1200);
+    // P3-6: 并行调真实 API
+    var html = '';
+    var pending = 2;
+    function tryRender() { if (--pending === 0 && html) document.getElementById('search-results').innerHTML = html; }
+
+    // 违规模型
+    AuditAPI.knowledge.violations({q: q, per_page: 3}).then(function(resp) {
+      if (resp.success && resp.violations && resp.violations.length > 0) {
+        html += '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-exclamation-triangle"></i> 违规模型 (' + resp.total + '条匹配)</h4>';
+        resp.violations.forEach(function(v) {
+          html += '<div class="rec-item" style="cursor:pointer;" onclick="location.href=\'knowledge.html\'"><div style="flex:1;"><strong>' + (v.violation_title || '') + '</strong><div style="font-size:12px;color:var(--color-text-muted);">' + (v.description || '').substring(0, 60) + '</div></div><span class="badge badge-' + (v.severity === 'high' ? 'accent' : 'primary') + '">' + (v.severity || '') + '</span></div>';
+        });
+      }
+      tryRender();
+    }).catch(function() { tryRender(); });
+
+    // 法规
+    AuditAPI.knowledge.regulations({q: q, per_page: 3}).then(function(resp) {
+      if (resp.success && resp.regulations && resp.regulations.length > 0) {
+        html = '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-journal-text"></i> 法规依据 (' + resp.total + '条匹配)</h4>' +
+          resp.regulations.map(function(l) {
+            return '<div class="rec-item" style="cursor:pointer;" onclick="location.href=\'knowledge.html\'"><div style="flex:1;"><strong>' + (l.title || '') + '</strong><div style="font-size:12px;color:var(--color-text-muted);">' + (l.potency_level || '') + ' · ' + (l.timeliness || '') + '</div></div></div>';
+          }).join('') + html;
+      }
+      tryRender();
+    }).catch(function() { tryRender(); });
+
+    // 语义搜索（FAISS）
+    if (AuditAPI.search) {
+      AuditAPI.search.laws(q, 2).then(function(resp) {
+        if (resp.success && resp.results && resp.results.length > 0) {
+          html += '<h4 style="color:var(--color-primary);margin-top:12px;"><i class="bi bi-stars"></i> 语义匹配法规</h4>';
+          resp.results.forEach(function(l) {
+            html += '<div class="rec-item"><div style="flex:1;"><strong>' + (l.title || '') + '</strong><div style="font-size:12px;color:var(--color-text-muted);">相似度: ' + ((l.similarity || 0) * 100).toFixed(0) + '%</div></div></div>';
+          });
+          try { document.getElementById('search-results').innerHTML = html || '<p style="color:var(--color-text-muted);">未找到匹配结果</p>'; } catch(e) {}
+        }
+      }).catch(function() {});
+    }
   },
 
   quick: function(q) {

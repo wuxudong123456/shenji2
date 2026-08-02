@@ -24,34 +24,21 @@
 
 <div style="margin-bottom:var(--space-lg);">
   <div class="form-group"><label class="form-label">选择待复核项目</label>
-    <select class="form-select"><option>教育局2026采购审计 — 2条疑点 (2026-07-04)</option><option>农业农村局补贴核查 — 5条疑点 (2026-07-03)</option></select></div>
+    <select class="form-select" id="review-project-select" onchange="Review.loadAnalysis(this.value)"><option value="">— 选择项目 —</option></select></div>
 </div>
 
 <div class="review-split">
   <!-- AI Column -->
   <div class="review-col ai">
     <h3 style="color:var(--color-primary);margin-bottom:12px;"><i class="bi bi-robot"></i> AI推理结论</h3>
-    <div class="check-item"><strong>定性结论:</strong> 化整为零规避公开招标</div>
-    <div class="check-item"><strong>适用法规:</strong> 《招标投标法》第4条 / 第49条</div>
-    <div class="check-item"><strong>违规模型匹配:</strong> 97%</div>
-    <div class="check-item"><strong>处罚建议:</strong> 合同金额7.5‰ (¥36,375)</div>
-    <div class="check-item"><strong>证据评估:</strong> 5份合同 + 中标通知 → 证据充分</div>
-    <div class="check-item"><strong>同类案例:</strong> 某市卫健委案(5‰) | 某县交通局案(8‰)</div>
+    <div id="review-ai-content" style="color:var(--color-text-muted);font-size:14px;padding:20px;text-align:center;">请先选择一个已完成分析的项目</div>
   </div>
 
   <!-- Human Column -->
   <div class="review-col human">
     <h3 style="color:var(--color-success);margin-bottom:12px;"><i class="bi bi-person-check"></i> 人工复核意见</h3>
-    <div class="check-item">
-      <strong>定性结论:</strong>
-      <select class="form-select form-select-sm" style="width:auto;display:inline;"><option selected>化整为零规避公开招标</option><option>违规采用询价方式采购</option><option>其他</option></select>
-      <span>☑ 同意AI</span>
-    </div>
-    <div class="check-item"><strong>法规适用:</strong>
-      <label style="font-size:13px;"><input type="checkbox" checked> 《招标投标法》第4条 ☑</label>
-      <label style="font-size:13px;"><input type="checkbox" checked> 《招标投标法》第49条 ☑</label>
-      <label style="font-size:13px;"><input type="checkbox"> 建议补充地方法规</label>
-    </div>
+    <div id="review-human-content" style="color:var(--color-text-muted);font-size:14px;padding:20px;text-align:center;">选择项目后可填写复核意见</div>
+  </div>
     <div class="check-item"><strong>证据链:</strong>
       <label style="font-size:13px;"><input type="checkbox" checked> ☑ 充分</label>
       <label style="font-size:13px;color:var(--color-warning);"><input type="checkbox"> ⚠️ 建议补充评标委员会意见</label>
@@ -72,5 +59,80 @@
 
 </main></div>
 <script src="js/app.js"></script>
+<script>
+var Review = {
+  init: function() {
+    var self = this;
+    if (typeof AuditAPI === 'undefined') return;
+    // 加载有分析任务的项目列表
+    AuditAPI.tasks.list({type: 'analysis', limit: 20}).then(function(resp) {
+      if (!resp || !resp.success || !resp.tasks) return;
+      var sel = document.getElementById('review-project-select');
+      var completed = resp.tasks.filter(function(t) { return t.status === 'completed'; });
+      completed.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = (t.task_name || '分析任务') + ' (' + (t.completed_at || '').substring(0, 10) + ')';
+        sel.appendChild(opt);
+      });
+      if (completed.length === 0) {
+        document.getElementById('review-ai-content').textContent = '暂无已完成的AI分析任务，请先在智能分析中完成分析流程。';
+      }
+    }).catch(function() {});
+  },
+
+  loadAnalysis: function(taskId) {
+    if (!taskId) return;
+    var self = this;
+    var aiBox = document.getElementById('review-ai-content');
+    aiBox.innerHTML = '<span class="pulse">●</span> 加载AI分析结果...';
+
+    AuditAPI.tasks.get(taskId).then(function(resp) {
+      if (!resp || !resp.success || !resp.task) { aiBox.textContent = '加载失败'; return; }
+      var result = resp.task.result || {};
+      self._renderAI(result);
+      self._renderHuman(result);
+    }).catch(function() { aiBox.textContent = '网络错误'; });
+  },
+
+  _renderAI: function(result) {
+    var items = [];
+    if (result.analysis_results) {
+      var ar = result.analysis_results;
+      if (Array.isArray(ar)) {
+        ar.forEach(function(a) {
+          items.push('<div class="check-item"><strong>违规模型:</strong> ' + (a.violation_model || a.violation_title || '—') + '</div>');
+          if (a.scan_summary) items.push('<div class="check-item"><strong>扫描结果:</strong> ' + (a.scan_summary.hits||0) + '/' + (a.scan_summary.total_records||0) + ' 命中</div>');
+          if (a.severity_assessment) items.push('<div class="check-item"><strong>严重程度:</strong> ' + a.severity_assessment + '</div>');
+        });
+      }
+    }
+    if (result.suspicion_report) {
+      var sr = result.suspicion_report;
+      items.push('<div class="check-item"><strong>疑点总数:</strong> ' + (sr.total_suspicions || 0) + '（高风险 ' + (sr.high_risk_count || 0) + '）</div>');
+    }
+    if (result.overall_assessment) {
+      items.push('<div class="check-item"><strong>整体评估:</strong> ' + result.overall_assessment.substring(0, 100) + '</div>');
+    }
+    document.getElementById('review-ai-content').innerHTML = items.length > 0 ? items.join('') : '<div style="color:var(--color-text-muted);">该任务无分析结果数据</div>';
+  },
+
+  _renderHuman: function(result) {
+    document.getElementById('review-human-content').innerHTML =
+      '<div class="check-item"><strong>定性结论:</strong> <select class="form-select form-select-sm" style="width:auto;display:inline;"><option>同意AI结论</option><option>部分同意</option><option>不同意</option></select></div>' +
+      '<div class="check-item"><strong>法规适用:</strong> <input type="checkbox" checked> 同意AI引用的法规</div>' +
+      '<div class="check-item"><strong>证据链:</strong> <input type="checkbox" checked> 充分</div>' +
+      '<div class="check-item"><strong>复核意见:</strong> <textarea class="form-textarea" rows="2" style="font-size:13px;" placeholder="补充复核意见..."></textarea></div>' +
+      '<div style="margin-top:8px;"><button class="btn btn-primary" onclick="Review.submit()"><i class="bi bi-check-lg"></i> 确认复核</button></div>';
+  },
+
+  submit: function() {
+    var sel = document.getElementById('review-project-select');
+    if (!sel.value) return AuditWorkbench.toast('请先选择项目', 'warning');
+    AuditWorkbench.toast('复核意见已提交', 'success');
+  }
+};
+document.addEventListener('DOMContentLoaded', function() { Review.init(); });
+</script>
 </body>
 </html>
