@@ -1728,38 +1728,73 @@ var AW = {
 
   /** 上传文件并自动关联到项目 */
   uploadFile: function() {
+    var self = this;
     var input = document.createElement('input');
     input.type = 'file'; input.multiple = true;
     input.accept = '.pdf,.xlsx,.xls,.docx,.doc,.csv,.txt';
     input.onchange = function(){
-      for(var i=0;i<input.files.length;i++){
-        var f = input.files[i];
-        var list = document.getElementById('s4-uploaded');
-        if(!list) {
-          // 当前步骤（如疑点核实）没有专用上传区，就地创建反馈区，避免文件被静默丢弃
-          var host = document.querySelector('#right-panel .card') || document.getElementById('right-panel');
-          if(host) {
-            list = document.createElement('div');
-            list.id = 's4-uploaded';
-            list.style.cssText = 'margin-top:10px;padding:10px;border:1px dashed var(--color-border);border-radius:8px;';
-            host.appendChild(list);
-          }
-        }
-        var div = document.createElement('div');
-        div.className = 'rec-item';
-        div.innerHTML = '<i class="bi bi-file-earmark-text" style="font-size:20px;color:var(--color-primary);"></i><div style="flex:1;"><strong>'+f.name+'</strong><div style="font-size:12px;color:var(--color-text-muted);">'+(f.size/1024).toFixed(1)+'KB · OCR解析中...</div></div><div class="progress" style="width:80px;"><div class="progress-bar" style="width:30%;animation:pulse 1.5s infinite;"></div></div>';
-        list.appendChild(div);
-        // Simulate async OCR
-        (function(d,n){setTimeout(function(){
-          d.querySelector('.progress').innerHTML = '<span class="badge badge-success">已解析</span>';
-          d.querySelector('div div').textContent = (f.size/1024).toFixed(1)+'KB · 8字段 · 126条';
-          AuditWorkbench.toast(n+' OCR解析完成，已存入项目资料库','success');
-        },3000+i*1500);})(div,f.name);
-        AuditWorkbench.addTask(f.name,'ocr');
-      }
-      AuditWorkbench.toast('文件已上传，OCR异步解析中，完成后自动通知','info');
+      var pid = (self.mem.project && self.mem.project.id) || '';
+      if(!pid){ AuditWorkbench.toast('请先选择项目再上传文件','warning'); return; }
+      if(!input.files.length) return;
+      AuditWorkbench.toast('正在上传 '+input.files.length+' 个文件...','info');
+      for(var i=0;i<input.files.length;i++){ self._uploadOne(input.files[i], pid); }
     };
     input.click();
+  },
+
+  /** 2.6: 真实上传单个文件 + 任务轮询（替代假 setTimeout "8字段126条"）*/
+  _uploadOne: function(file, pid) {
+    var self = this;
+    var list = document.getElementById('s4-uploaded');
+    if(!list) {
+      var host = document.querySelector('#right-panel .card') || document.getElementById('right-panel');
+      if(host) { list = document.createElement('div'); list.id='s4-uploaded'; list.style.cssText='margin-top:10px;padding:10px;border:1px dashed var(--color-border);border-radius:8px;'; host.appendChild(list); }
+    }
+    if(!list) { AuditWorkbench.toast('上传区不可用','error'); return; }
+    var kb = (file.size/1024).toFixed(1);
+    var div = document.createElement('div');
+    div.className = 'rec-item';
+    div.innerHTML = '<i class="bi bi-file-earmark-text" style="font-size:20px;color:var(--color-primary);"></i><div style="flex:1;"><strong>'+file.name+'</strong><div style="font-size:12px;color:var(--color-text-muted);">'+kb+'KB · 上传中...</div></div><div class="progress" style="width:90px;"><div class="progress-bar" style="width:15%;animation:pulse 1.5s infinite;"></div></div>';
+    list.appendChild(div);
+    var statusEl = div.querySelector('div div');
+    var progEl = div.querySelector('.progress');
+
+    AuditAPI.projects.upload(pid, file).then(function(resp){
+      if(!resp || !resp.success){ statusEl.textContent = kb+'KB · 上传失败：'+((resp&&resp.error)||''); progEl.innerHTML='<span class="badge badge-danger">失败</span>'; return; }
+      var taskId = resp.task_id;
+      AuditWorkbench.addTask(file.name,'ocr');
+      if(taskId){ statusEl.textContent = kb+'KB · OCR解析中...'; self._pollTask(div, taskId, file.name, kb); }
+      else { progEl.innerHTML='<span class="badge badge-success">已上传</span>'; statusEl.textContent = kb+'KB · 已上传'; AuditWorkbench.toast(file.name+' 已上传','success'); }
+    }).catch(function(){ statusEl.textContent = kb+'KB · 上传失败（网络）'; progEl.innerHTML='<span class="badge badge-danger">失败</span>'; });
+  },
+
+  /** 2.6: 轮询任务进度，真实反馈（完成/失败/超时）*/
+  _pollTask: function(div, taskId, fileName, kb) {
+    var statusEl = div.querySelector('div div');
+    var progEl = div.querySelector('.progress');
+    var rounds = 0, maxRounds = 60;  // 约 2 分钟超时
+    var tick = function(){
+      rounds++;
+      AuditAPI.tasks.get(taskId).then(function(resp){
+        var t = (resp && resp.task) || {};
+        var prog = t.progress || 0, st = t.status;
+        progEl.innerHTML = '<div class="progress" style="width:90px;"><div class="progress-bar" style="width:'+Math.max(15,prog)+'%;"></div></div>';
+        if(st === 'completed' || prog >= 100){
+          progEl.innerHTML = '<span class="badge badge-success">已解析</span>';
+          statusEl.textContent = kb+'KB · OCR完成';
+          AuditWorkbench.toast(fileName+' 解析完成','success');
+        } else if(st === 'failed'){
+          progEl.innerHTML = '<span class="badge badge-danger">失败</span>';
+          statusEl.textContent = kb+'KB · 解析失败：'+(t.error_msg||'');
+        } else if(rounds < maxRounds){
+          setTimeout(tick, 2000);
+        } else {
+          progEl.innerHTML = '<span class="badge badge-warning">超时</span>';
+          statusEl.textContent = kb+'KB · 解析超时，可稍后在资料工坊查看';
+        }
+      }).catch(function(){ if(rounds < maxRounds) setTimeout(tick, 2000); });
+    };
+    setTimeout(tick, 1500);
   },
 
   updateRecs: function() {
