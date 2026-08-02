@@ -969,6 +969,8 @@ var Proj = {
       if (r && r.success) {
         if (r.project) self._editingProjectId = r.project.id;
         AuditWorkbench.toast('项目已保存','success');
+        self.backToList();
+        self.init();  // P1.9: 重新加载项目列表，让新项目立即可见
       } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     };
     if (self._editingProjectId) {
