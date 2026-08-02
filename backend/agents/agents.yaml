@@ -102,6 +102,7 @@ agents:
     max_tokens: 2048
     mcp_tools:
       - knowledge-mcp.search_violations
+      - knowledge-mcp.get_violation_detail
     system_prompt: |
       你是一名审计资料收集顾问，擅长根据违规行为类型确定需要收集的审计证据材料。
 

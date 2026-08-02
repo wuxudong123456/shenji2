@@ -16,13 +16,20 @@
     state = graph.invoke({"user_intent": "..."}, config)
 """
 from typing import Literal
+import sqlite3
+from pathlib import Path
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from workflow.state import AnalysisState
 from agents.registry import AgentRegistry
 
 _registry = AgentRegistry()
+
+# P2-1: 持久化 checkpointer（进程重启不丢分析任务状态）
+_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "langgraph_checkpoints.db"
+_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+_checkpoint_conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
 
 
 # ── 节点函数 ──
@@ -230,6 +237,6 @@ def build_analysis_graph():
     #   ① step_3_confirm 前 — 等待用户确认违规模型+法规依据
     #   ② step_5_analysis 前 — 等待用户上传审计资料（取证后再分析）
     return workflow.compile(
-        checkpointer=MemorySaver(),
+        checkpointer=SqliteSaver(_checkpoint_conn),
         interrupt_before=["step_3_confirm", "step_5_analysis"],
     )

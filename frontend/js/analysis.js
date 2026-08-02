@@ -773,13 +773,34 @@ const AnalysisWizard = {
     var container = document.getElementById('findings-container');
     var countEl = document.getElementById('finding-count');
 
-    // 调用疑点生成 API
+    // P1-2: 适配数据格式——把原始表达式结果转成 Agent 期望的结构
+    var selectedViolations = this._selectedViolations || [];
+    var firstViolation = selectedViolations[0] || {};
+    var exprResult = this._expressionResult || {};
     var analysisData = {
-      analysis_results: this._expressionResult ? [this._expressionResult] : [],
-      overall_assessment: '',
+      analysis_results: exprResult.total !== undefined ? [{
+        violation_model: firstViolation.violation_title || firstViolation.name || '未指定违规模型',
+        expression: firstViolation.expression_text || firstViolation.expr || '',
+        scan_summary: {
+          total_records: exprResult.total || 0,
+          hits: exprResult.hits || 0,
+          hit_rate: exprResult.hit_rate || 0
+        },
+        severity_assessment: exprResult.hits > 0 ? 'high' : 'low',
+        sample_findings: (exprResult.rows || []).slice(0, 5).map(function(r) {
+          return { record_id: r.row_id, fields: r.fields || {} };
+        })
+      }] : [],
+      overall_assessment: exprResult.total !== undefined ?
+        ('扫描' + (exprResult.total || 0) + '条记录，命中' + (exprResult.hits || 0) + '条') : '',
       domain: (this.projectMemory && this.projectMemory.domain) || '',
       item: (this.projectMemory && this.projectMemory.items) || '',
-      project_id: this._projectId || ''
+      project_id: this._projectId || '',
+      // P1-2: 补传法规依据（从 Step② 推荐结果取）
+      primary_laws: (this._step2Data && this._step2Data.primary_laws) || [],
+      selected_laws: (this._step2Data && this._step2Data.primary_laws || []).map(function(l) {
+        return l.id || l.law_id || '';
+      }).filter(function(id) { return id; })
     };
 
     container.innerHTML = '<div style="text-align:center;padding:20px;"><i class="bi bi-hourglass-split pulse"></i> AI正在生成疑点报告...</div>';

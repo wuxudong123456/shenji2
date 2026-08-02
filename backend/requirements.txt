@@ -7,6 +7,7 @@ DBUtils==3.1.2
 cryptography==49.0.0
 langgraph
 langgraph-checkpoint
+langgraph-checkpoint-sqlite
 langchain-core
 pydantic
 python-docx

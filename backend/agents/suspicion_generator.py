@@ -65,8 +65,23 @@ class SuspicionGeneratorAgent(BaseAgent):
                 if ar.get("severity_assessment"):
                     lines.append(f"- 严重程度: {ar['severity_assessment']}")
                 for sf in (ar.get("sample_findings") or [])[:5]:
-                    lines.append(f"  - {sf.get('issue_description', '')}"
-                                 f"（涉及: {sf.get('involved_amount', '未量化')}）")
+                    # P1-2: 兼容两种格式 {issue_description} 或 {record_id, fields}
+                    desc = sf.get("issue_description", "")
+                    if not desc and sf.get("fields"):
+                        # 从 fields 构造可读描述
+                        fd = sf["fields"]
+                        parts = []
+                        for fk in ("doc_name", "party_a", "party_b", "amount",
+                                   "procurement_method", "voucher_no", "sign_date"):
+                            if fk in fd and fd[fk]:
+                                parts.append(f"{fk}={fd[fk]}")
+                        desc = "记录#" + str(sf.get("record_id", "?")) + ": " + ", ".join(parts[:4])
+                    elif not desc:
+                        desc = "记录#" + str(sf.get("record_id", "?"))
+                    amt = sf.get("involved_amount")
+                    if not amt and sf.get("fields"):
+                        amt = sf["fields"].get("amount") or sf["fields"].get("debit_amount") or "未量化"
+                    lines.append(f"  - {desc}（涉及: {amt}）")
                 if ar.get("analysis_conclusion"):
                     lines.append(f"- 结论: {ar['analysis_conclusion']}")
                 lines.append("")

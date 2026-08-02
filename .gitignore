@@ -54,3 +54,4 @@ testdata/**/*.pdf
 testdata/**/*.docx
 testdata/**/*.xlsx
 testdata/**/*.doc
+backend/data/langgraph_checkpoints.db

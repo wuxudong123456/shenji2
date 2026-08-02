@@ -122,6 +122,14 @@ var AuditAPI = {
     }
   },
 
+  // ── 业务阈值×法规条款对照表（P2-3）──
+  thresholdTable: function(violationTitles, targetLevel) {
+    return fetch(AuditAPI.base + '/api/audit/threshold-table', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({violation_titles: violationTitles || [], target_level: targetLevel || ''})
+    }).then(function(r) { return r.json(); });
+  },
+
   // ── 模板 ──
   templates: {
     list: function(params) {

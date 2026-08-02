@@ -44,6 +44,9 @@ _TOKEN_SPEC = [
     ("NUMBER",  r"\d+\.?\d*"),
     ("STRING",  r"'[^']*'|\"[^\"]*\""),
     ("NULL",    r"\bNULL\b"),
+    # P1-1: IS NULL / IS NOT NULL 标记（_preprocess_chinese 生成）
+    ("IS_NOT_NULL", r"__NOT_NULL__"),
+    ("IS_NULL",     r"__NULL__"),
     # FIELD 必须在 STRING 之后，避免中文字符被误匹配到引号内的内容
     ("FIELD",   r"[a-zA-Z_一-鿿][a-zA-Z0-9_一-鿿]*(\.[a-zA-Z_一-鿿][a-zA-Z0-9_一-鿿]*)*"),
     ("SKIP",    r"[ \t\n\r]+"),
@@ -124,7 +127,8 @@ class _Parser:
 
         # 如果 left 已经是完整的比较/逻辑节点（来自括号内的表达式），直接返回
         if left.get("type") in ("GT", "LT", "EQ", "NE", "GTE", "LTE",
-                                "BETWEEN", "AND", "OR", "IN", "NOT_IN", "TRUTHY"):
+                                "BETWEEN", "AND", "OR", "IN", "NOT_IN", "TRUTHY",
+                                "IS_NULL", "IS_NOT_NULL"):
             return left
 
         tok = self._peek()
@@ -143,6 +147,14 @@ class _Parser:
             values = self._parse_list()
             node_type = "NOT_IN" if op == "NOT_IN" else "IN"
             return {"type": node_type, "field": left["value"], "values": values}
+
+        # P1-1: IS NULL / IS NOT NULL（中文"为空"/"不为空"预处理后生成）
+        if tok and tok[0] == "IS_NOT_NULL":
+            self._consume("IS_NOT_NULL")
+            return {"type": "IS_NOT_NULL", "field": left.get("value", "")}
+        if tok and tok[0] == "IS_NULL":
+            self._consume("IS_NULL")
+            return {"type": "IS_NULL", "field": left.get("value", "")}
 
         # 比较运算符
         if tok and tok[0] in ("GT", "LT", "EQ", "NE", "GTE", "LTE"):
@@ -263,6 +275,68 @@ class _Parser:
         raise SyntaxError(f"意外的 token: {tok}")
 
 
+def _preprocess_chinese(expression: str) -> str:
+    """预处理中文操作符/符号 → 英文等价物（P1-1）
+
+    在 tokenizer 之前执行，把中文逻辑词、数学符号、时间单位
+    替换为 tokenizer 能识别的英文/符号等价物。
+    """
+    # ── 中文逻辑连接词 ──
+    # 注意顺序：先替换多字的（"不为空"在"为空"之前，"不在"在"在"之前）
+    expression = re.sub(r"不为空", " IS NOT NULL ", expression)
+    expression = re.sub(r"非空", " IS NOT NULL ", expression)
+    expression = re.sub(r"为空", " IS NULL ", expression)
+    expression = re.sub(r"且", " AND ", expression)
+    expression = re.sub(r"或(?!者)", " OR ", expression)  # "或" 但不是"或者"
+    expression = re.sub(r"并(?!且)", " AND ", expression)  # "并" 但不是"并且"
+
+    # ── 中文列表/集合操作 ──
+    # "不在...列表/中" → NOT IN（简化处理：直接替换关键词，让 NOT IN token 匹配）
+    expression = re.sub(r"不在\s*", " NOT IN ", expression)
+    expression = re.sub(r"(?<!NOT IN )在\s*(?=[（(【])", " IN ", expression)
+
+    # ── 数学符号 ──
+    expression = expression.replace("≠", "!=")
+    expression = expression.replace("≤", "<=")
+    expression = expression.replace("≥", ">=")
+    expression = expression.replace("∩", " AND ")   # 集合交集 ≈ 逻辑与
+    expression = expression.replace("∪", " OR ")     # 集合并集 ≈ 逻辑或
+    expression = expression.replace("∈", " IN ")
+    expression = expression.replace("∅", " NULL ")
+
+    # ── 中文比较词 ──
+    expression = re.sub(r"大于等于", " >= ", expression)
+    expression = re.sub(r"小于等于", " <= ", expression)
+    expression = re.sub(r"大于", " > ", expression)
+    expression = re.sub(r"小于", " < ", expression)
+    expression = re.sub(r"不等于", " != ", expression)
+    expression = re.sub(r"等于", " = ", expression)
+    expression = re.sub(r"超过", " > ", expression)
+    expression = re.sub(r"不低于", " >= ", expression)
+    expression = re.sub(r"不超过", " <= ", expression)
+
+    # ── 时间单位（"90天" → "90"，"3个月" → "3"，配合 DATE_DIFF）──
+    expression = re.sub(r"(\d+)\s*个?\s*天", r" \1 ", expression)
+    expression = re.sub(r"(\d+)\s*个?\s*月", r" \1 ", expression)
+    expression = re.sub(r"(\d+)\s*个?\s*年", r" \1 ", expression)
+
+    # ── 中文标点（已有部分，补充）──
+    expression = expression.replace("（", "(").replace("）", ")")
+    expression = expression.replace("，", ",").replace("；", ";")
+    expression = expression.replace("、", ",")  # 中文顿号 → 逗号（列表分隔）
+    expression = expression.replace(""", "\"").replace(""", "\"")
+    expression = expression.replace("'", "'").replace("'", "'")
+
+    # ── IS NULL / IS NOT NULL → 现有 parser 不直接支持，转成可处理的形式 ──
+    # "IS NOT NULL" → 字段存在且非空（TRUTHY 语义）
+    # "IS NULL" → 字段不存在或为空（NOT TRUTHY）
+    # 用特殊标记让 _compare 处理
+    expression = re.sub(r"IS\s+NOT\s+NULL", "__NOT_NULL__", expression, flags=re.IGNORECASE)
+    expression = re.sub(r"IS\s+NULL", "__NULL__", expression, flags=re.IGNORECASE)
+
+    return expression
+
+
 def parse_expression(expression: str) -> dict:
     """解析违规表达式伪SQL，返回AST
 
@@ -279,7 +353,10 @@ def parse_expression(expression: str) -> dict:
     if not expression:
         return {"type": "literal", "value": True}
 
-    # 预处理: 替换中文符号
+    # P1-1: 预处理中文操作符/符号
+    expression = _preprocess_chinese(expression)
+
+    # 预处理: 替换中文符号（兼容旧逻辑，_preprocess_chinese 已含）
     expression = expression.replace("（", "(").replace("）", ")")
     expression = expression.replace("，", ",").replace("；", ";")
 
@@ -319,6 +396,10 @@ def ast_to_str(ast: dict) -> str:
         return f"({ast_to_str(ast['left'])} {ast['op']} {ast_to_str(ast['right'])})"
     if t == "ARITH_CMP":
         return f"({ast_to_str(ast['left'])} {ast['op']} {ast_to_str(ast['right'])})"
+    if t == "IS_NULL":
+        return f"{ast['field']} IS NULL"
+    if t == "IS_NOT_NULL":
+        return f"{ast['field']} IS NOT NULL"
     if t in ("literal", "field"):
         return str(ast.get("value", "?"))
     return str(ast)

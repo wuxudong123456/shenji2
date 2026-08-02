@@ -116,6 +116,14 @@ def _eval_ast(ast: dict, row: dict) -> bool:
                     pass
         return in_list if t == "IN" else (not in_list)
 
+    # P1-1: IS NULL / IS NOT NULL（中文"为空"/"不为空"）
+    if t == "IS_NULL":
+        val = _get_row_value(row, ast["field"])
+        return val is None or val == "" or str(val).strip() in ("未提供", "无", "null", "None")
+    if t == "IS_NOT_NULL":
+        val = _get_row_value(row, ast["field"])
+        return val is not None and val != "" and str(val).strip() not in ("未提供", "无", "null", "None")
+
     # Q2.1 新增：算术比较 (金额/合同金额) > 0.03
     if t == "ARITH_CMP":
         left_val = _eval_arith(ast["left"], row)

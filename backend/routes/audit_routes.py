@@ -491,6 +491,22 @@ def register_audit_routes(app):
         result = check_thresholds(project_id, table)
         return jsonify(result)
 
+    @app.route("/api/audit/threshold-table", methods=["POST"])
+    def audit_threshold_table():
+        """POST /api/audit/threshold-table — 业务阈值×法规条款对照表（P2-3 动态生成）
+
+        Body: { violation_titles: ["应公开招标未招标"], target_level: "市级" }
+        从违规模型的表达式提取阈值，从描述提取法规，动态组装对照表。
+        """
+        data = request.get_json() or {}
+        from services.threshold_extractor import build_threshold_table
+        result = build_threshold_table(
+            violation_titles=data.get("violation_titles", []),
+            violation_ids=data.get("violation_ids"),
+            target_level=data.get("target_level", ""),
+        )
+        return jsonify({"success": True, **result})
+
     # ── 聚合表达式 SQL 人工确认（Submit→Confirm→Execute）──
     @app.route("/api/audit/expression-sql/pending", methods=["GET"])
     def audit_expression_sql_pending():
@@ -515,6 +531,17 @@ def register_audit_routes(app):
         ok = reject_sql(cid, reviewer)
         return jsonify({"success": ok, "id": cid,
                         "review_status": "rejected" if ok else "error"})
+
+    @app.route("/api/audit/expression-sql/auto-approve", methods=["POST"])
+    def audit_expression_sql_auto_approve():
+        """POST /api/audit/expression-sql/auto-approve — 自动批准安全的聚合 SQL（P2-2）
+
+        对所有 pending SQL 做安全检查（只读 SELECT + 聚合 + project_id 过滤），
+        通过的自动批准，不通过的跳过留待人工审核。
+        """
+        from services.sql_generator import auto_approve_safe_sql
+        result = auto_approve_safe_sql()
+        return jsonify({"success": True, **result})
 
     @app.route("/api/audit/suspicion/generate", methods=["POST"])
     def audit_suspicion_generate():

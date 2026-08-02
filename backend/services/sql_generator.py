@@ -181,7 +181,6 @@ def reject_sql(cache_id: int, reviewer: str = "admin") -> bool:
 
 def list_pending_sql(limit: int = 50) -> list[dict]:
     """列出待确认的 SQL（管理界面用）"""
-    rows = query_one.__self__ if hasattr(query_one, '__self__') else None
     from services.db import query
     return [
         dict(r) for r in query(
@@ -191,3 +190,55 @@ def list_pending_sql(limit: int = 50) -> list[dict]:
             (limit,), database="tt",
         )
     ]
+
+
+# P2-2: 自动批准安全的聚合 SQL（只读 SELECT + 无危险操作）
+_DANGEROUS_KEYWORDS = {"DELETE", "DROP", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "GRANT", "REVOKE"}
+_SAFE_AGGREGATE_FUNCS = {"SUM", "COUNT", "MAX", "MIN", "AVG", "GROUP BY", "HAVING"}
+
+
+def auto_approve_safe_sql(reviewer: str = "system") -> dict:
+    """自动批准安全的聚合 SQL（P2-2）
+
+    检查规则：
+      - SQL 必须以 SELECT 开头
+      - 不得含 DELETE/UPDATE/INSERT/DROP/TRUNCATE/ALTER 等危险关键字
+      - 必须含 GROUP BY 或聚合函数（否则不是聚合表达式）
+      - 必须含 project_id 过滤
+
+    Returns:
+        {"approved": N, "rejected": N, "skipped": N}
+    """
+    pending = list_pending_sql(limit=100)
+    result = {"approved": 0, "rejected": 0, "skipped": 0}
+
+    for item in pending:
+        sql = (item.get("generated_sql") or "").strip()
+        sql_upper = sql.upper()
+
+        # 检查1：必须以 SELECT 开头
+        if not sql_upper.startswith("SELECT"):
+            result["skipped"] += 1
+            continue
+
+        # 检查2：不含危险关键字
+        if any(kw in sql_upper for kw in _DANGEROUS_KEYWORDS):
+            result["skipped"] += 1
+            continue
+
+        # 检查3：必须含聚合特征
+        has_aggregate = any(kw in sql_upper for kw in _SAFE_AGGREGATE_FUNCS)
+        if not has_aggregate:
+            result["skipped"] += 1
+            continue
+
+        # 检查4：必须含 project_id 过滤
+        if "PROJECT_ID" not in sql_upper and ":PROJECT_ID" not in sql_upper:
+            result["skipped"] += 1
+            continue
+
+        # 安全检查通过 → 自动批准
+        approve_sql(item["id"], reviewer=reviewer)
+        result["approved"] += 1
+
+    return result

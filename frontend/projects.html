@@ -167,8 +167,8 @@
       <!-- 进行中 -->
       <div style="margin-bottom:4px;">
         <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:0 4px;margin-bottom:8px;">进行中</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
-
+        <div id="proj-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+          <!-- P3-1: 由 Proj.init() 动态填充真实项目；API 失败时保留以下示例卡片 -->
           <div class="apple-card" style="cursor:pointer;" onclick="Proj.resume('教育局2026采购审计')">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
               <div style="width:10px;height:10px;border-radius:50%;background:var(--color-warning);flex-shrink:0;"></div>
@@ -1026,8 +1026,91 @@ var PhaseBoard = {
     btn.textContent = '✓ 已完成';
     btn.className = 'btn btn-xs btn-success';
     AuditWorkbench.toast('节点已完成，已更新下一节点期限','success');
+  },
+
+  // ── P3-1: 从 API 加载真实项目列表 ──
+  _projectMap: {},
+  init: function() {
+    var self = this;
+    if (typeof AuditAPI === 'undefined') return;
+    AuditAPI.projects.list().then(function(resp) {
+      if (!resp || !resp.success || !resp.projects || resp.projects.length === 0) return;
+      self._renderProjectCards(resp.projects);
+    }).catch(function() {});
+  },
+
+  _renderProjectCards: function(projects) {
+    var self = this;
+    var grid = document.getElementById('proj-card-grid');
+    if (!grid) return;
+
+    // 缓存项目数据
+    projects.forEach(function(p) { self._projectMap[p.id] = p; });
+
+    var html = projects.map(function(p) {
+      var statusColor = p.status === 'completed' ? 'var(--color-success)' :
+                        p.status === 'active' ? 'var(--color-warning)' : 'var(--color-text-muted)';
+      var statusText = p.status === 'completed' ? '已完成' :
+                       p.status === 'active' ? '进行中' : '草稿';
+      var date = (p.create_time || '').substring(5, 10);
+      self._projectMap[p.id] = p;
+      return '<div class="apple-card" style="cursor:pointer;" onclick="Proj.showDetailById(\'' + p.id + '\')">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+          '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0;"></div>' +
+          '<span style="font-size:12px;color:' + statusColor + ';font-weight:500;">' + statusText + '</span>' +
+          '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">' + date + '</span>' +
+        '</div>' +
+        '<h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">' + (p.name || '未命名') + '</h3>' +
+        '<p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">' + (p.audit_period || '') + '</p>' +
+        '<button class="card-launch" onclick="event.stopPropagation();Proj.launchFromCard(\'' + (p.name||'').replace(/'/g,'') + '\',\'' + (p.description||'').replace(/'/g,'').substring(0,40) + '\',\'' + (p.audit_period||'') + '\')"><i class="bi bi-rocket-takeoff"></i> 启动分析</button>' +
+      '</div>';
+    }).join('');
+
+    // 加上"新建项目"卡片
+    html += '<div class="apple-card" style="cursor:pointer;border:2px dashed var(--color-border);display:flex;align-items:center;justify-content:center;gap:10px;min-height:130px;" onclick="Proj.open()">' +
+      '<i class="bi bi-plus-circle" style="font-size:32px;color:var(--color-primary);opacity:0.5;"></i>' +
+      '<span style="font-size:15px;font-weight:600;color:var(--color-primary);opacity:0.7;">新建项目</span></div>';
+
+    grid.innerHTML = html;
+  },
+
+  showDetailById: function(projectId) {
+    var p = this._projectMap[projectId];
+    if (!p) return;
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+    document.getElementById('detail-title').innerHTML = '<i class="bi bi-folder2-open"></i> ' + (p.name || '未命名');
+    document.getElementById('d-name').textContent = p.name || '—';
+    document.getElementById('d-code').textContent = p.id || '—';
+    document.getElementById('d-unit').textContent = p.description || '—';
+    document.getElementById('d-type').textContent = '审计项目';
+    document.getElementById('d-period').textContent = p.audit_period || '—';
+    document.getElementById('d-level').textContent = '—';
+    document.getElementById('d-leader').textContent = p.creator || '—';
+    document.getElementById('d-auditor').textContent = '—';
+    document.getElementById('d-objective').textContent = p.description || '—';
+    this._currentProjectId = projectId;
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  },
+
+  createProject: function() {
+    var name = document.getElementById('setup-name') ? document.getElementById('setup-name').value.trim() : '';
+    if (!name) { AuditWorkbench.toast('请填写项目名称', 'warning'); return; }
+    var period = document.getElementById('setup-period') ? document.getElementById('setup-period').value : '';
+    var self = this;
+    AuditAPI.projects.create({name: name, audit_period: period}).then(function(resp) {
+      if (resp.success) {
+        AuditWorkbench.toast('项目已创建：' + name, 'success');
+        self.cancel();
+        self.init();
+      } else {
+        AuditWorkbench.toast('创建失败：' + (resp.error || ''), 'error');
+      }
+    }).catch(function() { AuditWorkbench.toast('网络错误', 'error'); });
   }
 };
+
+document.addEventListener('DOMContentLoaded', function() { Proj.init(); });
 </script>
 </body>
 </html>
