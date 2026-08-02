@@ -738,54 +738,83 @@ var Proj = {
     var text = document.getElementById('ai-paste').value.trim();
     if(!text) return AuditWorkbench.toast('请先粘贴文档内容或上传文件','warning');
 
-    var html = '<div style="margin-bottom:12px;"><strong style="color:var(--color-primary);">📋 一、项目基本信息</strong></div>' +
-      '<div class="table-wrap"><table class="table"><thead><tr><th>字段</th><th>AI提取值</th><th>置信度</th></tr></thead><tbody>' +
-      '<tr><td>项目编号</td><td>审通〔2026〕001号</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>项目名称</td><td>某市教育局2026年度预算执行及教学设备采购合规性审计</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>被审计单位</td><td>某市教育局</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>审计类型</td><td>预算执行审计</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>审计方式</td><td>就地审计</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>审计期间</td><td>2026-01-01 至 2026-06-30</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>进点日期</td><td>2026-07-03</td><td><span class="badge badge-warning">中</span></td></tr>' +
-      '<tr><td>涉及金额</td><td>约500万元</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '<tr><td>单位层级</td><td>市级</td><td><span class="badge badge-success">高</span></td></tr>' +
-      '</tbody></table></div>' +
+    var resultDiv = document.getElementById('ai-result');
+    var fieldsDiv = document.getElementById('ai-fields');
+    var btn = document.querySelector('#zone-ai button.btn-accent');
+    resultDiv.style.display = 'block';
+    fieldsDiv.innerHTML = '<div style="text-align:center;padding:24px;color:var(--color-text-muted);"><span class="pulse">●</span> AI 正在分析文档内容，请稍候...</div>';
+    resultDiv.scrollIntoView({behavior:'smooth'});
+    if(btn) btn.disabled = true;
 
-      '<div style="margin-bottom:12px;margin-top:16px;"><strong style="color:var(--color-primary);">📐 二、审计对象和范围</strong></div>' +
-      '<div class="table-wrap"><table class="table"><thead><tr><th>字段</th><th>AI提取值</th></tr></thead><tbody>' +
-      '<tr><td>审计对象</td><td>某市教育局本部及下属招生办、教研室等5家二级单位</td></tr>' +
-      '<tr><td>审计范围</td><td style="font-size:13px;">2026年1月至6月预算执行及教学设备采购合规性审计，重点关注采购程序、资金使用和供应商管理</td></tr>' +
-      '<tr><td>审计重点</td><td>采购程序合规性 / 资金使用合规性 / 供应商管理 / 预算编制与执行</td></tr>' +
-      '</tbody></table></div>' +
+    var self = this;
+    fetch('/api/audit/projects/extract-info', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
+    }).then(function(r){return r.json();}).then(function(data){
+      if(btn) btn.disabled = false;
+      if(!data.success){
+        fieldsDiv.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">❌ AI 提取失败：' + (data.error||'未知错误') + '<br>请确认后端 LLM 服务可用后重试。</div>';
+        self._aiResult = null;
+        return;
+      }
+      self._aiResult = data.extracted || {};
+      fieldsDiv.innerHTML = self._renderAiResult(self._aiResult);
+      AuditWorkbench.toast('AI 已从文档提取信息，请核对后确认','success');
+    }).catch(function(err){
+      if(btn) btn.disabled = false;
+      fieldsDiv.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">❌ 网络错误：' + ((err&&err.message)||'后端 /api/audit/projects/extract-info 不可用') + '</div>';
+      self._aiResult = null;
+    });
+  },
 
-      '<div style="margin-bottom:12px;margin-top:16px;"><strong style="color:var(--color-primary);">🎯 三、审计事项（AI自动拆分）</strong></div>' +
-      '<div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>审计事项</th><th>优先级</th></tr></thead><tbody>' +
-      '<tr><td>1</td><td>教学设备采购合规性审计 — 核查5笔采购合同是否依法公开招标</td><td><span class="badge badge-accent">高</span></td></tr>' +
-      '<tr><td>2</td><td>采购资金使用合规性审计 — 核查资金是否按规定用途使用</td><td><span class="badge badge-warning">中</span></td></tr>' +
-      '<tr><td>3</td><td>供应商资质及关联关系审查 — 审查围标串标嫌疑</td><td><span class="badge badge-warning">中</span></td></tr>' +
-      '</tbody></table></div>';
-
-    document.getElementById('ai-fields').innerHTML = html;
-    document.getElementById('ai-result').style.display = 'block';
-    document.getElementById('ai-result').scrollIntoView({behavior:'smooth'});
-    AuditWorkbench.toast('AI已综合分析文档，提取了基本信息+范围+事项','success');
+  _renderAiResult: function(e) {
+    var fields = [
+      ['项目编号', e.project_code], ['项目名称', e.project_name],
+      ['被审计单位', e.audited_unit], ['审计类型', e.audit_type],
+      ['审计方式', e.audit_method], ['审计期间', e.audit_period],
+      ['进点日期', e.entry_date], ['涉及金额(万元)', e.amount],
+      ['单位层级', e.level]
+    ];
+    var rows = fields.map(function(f){
+      var val = (f[1]||'').toString().trim();
+      var cell = val ? val : '<span style="color:var(--color-text-muted);">未识别</span>';
+      return '<tr><td>'+f[0]+'</td><td>'+cell+'</td></tr>';
+    }).join('');
+    var html = '<div style="margin-bottom:12px;"><strong style="color:var(--color-primary);">📋 一、项目基本信息</strong> <span style="font-size:12px;color:var(--color-text-muted);">（AI 提取，请核对）</span></div>' +
+      '<div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>字段</th><th>AI提取值</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    if(e.target_unit || e.extend_unit || e.scope){
+      html += '<div style="margin:16px 0 12px;"><strong style="color:var(--color-primary);">📐 二、审计对象和范围</strong></div>'+
+        '<div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>字段</th><th>内容</th></tr></thead><tbody>'+
+        (e.target_unit?'<tr><td>审计对象</td><td>'+e.target_unit+'</td></tr>':'')+
+        (e.extend_unit?'<tr><td>延伸单位</td><td>'+e.extend_unit+'</td></tr>':'')+
+        (e.scope?'<tr><td>审计范围</td><td style="font-size:13px;">'+e.scope+'</td></tr>':'')+
+        '</tbody></table></div>';
+    }
+    var items = e.audit_items || [];
+    if(items.length){
+      var itemRows = items.map(function(it,i){ return '<tr><td>'+(i+1)+'</td><td>'+it+'</td></tr>'; }).join('');
+      html += '<div style="margin:16px 0 12px;"><strong style="color:var(--color-primary);">🎯 三、审计事项（AI 推断）</strong></div>'+
+        '<div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>#</th><th>审计事项</th></tr></thead><tbody>'+itemRows+'</tbody></table></div>';
+    }
+    return html;
   },
 
   confirmAi: function() {
-    // Fill Tab 1
-    document.getElementById('f-code').value = '审通〔2026〕001号';
-    document.getElementById('f-name').value = '某市教育局2026年度预算执行及教学设备采购合规性审计';
-    document.getElementById('f-unit').value = '某市教育局';
-    document.getElementById('f-type').value = '预算执行审计';
-    document.getElementById('f-entry-date').value = '2026-07-03';
-    document.getElementById('f-amount').value = '500';
-    document.getElementById('f-level').value = '市级';
-    // Fill Tab 2
-    document.getElementById('f-target-unit').value = '某市教育局';
-    document.getElementById('f-extend-unit').value = '下属招生办、教研室等5家二级单位';
-    document.getElementById('f-scope').value = '本次审计针对某市教育局2026年1月至6月预算执行情况及教学设备采购合规性进行审计，重点关注采购程序、资金使用和供应商管理等方面，必要时追溯到相关年度和延伸审计有关单位。\n\n按照"全面审计、聚焦重点"的工作原则，结合被审计单位预算规模、采购体量、业务特点等因素，确定此次审计对象为某市教育局本部及下属招生办、教研室等5家二级单位。\n\n延伸审计本实施方案以外的单位或事项，需报经审计组组长或其委托人员批准，并填报延伸审计台账。';
+    var e = this._aiResult || {};
+    var setVal = function(id, v){ var el = document.getElementById(id); if(el) el.value = v||''; };
+    setVal('f-code', e.project_code);
+    setVal('f-name', e.project_name);
+    setVal('f-unit', e.audited_unit);
+    if(e.audit_type) setVal('f-type', e.audit_type);
+    setVal('f-entry-date', e.entry_date);
+    setVal('f-amount', e.amount);
+    setVal('f-level', e.level);
+    setVal('f-target-unit', e.target_unit);
+    setVal('f-extend-unit', e.extend_unit);
+    setVal('f-scope', e.scope);
     this.setMode('manual');
-    AuditWorkbench.toast('已一键填充全部信息（Tab 1+2+3），可逐页核对修改','success');
+    AuditWorkbench.toast('已用 AI 提取结果填充，请逐页核对修改','success');
   },
   addMember: function() {
     var n=document.getElementById('member-name').value.trim();
