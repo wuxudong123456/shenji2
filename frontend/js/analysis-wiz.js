@@ -1543,15 +1543,7 @@ var AW = {
     // Bulk mode
     html += '<div id="s4-bulk"><div class="alert alert-info" style="font-size:14px;">上传全部文件，AI自动识别分类。如有错误可手动调整。</div>'+
       '<div class="upload-zone" style="padding:20px;margin-bottom:10px;cursor:pointer;" onclick="AW.uploadFile()"><i class="bi bi-cloud-upload" style="font-size:28px;color:var(--color-primary);opacity:0.5;"></i><p style="font-weight:600;margin:6px 0 2px;">点击或拖拽上传审计资料</p><p style="font-size:14px;color:var(--color-text-muted);">PDF/Excel/Word/CSV · 可多选</p></div>'+
-      '<div class="table-wrap"><table class="table" style="font-size:14px;"><thead><tr><th>文件</th><th>AI识别类型</th><th>状态</th><th>调整分类</th></tr></thead><tbody>'+
-      '<tr><td><strong>采购合同汇总.pdf</strong></td><td><select class="form-select form-select-sm" style="width:160px;font-size:12px;" onchange="AW.reExtract(this)"><option selected>采购合同及补充协议</option><option>银行付款凭证及流水</option><option>供应商工商登记信息</option></select></td><td><span class="badge badge-success">已解析</span></td>'+
-        '<td><div style="display:flex;gap:4px;flex-wrap:wrap;">'+
-        '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\'采购合同汇总.pdf\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
-        '<button class="btn btn-xs btn-outline" onclick="var sel=this.closest(\'tr\').querySelector(\'select\');AW.reExtract(sel)" title="重新提取"><i class="bi bi-arrow-repeat"></i> 重提取</button></div></td></tr>'+
-      '<tr><td><strong>银行流水2026Q1.csv</strong></td><td><select class="form-select form-select-sm" style="width:160px;font-size:12px;" onchange="AW.reExtract(this)"><option>采购合同及补充协议</option><option selected>银行付款凭证及流水</option><option>供应商工商登记信息</option></select></td><td><span class="badge badge-success">已解析</span></td>'+
-        '<td><div style="display:flex;gap:4px;flex-wrap:wrap;">'+
-        '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\'银行流水2026Q1.csv\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
-        '<button class="btn btn-xs btn-outline" onclick="var sel=this.closest(\'tr\').querySelector(\'select\');AW.reExtract(sel)" title="重新提取"><i class="bi bi-arrow-repeat"></i> 重提取</button></div></td></tr></tbody></table></div></div>';
+      '<div class="table-wrap"><table class="table" style="font-size:14px;"><thead><tr><th>文件</th><th>AI识别类型</th><th>状态</th><th>调整分类</th></tr></thead><tbody id="s4-bulk-tbody"><tr><td colspan="4" style="text-align:center;color:var(--color-text-muted);padding:20px;"><span class="pulse">●</span> 加载已上传文件...</td></tr></tbody></table></div></div>';
     // Detail mode
     html += '<div id="s4-detail" style="display:none;"><div class="alert alert-info" style="font-size:14px;">每项资料可通过上传文件、工坊引入或手工录入提供。</div>'+
       '<div class="table-wrap" style="margin-bottom:10px;"><table class="table" style="font-size:14px;"><thead><tr><th>#</th><th>资料名称</th><th>元数据字段</th><th>状态</th><th>操作</th></tr></thead><tbody>';
@@ -1560,9 +1552,42 @@ var AW = {
       html += '<tr><td>'+(i+1)+'</td><td><strong>'+name+'</strong></td><td style="font-size:12px;color:var(--color-text-muted);">'+fields+'</td><td><span class="badge '+(i<2?'badge-success':'badge-warning')+'">'+(i<2?'已关联':'待上传')+'</span></td><td><button class="btn btn-xs btn-outline" onclick="AW.uploadFile()" title="上传">📤</button> <button class="btn btn-xs btn-outline" onclick="AW.importFromWorkshop()" title="工坊">📂</button> <button class="btn btn-xs btn-outline" onclick="AW.showManualEntry()" title="录入">✏️</button></td></tr>';
     });
     html += '</tbody></table></div></div>';
-    html += '<div style="padding:10px 14px;background:rgba(45,125,70,0.04);border-radius:8px;font-size:14px;margin-bottom:8px;"><i class="bi bi-check-circle" style="color:var(--color-success);"></i> <strong>已收集：</strong>2份</div>';
+    html += '<div style="padding:10px 14px;background:rgba(45,125,70,0.04);border-radius:8px;font-size:14px;margin-bottom:8px;"><i class="bi bi-check-circle" style="color:var(--color-success);"></i> <strong>已收集：</strong><span id="s4-collected-count">0</span>份</div>';
     html += '<button class="btn btn-accent btn-lg w-100" onclick="AW.confirmS4()">确认资料，进入比对</button></div>';
     document.getElementById('right-panel').innerHTML = html;
+    this._loadS4Files();  // 2.3: 异步加载真实文件列表
+  },
+
+  /** 2.3: 从 files.list 加载真实文件，渲染 Step④ 批量表 */
+  _loadS4Files: function() {
+    var self = this;
+    var pid = (this.mem.project && this.mem.project.id) || '';
+    var tbody = document.getElementById('s4-bulk-tbody');
+    var countEl = document.getElementById('s4-collected-count');
+    if (!tbody) return;
+    if (!pid) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--color-text-muted);padding:20px;">暂无项目，请先选择项目</td></tr>';
+      return;
+    }
+    AuditAPI.files.list(pid).then(function(resp) {
+      var files = (resp && resp.files) || [];
+      if (countEl) countEl.textContent = files.length;
+      if (!files.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--color-text-muted);padding:20px;">暂无已上传文件，请点击上方上传区添加</td></tr>';
+        return;
+      }
+      tbody.innerHTML = files.map(function(f){
+        var name = f.file_name || f.name || '未命名';
+        var status = f.ocr_done ? '<span class="badge badge-success">已解析</span>' : '<span class="badge badge-warning">待解析</span>';
+        var safeName = name.replace(/'/g,'');
+        return '<tr><td><strong>'+name+'</strong></td><td><select class="form-select form-select-sm" style="width:160px;font-size:12px;" onchange="AW.reExtract(this)"><option>采购合同及补充协议</option><option>银行付款凭证及流水</option><option>供应商工商登记信息</option></select></td><td>'+status+'</td>'+
+          '<td><div style="display:flex;gap:4px;flex-wrap:wrap;">'+
+          '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\''+safeName+'\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
+          '<button class="btn btn-xs btn-outline" onclick="var sel=this.closest(\'tr\').querySelector(\'select\');AW.reExtract(sel)" title="重新提取"><i class="bi bi-arrow-repeat"></i> 重提取</button></div></td></tr>';
+      }).join('');
+    }).catch(function() {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--color-text-muted);padding:20px;">加载失败，请确认后端服务运行中</td></tr>';
+    });
   },
 
   switchS4Mode: function(mode) {
