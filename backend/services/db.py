@@ -3,6 +3,9 @@
 依赖: pymysql + DBUtils，配置来自 config.Config
 """
 
+import time
+import threading
+
 import pymysql
 from pymysql.cursors import DictCursor
 from dbutils.pooled_db import PooledDB
@@ -10,6 +13,9 @@ from config import Config
 
 # 按数据库名缓存连接池，懒初始化
 _pools: dict[str, PooledDB] = {}
+
+# 保活线程是否已启动（幂等）
+_keepalive_started = False
 
 
 def _get_pool(database: str | None = None) -> PooledDB:
@@ -39,6 +45,40 @@ def get_connection(database: str | None = None):
     通常不直接使用，优先使用 query / execute 等封装函数。
     """
     return _get_pool(database).connection()
+
+
+def _start_keepalive(interval: int = 30) -> None:
+    """后台保活线程 — 防止防火墙/NAT 掐断闲置 MySQL 连接
+
+    症状：闲置约 1 分钟后首次请求慢 ~1.4s（连接被网络中间设备掐断，重连耗时）。
+    原理：每隔 interval 秒对每个连接池的"空闲连接"（_idle_cache）执行 ping，
+    保持 TCP 活跃，避免被掐断；顺带提前重建已死连接。
+    幂等：用全局标志保证只启动一次；全程防御式 try/except，绝不向调用方抛错。
+    """
+    global _keepalive_started
+    if _keepalive_started:
+        return
+    _keepalive_started = True
+
+    def _worker():
+        while True:
+            time.sleep(interval)
+            for pool in list(_pools.values()):
+                try:
+                    cache = getattr(pool, "_idle_cache", None) or []
+                    for conn in list(cache):
+                        try:
+                            conn.ping()
+                        except Exception:
+                            pass  # 连接已死，下次 checkout 时由池重建
+                except Exception:
+                    pass
+
+    threading.Thread(target=_worker, name="mysql-keepalive", daemon=True).start()
+
+
+# 模块加载即启动保活（幂等；仅当有池创建后才真正干活）
+_start_keepalive()
 
 
 def query(sql: str, params=None, database: str | None = None) -> list[dict]:

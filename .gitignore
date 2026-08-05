@@ -47,6 +47,9 @@ temp/
 tmp/
 /.worktrees/
 
+# 后端运行错误日志（*.err 结尾）
+backend/*.err
+
 # ======================
 # 测试案例包二进制（可由 scripts/case_pack 重建，不入库）
 # ======================
@@ -57,3 +60,4 @@ testdata/**/*.doc
 backend/data/langgraph_checkpoints.db
 backend/data/langgraph_checkpoints.db-shm
 backend/data/langgraph_checkpoints.db-wal
+.gstack/

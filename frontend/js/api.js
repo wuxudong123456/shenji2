@@ -29,6 +29,22 @@ var AuditAPI = {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id, {
         method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       }).then(function(r) { return r.json(); });
+    },
+    // AI 根据项目信息拆分审计事项（富卡片）
+    splitAuditItems: function(data) {
+      return fetch(AuditAPI.base + '/api/audit/projects/split-audit-items', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      }).then(function(r) { return r.json(); });
+    },
+    // 读取项目已落库的审计事项（兜底；主路径走 projects.get 的 project.audit_items）
+    items: function(id) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/items').then(function(r) { return r.json(); });
+    },
+    // 全量保存项目的审计事项
+    saveItems: function(id, items) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/items', {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({audit_items: items})
+      }).then(function(r) { return r.json(); });
     }
   },
 

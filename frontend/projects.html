@@ -492,83 +492,14 @@
   <!-- Tab 3：审计事项（含AI推荐）-->
   <div class="kw-panel" id="tab-3">
     <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">审计事项是对审计内容的具体分解。每个事项可独立执行审计程序，系统将自动匹配违规模型、推荐资料清单和法规依据。</div>
-    <div class="card"><div class="card-header"><h3>审计事项清单</h3><span class="badge badge-muted" id="item-count2">3 个</span>
+    <div class="card"><div class="card-header"><h3>审计事项清单</h3><span class="badge badge-muted" id="item-count2">0 个</span>
+      <button class="btn btn-sm btn-primary" id="btn-split-items" onclick="Proj.splitItems()"><i class="bi bi-robot"></i> AI 拆分审计事项</button>
       <button class="btn btn-sm btn-outline" onclick="Proj.addItem()"><i class="bi bi-plus-lg"></i> 添加</button></div>
       <div class="alert alert-info" style="font-size:13px;"><i class="bi bi-robot"></i> AI根据项目信息自动拆分审计事项。点击展开查看AI推荐和审计任务分解。点击"启动分析"进入智能分析流程。</div>
       <div id="audit-items2">
-        <!-- Item 1 -->
-        <div class="card" style="margin-bottom:var(--space-md);border-left:4px solid var(--color-primary);">
-          <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="Proj.toggleItem(this)">
-            <span style="font-size:22px;font-weight:700;color:var(--color-primary);width:28px;">1.</span>
-            <div style="flex:1;"><strong>教学设备采购合规性审计</strong>
-              <div style="font-size:13px;color:var(--color-text-muted);">核查5笔采购合同是否依法公开招标 · 涉及金额约500万元</div>
-              <span class="badge badge-muted">部门预算执行审计</span> <span class="badge badge-accent">高优先级</span></div>
-            <i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>
-            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem('教学设备采购合规性审计')"><i class="bi bi-play-fill"></i> 启动分析</button>
-          </div>
-          <div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">
-              <div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;">
-                <div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常见问题表现</div>
-                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>将大额项目拆分为多个小额子项目</li><li>子项目金额均低于招标门槛</li><li>短时间内集中签订多份合同</li><li>同一供应商多次中标</li></ul>
-              </div>
-              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;">
-                <div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 审计所需资料</div>
-                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>采购合同及补充协议</li><li>招标公告及招标文件</li><li>评标报告及中标通知书</li><li>银行付款凭证及流水</li><li>供应商工商登记信息</li></ul>
-              </div>
-              <div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;">
-                <div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常见违规行为</div>
-                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>化整为零规避公开招标</li><li>违规采用询价方式采购</li><li>未按规定发布采购公告</li><li>供应商围标串标</li></ul>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
-              <div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;">
-                <div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 常用审计方法</div>
-                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li><strong>合同比对法：</strong>比对合同签订时间、金额、供应商</li><li><strong>资金追踪法：</strong>追踪采购资金流向</li><li><strong>关联分析法：</strong>审查供应商股权及人员关联</li><li><strong>阈值检测法：</strong>金额与招标门槛逐一比对</li></ul>
-              </div>
-              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;">
-                <div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> AI推荐 — 审计依据</div>
-                <ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>《招标投标法》第4条 — 禁止化整为零</li><li>《招标投标法》第49条 — 处罚条款</li><li>《必须招标的工程项目规定》第5条</li><li>《政府采购法》第28条</li><li>《政府采购法实施条例》第67条</li></ul>
-              </div>
-            </div>
-            <!-- 审计事项任务分解 -->
-            <div style="margin-top:var(--space-md);border-top:1px solid var(--color-border);padding-top:var(--space-md);">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <strong style="font-size:14px;"><i class="bi bi-list-check"></i> 审计事项任务分解</strong>
-                <button class="btn btn-sm btn-outline" onclick="Proj.addTask(this)"><i class="bi bi-plus-lg"></i> 添加任务</button>
-              </div>
-              <div class="table-wrap"><table class="table"><thead><tr><th style="width:40px;">序号</th><th>审计任务</th><th style="width:100px;">计划时间</th><th style="width:80px;">状态</th></tr></thead><tbody>
-                <tr><td>1</td><td>收集并审查5份采购合同原件</td><td>第1周</td><td><span class="badge badge-success">已完成</span></td></tr>
-                <tr><td>2</td><td>比对合同签订时间与金额分布</td><td>第1-2周</td><td><span class="badge badge-warning">进行中</span></td></tr>
-                <tr><td>3</td><td>核查招标公告发布情况</td><td>第2周</td><td><span class="badge badge-muted">待启动</span></td></tr>
-                <tr><td>4</td><td>审查供应商工商登记及关联关系</td><td>第2-3周</td><td><span class="badge badge-muted">待启动</span></td></tr>
-                <tr><td>5</td><td>核实银行付款凭证与合同一致性</td><td>第3周</td><td><span class="badge badge-muted">待启动</span></td></tr>
-                <tr><td>6</td><td>出具审计取证单</td><td>第4周</td><td><span class="badge badge-muted">待启动</span></td></tr>
-              </tbody></table></div>
-            </div>
-          </div>
-        </div>
-        <!-- Item 2 -->
-        <div class="card" style="margin-bottom:var(--space-md);border-left:4px solid var(--color-primary);">
-          <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="Proj.toggleItem(this)">
-            <span style="font-size:22px;font-weight:700;color:var(--color-primary);width:28px;">2.</span>
-            <div style="flex:1;"><strong>采购资金使用合规性审计</strong>
-              <div style="font-size:13px;color:var(--color-text-muted);">核查采购资金是否按规定用途使用 · 涉及银行流水23笔</div>
-              <span class="badge badge-muted">部门预算执行审计</span> <span class="badge badge-warning">中优先级</span></div>
-            <i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>
-            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem('采购资金使用合规性审计')"><i class="bi bi-play-fill"></i> 启动分析</button>
-          </div>
-          <div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">
-              <div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见问题表现</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>采购资金挪用至非指定用途</li><li>大额现金支付</li><li>收款方与合同供应商不一致</li></ul></div>
-              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计所需资料</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>银行付款凭证</li><li>资金流水明细</li><li>专项资金拨付文件</li><li>采购预算批复</li></ul></div>
-              <div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见违规行为</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>截留挪用专项资金</li><li>重复支付采购款项</li><li>超预算采购</li></ul></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
-              <div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常用审计方法</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li><strong>资金追踪法：</strong>追踪资金流向</li><li><strong>凭证抽查法：</strong>抽查大额支付凭证</li></ul></div>
-              <div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计依据</div><ul style="font-size:13px;padding-left:16px;line-height:1.8;"><li>《预算法》第53条</li><li>《财政违法行为处罚处分条例》</li></ul></div>
-            </div>
-          </div>
+        <div id="items-empty" style="text-align:center;padding:32px 16px;color:var(--color-text-muted);">
+          <i class="bi bi-robot" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+          <div style="font-size:14px;">点击上方「AI 拆分审计事项」根据项目信息自动生成，或「添加」手动新建</div>
         </div>
       </div>
     </div>
@@ -597,6 +528,9 @@ var Proj = {
   open: function() {
     document.getElementById('view-list').style.display = 'none';
     document.getElementById('view-setup').style.display = 'block';
+    // 进入立项流程：清空审计事项缓存与渲染（editProject 随后会回填已落库事项）
+    this._items = [];
+    this._renderItems([]);
   },
   cancel: function() {
     document.getElementById('view-list').style.display = '';
@@ -656,6 +590,10 @@ var Proj = {
           set('f-unit', p.audited_unit || p.unit); set('f-type', p.audit_type || p.domain);
           set('f-level', p.target_level || p.level); set('f-amount', p.amount);
           set('f-objective', p.objective); set('f-scope', p.scope);
+          // 回填已落库的审计事项
+          var items = (p.audit_items && p.audit_items.length) ? p.audit_items : [];
+          Proj._items = items.slice();
+          Proj._renderItems(items);
         }, 300);
       }, 200);
       AuditWorkbench.toast('项目信息已加载，修改后点保存','info');
@@ -807,7 +745,7 @@ var Proj = {
     setVal('f-extend-unit', e.extend_unit);
     setVal('f-scope', e.scope);
     this.setMode('manual');
-    AuditWorkbench.toast('已用 AI 提取结果填充，请逐页核对修改','success');
+    AuditWorkbench.toast('项目信息已填充，请到【审计事项】点击「AI 拆分审计事项」生成事项','success');
   },
   addMember: function() {
     var n=document.getElementById('member-name').value.trim();
@@ -874,6 +812,115 @@ var Proj = {
     document.getElementById('plan-content').innerHTML=h;
     AuditWorkbench.toast('AI已生成审计实施方案','success');
   },
+  // ── 审计事项：AI 拆分 + 渲染 ──
+  splitItems: function() {
+    var get = function(id){ var el = document.getElementById(id); return el ? (el.value||'').trim() : ''; };
+    var name = get('f-name');
+    if (!name) { AuditWorkbench.toast('请先填写项目名称','warning'); return; }
+    var data = {
+      project_name: name,
+      audit_type: get('f-type'),
+      target_unit: get('f-target-unit') || get('f-unit'),
+      scope: get('f-scope'),
+      objective: get('f-objective'),
+      amount: get('f-amount')
+    };
+    var btn = document.getElementById('btn-split-items');
+    var orig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 拆分中…'; }
+    var self = this;
+    AuditWorkbench.toast('AI 正在根据项目信息拆分审计事项…','info');
+    AuditAPI.projects.splitAuditItems(data).then(function(resp) {
+      if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+      if (!resp || !resp.success) { AuditWorkbench.toast('拆分失败：' + ((resp && resp.error) || '未知错误'), 'error'); return; }
+      var items = resp.audit_items || [];
+      if (!items.length) { AuditWorkbench.toast('AI 未生成有效事项，请补充项目信息后重试','warning'); return; }
+      self._items = items;
+      self._renderItems(items);
+      AuditWorkbench.toast('已拆分 ' + items.length + ' 个审计事项','success');
+    }).catch(function() {
+      if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+      AuditWorkbench.toast('网络错误，请检查后端服务','error');
+    });
+  },
+
+  _priorityBadge: function(p) {
+    if (p === '高') return '<span class="badge badge-accent">高优先级</span>';
+    if (p === '中') return '<span class="badge badge-warning">中优先级</span>';
+    if (p === '低') return '<span class="badge badge-success">低优先级</span>';
+    return '';
+  },
+
+  _listHtml: function(arr) {
+    if (!arr || !arr.length) return '<div style="font-size:13px;color:var(--color-text-muted);">暂无</div>';
+    return '<ul style="font-size:13px;padding-left:16px;line-height:1.8;">' +
+      arr.map(function(x){ return '<li>' + _esc(x) + '</li>'; }).join('') + '</ul>';
+  },
+
+  _buildItemCard: function(it, seq) {
+    var title = _esc(it.title || '未命名事项');
+    var subtitle = _esc(it.subtitle || '');
+    var category = it.category ? '<span class="badge badge-muted">' + _esc(it.category) + '</span> ' : '';
+    var tasks = (it.tasks && it.tasks.length) ? it.tasks : [];
+    var taskRows = tasks.map(function(t, j){
+      var st = t.status || '待启动';
+      var cls = (st.indexOf('完成')>=0) ? 'badge-success' : ((st.indexOf('进行')>=0) ? 'badge-warning' : 'badge-muted');
+      return '<tr><td>' + (j+1) + '</td><td>' + _esc(t.name||'') + '</td><td>' + _esc(t.plan||'') + '</td><td><span class="badge ' + cls + '">' + _esc(st) + '</span></td></tr>';
+    }).join('');
+    var d = document.createElement('div');
+    d.className = 'card';
+    d.style.cssText = 'margin-bottom:var(--space-md);border-left:4px solid var(--color-primary);';
+    d.innerHTML =
+      '<div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="Proj.toggleItem(this)">' +
+        '<span style="font-size:22px;font-weight:700;color:var(--color-primary);width:28px;">' + seq + '.</span>' +
+        '<div style="flex:1;"><strong>' + title + '</strong>' +
+          (subtitle ? '<div style="font-size:13px;color:var(--color-text-muted);">' + subtitle + '</div>' : '') +
+          category + this._priorityBadge(it.priority) + '</div>' +
+        '<i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>' +
+        '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem(\'' + title + '\')"><i class="bi bi-play-fill"></i> 启动分析</button>' +
+      '</div>' +
+      '<div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">' +
+          '<div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见问题表现</div>' + this._listHtml(it.common_problems) + '</div>' +
+          '<div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计所需资料</div>' + this._listHtml(it.required_materials) + '</div>' +
+          '<div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常见违规行为</div>' + this._listHtml(it.common_violations) + '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">' +
+          '<div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 常用审计方法</div>' + this._listHtml(it.audit_methods) + '</div>' +
+          '<div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;"><i class="bi bi-robot"></i> 审计依据</div>' + this._listHtml(it.legal_bases) + '</div>' +
+        '</div>' +
+        '<div style="margin-top:var(--space-md);border-top:1px solid var(--color-border);padding-top:var(--space-md);">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+            '<strong style="font-size:14px;"><i class="bi bi-list-check"></i> 审计事项任务分解</strong>' +
+            '<button class="btn btn-sm btn-outline" onclick="Proj.addTask(this)"><i class="bi bi-plus-lg"></i> 添加任务</button>' +
+          '</div>' +
+          '<div class="table-wrap"><table class="table"><thead><tr><th style="width:40px;">序号</th><th>审计任务</th><th style="width:100px;">计划时间</th><th style="width:80px;">状态</th></tr></thead><tbody>' +
+            (taskRows || '<tr><td colspan="4" style="color:var(--color-text-muted);">暂无任务，点击「添加任务」</td></tr>') +
+          '</tbody></table></div>' +
+        '</div>' +
+      '</div>';
+    return d;
+  },
+
+  _renderItems: function(items) {
+    var box = document.getElementById('audit-items2');
+    if (!box) return;
+    box.innerHTML = '';
+    var list = items || [];
+    if (!list.length) {
+      var e = document.createElement('div');
+      e.id = 'items-empty';
+      e.style.cssText = 'text-align:center;padding:32px 16px;color:var(--color-text-muted);';
+      e.innerHTML = '<i class="bi bi-robot" style="font-size:28px;display:block;margin-bottom:8px;"></i><div style="font-size:14px;">点击上方「AI 拆分审计事项」根据项目信息自动生成，或「添加」手动新建</div>';
+      box.appendChild(e);
+    } else {
+      var self = this;
+      list.forEach(function(it, i){ box.appendChild(self._buildItemCard(it, i + 1)); });
+    }
+    var cnt = document.getElementById('item-count2');
+    if (cnt) cnt.textContent = list.length + ' 个';
+  },
+
   toggleItem: function(el) {
     var detail=el.parentElement.querySelector('.item-detail');
     var icon=el.querySelector('.bi-chevron-down');
@@ -897,13 +944,15 @@ var Proj = {
 
   addItem: function() {
     var n=prompt('审计事项名称:');if(!n)return;
+    if(!this._items) this._items=[];
+    var it={title:n, subtitle:'手动添加', category:'', priority:'中',
+            common_problems:[], required_materials:[], common_violations:[],
+            audit_methods:[], legal_bases:[], tasks:[]};
+    this._items.push(it);
     var c=document.getElementById('audit-items2');
-    var i=c.children.length+1;
-    var d=document.createElement('div');
-    d.className='card';d.style.cssText='margin-bottom:8px;border-left:4px solid var(--color-primary);';
-    d.innerHTML='<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;"><span style="font-size:22px;font-weight:700;color:var(--color-primary);">'+i+'.</span><div style="flex:1;"><strong>'+n+'</strong><div style="font-size:13px;color:var(--color-text-muted);">手动添加</div><span class="badge badge-muted">待分类</span></div><button class="btn btn-sm btn-primary" onclick="Proj.launchItem(\''+n+'\')"><i class="bi bi-play-fill"></i> 启动分析</button></div>';
-    c.appendChild(d);
-    document.getElementById('item-count2').textContent=i+' 个';
+    var empty=document.getElementById('items-empty'); if(empty) empty.remove();
+    c.appendChild(this._buildItemCard(it, this._items.length));
+    document.getElementById('item-count2').textContent=this._items.length+' 个';
   },
   launchItem: function(name) {
     var m=document.createElement('div');
@@ -968,6 +1017,10 @@ var Proj = {
     var afterSave = function(r) {
       if (r && r.success) {
         if (r.project) self._editingProjectId = r.project.id;
+        // 落库审计事项（与项目保存并行，不阻塞返回列表）
+        if (self._editingProjectId && self._items && self._items.length) {
+          AuditAPI.projects.saveItems(self._editingProjectId, self._items).catch(function(){});
+        }
         AuditWorkbench.toast('项目已保存','success');
         self.backToList();
         self.init();  // P1.9: 重新加载项目列表，让新项目立即可见
