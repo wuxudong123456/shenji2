@@ -358,3 +358,28 @@ CREATE TABLE IF NOT EXISTS tt.audit_agent_traces (
     INDEX idx_agent (agent_id),
     INDEX idx_created (created_at)
 ) COMMENT '智能体执行溯源链';
+
+-- ---------------------------------------------------------------------------
+-- 附加表: audit_items — 审计事项（立项拆分）
+-- 每个项目可拆分多个可独立执行的审计事项，含完整核查指引。由
+-- /api/audit/projects/split-audit-items 生成，PUT /api/audit/projects/<id>/items 落库。
+-- 启动时由 register_audit_routes._ensure_audit_items_table() 幂等建表。
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tt.audit_items (
+    id                 INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    project_id         VARCHAR(32)   NOT NULL                COMMENT '关联项目ID',
+    seq                INT           DEFAULT 0               COMMENT '展示顺序',
+    title              VARCHAR(200)  NOT NULL                COMMENT '事项名称',
+    subtitle           VARCHAR(500)                          COMMENT '一句话描述',
+    category           VARCHAR(100)                          COMMENT '分类',
+    priority           VARCHAR(20)                           COMMENT '高/中/低',
+    common_problems    JSON                                  COMMENT '常见问题表现',
+    required_materials JSON                                  COMMENT '审计所需资料',
+    common_violations  JSON                                  COMMENT '常见违规行为',
+    audit_methods      JSON                                  COMMENT '常用审计方法',
+    legal_bases        JSON                                  COMMENT '审计依据',
+    tasks              JSON                                  COMMENT '任务分解[{name,plan,status}]',
+    create_time        DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time        DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_project (project_id)
+) COMMENT '审计事项';

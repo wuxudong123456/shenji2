@@ -143,12 +143,79 @@ def migrate_project_context_columns():
             print(f"[migrate] = {table}.{idx} 已存在，跳过")
 
 
+def migrate_case_indexes():
+    """性能加固 — 案例库查询索引（知识工坊案例列表 + 违规关联聚合提速）
+
+    背景：Excel 导入后 audit_cases 数千行，案例列表接口的
+    ORDER BY created_at DESC、GROUP_CONCAT 关联聚合变慢。
+    补三类索引，幂等：先查 information_schema.statistics。
+    """
+    # 1. audit_cases.created_at（列表 ORDER BY created_at DESC LIMIT n）
+    if not _index_exists("audit_cases", "idx_created_at"):
+        execute(
+            "ALTER TABLE tt.audit_cases ADD INDEX idx_created_at (created_at)",
+            database=DATABASE,
+        )
+        print("[migrate] + audit_cases.idx_created_at 索引")
+    else:
+        print("[migrate] = audit_cases.idx_created_at 已存在，跳过")
+
+    # 2. audit_case_violations.violation_id（违规→案例聚合查询 GROUP BY violation_id）
+    if not _index_exists("audit_case_violations", "idx_violation"):
+        execute(
+            "ALTER TABLE tt.audit_case_violations ADD INDEX idx_violation (violation_id)",
+            database=DATABASE,
+        )
+        print("[migrate] + audit_case_violations.idx_violation 索引")
+    else:
+        print("[migrate] = audit_case_violations.idx_violation 已存在，跳过")
+
+    # 3. audit_case_law_refs.case_id（案例→法规关联 JOIN WHERE cl.case_id = ?）
+    if not _index_exists("audit_case_law_refs", "idx_case"):
+        execute(
+            "ALTER TABLE tt.audit_case_law_refs ADD INDEX idx_case (case_id)",
+            database=DATABASE,
+        )
+        print("[migrate] + audit_case_law_refs.idx_case 索引")
+    else:
+        print("[migrate] = audit_case_law_refs.idx_case 已存在，跳过")
+
+
+def migrate_law_refs_collation():
+    """性能加固 — 关联表 law_id 字符集对齐 audit_law.sys_core_law_allaudit.id
+
+    背景：tt 库 law_id 用 utf8mb4_unicode_ci，audit_law.id 用 utf8mb4_0900_ai_ci，
+    跨库 JOIN 时代码写 COLLATE utf8mb4_0900_ai_ci 转换 → 左列加 COLLATE 使
+    audit_law.id 主键索引失效 → 全表扫描法规表（含大段正文）→ 冷启动 ~2s。
+    把两列 COLLATE 改为 utf8mb4_0900_ai_ci 后 JOIN 可直接用主键索引。幂等。
+    """
+    for table in ("audit_case_law_refs", "audit_violation_law_refs"):
+        rows = query(
+            "SELECT COLLATION_NAME FROM information_schema.columns "
+            "WHERE table_schema = %s AND table_name = %s AND column_name = 'law_id'",
+            (DATABASE, table), database=DATABASE,
+        )
+        collation = rows[0]["COLLATION_NAME"] if rows else None
+        if collation == "utf8mb4_0900_ai_ci":
+            print(f"[migrate] = {table}.law_id 已是 utf8mb4_0900_ai_ci，跳过")
+            continue
+        execute(
+            f"ALTER TABLE {DATABASE}.{table} MODIFY law_id VARCHAR(32) "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL "
+            "COMMENT 'sys_core_law_allaudit.id'",
+            database=DATABASE,
+        )
+        print(f"[migrate] + {table}.law_id COLLATE → utf8mb4_0900_ai_ci")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
         migrate_trace_md5()
         migrate_expression_sql()
         migrate_project_context_columns()
+        migrate_case_indexes()
+        migrate_law_refs_collation()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise

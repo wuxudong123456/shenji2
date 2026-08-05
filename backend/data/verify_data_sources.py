@@ -37,12 +37,12 @@ def main():
         results.append(("MySQL", db_name, ok))
 
     # 关键表行数校验
+    # 注: audit_templates 表已删除（模板源为 YAML 文件），不再校验
     checks = [
         ("sys_core_law_allaudit", "audit_law", 3000),
         ("tools_regulation_relation", "audit_law", 30000),
         ("tools_clause_relation", "audit_law", 90000),
         ("audit_projects", "tt", 0),
-        ("audit_templates", "tt", 1400),
         ("audit_violations", "tt", 2000),
     ]
     for table, db, expected_min in checks:
