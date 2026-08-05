@@ -50,6 +50,7 @@ from services.knowledge_service import (
     search_laws, count_laws, get_law_detail,
     list_potency_levels, list_timeliness_options,
     search_violations, count_violations, get_violation_detail,
+    list_violation_categories,
     get_audititem_children, get_audititem_tree, search_audititems,
 )
 from services.regulation_graph import get_regulation_graph, get_law_clauses
@@ -58,8 +59,102 @@ from services.template_service import list_templates as tmpl_list
 from agents.registry import AgentRegistry
 
 
+# ═══════════════════════════════════════════════════════════
+#  审计事项（audit_items）辅助函数
+# ═══════════════════════════════════════════════════════════
+_JSON_ITEM_FIELDS = (
+    "common_problems", "required_materials", "common_violations",
+    "audit_methods", "legal_bases",
+)
+
+
+def _parse_json_col(v):
+    """JSON 列在 pymysql 中以 str/bytes 返回，解析为 list/dict；None 或已解析则原样返回。"""
+    if v is None or isinstance(v, (list, dict)):
+        return v
+    if isinstance(v, (bytes, bytearray)):
+        v = v.decode("utf-8", errors="ignore")
+    try:
+        return json.loads(v)
+    except Exception:
+        return v
+
+
+def _norm_priority(v) -> str:
+    """priority 归一为 高/中/低，非法值落回 中。"""
+    v = (str(v or "")).strip()
+    return v if v in ("高", "中", "低") else "中"
+
+
+def _item_to_dto(row: dict) -> dict:
+    """audit_items 行 → 前端 item dict（JSON 列解析为 list）。"""
+    d = _clean_row(dict(row)) if row else {}
+    for k in _JSON_ITEM_FIELDS:
+        d[k] = _parse_json_col(d.get(k)) or []
+    tasks = _parse_json_col(d.get("tasks"))
+    d["tasks"] = tasks if isinstance(tasks, list) else []
+    return d
+
+
+def _normalize_items(items) -> list:
+    """规整 LLM 返回的 audit_items：丢弃无标题项；priority 归一；数组字段补 []。"""
+    if not isinstance(items, list):
+        return []
+    out = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        title = (str(it.get("title", "") or "")).strip()
+        if not title:
+            continue
+        clean = {
+            "title": title,
+            "subtitle": (str(it.get("subtitle", "") or "")).strip(),
+            "category": (str(it.get("category", "") or "")).strip(),
+            "priority": _norm_priority(it.get("priority", "")),
+        }
+        for f in _JSON_ITEM_FIELDS:
+            v = it.get(f)
+            clean[f] = v if isinstance(v, list) else []
+        tasks = it.get("tasks")
+        clean["tasks"] = tasks if isinstance(tasks, list) else []
+        out.append(clean)
+    return out
+
+
+def _ensure_audit_items_table():
+    """启动时幂等建表 audit_items（schema.sql 是参考文档非执行脚本，故在此兜底）。"""
+    try:
+        execute(
+            "CREATE TABLE IF NOT EXISTS tt.audit_items ("
+            "id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',"
+            "project_id VARCHAR(32) NOT NULL COMMENT '关联项目ID',"
+            "seq INT DEFAULT 0 COMMENT '展示顺序',"
+            "title VARCHAR(200) NOT NULL COMMENT '事项名称',"
+            "subtitle VARCHAR(500) COMMENT '一句话描述',"
+            "category VARCHAR(100) COMMENT '分类',"
+            "priority VARCHAR(20) COMMENT '高/中/低',"
+            "common_problems JSON COMMENT '常见问题表现',"
+            "required_materials JSON COMMENT '审计所需资料',"
+            "common_violations JSON COMMENT '常见违规行为',"
+            "audit_methods JSON COMMENT '常用审计方法',"
+            "legal_bases JSON COMMENT '审计依据',"
+            "tasks JSON COMMENT '任务分解',"
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',"
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',"
+            "INDEX idx_project (project_id)"
+            ") COMMENT '审计事项'",
+            database="tt",
+        )
+    except Exception:
+        pass  # 建表失败不阻塞路由注册；运行时端点会自然报错暴露问题
+
+
 def register_audit_routes(app):
     """在 Flask app 上注册所有 /api/audit/* 路由"""
+
+    # 启动时幂等建表（audit_items），schema.sql 仅为参考文档
+    _ensure_audit_items_table()
 
     # ═══════════════════════════════════════════════════════════
     #  项目管理
@@ -114,14 +209,25 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/<project_id>", methods=["GET"])
     def audit_project_detail(project_id):
-        """GET /api/audit/projects/<id> — 项目详情（P1.2: 返回立项全字段+旧别名）"""
+        """GET /api/audit/projects/<id> — 项目详情（P1.2: 返回立项全字段+旧别名+审计事项）"""
         row = query_one(
             "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
             (project_id,), database="tt",
         )
         if not row:
             return jsonify({"success": False, "error": "项目不存在"}), 404
-        return jsonify({"success": True, "project": _project_to_dto(row)})
+        dto = _project_to_dto(row)
+        # 附带已落库的审计事项
+        try:
+            _ensure_audit_items_table()
+            item_rows = query(
+                "SELECT * FROM audit_items WHERE project_id = %s ORDER BY seq",
+                (project_id,), database="tt",
+            )
+            dto["audit_items"] = [_item_to_dto(r) for r in item_rows]
+        except Exception:
+            dto["audit_items"] = []
+        return jsonify({"success": True, "project": dto})
 
     @app.route("/api/audit/projects/<project_id>", methods=["PUT"])
     def audit_project_update(project_id):
@@ -223,6 +329,114 @@ def register_audit_routes(app):
         if "error" in result:
             return jsonify({"success": False, "error": result["error"]}), 503
         return jsonify({"success": True, "concerns": result.get("concerns", [])})
+
+    @app.route("/api/audit/projects/split-audit-items", methods=["POST"])
+    def audit_project_split_items():
+        """POST /api/audit/projects/split-audit-items — AI 根据项目信息拆分审计事项
+
+        供 projects.html Tab3「AI 拆分审计事项」按钮使用：读立项表单信息，
+        用 LLM 生成 3-6 个可独立执行的审计事项，每项含完整核查指引
+        （常见问题/所需资料/常见违规/审计方法/审计依据/任务分解）。
+        """
+        data = request.get_json() or {}
+        project_name = (data.get("project_name") or data.get("name") or "").strip()
+        if not project_name:
+            return jsonify({"success": False, "error": "请提供项目名称"}), 400
+
+        from services.llm_client import call_llm_json
+
+        audit_type = (str(data.get("audit_type") or "")).strip()
+        target_unit = (str(data.get("target_unit") or "")).strip()
+        scope = (str(data.get("scope") or "")).strip()
+        objective = (str(data.get("objective") or "")).strip()
+        amount = (str(data.get("amount") or "")).strip()
+
+        system_prompt = (
+            "你是资深政府审计专家。根据审计项目信息，将审计内容拆分为 3-6 个可独立执行的审计事项，"
+            "每个事项给出完整的核查指引。事项必须与该项目的实际业务（审计类型/对象/范围）直接相关，"
+            "紧扣项目主题，不要套用无关领域的模板，不要泛泛而谈。"
+        )
+        prompt = (
+            "根据以下审计项目信息，拆分出 3-6 个审计事项，返回 JSON：\n"
+            "{\n"
+            '  "audit_items": [\n'
+            "    {\n"
+            '      "title": "事项名称（如：采购方式合规性审计）",\n'
+            '      "subtitle": "一句话描述核查内容与重点",\n'
+            '      "category": "分类（与项目审计类型一致）",\n'
+            '      "priority": "高 或 中 或 低",\n'
+            '      "common_problems": ["常见问题表现1", "常见问题表现2"],\n'
+            '      "required_materials": ["审计所需资料1", "审计所需资料2"],\n'
+            '      "common_violations": ["常见违规行为1", "常见违规行为2"],\n'
+            '      "audit_methods": ["审计方法：简要说明（如：合同比对法：比对合同金额与招标门槛）"],\n'
+            '      "legal_bases": ["相关法规依据（如：《招标投标法》第4条 — 禁止化整为零）"],\n'
+            '      "tasks": [{"name": "审计任务名称", "plan": "计划时间（如第1周）", "status": "待启动"}]\n'
+            "    }\n"
+            "  ]\n"
+            "}\n\n"
+            "项目信息：\n"
+            "项目名称：" + project_name + "\n"
+            "审计类型：" + (audit_type or "未指定") + "\n"
+            "审计对象：" + (target_unit or "未指定") + "\n"
+            "审计范围：" + (scope or "未指定") + "\n"
+            "审计目标：" + (objective or "未指定") + "\n"
+            "涉及金额：" + (amount or "未指定") + " 万元\n"
+        )
+
+        result = call_llm_json(prompt, system_prompt=system_prompt, temperature=0.2, timeout=120)
+        if "error" in result:
+            return jsonify({"success": False, "error": result["error"]}), 503
+        items = _normalize_items(result.get("audit_items", []))
+        return jsonify({"success": True, "audit_items": items})
+
+    @app.route("/api/audit/projects/<project_id>/items", methods=["GET"])
+    def audit_project_items_list(project_id):
+        """GET /api/audit/projects/<id>/items — 项目下所有审计事项（按顺序）"""
+        _ensure_audit_items_table()
+        rows = query(
+            "SELECT * FROM audit_items WHERE project_id = %s ORDER BY seq",
+            (project_id,), database="tt",
+        )
+        return jsonify({"success": True, "audit_items": [_item_to_dto(r) for r in rows]})
+
+    @app.route("/api/audit/projects/<project_id>/items", methods=["PUT"])
+    def audit_project_items_save(project_id):
+        """PUT /api/audit/projects/<id>/items — 全量替换项目的审计事项（落库）"""
+        data = request.get_json() or {}
+        items = data.get("audit_items")
+        if not isinstance(items, list):
+            return jsonify({"success": False, "error": "audit_items 必须为数组"}), 400
+
+        _ensure_audit_items_table()
+        row = query_one(
+            "SELECT id FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        # 全量替换：先删后插
+        execute("DELETE FROM audit_items WHERE project_id = %s", (project_id,), database="tt")
+        for seq, it in enumerate(items):
+            it = it if isinstance(it, dict) else {}
+            title = (str(it.get("title", "") or "")).strip() or "未命名事项"
+            insert(
+                "INSERT INTO audit_items (project_id, seq, title, subtitle, category, priority, "
+                "common_problems, required_materials, common_violations, audit_methods, "
+                "legal_bases, tasks) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (project_id, seq, title,
+                 (str(it.get("subtitle", "") or "")).strip(),
+                 (str(it.get("category", "") or "")).strip(),
+                 _norm_priority(it.get("priority", "")),
+                 json.dumps(it.get("common_problems") or [], ensure_ascii=False),
+                 json.dumps(it.get("required_materials") or [], ensure_ascii=False),
+                 json.dumps(it.get("common_violations") or [], ensure_ascii=False),
+                 json.dumps(it.get("audit_methods") or [], ensure_ascii=False),
+                 json.dumps(it.get("legal_bases") or [], ensure_ascii=False),
+                 json.dumps(it.get("tasks") or [], ensure_ascii=False)),
+                database="tt",
+            )
+        return jsonify({"success": True, "count": len(items)})
 
     # ═══════════════════════════════════════════════════════════
     #  文件管理
@@ -430,7 +644,7 @@ def register_audit_routes(app):
 
         project_id = request.args.get("project_id", "")
         page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 20, type=int)
+        per_page = min(request.args.get("per_page", 20, type=int), 200)
         offset = (page - 1) * per_page
 
         where = "WHERE project_id = %s" if project_id else "WHERE 1=1"
@@ -502,17 +716,22 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/knowledge/violations", methods=["GET"])
     def audit_knowledge_violations():
-        """GET /api/audit/knowledge/violations — 违规行为检索"""
+        """GET /api/audit/knowledge/violations — 违规行为检索
+        参数: q/severity/is_reviewed/category/page/per_page
+        返回附带 categories（审计事项分类列表，供下拉框）"""
         q = request.args.get("q", "")
         severity = request.args.get("severity")
         is_reviewed = request.args.get("is_reviewed", type=int)
+        category = request.args.get("category", "")
         page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 50, type=int)
+        per_page = min(request.args.get("per_page", 50, type=int), 200)
         offset = (page - 1) * per_page
 
         rows = search_violations(q, severity=severity, is_reviewed=is_reviewed,
-                                 limit=per_page, offset=offset)
-        total = count_violations(q, severity=severity, is_reviewed=is_reviewed)
+                                 category=category or None, limit=per_page, offset=offset)
+        total = count_violations(q, severity=severity, is_reviewed=is_reviewed,
+                                 category=category or None)
+        categories = list_violation_categories()
 
         return jsonify({
             "success": True,
@@ -520,7 +739,41 @@ def register_audit_routes(app):
             "total": total,
             "page": page,
             "per_page": per_page,
+            "categories": categories,
         })
+
+    @app.route("/api/audit/knowledge/violations/<int:violation_id>", methods=["GET"])
+    def audit_knowledge_violation_detail(violation_id):
+        """GET /api/audit/knowledge/violations/<id> — 违规行为详情
+        （含 audit_procedure/required_data + 关联法规 laws 数组）
+        关联法规从 audit_violation_law_refs 关联 audit_law 法规库，
+        未匹配 law_id 的法规仅返回 law_title。"""
+        detail = get_violation_detail(violation_id)
+        if not detail:
+            return jsonify({"success": False, "error": "违规行为不存在"}), 404
+
+        # 关联法规（跨库 JOIN + COLLATE 解决字符集不一致）
+        laws = query(
+            "SELECT vl.law_id, vl.law_title, vl.clause_ref, l.title, l.potency_level "
+            "FROM tt.audit_violation_law_refs vl "
+            "LEFT JOIN audit_law.sys_core_law_allaudit l "
+            "ON vl.law_id COLLATE utf8mb4_0900_ai_ci = l.id "
+            "WHERE vl.violation_id = %s ORDER BY vl.id",
+            (violation_id,), database="tt",
+        )
+        law_list = []
+        for r in laws:
+            title = r.get("title") or r.get("law_title") or ""
+            if title and not title.startswith("《"):
+                title = f"《{title}》"
+            law_list.append({
+                "law_id": r.get("law_id"),
+                "title": title,
+                "potency_level": r.get("potency_level") or "",
+                "clause_ref": r.get("clause_ref") or "",
+                "matched": bool(r.get("title")),
+            })
+        return jsonify({"success": True, "violation": detail, "laws": law_list})
 
     @app.route("/api/audit/knowledge/regulations", methods=["GET"])
     def audit_knowledge_regulations():
@@ -529,7 +782,7 @@ def register_audit_routes(app):
         potency_level = request.args.get("potency_level")
         timeliness = request.args.get("timeliness")
         page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 50, type=int)
+        per_page = min(request.args.get("per_page", 50, type=int), 200)
         offset = (page - 1) * per_page
 
         rows = search_laws(q, potency_level=potency_level, timeliness=timeliness,
@@ -692,7 +945,7 @@ def register_audit_routes(app):
         domain = request.args.get("domain")
         category = request.args.get("category")
         q = request.args.get("q")
-        limit = request.args.get("limit", 50, type=int)
+        limit = min(request.args.get("limit", 50, type=int), 200)
 
         from services.template_service import search_templates
         if q:

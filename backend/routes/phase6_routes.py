@@ -61,32 +61,52 @@ def register_phase6_routes(app):
 
     @app.route("/api/audit/cases", methods=["GET"])
     def phase6_cases_list():
-        """GET /api/audit/cases — 案例列表"""
+        """GET /api/audit/cases — 案例列表
+        附带每个案例的关联违规名(violation_names) + 关联法规名(law_names)，
+        以及 domains 领域列表（供下拉框）。"""
         q = request.args.get("q", "")
         domain = request.args.get("domain", "")
-        limit = request.args.get("limit", 20, type=int)
+        limit = min(request.args.get("limit", 20, type=int), 200)
         offset = request.args.get("offset", 0, type=int)
 
         clauses = ["1=1"]; params = []
         if q:
-            clauses.append("(title LIKE %s OR case_summary LIKE %s)")
+            clauses.append("(c.title LIKE %s OR c.case_summary LIKE %s)")
             params.extend([f"%{q}%", f"%{q}%"])
         if domain:
-            clauses.append("domain = %s"); params.append(domain)
+            clauses.append("c.domain = %s"); params.append(domain)
 
         where = " AND ".join(clauses)
+        # 关联违规名/法规名（先分页再聚合：内层先取分页行，外层仅对这几行 JOIN 聚合，
+        # 避免 GROUP BY 全量聚合导致冷启动慢；law_id 字符集已对齐，无需 COLLATE）
         rows = query(
-            f"SELECT id, title, domain, case_summary, involved_amount, source, created_at "
-            f"FROM audit_cases WHERE {where} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            f"SELECT c.id, c.title, c.domain, c.case_summary, c.involved_amount, c.source, c.created_at, "
+            f"GROUP_CONCAT(DISTINCT v.violation_title SEPARATOR '、') AS violation_names, "
+            f"GROUP_CONCAT(DISTINCT l.title SEPARATOR '、') AS law_names "
+            f"FROM (SELECT c.id, c.title, c.domain, c.case_summary, c.involved_amount, c.source, c.created_at "
+            f"      FROM audit_cases c WHERE {where} "
+            f"      ORDER BY c.created_at DESC LIMIT %s OFFSET %s) c "
+            f"LEFT JOIN audit_case_violations cv ON cv.case_id = c.id "
+            f"LEFT JOIN audit_violations v ON cv.violation_id = v.id "
+            f"LEFT JOIN audit_case_law_refs cl ON cl.case_id = c.id "
+            f"LEFT JOIN audit_law.sys_core_law_allaudit l ON cl.law_id = l.id "
+            f"GROUP BY c.id ORDER BY MAX(c.created_at) DESC",
             tuple(params) + (limit, offset), database="tt",
         )
         total = query_one(
-            f"SELECT COUNT(*) AS n FROM audit_cases WHERE {where}",
+            f"SELECT COUNT(*) AS n FROM audit_cases c WHERE {where}",
             tuple(params), database="tt",
+        )
+        # 领域列表（供下拉框）
+        domains = query(
+            "SELECT DISTINCT domain FROM audit_cases "
+            "WHERE domain IS NOT NULL AND domain != '' ORDER BY domain",
+            database="tt",
         )
         return jsonify({
             "success": True, "cases": [dict(r) for r in rows],
             "total": total["n"] if total else 0,
+            "domains": [r["domain"] for r in domains],
         })
 
     @app.route("/api/audit/cases/<int:case_id>", methods=["GET"])
@@ -104,10 +124,13 @@ def register_phase6_routes(app):
         )
 
         # 关联法规
+        # 注: audit_case_law_refs 在 tt 库，sys_core_law_allaudit 在 audit_law 库，
+        # 需全限定表名 + COLLATE 解决跨库字符集不一致。
         laws = query(
             "SELECT l.id, l.title, l.potency_level "
-            "FROM audit_case_law_refs cl JOIN sys_core_law_allaudit l ON cl.law_id = l.id "
-            "WHERE cl.case_id = %s", (case_id,), database="audit_law",
+            "FROM tt.audit_case_law_refs cl JOIN audit_law.sys_core_law_allaudit l "
+            "ON cl.law_id COLLATE utf8mb4_0900_ai_ci = l.id "
+            "WHERE cl.case_id = %s", (case_id,), database="tt",
         )
 
         # 同类案例（同领域）

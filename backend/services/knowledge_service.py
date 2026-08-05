@@ -81,8 +81,13 @@ def search_laws(query_text: str = "",
         like_val = f"%{query_text}%"
         params.extend([like_val, like_val])
 
-    sql = (f"SELECT {_LAW_LIST_COLS} FROM {table} "
-           f"WHERE {where} {order} LIMIT %s OFFSET %s")
+    # 附带被违规/案例引用的数量（跨库统计 tt.audit_*_law_refs，供三库跳转）
+    sql = (f"SELECT {_LAW_LIST_COLS}, "
+           f"(SELECT COUNT(*) FROM tt.audit_violation_law_refs vl "
+           f" WHERE vl.law_id COLLATE utf8mb4_0900_ai_ci = {table}.id) AS violation_count, "
+           f"(SELECT COUNT(*) FROM tt.audit_case_law_refs cl "
+           f" WHERE cl.law_id COLLATE utf8mb4_0900_ai_ci = {table}.id) AS case_count "
+           f"FROM {table} WHERE {where} {order} LIMIT %s OFFSET %s")
     params.extend([limit, offset])
 
     rows = query(sql, tuple(params), database="audit_law")
@@ -173,6 +178,7 @@ _VIOLATION_LIST_COLS = (
 def search_violations(query_text: str = "",
                       severity: str = None,
                       is_reviewed: int = None,
+                      category: str = None,
                       limit: int = 50,
                       offset: int = 0) -> list[dict]:
     """违规行为检索
@@ -181,6 +187,7 @@ def search_violations(query_text: str = "",
         query_text: 搜索关键词（匹配标题和描述）
         severity: 严重程度筛选（high/medium/low）
         is_reviewed: 审核状态（0=未审核, 1=已审核）
+        category: 审计事项分类前缀筛选（匹配 category_path，如 业务类-部门预算执行审计）
         limit: 每页条数
         offset: 偏移量
     """
@@ -200,6 +207,10 @@ def search_violations(query_text: str = "",
         clauses.append("is_reviewed = %s")
         params.append(is_reviewed)
 
+    if category:
+        clauses.append("category_path LIKE %s")
+        params.append(f"{category}%")
+
     where = " AND ".join(clauses)
     order = ""
     if query_text:
@@ -208,7 +219,16 @@ def search_violations(query_text: str = "",
         like_val = f"%{query_text}%"
         params.extend([like_val, like_val])
 
-    sql = (f"SELECT {_VIOLATION_LIST_COLS} FROM audit_violations "
+    # 附带每个违规的关联案例数 + 案例 ID 数组（audit_case_violations 统计）
+    sql = (f"SELECT {_VIOLATION_LIST_COLS}, COALESCE(cv.cnt, 0) AS case_count, "
+           f"COALESCE(cv2.case_ids, JSON_ARRAY()) AS case_ids "
+           f"FROM audit_violations "
+           f"LEFT JOIN (SELECT violation_id, COUNT(*) AS cnt "
+           f"           FROM audit_case_violations GROUP BY violation_id) cv "
+           f"ON cv.violation_id = audit_violations.id "
+           f"LEFT JOIN (SELECT violation_id, JSON_ARRAYAGG(case_id) AS case_ids "
+           f"           FROM audit_case_violations GROUP BY violation_id) cv2 "
+           f"ON cv2.violation_id = audit_violations.id "
            f"WHERE {where} {order} LIMIT %s OFFSET %s")
     params.extend([limit, offset])
 
@@ -217,7 +237,8 @@ def search_violations(query_text: str = "",
 
 def count_violations(query_text: str = "",
                      severity: str = None,
-                     is_reviewed: int = None) -> int:
+                     is_reviewed: int = None,
+                     category: str = None) -> int:
     """违规行为计数"""
     clauses = ["deleted = 0"]
     params = []
@@ -235,10 +256,25 @@ def count_violations(query_text: str = "",
         clauses.append("is_reviewed = %s")
         params.append(is_reviewed)
 
+    if category:
+        clauses.append("category_path LIKE %s")
+        params.append(f"{category}%")
+
     where = " AND ".join(clauses)
     row = query_one(f"SELECT COUNT(*) AS n FROM audit_violations WHERE {where}",
                     tuple(params), database="tt")
     return row["n"] if row else 0
+
+
+def list_violation_categories() -> list[str]:
+    """获取违规行为的审计事项分类列表（供前端下拉框筛选）"""
+    rows = query(
+        "SELECT DISTINCT category_path FROM audit_violations "
+        "WHERE deleted = 0 AND category_path IS NOT NULL AND category_path != '' "
+        "ORDER BY category_path",
+        database="tt",
+    )
+    return [r["category_path"] for r in rows]
 
 
 def get_violation_detail(violation_id: int) -> dict | None:
@@ -247,7 +283,14 @@ def get_violation_detail(violation_id: int) -> dict | None:
         "SELECT * FROM audit_violations WHERE id = %s AND deleted = 0",
         (violation_id,), database="tt"
     )
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    # BIT(1) 列由 pymysql 返回 bytes，转成 bool 以便 JSON 序列化
+    for k, v in d.items():
+        if isinstance(v, bytes):
+            d[k] = bool(v and v != b"\x00")
+    return d
 
 
 # ────────────────────────────────────────────────────────────
