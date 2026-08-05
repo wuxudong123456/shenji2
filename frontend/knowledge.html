@@ -39,6 +39,7 @@
       display: flex; gap: var(--space-sm); margin-bottom: var(--space-md);
     }
     .search-bar input { flex: 1; }
+    .load-more-bar { text-align: center; margin: var(--space-md) 0; }
   </style>
 </head>
 <body data-page="knowledge">
@@ -58,42 +59,51 @@
 
       <!-- Tabs -->
       <div class="kw-tabs">
-        <div class="kw-tab active" onclick="KnowledgeWorkshop.switchTab('violations')">⚠️ 违规行为库 <span class="badge badge-muted">2,195</span></div>
-        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('regulations')">⚖️ 审计依据库 <span class="badge badge-muted">400,698</span></div>
-        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('cases')">📚 审计案例库 <span class="badge badge-muted">2,231</span></div>
+        <div class="kw-tab active" onclick="KnowledgeWorkshop.switchTab('violations')">⚠️ 违规行为库 <span class="badge badge-muted" id="violation-count-badge">...</span></div>
+        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('regulations')">⚖️ 审计依据库 <span class="badge badge-muted" id="regulation-count-badge">...</span></div>
+        <div class="kw-tab" onclick="KnowledgeWorkshop.switchTab('cases')">📚 审计案例库 <span class="badge badge-muted" id="case-count-badge">...</span></div>
       </div>
 
       <!-- Panel 1: Violations -->
       <div class="kw-panel active" id="panel-violations">
         <div class="search-bar">
-          <input type="text" class="form-input" placeholder="搜索违规模型名称、关键词..." oninput="KnowledgeWorkshop.filterViolations(this.value)">
-          <select class="form-select" style="width:200px;" onchange="KnowledgeWorkshop.filterViolations()">
-            <option value="">全部领域</option><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option><option>社会保障审计</option><option>固定资产投资审计</option>
+          <input type="text" class="form-input" placeholder="搜索违规模型名称、关键词..." oninput="KnowledgeWorkshop.onSearchInput('violations', this.value)">
+          <select class="form-select" id="violation-category" style="width:240px;" onchange="KnowledgeWorkshop.onCategoryChange(this.value)">
+            <option value="">加载中...</option>
           </select>
         </div>
         <div id="violations-list"></div>
+        <div id="violations-loadmore" class="load-more-bar" style="display:none;">
+          <button class="btn btn-outline kw-loadmore-btn" style="width:100%;" onclick="KnowledgeWorkshop.loadMore('violations')">加载更多</button>
+        </div>
       </div>
 
       <!-- Panel 2: Regulations -->
       <div class="kw-panel" id="panel-regulations">
         <div class="search-bar">
-          <input type="text" class="form-input" placeholder="搜索法规标题、文号、发布单位..." oninput="KnowledgeWorkshop.filterRegulations(this.value)">
-          <select class="form-select" style="width:180px;">
-            <option value="">全部效力级别</option><option>法律</option><option>行政法规</option><option>部门规章</option><option>地方性法规</option>
+          <input type="text" class="form-input" placeholder="搜索法规标题、文号、发布单位..." oninput="KnowledgeWorkshop.onSearchInput('regulations', this.value)">
+          <select class="form-select" id="regulation-potency" style="width:180px;" onchange="KnowledgeWorkshop.onPotencyChange(this.value)">
+            <option value="">加载中...</option>
           </select>
         </div>
         <div id="regulations-list"></div>
+        <div id="regulations-loadmore" class="load-more-bar" style="display:none;">
+          <button class="btn btn-outline kw-loadmore-btn" style="width:100%;" onclick="KnowledgeWorkshop.loadMore('regulations')">加载更多</button>
+        </div>
       </div>
 
       <!-- Panel 3: Cases -->
       <div class="kw-panel" id="panel-cases">
         <div class="search-bar">
-          <input type="text" class="form-input" placeholder="搜索案例关键词...">
-          <select class="form-select" style="width:200px;">
-            <option value="">全部领域</option><option>部门预算执行审计</option><option>农业农村审计</option><option>国有企业审计</option>
+          <input type="text" class="form-input" placeholder="搜索案例关键词..." oninput="KnowledgeWorkshop.onSearchInput('cases', this.value)">
+          <select class="form-select" id="case-category" style="width:240px;" onchange="KnowledgeWorkshop.onCaseCategoryChange(this.value)">
+            <option value="">加载中...</option>
           </select>
         </div>
         <div id="cases-list"></div>
+        <div id="cases-loadmore" class="load-more-bar" style="display:none;">
+          <button class="btn btn-outline kw-loadmore-btn" style="width:100%;" onclick="KnowledgeWorkshop.loadMore('cases')">加载更多</button>
+        </div>
       </div>
 
     </main>
