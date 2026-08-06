@@ -467,11 +467,11 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/extract-info", methods=["POST"])
     def audit_project_extract_info():
-        """POST /api/audit/projects/extract-info — AI 从文本提取项目立项信息
+        """POST /api/audit/projects/extract-info — AI 从文本提取项目立项基本信息
 
-        供 projects.html 的"AI综合分析"使用（原 aiExtract 是前端写死的假数据）。
-        用 LLM 从用户粘贴的文档内容提取项目基本信息 + 审计事项，严格基于文本，
-        提取不到的字段留空（不编造）。
+        供 projects.html 的"AI辅助立项"使用。
+        本功能【只负责审计立项基本信息】——不提取审计对象、审计范围、审计事项
+        （它们在后续阶段分别处理）。严格基于文本，提取不到的字段留空（不编造）。
         """
         data = request.get_json() or {}
         text = (data.get("text") or "").strip()
@@ -481,12 +481,13 @@ def register_audit_routes(app):
         from services.llm_client import call_llm_json
 
         system_prompt = (
-            "你是审计项目立项助手。从用户提供的文档内容中提取项目立项信息。"
+            "你是审计项目立项助手。从用户提供的文档内容中提取【审计立项基本信息】。"
             "严格基于文本内容，提取不到的字段留空字符串，不要编造。"
-            "审计事项根据项目类型合理推断 3-5 个核查方向。"
+            "只提取立项基本信息，不要推断审计对象、审计范围或审计事项——它们由后续独立功能处理。"
         )
         prompt = (
-            "请从以下审计文档内容中提取项目立项信息，返回 JSON（提取不到的字段留空字符串）：\n"
+            "请从以下审计文档内容中提取【审计立项基本信息】，返回 JSON（提取不到的字段留空字符串）：\n"
+            "只提取以下字段，不要返回 audit_items / scope / target_unit / extend_unit：\n"
             "{\n"
             '  "project_code": "项目编号，如审通〔2026〕001号",\n'
             '  "project_name": "项目名称",\n'
@@ -497,10 +498,8 @@ def register_audit_routes(app):
             '  "entry_date": "进点日期 YYYY-MM-DD",\n'
             '  "amount": "涉及金额（万元，纯数字字符串）",\n'
             '  "level": "单位层级（省级/市级/县级 之一）",\n'
-            '  "target_unit": "审计对象",\n'
-            '  "extend_unit": "延伸审计单位",\n'
-            '  "scope": "审计范围描述",\n'
-            '  "audit_items": ["审计事项1：核查方向", "审计事项2", "审计事项3"]\n'
+            '  "business_start": "业务发生期间起始 YYYY-MM-DD（如可提取）",\n'
+            '  "business_end": "业务发生期间结束 YYYY-MM-DD（如可提取）"\n'
             "}\n\n文档内容：\n" + text[:3000]
         )
 

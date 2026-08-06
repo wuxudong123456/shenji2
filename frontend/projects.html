@@ -354,7 +354,7 @@
     <div class="card" id="zone-ai" style="display:none;border:2px solid var(--color-primary);">
       <div class="card-header"><h3><i class="bi bi-magic"></i> AI辅助立项</h3></div>
       <div class="alert alert-info" style="font-size:13px;">
-        上传审计相关文档（审计通知书、审前调查资料、被审计单位情况介绍、实施方案等），或粘贴文档内容。AI将自动分析并完成：<strong>项目基本信息 + 审计对象和范围 + 审计事项抽取</strong>。
+        上传审计相关文档（审计通知书、审前调查资料、被审计单位情况介绍、实施方案等），或粘贴文档内容。AI将自动分析并完成：<strong>审计立项基本信息</strong>（审计对象和范围、审计事项请在后续步骤分别处理）。
       </div>
 
       <!-- File upload -->
@@ -375,7 +375,7 @@
 
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
         <button class="btn btn-accent btn-lg" onclick="Proj.aiExtract()"><i class="bi bi-magic"></i> AI综合分析</button>
-        <span style="font-size:13px;color:var(--color-text-muted);">自动完成：项目基本信息 + 审计对象和范围 + 审计事项拆分</span>
+        <span style="font-size:13px;color:var(--color-text-muted);">自动提取：审计立项基本信息</span>
       </div>
 
       <div id="ai-result" style="display:none;margin-top:12px;padding:12px;background:rgba(45,125,70,0.06);border-radius:var(--radius-md);border:1px solid var(--color-success);">
@@ -746,19 +746,19 @@ var Proj = {
 
   confirmAi: function() {
     var e = this._aiResult || {};
-    var setVal = function(id, v){ var el = document.getElementById(id); if(el) el.value = v||''; };
-    setVal('f-code', e.project_code);
-    setVal('f-name', e.project_name);
-    setVal('f-unit', e.audited_unit);
-    if(e.audit_type) setVal('f-type', e.audit_type);
-    setVal('f-entry-date', e.entry_date);
-    setVal('f-amount', e.amount);
-    setVal('f-level', e.level);
-    setVal('f-target-unit', e.target_unit);
-    setVal('f-extend-unit', e.extend_unit);
-    setVal('f-scope', e.scope);
+    // 只填充 AI 提取到且有值的字段（避免覆盖表单默认值）
+    var setIf = function(id, v){ if(v) { var el = document.getElementById(id); if(el) el.value = v; } };
+    setIf('f-code', e.project_code);
+    setIf('f-name', e.project_name);
+    setIf('f-unit', e.audited_unit);
+    setIf('f-type', e.audit_type);
+    setIf('f-entry-date', e.entry_date);
+    setIf('f-amount', e.amount);
+    setIf('f-level', e.level);
+    setIf('f-business-start', e.business_start);
+    setIf('f-business-end', e.business_end);
     this.setMode('manual');
-    AuditWorkbench.toast('项目信息已填充，请到【审计事项】点击「AI 拆分审计事项」生成事项','success');
+    AuditWorkbench.toast('立项基本信息已填充，请点击「保存项目」后，到【审计对象和范围】填写，再到【审计事项】拆分','success');
   },
   addMember: function() {
     var n=document.getElementById('member-name').value.trim();
@@ -1073,9 +1073,8 @@ var Proj = {
     var afterSave = function(r) {
       if (r && r.success) {
         if (r.project) self._editingProjectId = r.project.id;
-        AuditWorkbench.toast('基础信息已保存','success');
-        self.backToList();
-        self.init();
+        self.init();  // 后台刷新列表，不离开当前表单
+        AuditWorkbench.toast('✓ 基础信息已保存，可继续填写【审计对象和范围】','success');
       } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     };
     if (self._editingProjectId) {
@@ -1103,7 +1102,7 @@ var Proj = {
     if (!data.scope) { AuditWorkbench.toast('请填写审计范围','warning'); return; }
     var self = this;
     AuditAPI.projects.saveTargetScope(this._editingProjectId, data).then(function(r){
-      if (r && r.success) { AuditWorkbench.toast('对象和范围已保存','success'); self.backToList(); self.init(); }
+      if (r && r.success) { self.init(); AuditWorkbench.toast('✓ 对象和范围已保存，可继续【审计事项】','success'); }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   },
@@ -1115,7 +1114,7 @@ var Proj = {
     if (!items.length) { AuditWorkbench.toast('没有可保存的审计事项','warning'); return; }
     var self = this;
     AuditAPI.projects.saveItems(this._editingProjectId, items).then(function(r){
-      if (r && r.success) { AuditWorkbench.toast('审计事项已保存','success'); self.backToList(); self.init(); }
+      if (r && r.success) { self.init(); AuditWorkbench.toast('✓ 审计事项已保存','success'); }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   }
