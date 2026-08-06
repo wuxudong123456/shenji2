@@ -314,9 +314,10 @@
 <div id="view-setup" class="p-setup">
   <div class="page-header"><div><h1><i class="bi bi-plus-circle"></i> 审计项目立项</h1>
   <div class="breadcrumb">依据《国家审计准则》· 审计立项 → 审计对象和范围 → 审计事项 → 督办提醒</div></div>
-  <div>
-    <button class="btn btn-primary" onclick="Proj.save()"><i class="bi bi-save"></i> 保存项目</button>
-    <button class="btn btn-outline" onclick="Proj.cancel()"><i class="bi bi-x-lg"></i></button>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="btn btn-primary" onclick="Proj.save()"><i class="bi bi-save"></i> 保存当前阶段</button>
+    <span id="save-status" style="font-size:13px;color:var(--color-success);"></span>
+    <button class="btn btn-outline" onclick="Proj.cancel()"><i class="bi bi-x-lg"></i> 返回列表</button>
   </div></div>
 
   <!-- Tabs：国家审计准则流程 -->
@@ -445,22 +446,15 @@
     <div class="card"><div class="card-header"><h3>审计对象和范围 <span class="text-danger">*</span></h3></div>
       <div class="form-group"><label class="form-label">审计对象</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
-          <input class="form-input" id="f-target-unit" placeholder="被审计单位全称（如：某市教育局）" value="某市教育局">
-          <input class="form-input" id="f-extend-unit" placeholder="延伸审计单位（如：下属XX等X家二级单位）" value="下属招生办、教研室等5家二级单位">
+          <input class="form-input" id="f-target-unit" placeholder="被审计单位全称（如：某市教育局）">
+          <input class="form-input" id="f-extend-unit" placeholder="延伸审计单位（如：下属XX等X家二级单位）">
         </div>
       </div>
       <div class="form-group"><label class="form-label">审计范围描述 <span class="text-danger">*</span></label>
-        <textarea class="form-textarea" id="f-scope" rows="10" style="font-size:14px;line-height:1.8;">本次审计针对某市教育局2026年1月至6月预算执行情况及教学设备采购合规性进行审计，重点关注采购程序、资金使用和供应商管理等方面，必要时追溯到相关年度和延伸审计有关单位。
-
-按照"全面审计、聚焦重点"的工作原则，结合被审计单位预算规模、采购体量、业务特点等因素，确定此次审计对象为某市教育局本部及下属招生办、教研室等5家二级单位。
-
-延伸审计本实施方案以外的单位或事项，需报经审计组组长或其委托人员批准，并填报延伸审计台账。</textarea></div>
+        <textarea class="form-textarea" id="f-scope" rows="10" style="font-size:14px;line-height:1.8;" placeholder="描述本次审计的时间范围、单位范围、资金范围及重点核查内容。例如：对某单位2026年1月至6月预算执行及采购合规情况进行审计，重点关注采购程序、资金使用和供应商管理等。"></textarea></div>
       <div class="form-group"><label class="form-label">审计重点</label>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="focus-tags">
-          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">采购程序合规性<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
-          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">资金使用合规性<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
-          <span class="badge badge-accent" style="padding:6px 12px;font-size:13px;">供应商管理<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
-          <span class="badge badge-warning" style="padding:6px 12px;font-size:13px;">预算编制与执行<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i></span>
+          <span class="text-muted" style="font-size:12px;">（在下方输入审计重点并点「添加」，保存后随项目持久化，供 AI 匹配违规模型参考）</span>
         </div>
         <div style="display:flex;gap:8px;">
           <input class="form-input" placeholder="添加审计重点" id="focus-input" onkeydown="if(event.key==='Enter'){Proj.addFocus();event.preventDefault();}">
@@ -546,11 +540,13 @@ var Proj = {
     this._activeTab = 1;
     this._gatedTabs = 4;
     this._editingProjectId = null;
+    this._setSaveStatus('');
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab){ tab.style.opacity=''; tab.style.cursor=''; });
   },
   cancel: function() {
     document.getElementById('view-list').style.display = '';
     document.getElementById('view-setup').style.display = 'none';
+    this._setSaveStatus('');
   },
   resume: function(n) { this.showDetail(n); },
 
@@ -1058,6 +1054,12 @@ var Proj = {
     location.href='analysis.html';
   },
   // ── T8: 分阶段保存 ──
+  /** 保存状态指示（按钮旁持久显示） */
+  _setSaveStatus: function(msg) {
+    var el = document.getElementById('save-status');
+    if (el) el.textContent = msg || '';
+  },
+
   /** 保存当前 Tab 对应阶段 */
   save: function() {
     var active = this._activeTab || 1;
@@ -1088,7 +1090,9 @@ var Proj = {
       if (r && r.success) {
         if (r.project) self._editingProjectId = r.project.id;
         self.init();  // 后台刷新列表，不离开当前表单
-        AuditWorkbench.toast('✓ 基础信息已保存，可继续填写【审计对象和范围】','success');
+        self._setSaveStatus('✓ 基础信息已保存');
+        AuditWorkbench.toast('✓ 基础信息已保存，已进入【审计对象和范围】','success');
+        if (self._gatedTabs >= 2) self.tab(2);  // 自动进入下一步
       } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     };
     if (self._editingProjectId) {
@@ -1116,7 +1120,12 @@ var Proj = {
     if (!data.scope) { AuditWorkbench.toast('请填写审计范围','warning'); return; }
     var self = this;
     AuditAPI.projects.saveTargetScope(this._editingProjectId, data).then(function(r){
-      if (r && r.success) { self.init(); AuditWorkbench.toast('✓ 对象和范围已保存，可继续【审计事项】','success'); }
+      if (r && r.success) {
+        self.init();
+        self._setSaveStatus('✓ 对象和范围已保存');
+        AuditWorkbench.toast('✓ 对象和范围已保存，已进入【审计事项】','success');
+        if (self._gatedTabs >= 3) self.tab(3);  // 自动进入下一步
+      }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   },
@@ -1128,7 +1137,11 @@ var Proj = {
     if (!items.length) { AuditWorkbench.toast('没有可保存的审计事项','warning'); return; }
     var self = this;
     AuditAPI.projects.saveItems(this._editingProjectId, items).then(function(r){
-      if (r && r.success) { self.init(); AuditWorkbench.toast('✓ 审计事项已保存','success'); }
+      if (r && r.success) {
+        self.init();
+        self._setSaveStatus('✓ 审计事项已保存');
+        AuditWorkbench.toast('✓ 审计事项已保存，可返回列表或继续调整','success');
+      }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   }
