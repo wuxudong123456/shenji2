@@ -428,6 +428,14 @@
             placeholder="如：通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理、提高资金使用效益。"></textarea></div>
         <button class="btn btn-primary" onclick="Proj.aiParse()"><i class="bi bi-magic"></i> AI辅助生成审计目标</button>
       </div>
+
+      <!-- 项目背景（上级任务原文，供后续 AI 分析作为上下文） -->
+      <div class="card"><div class="card-header"><h3>项目背景</h3></div>
+        <div class="form-group">
+          <textarea class="form-textarea" id="f-background" rows="4" style="font-size:14px;"
+            placeholder="粘贴上级下达的任务原文 / 审计通知书等，作为项目背景，供后续 AI 分析参考（可留空）。使用「AI辅助立项」粘贴的文本会自动保留到这里。"></textarea>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -498,6 +506,7 @@
       <button class="btn btn-sm btn-primary" id="btn-split-items" onclick="Proj.splitItems()"><i class="bi bi-robot"></i> AI 拆分审计事项</button>
       <button class="btn btn-sm btn-outline" onclick="Proj.addItem()"><i class="bi bi-plus-lg"></i> 添加</button></div>
       <div class="alert alert-info" style="font-size:13px;"><i class="bi bi-robot"></i> AI根据项目信息自动拆分审计事项。点击展开查看AI推荐和审计任务分解。点击"启动分析"进入智能分析流程。</div>
+      <div class="alert alert-warning" style="font-size:13px;"><i class="bi bi-lightbulb"></i> 审计事项可随时<b>追加、延伸、修改</b>，不受立项阶段限制——分析过程中发现新问题，可回到此处新增延伸事项。</div>
       <div id="audit-items2">
         <div id="items-empty" style="text-align:center;padding:32px 16px;color:var(--color-text-muted);">
           <i class="bi bi-robot" style="font-size:28px;display:block;margin-bottom:8px;"></i>
@@ -599,6 +608,7 @@ var Proj = {
           set('f-unit', p.audited_unit || p.unit); set('f-type', p.audit_type || p.domain);
           set('f-level', p.target_level || p.level); set('f-amount', p.amount);
           set('f-objective', p.objective); set('f-scope', p.scope);
+          set('f-background', p.description);
           // T8: 业务发生期间 / 审计对象 / 延伸单位 / 审计重点
           set('f-business-start', p.business_start_date); set('f-business-end', p.business_end_date);
           set('f-target-unit', p.target_unit); set('f-extend-unit', p.extend_unit);
@@ -681,6 +691,9 @@ var Proj = {
   aiExtract: function() {
     var text = document.getElementById('ai-paste').value.trim();
     if(!text) return AuditWorkbench.toast('请先粘贴文档内容或上传文件','warning');
+    // 任务背景：把粘贴的原文保留到「项目背景」字段（不覆盖已有内容），供后续 AI 分析作为上下文
+    var bg = document.getElementById('f-background');
+    if(bg && !bg.value.trim()) bg.value = text;
 
     var resultDiv = document.getElementById('ai-result');
     var fieldsDiv = document.getElementById('ai-fields');
@@ -1063,6 +1076,7 @@ var Proj = {
       audit_method: get('f-method'), target_level: get('f-level'),
       audit_period: get('f-period-start') + '至' + get('f-period-end'),
       amount: get('f-amount') || null, objective: get('f-objective'),
+      description: get('f-background'),
       business_start_date: get('f-business-start') || null,
       business_end_date: get('f-business-end') || null,
       start_date: get('f-start') || null,
