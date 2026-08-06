@@ -37,15 +37,23 @@ def _project_to_dto(row: dict | None) -> dict:
 
     P1.2: 立项全字段（project_code/audited_unit/audit_type/target_level/...）是新权威字段，
     同时保留旧别名让前端老代码（读 title/unit/domain/level）不破。
+    P1.x: setup_stage 随行返回，缺失时默认 basic。
     """
     d = _clean_row(dict(row)) if row else {}
     d["title"] = d.get("name", "")
     d["unit"] = d.get("audited_unit", "") or ""
     d["domain"] = d.get("audit_type", "") or ""
     d["level"] = d.get("target_level", "") or ""
+    d["setup_stage"] = d.get("setup_stage") or "basic"
     return d
 
+
+def _stage_enrich(dto: dict) -> dict:
+    """附加 allowed_actions / missing_fields（供前端切换 Tab/按钮）"""
+    return plc.enrich(dto)
+
 from services.db import query, query_one, execute, insert
+from services import project_lifecycle as plc
 from services.knowledge_service import (
     search_laws, count_laws, get_law_detail,
     list_potency_levels, list_timeliness_options,
@@ -171,41 +179,43 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects", methods=["POST"])
     def audit_projects_create():
-        """POST /api/audit/projects — 创建项目（P1.2: 接收立项全字段）"""
+        """POST /api/audit/projects — 创建项目（P1.2 兼容立项全字段；P1-1/2/3: 只存基础信息、draft、不建 bucket）
+
+        兼容旧格式：越阶段字段（scope/target_unit/items 等）被忽略，不报错。
+        bucket 延迟到 finalize 创建（PHASE_1 P1-8），此处仅预生成名称返回。
+        """
         data = request.get_json() or {}
-        name = data.get("name", "").strip()
+        # P1-3: 基础字段白名单过滤（越阶段字段丢弃）
+        basic = plc.filter_fields("basic", data)
+        name = (basic.get("name") or "").strip()
         if not name:
             return jsonify({"success": False, "error": "项目名称不能为空"}), 400
 
         pid = str(uuid.uuid4()).replace("-", "")[:12]
         minio_bucket = f"audit-project-{pid}"
-        # P1.2: 立项业务字段（向后兼容，旧调用不传则为 NULL）
+        # P1-2: status='draft'，不建 bucket（P1-1）
         insert(
             "INSERT INTO audit_projects (id, name, description, audit_period, "
             "minio_bucket, status, creator, create_time, "
             "project_code, audited_unit, audit_type, audit_method, target_level, "
-            "leader, auditor, objective, scope, amount) "
-            "VALUES (%s,%s,%s,%s, %s,'active','system',NOW(), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (pid, name, data.get("description", ""), data.get("audit_period", ""),
+            "leader, auditor, objective, scope, amount, "
+            "business_start_date, business_end_date, start_date, entry_date, setup_stage) "
+            "VALUES (%s,%s,%s,%s, %s,'draft','system',NOW(), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,'basic')",
+            (pid, basic.get("name", ""), basic.get("description", ""), basic.get("audit_period", ""),
              minio_bucket,
-             data.get("project_code", ""), data.get("audited_unit", ""),
-             data.get("audit_type", ""), data.get("audit_method", ""),
-             data.get("target_level", ""), data.get("leader", ""), data.get("auditor", ""),
-             data.get("objective", ""), data.get("scope", ""), data.get("amount") or None),
+             basic.get("project_code", ""), basic.get("audited_unit", ""),
+             basic.get("audit_type", ""), basic.get("audit_method", ""),
+             basic.get("target_level", ""), basic.get("leader", ""), basic.get("auditor", ""),
+             basic.get("objective", ""), basic.get("scope", ""), basic.get("amount") or None,
+             basic.get("business_start_date") or None, basic.get("business_end_date") or None,
+             basic.get("start_date") or None, basic.get("entry_date") or None),
             database="tt",
         )
 
-        # 尝试创建 MinIO bucket
-        try:
-            from services.minio_client import get_client
-            client = get_client()
-            if not client.bucket_exists(minio_bucket):
-                client.make_bucket(minio_bucket)
-        except Exception:
-            pass  # MinIO 不可用时仍创建项目记录
-
         row = query_one("SELECT * FROM audit_projects WHERE id = %s", (pid,), database="tt")
-        return jsonify({"success": True, "project": _project_to_dto(row), "bucket": minio_bucket})
+        dto = _stage_enrich(_project_to_dto(row))
+        # 兼容旧格式：仍返回 bucket（预生成名，未实际创建）
+        return jsonify({"success": True, "project": dto, "bucket": minio_bucket})
 
     @app.route("/api/audit/projects/<project_id>", methods=["GET"])
     def audit_project_detail(project_id):
@@ -231,12 +241,23 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/<project_id>", methods=["PUT"])
     def audit_project_update(project_id):
-        """PUT /api/audit/projects/<id> — 更新立项信息（P1.2 新增）"""
+        """PUT /api/audit/projects/<id> — 更新立项信息（P1.2 兼容 + P1-3: 按当前 setup_stage 白名单过滤）
+
+        越阶段字段（如 basic 阶段提交 scope）被忽略，不报错（兼容旧前端灰度）。
+        focus 为 JSON 列，list/dict 入参序列化。
+        """
         data = request.get_json() or {}
-        allowed = ["name", "description", "audit_period", "project_code", "audited_unit",
-                   "audit_type", "audit_method", "target_level", "leader", "auditor",
-                   "objective", "scope", "amount"]
-        updates = {k: data.get(k) for k in allowed if k in data}
+        row = query_one(
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        stage = row.get("setup_stage") or "basic"
+        updates = plc.filter_fields(stage, data)
+        if "audit_focus" in updates and isinstance(updates["audit_focus"], (list, dict)):
+            updates["audit_focus"] = json.dumps(updates["audit_focus"], ensure_ascii=False)
         if not updates:
             return jsonify({"success": False, "error": "没有可更新字段"}), 400
         set_clauses = ", ".join(f"{k} = %s" for k in updates)
@@ -247,9 +268,193 @@ def register_audit_routes(app):
             params, database="tt",
         )
         row = query_one("SELECT * FROM audit_projects WHERE id = %s", (project_id,), database="tt")
+        return jsonify({"success": True, "project": _stage_enrich(_project_to_dto(row))})
+
+    @app.route("/api/audit/projects/<project_id>/target-scope", methods=["PUT"])
+    def audit_project_target_scope(project_id):
+        """PUT /api/audit/projects/<id>/target-scope — 保存审计对象和范围（P1-4）
+
+        校验：项目存在；setup_stage ≤ target_scope（推进到 items 后不允许回改）；scope 必填。
+        从 basic 首次保存时推进 setup_stage 到 target_scope。
+        持久化 scope/target_unit/extend_unit/focus（决策 4 确认）。
+        """
+        data = request.get_json() or {}
+        row = query_one(
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
         if not row:
             return jsonify({"success": False, "error": "项目不存在"}), 404
-        return jsonify({"success": True, "project": _project_to_dto(row)})
+
+        stage = row.get("setup_stage") or "basic"
+        if plc.stage_index(stage) > plc.stage_index("target_scope"):
+            return jsonify({
+                "success": False,
+                "error": "当前阶段不允许修改对象范围",
+                "setup_stage": stage,
+            }), 409
+
+        fields = plc.filter_fields("target_scope", data)
+        scope = (fields.get("scope") or "").strip()
+        if not scope:
+            return jsonify({
+                "success": False,
+                "error": "审计范围必填",
+                "missing_fields": ["scope"],
+            }), 409
+        # focus 为 JSON 列，list/dict 入参序列化
+        if "audit_focus" in fields and isinstance(fields["audit_focus"], (list, dict)):
+            fields["audit_focus"] = json.dumps(fields["audit_focus"], ensure_ascii=False)
+
+        set_clauses = ", ".join(f"{k} = %s" for k in fields)
+        params = list(fields.values())
+        execute(
+            f"UPDATE audit_projects SET {set_clauses}, setup_stage = 'target_scope', "
+            f"update_time = NOW() WHERE id = %s AND deleted = 0",
+            params + [project_id], database="tt",
+        )
+        row = query_one("SELECT * FROM audit_projects WHERE id = %s", (project_id,), database="tt")
+        return jsonify({"success": True, "project": _stage_enrich(_project_to_dto(row))})
+
+    @app.route("/api/audit/projects/<project_id>/workspace/finalize", methods=["POST"])
+    def audit_project_finalize(project_id):
+        """POST /api/audit/projects/<id>/workspace/finalize — 创建资料空间并激活项目（P1-8/9）
+
+        校验：setup_stage ≥ items 且 ≥1 项已确认审计事项（check_stage，P1-5 复用）。
+        幂等：已激活（status=active 且 workspace_created_at 非空）直接返回，不重复建 bucket。
+        bucket：预生成名或已有 minio_bucket；MinIO 失败则不进入 active。
+        """
+        row = query_one(
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        # P1-9 幂等：已激活直接返回
+        if row.get("status") == "active" and row.get("workspace_created_at"):
+            return jsonify({
+                "success": True,
+                "project": _stage_enrich(_project_to_dto(row)),
+                "message": "已激活，幂等返回",
+            })
+
+        # 阶段检查（P1-5）：至少 items 阶段且事项数 ≥1
+        _ensure_audit_items_table()
+        cnt = query_one(
+            "SELECT COUNT(*) AS n FROM audit_items WHERE project_id = %s",
+            (project_id,), database="tt",
+        )
+        item_count = cnt["n"] if cnt else 0
+        ok, missing = plc.check_stage(row, "items", item_count)
+        if not ok:
+            return jsonify({
+                "success": False,
+                "error": "前置阶段未完成，不能创建资料空间",
+                "setup_stage": row.get("setup_stage") or "basic",
+                "missing_fields": missing,
+            }), 409
+
+        # 创建 bucket（幂等）
+        minio_bucket = row.get("minio_bucket") or f"audit-project-{project_id}"
+        try:
+            from services.minio_client import get_client
+            client = get_client()
+            if not client.bucket_exists(minio_bucket):
+                client.make_bucket(minio_bucket)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"资料空间创建失败: {e}"}), 500
+
+        execute(
+            "UPDATE audit_projects SET status = 'active', setup_stage = 'workspace', "
+            "workspace_created_at = NOW(), update_time = NOW() "
+            "WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        row = query_one("SELECT * FROM audit_projects WHERE id = %s", (project_id,), database="tt")
+        return jsonify({
+            "success": True,
+            "project": _stage_enrich(_project_to_dto(row)),
+            "minio_bucket": minio_bucket,
+        })
+
+    @app.route("/api/audit/projects/migrate-stages", methods=["POST"])
+    def audit_projects_migrate_stages():
+        """POST /api/audit/projects/migrate-stages — 存量项目阶段推断（P1-10，决策 5）
+
+        只扫描 setup_stage=basic 的项目（已有阶段不动）。推断规则（优先级高到低）：
+          - MinIO bucket 实际存在 → workspace
+          - 有 audit_items → items
+          - 有 scope → target_scope
+          - 否则 → basic
+        返回待人工确认清单，**不改库**。
+        """
+        rows = query("SELECT * FROM audit_projects WHERE deleted = 0", database="tt")
+        _ensure_audit_items_table()
+        from services.minio_client import get_client
+        client = get_client()
+        candidates = []
+        for p in rows:
+            cur = p.get("setup_stage") or "basic"
+            if cur != "basic":
+                continue  # 已有阶段的不动
+            pid = p["id"]
+            bucket = p.get("minio_bucket") or f"audit-project-{pid}"
+            bucket_exists = False
+            try:
+                bucket_exists = client.bucket_exists(bucket)
+            except Exception:
+                pass
+            if bucket_exists:
+                inferred = "workspace"
+            else:
+                cnt = query_one(
+                    "SELECT COUNT(*) AS n FROM audit_items WHERE project_id = %s",
+                    (pid,), database="tt",
+                )
+                if cnt and cnt["n"] > 0:
+                    inferred = "items"
+                elif (p.get("scope") or "").strip():
+                    inferred = "target_scope"
+                else:
+                    inferred = "basic"
+            candidates.append({
+                "id": pid,
+                "name": p.get("name", ""),
+                "status": p.get("status", ""),
+                "current_stage": cur,
+                "inferred_stage": inferred,
+            })
+        return jsonify({"success": True, "candidates": candidates, "count": len(candidates)})
+
+    @app.route("/api/audit/projects/migrate-stages/confirm", methods=["POST"])
+    def audit_projects_migrate_confirm():
+        """POST /api/audit/projects/migrate-stages/confirm — 批量确认推断结果（P1-10）
+
+        body: {"updates":[{"id":"...","setup_stage":"items"}, ...]}
+        推断为 workspace 的项目，若原 status 非 active 则一并激活并记录 workspace_created_at。
+        """
+        data = request.get_json() or {}
+        updates = data.get("updates") or []
+        applied = 0
+        for u in updates:
+            pid = u.get("id")
+            stage = u.get("setup_stage")
+            if not pid or stage not in plc.STAGES:
+                continue
+            execute(
+                "UPDATE audit_projects SET setup_stage = %s, update_time = NOW() "
+                "WHERE id = %s AND deleted = 0",
+                (stage, pid), database="tt",
+            )
+            if stage == "workspace":
+                execute(
+                    "UPDATE audit_projects SET status = 'active', workspace_created_at = NOW() "
+                    "WHERE id = %s AND deleted = 0 AND status != 'active'",
+                    (pid,), database="tt",
+                )
+            applied += 1
+        return jsonify({"success": True, "applied": applied})
 
     @app.route("/api/audit/projects/<project_id>", methods=["DELETE"])
     def audit_project_delete(project_id):
@@ -409,11 +614,23 @@ def register_audit_routes(app):
 
         _ensure_audit_items_table()
         row = query_one(
-            "SELECT id FROM audit_projects WHERE id = %s AND deleted = 0",
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
             (project_id,), database="tt",
         )
         if not row:
             return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        # P1-7 乐观锁：可选 expected_update_time，不匹配 → 409（并发覆盖防护；旧前端不传则跳过）
+        expected = data.get("expected_update_time")
+        if expected:
+            cur_ut = row.get("update_time")
+            cur_str = cur_ut.isoformat() if hasattr(cur_ut, "isoformat") else str(cur_ut or "")
+            if cur_str and expected != cur_str:
+                return jsonify({
+                    "success": False,
+                    "error": "项目已被他人修改，请刷新后重试",
+                    "current_update_time": cur_str,
+                }), 409
 
         # 全量替换：先删后插
         execute("DELETE FROM audit_items WHERE project_id = %s", (project_id,), database="tt")
@@ -436,6 +653,15 @@ def register_audit_routes(app):
                  json.dumps(it.get("tasks") or [], ensure_ascii=False)),
                 database="tt",
             )
+        # P1-7：保存事项后推进 setup_stage 到 items（仅向前；finalize 负责最终校验）
+        if items:
+            cur_stage = row.get("setup_stage") or "basic"
+            if plc.stage_index(cur_stage) < plc.stage_index("items"):
+                execute(
+                    "UPDATE audit_projects SET setup_stage = 'items', update_time = NOW() "
+                    "WHERE id = %s AND deleted = 0",
+                    (project_id,), database="tt",
+                )
         return jsonify({"success": True, "count": len(items)})
 
     # ═══════════════════════════════════════════════════════════
