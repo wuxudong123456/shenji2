@@ -45,6 +45,18 @@ var AuditAPI = {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/items', {
         method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({audit_items: items})
       }).then(function(r) { return r.json(); });
+    },
+    // P1-4: 保存审计对象和范围（scope/target_unit/extend_unit/audit_focus）
+    saveTargetScope: function(id, data) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/target-scope', {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      }).then(function(r) { return r.json(); });
+    },
+    // P1-8: finalize 创建资料空间并激活（幂等）
+    finalize: function(id) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/workspace/finalize', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+      }).then(function(r) { return r.json(); });
     }
   },
 

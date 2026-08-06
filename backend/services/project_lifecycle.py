@@ -46,11 +46,18 @@ def allowed_actions(setup_stage):
 
 
 def filter_fields(stage, data):
-    """只保留某阶段白名单内的字段（越阶段字段被忽略，兼容旧前端）"""
+    """只保留某阶段及之前所有阶段白名单内的字段。
+
+    basic 字段（name/audit_type/period 等）在所有阶段可编辑；
+    越阶段字段（如 basic 阶段提交 scope）被忽略，兼容旧前端。
+    """
     if not isinstance(data, dict):
         return {}
-    whitelist = STAGE_FIELDS.get(stage, [])
-    return {k: v for k, v in data.items() if k in whitelist}
+    idx = stage_index(stage)
+    allowed = set()
+    for s in STAGES[:idx + 1]:
+        allowed.update(STAGE_FIELDS.get(s, []))
+    return {k: v for k, v in data.items() if k in allowed}
 
 
 def required_fields_for(target_stage):

@@ -416,6 +416,8 @@
           <div class="form-group"><label class="form-label">审计期间（止）</label><input type="date" class="form-input" id="f-period-end" value="2026-06-30"></div>
           <div class="form-group"><label class="form-label">单位层级</label><select class="form-select" id="f-level"><option>国家级</option><option>省级</option><option selected>市级</option><option>县级</option><option>乡镇级</option></select></div>
           <div class="form-group"><label class="form-label">涉及金额（万元）</label><input class="form-input" id="f-amount" placeholder="如：500"></div>
+          <div class="form-group"><label class="form-label">业务发生期间（起）</label><input type="date" class="form-input" id="f-business-start" title="被审计业务实际发生的起始时间（可超出审计期间）"></div>
+          <div class="form-group"><label class="form-label">业务发生期间（止）</label><input type="date" class="form-input" id="f-business-end" title="被审计业务实际发生的结束时间（可超出审计期间）"></div>
         </div>
       </div>
 
@@ -531,6 +533,11 @@ var Proj = {
     // 进入立项流程：清空审计事项缓存与渲染（editProject 随后会回填已落库事项）
     this._items = [];
     this._renderItems([]);
+    // T8: 新建项目状态重置（editProject 会随后覆盖 _editingProjectId 并应用准入）
+    this._activeTab = 1;
+    this._gatedTabs = 4;
+    this._editingProjectId = null;
+    document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab){ tab.style.opacity=''; tab.style.cursor=''; });
   },
   cancel: function() {
     document.getElementById('view-list').style.display = '';
@@ -580,16 +587,22 @@ var Proj = {
     AuditAPI.projects.get(pid).then(function(resp) {
       if (!resp || !resp.success || !resp.project) { AuditWorkbench.toast('加载失败','error'); return; }
       var p = resp.project;
-      self._editingProjectId = pid;
       self.backToList();
       setTimeout(function(){
         Proj.open();
+        // T8: 编辑状态 + 按 setup_stage 收紧后续 Tab
+        Proj._editingProjectId = pid;
+        Proj._applyTabGating(p.setup_stage);
         setTimeout(function(){
           var set = function(id, v){ var el = document.getElementById(id); if(el && v != null) el.value = v; };
           set('f-name', p.name); set('f-code', p.project_code);
           set('f-unit', p.audited_unit || p.unit); set('f-type', p.audit_type || p.domain);
           set('f-level', p.target_level || p.level); set('f-amount', p.amount);
           set('f-objective', p.objective); set('f-scope', p.scope);
+          // T8: 业务发生期间 / 审计对象 / 延伸单位 / 审计重点
+          set('f-business-start', p.business_start_date); set('f-business-end', p.business_end_date);
+          set('f-target-unit', p.target_unit); set('f-extend-unit', p.extend_unit);
+          Proj._renderFocus(p.audit_focus);
           // 回填已落库的审计事项
           var items = (p.audit_items && p.audit_items.length) ? p.audit_items : [];
           Proj._items = items.slice();
@@ -768,6 +781,18 @@ var Proj = {
     t.appendChild(s);
     document.getElementById('focus-input').value = '';
   },
+  /** T8: 从后端 audit_focus 数组渲染审计重点标签 */
+  _renderFocus: function(focusArr) {
+    var box = document.getElementById('focus-tags');
+    if (!box) return;
+    box.innerHTML = '';
+    (focusArr || []).forEach(function(f){
+      var s = document.createElement('span');
+      s.className = 'badge badge-accent'; s.style.cssText = 'padding:6px 12px;font-size:13px;';
+      s.innerHTML = f + '<i class="bi bi-x" style="cursor:pointer;margin-left:4px;" onclick="this.parentElement.remove()"></i>';
+      box.appendChild(s);
+    });
+  },
 
   addField: function() {
     var c=document.getElementById('custom-fields');
@@ -787,10 +812,28 @@ var Proj = {
     AuditWorkbench.toast('AI已生成范围描述，可根据实际情况修改','success');
   },
 
+  _gatedTabs: 4,   // 编辑存量项目时按 setup_stage 收紧（默认全部可用）
   tab: function(n) {
+    // T8: 编辑存量项目时，超出现有阶段的 Tab 提示但不跳转
+    if (this._editingProjectId && n > this._gatedTabs) {
+      AuditWorkbench.toast('请先完成前序阶段','warning');
+      return;
+    }
+    this._activeTab = n;
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(t,i){t.classList.toggle('active',i+1===n);});
     for(var i=1;i<=4;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
     if(n===4) PhaseBoard.calcAll();
+  },
+  /** T8: 编辑存量项目时按 setup_stage 收紧后续 Tab（视觉提示） */
+  _applyTabGating: function(setupStage) {
+    var map = {'basic':1,'target_scope':2,'items':3,'workspace':4};
+    this._gatedTabs = map[setupStage] || 1;
+    var limit = this._gatedTabs;
+    document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab,i){
+      var disabled = (i+1) > limit;
+      tab.style.opacity = disabled ? '0.5' : '';
+      tab.style.cursor = disabled ? 'not-allowed' : '';
+    });
   },
   aiParse: function() {
     document.getElementById('f-objective').value = document.getElementById('f-objective').value || '通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理、提高资金使用效益。';
@@ -1001,8 +1044,18 @@ var Proj = {
     localStorage.setItem('aw_project_memory',JSON.stringify({title:n,domain:d,createdAt:new Date().toISOString()}));
     location.href='analysis.html';
   },
+  // ── T8: 分阶段保存 ──
+  /** 保存当前 Tab 对应阶段 */
   save: function() {
-    // P1.3: 读立项表单 → 调 create/update（替代空壳 toast）
+    var active = this._activeTab || 1;
+    if (active === 1) this.saveBasic();
+    else if (active === 2) this.saveTargetScope();
+    else if (active === 3) this.saveItems();
+    else AuditWorkbench.toast('督办提醒无需手动保存','info');
+  },
+
+  /** 保存基础信息（Tab1）：新建→POST /projects；已有→PUT /projects/{id} */
+  saveBasic: function() {
     var get = function(id){ var el = document.getElementById(id); return el ? (el.value||'').trim() : ''; };
     var data = {
       name: get('f-name'), project_code: get('f-code'),
@@ -1010,20 +1063,19 @@ var Proj = {
       audit_method: get('f-method'), target_level: get('f-level'),
       audit_period: get('f-period-start') + '至' + get('f-period-end'),
       amount: get('f-amount') || null, objective: get('f-objective'),
-      scope: get('f-scope')
+      business_start_date: get('f-business-start') || null,
+      business_end_date: get('f-business-end') || null,
+      start_date: get('f-start') || null,
+      entry_date: get('f-entry-date') || null
     };
     if (!data.name) { AuditWorkbench.toast('请填写项目名称','warning'); return; }
     var self = this;
     var afterSave = function(r) {
       if (r && r.success) {
         if (r.project) self._editingProjectId = r.project.id;
-        // 落库审计事项（与项目保存并行，不阻塞返回列表）
-        if (self._editingProjectId && self._items && self._items.length) {
-          AuditAPI.projects.saveItems(self._editingProjectId, self._items).catch(function(){});
-        }
-        AuditWorkbench.toast('项目已保存','success');
+        AuditWorkbench.toast('基础信息已保存','success');
         self.backToList();
-        self.init();  // P1.9: 重新加载项目列表，让新项目立即可见
+        self.init();
       } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     };
     if (self._editingProjectId) {
@@ -1031,6 +1083,41 @@ var Proj = {
     } else {
       AuditAPI.projects.create(data).then(afterSave).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
     }
+  },
+
+  /** 保存审计对象和范围（Tab2）→ PUT target-scope */
+  saveTargetScope: function() {
+    var get = function(id){ var el = document.getElementById(id); return el ? (el.value||'').trim() : ''; };
+    if (!this._editingProjectId) { AuditWorkbench.toast('请先保存基础信息','warning'); return; }
+    var focus = [];
+    document.querySelectorAll('#focus-tags .badge').forEach(function(t){
+      var txt = (t.textContent || '').replace('×','').trim();
+      if (txt) focus.push(txt);
+    });
+    var data = {
+      scope: get('f-scope'),
+      target_unit: get('f-target-unit'),
+      extend_unit: get('f-extend-unit'),
+      audit_focus: focus
+    };
+    if (!data.scope) { AuditWorkbench.toast('请填写审计范围','warning'); return; }
+    var self = this;
+    AuditAPI.projects.saveTargetScope(this._editingProjectId, data).then(function(r){
+      if (r && r.success) { AuditWorkbench.toast('对象和范围已保存','success'); self.backToList(); self.init(); }
+      else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
+    }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+  },
+
+  /** 保存审计事项（Tab3）→ PUT /items */
+  saveItems: function() {
+    if (!this._editingProjectId) { AuditWorkbench.toast('请先保存基础信息','warning'); return; }
+    var items = this._items || [];
+    if (!items.length) { AuditWorkbench.toast('没有可保存的审计事项','warning'); return; }
+    var self = this;
+    AuditAPI.projects.saveItems(this._editingProjectId, items).then(function(r){
+      if (r && r.success) { AuditWorkbench.toast('审计事项已保存','success'); self.backToList(); self.init(); }
+      else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
+    }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   }
 };
 

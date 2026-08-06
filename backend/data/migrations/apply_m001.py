@@ -22,6 +22,7 @@ ADD_COLS = [
     ("audit_projects", "entry_date",           "DATE NULL",                   "审计进点日期"),
     ("audit_projects", "extend_unit",          "VARCHAR(500) NULL",           "延伸审计单位"),
     ("audit_projects", "audit_focus",          "JSON NULL",                   "审计重点标签列表"),
+    ("audit_projects", "target_unit",          "VARCHAR(500) NULL",           "审计对象（被审计单位全称）"),
 ]
 
 
