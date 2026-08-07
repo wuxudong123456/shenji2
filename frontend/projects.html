@@ -934,7 +934,7 @@ var Proj = {
           (subtitle ? '<div style="font-size:13px;color:var(--color-text-muted);">' + subtitle + '</div>' : '') +
           category + this._priorityBadge(it.priority) + '</div>' +
         '<i class="bi bi-chevron-down" style="color:var(--color-text-muted);transition:transform 0.2s;"></i>' +
-        '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem(\'' + title + '\')"><i class="bi bi-play-fill"></i> 启动分析</button>' +
+        '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();Proj.launchItem(' + (seq-1) + ')"><i class="bi bi-play-fill"></i> 启动分析</button>' +
       '</div>' +
       '<div class="item-detail" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">' +
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);margin-bottom:var(--space-sm);">' +
@@ -1011,51 +1011,95 @@ var Proj = {
     c.appendChild(this._buildItemCard(it, this._items.length));
     document.getElementById('item-count2').textContent=this._items.length+' 个';
   },
-  launchItem: function(name) {
+  // 启动分析 · 参数确认弹窗（B 方案：读取项目真实字段 + 当前事项真实字段，作为 AI 分析前的输入确认；
+  // 不再展示写死的"分析结果"。真实分析结果待后续 Agent 工作流接通后在分析工作台展示。）
+  launchItem: function(idx) {
+    var self = this;
+    this._launchIdx = idx;
+    var it = (this._items && this._items[idx]) || { title: '未命名事项' };
+    var get = function(id){ var el=document.getElementById(id); return el ? (el.value||'').trim() : ''; };
+    var projName = get('f-name');
+    var unit = get('f-target-unit') || get('f-unit');
+    var atype = get('f-type');
+    var amount = get('f-amount');
+    var scope = get('f-scope');
+    var objective = get('f-objective');
+    var entry = get('f-entry-date');
+
+    function field(label, val){
+      var v = val ? _esc(val) : '<span style="color:var(--color-text-muted);">未填写</span>';
+      return '<tr><td style="color:var(--color-text-muted);white-space:nowrap;width:130px;">'+_esc(label)+'</td><td>'+v+'</td></tr>';
+    }
+    function block(arr, emptyHint){
+      if(!arr || !arr.length) return '<div style="font-size:13px;color:var(--color-text-muted);">'+_esc(emptyHint||'暂无')+'</div>';
+      return self._listHtml(arr);
+    }
+    function oneLine(text, emptyHint){
+      return text ? self._listHtml([text]) : '<div style="font-size:13px;color:var(--color-text-muted);">'+_esc(emptyHint||'未填写')+'</div>';
+    }
+
+    // 分析重点：来自该事项预填的常见违规方向，可勾选确认（Confirm 语义）
+    var cv = it.common_violations || [];
+    var focusHtml;
+    if(cv.length){
+      focusHtml = cv.map(function(v, i){
+        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">'+
+          '<input type="checkbox" class="aw-focus-check" data-i="'+i+'" checked style="margin:0;">'+
+          '<span>'+_esc(v)+'</span></label>';
+      }).join('');
+    } else {
+      focusHtml = '<div style="font-size:13px;color:var(--color-text-muted);">该事项未预填重点方向，AI 将基于以上信息进行全面分析</div>';
+    }
+
     var m=document.createElement('div');
     m.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding-top:30px;';
     m.innerHTML='<div style="background:#fff;border-radius:var(--radius-lg);max-width:960px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);">'+
       '<div style="padding:16px 24px;border-bottom:2px solid var(--color-border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;">'+
-      '<i class="bi bi-cpu" style="font-size:24px;color:var(--color-primary);"></i><div style="flex:1;"><h2 style="margin:0;font-size:18px;">'+name+'</h2><div style="font-size:13px;color:var(--color-text-muted);">AI分析结果</div></div>'+
-      '<span class="badge badge-accent">AI分析</span><button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div>'+
+      '<i class="bi bi-cpu" style="font-size:24px;color:var(--color-primary);"></i><div style="flex:1;"><h2 style="margin:0;font-size:18px;">'+_esc(it.title||'未命名事项')+'</h2><div style="font-size:13px;color:var(--color-text-muted);">启动分析 · 参数确认</div></div>'+
+      '<span class="badge badge-muted">待确认</span><button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div>'+
       '<div style="padding:20px 24px;">'+
-      '<h4 style="color:var(--color-accent);margin-bottom:8px;"><i class="bi bi-robot"></i> 常见问题表现</h4>'+
-      '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">'+
-      '<div class="rec-item" style="border-left:3px solid var(--color-accent);"><div><strong>1. 拆分项目规避招标</strong><div style="font-size:12px;color:var(--color-text-muted);">将500万项目拆为5个99万子项目，每个低于200万招标门槛</div></div><span class="badge badge-accent">高风险</span></div>'+
-      '<div class="rec-item" style="border-left:3px solid var(--color-accent);"><div><strong>2. 集中时段签订合同</strong><div style="font-size:12px;color:var(--color-text-muted);">5份合同集中在2026年3月1日至15日签订</div></div><span class="badge badge-accent">高风险</span></div>'+
-      '<div class="rec-item" style="border-left:3px solid var(--color-warning);"><div><strong>3. 同一供应商多次中标</strong><div style="font-size:12px;color:var(--color-text-muted);">5个项目均由XX科技有限公司中标</div></div><span class="badge badge-warning">中风险</span></div>'+
-      '<div class="rec-item" style="border-left:3px solid var(--color-warning);"><div><strong>4. 采用非公开采购方式</strong><div style="font-size:12px;color:var(--color-text-muted);">全部采用询价方式，未发布公开招标公告</div></div><span class="badge badge-warning">中风险</span></div></div>'+
-      '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-robot"></i> 审计所需资料</h4>'+
-      '<div class="table-wrap" style="margin-bottom:16px;"><table class="table"><thead><tr><th>资料名称</th><th>关键字段</th><th>来源</th><th>状态</th></tr></thead><tbody>'+
-      '<tr><td>采购合同及补充协议</td><td>金额、采购方式、供应商、日期</td><td>被审计单位</td><td><span class="badge badge-success">已关联</span></td></tr>'+
-      '<tr><td>招标公告及招标文件</td><td>公告日期、发布媒体、招标方式</td><td>被审计单位</td><td><span class="badge badge-warning">待收集</span></td></tr>'+
-      '<tr><td>评标报告及中标通知书</td><td>评委名单、评分、中标金额</td><td>被审计单位</td><td><span class="badge badge-warning">待收集</span></td></tr>'+
-      '<tr><td>银行付款凭证及流水</td><td>付款日期、金额、收款方</td><td>银行</td><td><span class="badge badge-success">已关联</span></td></tr>'+
-      '<tr><td>供应商工商登记信息</td><td>信用代码、法人、股东</td><td>市场监管部门</td><td><span class="badge badge-success">已关联</span></td></tr></tbody></table></div>'+
-      '<h4 style="color:var(--color-warning);margin-bottom:8px;"><i class="bi bi-robot"></i> 违规行为库匹配</h4>'+
-      '<div style="margin-bottom:16px;">'+
-      '<div class="rec-item" style="border-left:4px solid var(--color-accent);"><input type="checkbox" class="rec-check" checked><div style="flex:1;"><strong>化整为零规避公开招标</strong><div style="font-size:12px;color:var(--color-text-muted);">将应公开招标项目拆分为多个小额项目 · 匹配度:97%</div></div><span class="badge badge-accent">高风险</span></div>'+
-      '<div class="rec-item" style="border-left:4px solid var(--color-accent);"><input type="checkbox" class="rec-check" checked><div style="flex:1;"><strong>违规采用询价方式采购</strong><div style="font-size:12px;color:var(--color-text-muted);">达到门槛的项目采用非公开竞争方式 · 匹配度:89%</div></div><span class="badge badge-accent">高风险</span></div>'+
-      '<div class="rec-item" style="border-left:4px solid var(--color-warning);"><input type="checkbox" class="rec-check"><div style="flex:1;"><strong>未按规定发布采购公告</strong><div style="font-size:12px;color:var(--color-text-muted);">达到门槛的项目未在指定媒体发布公告 · 匹配度:78%</div></div><span class="badge badge-warning">待确认</span></div>'+
-      '<div class="rec-item" style="border-left:4px solid var(--color-warning);"><input type="checkbox" class="rec-check"><div style="flex:1;"><strong>供应商围标串标</strong><div style="font-size:12px;color:var(--color-text-muted);">多家供应商协商报价或轮流中标 · 匹配度:65%</div></div><span class="badge badge-warning">待确认</span></div></div>'+
-      '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-robot"></i> 审计依据及法规清单</h4>'+
-      '<div class="table-wrap" style="margin-bottom:16px;"><table class="table"><thead><tr><th>法规名称</th><th>条款</th><th>效力级别</th><th>适用说明</th><th>溯源</th></tr></thead><tbody>'+
-      '<tr><td>《招标投标法》</td><td>第4条</td><td>法律</td><td>禁止化整为零 — <strong>主依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
-      '<tr><td>《招标投标法》</td><td>第49条</td><td>法律</td><td>处罚5‰-10‰ — <strong>追责依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
-      '<tr><td>《必须招标的工程项目规定》</td><td>第5条</td><td>部门规章</td><td>货物≥200万须招标 — <strong>量化依据</strong></td><td><a class="trace-link" href="#">📍</a></td></tr>'+
-      '<tr><td>《政府采购法》</td><td>第28条</td><td>法律</td><td>公开招标应为主采购方式</td><td><a class="trace-link" href="#">📍</a></td></tr>'+
-      '<tr><td>《政府采购法实施条例》</td><td>第67条</td><td>行政法规</td><td>化整为零认定标准</td><td><a class="trace-link" href="#">📍</a></td></tr></tbody></table></div>'+
+      '<div class="alert alert-info" style="margin-bottom:16px;font-size:13px;line-height:1.7;"><i class="bi bi-info-circle"></i> 以下为本次分析的<b>输入信息</b>（来自项目立项与审计事项），请核对后确认。<b>确认后进入分析工作台</b>，AI 将基于这些信息进行分析，结果在下一步展示。</div>'+
+
+      '<h4 style="color:var(--color-primary);margin-bottom:8px;"><i class="bi bi-building"></i> 一、分析对象（项目信息）</h4>'+
+      '<div class="table-wrap" style="margin-bottom:16px;"><table class="table"><tbody>'+
+        field('项目名称', projName)+
+        field('被审计单位', unit)+
+        field('审计类型', atype)+
+        field('涉及金额（万元）', amount)+
+        field('审计进点日期', entry)+
+      '</tbody></table></div>'+
+
+      '<h4 style="color:var(--color-accent);margin-bottom:8px;"><i class="bi bi-clipboard-check"></i> 二、本次分析依据（事项信息）</h4>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">'+
+        '<div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;">审计范围</div>'+oneLine(scope)+'</div>'+
+        '<div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;">审计目标</div>'+oneLine(objective)+'</div>'+
+        '<div style="background:rgba(196,30,58,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-accent);font-weight:600;margin-bottom:8px;">常见问题表现</div>'+block(it.common_problems,'暂无 · 将由 AI 分析时补充')+'</div>'+
+        '<div style="background:rgba(184,94,26,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-warning);font-weight:600;margin-bottom:8px;">审计所需资料</div>'+block(it.required_materials,'暂无 · 将由 AI 分析时补充')+'</div>'+
+        '<div style="background:rgba(45,125,70,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-success);font-weight:600;margin-bottom:8px;">常用审计方法</div>'+block(it.audit_methods,'暂无 · 将由 AI 分析时补充')+'</div>'+
+        '<div style="background:rgba(26,58,92,0.04);border-radius:var(--radius-sm);padding:12px;"><div style="font-size:12px;color:var(--color-primary);font-weight:600;margin-bottom:8px;">审计依据</div>'+block(it.legal_bases,'暂无 · 将由 AI 分析时补充')+'</div>'+
+      '</div>'+
+
+      '<h4 style="color:var(--color-warning);margin-bottom:8px;"><i class="bi bi-flag"></i> 三、分析重点确认</h4>'+
+      '<div style="border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:16px;">'+focusHtml+'</div>'+
+
       '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--color-border);">'+
-      '<button class="btn btn-accent btn-lg" onclick="Proj.confirmAndLaunch()"><i class="bi bi-rocket-takeoff"></i> 确认并开始智能分析</button>'+
+      '<button class="btn btn-accent btn-lg" onclick="Proj.confirmAndLaunch()"><i class="bi bi-rocket-takeoff"></i> 确认并开始分析</button>'+
       '<button class="btn btn-outline" onclick="this.closest(\'[style*=fixed]\').remove()">关闭</button>'+
-      '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);align-self:center;"><i class="bi bi-robot"></i> AI伴随 · 所有内容可确认修改</span></div></div></div>';
+      '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);align-self:center;"><i class="bi bi-shield-check"></i> 输入信息可修改，分析结果需人工确认</span></div></div></div>';
     m.addEventListener('click',function(e){if(e.target===this)this.remove();});
     document.body.appendChild(m);
   },
   confirmAndLaunch: function() {
     var n=document.getElementById('f-name').value||'未命名项目';
     var d=document.getElementById('f-type')?document.getElementById('f-type').value:'';
-    localStorage.setItem('aw_project_memory',JSON.stringify({title:n,domain:d,createdAt:new Date().toISOString()}));
+    var item = (this._launchIdx!=null && this._items) ? this._items[this._launchIdx] : null;
+    var cvs = (item && item.common_violations) || [];
+    var focus = [];
+    document.querySelectorAll('.aw-focus-check:checked').forEach(function(cb){
+      var i = parseInt(cb.getAttribute('data-i'),10);
+      if(!isNaN(i) && cvs[i]) focus.push(cvs[i]);
+    });
+    localStorage.setItem('aw_project_memory',JSON.stringify({project_id:this._currentProjectId||'',title:n,domain:d,auditItem:(item?item.title:''),focus:focus,createdAt:new Date().toISOString()}));
     location.href='analysis.html';
   },
   // ── T8: 分阶段保存 ──
