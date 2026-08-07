@@ -689,6 +689,28 @@ def register_audit_routes(app):
           3. 提交异步任务（task_worker 后台跑 OCR+提取）
           4. 立即返回 task_id，前端轮询进度
         """
+        # P2-2 前置校验：项目须已 finalize（setup_stage=workspace 且资料空间桶已建）
+        proj = query_one(
+            "SELECT setup_stage, minio_bucket FROM audit_projects "
+            "WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not proj:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        if (proj.get("setup_stage") or "") != "workspace":
+            return jsonify({
+                "success": False,
+                "error": "请先完成立项四阶段并创建资料空间",
+                "setup_stage": proj.get("setup_stage") or "basic",
+            }), 409
+        bucket = proj.get("minio_bucket") or f"audit-project-{project_id}"
+        from services.minio_client import get_client
+        if not get_client().bucket_exists(bucket):
+            return jsonify({
+                "success": False,
+                "error": "资料空间未就绪，请先 finalize 创建资料空间",
+            }), 409
+
         if "file" not in request.files:
             return jsonify({"success": False, "error": "请选择文件"}), 400
 
@@ -718,14 +740,10 @@ def register_audit_routes(app):
                 "message": "文件已存在，跳过重复处理",
             })
 
-        # 3. 存入 MinIO
-        bucket = f"audit-project-{project_id}"
+        # 3. 存入 MinIO（bucket 由 finalize 创建，P2-2 删除二次 make_bucket）
         minio_path = f"{project_id}/raw/{file_id}/{filename}"
         try:
-            from services.minio_client import get_client
             client = get_client()
-            if not client.bucket_exists(bucket):
-                client.make_bucket(bucket)
             import io
             client.put_object(bucket, minio_path, io.BytesIO(file_bytes),
                               length=len(file_bytes),
