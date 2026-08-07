@@ -845,19 +845,74 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/<project_id>/files", methods=["GET"])
     def audit_files_list(project_id):
-        """GET /api/audit/projects/<id>/files — 文件列表"""
-        rows = query(
-            "SELECT id, file_name, minio_path, ocr_version, ocr_content IS NOT NULL AS ocr_done, "
-            "created_at FROM audit_document_traces "
-            "WHERE project_id = %s ORDER BY created_at DESC",
+        """GET /api/audit/projects/<id}/files — 文件列表（P2-7，manifest 单一事实源）
+
+        query: year / category（可选过滤）；默认返回全部未删文件。
+        数据源：workspace-manifest.json；ocr_done 与 trace 表 join（§6.2）。
+        响应增加：audit_year / category / subcategory / size / deleted。
+        """
+        year_q = (request.args.get("year") or "").strip() or None
+        category_q = (request.args.get("category") or "").strip() or None
+
+        proj = query_one(
+            "SELECT name, audit_period, create_time FROM audit_projects "
+            "WHERE id = %s AND deleted = 0",
             (project_id,), database="tt",
         )
-        files = []
-        for r in rows:
-            d = dict(r)
-            d["ocr_done"] = bool(d.get("ocr_done"))
-            files.append(d)
-        return jsonify({"success": True, "project_id": project_id, "files": files})
+        if not proj:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        from services.workspace_service import (
+            derive_audit_year, compute_safe_name, build_manifest_path, load_manifest,
+        )
+        audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
+        bucket = "audit-project-{}".format(project_id)
+        mpath = build_manifest_path(audit_year, project_id, compute_safe_name(proj.get("name") or ""))
+        manifest = load_manifest(bucket, mpath)
+        raw_files = (manifest or {}).get("files", [])
+
+        out, trace_ids = [], []
+        # 单项目 manifest 只有一个年度；year 不匹配 → 整体空
+        if year_q and year_q != audit_year:
+            out = []
+        else:
+            for f in raw_files:
+                if f.get("deleted"):
+                    continue  # 默认过滤软删（§6.2）
+                if category_q and f.get("category") != category_q:
+                    continue
+                out.append({
+                    "trace_id": f.get("trace_id"),
+                    "file_name": f.get("file_name"),
+                    "minio_path": f.get("object_key"),
+                    "audit_year": audit_year,
+                    "category": f.get("category"),
+                    "subcategory": f.get("subcategory"),
+                    "size": f.get("size"),
+                    "deleted": False,
+                    "uploaded_at": f.get("uploaded_at"),
+                })
+                if f.get("trace_id") is not None:
+                    trace_ids.append(f["trace_id"])
+
+        # join ocr_done（trace 表）
+        ocr_map = {}
+        if trace_ids:
+            placeholders = ",".join(["%s"] * len(trace_ids))
+            rows = query(
+                "SELECT id, ocr_content IS NOT NULL AS ocr_done FROM audit_document_traces "
+                "WHERE id IN (%s)" % placeholders,
+                tuple(trace_ids), database="tt",
+            )
+            ocr_map = {r["id"]: bool(r["ocr_done"]) for r in rows}
+        for f in out:
+            f["ocr_done"] = ocr_map.get(f.get("trace_id"), False)
+
+        return jsonify({
+            "success": True, "project_id": project_id,
+            "year": audit_year, "category": category_q,
+            "files": out,
+        })
 
     @app.route("/api/audit/documents/<int:doc_id>/trace", methods=["GET"])
     def audit_document_trace(doc_id):
