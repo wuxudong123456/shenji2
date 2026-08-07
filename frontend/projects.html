@@ -513,6 +513,7 @@
 
 </main></div>
 <script src="js/app.js"></script>
+<script src="js/api.js"></script>
 <script>
 // 4.3: HTML 转义，防 XSS（项目名等用户输入拼进 innerHTML 时使用）
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -833,10 +834,14 @@ var Proj = {
     for(var i=1;i<=4;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
     if(n===4) PhaseBoard.calcAll();
   },
-  /** T8: 编辑存量项目时按 setup_stage 收紧后续 Tab（视觉提示） */
+  /** T8: 按 setup_stage 收紧后续 Tab（视觉提示）。编辑存量项目时调用 */
   _applyTabGating: function(setupStage) {
     var map = {'basic':1,'target_scope':2,'items':3,'workspace':4};
     this._gatedTabs = map[setupStage] || 1;
+    this._applyGatingVisual();
+  },
+  /** 按 _gatedTabs 刷新 Tab 视觉（置灰/可点） */
+  _applyGatingVisual: function() {
     var limit = this._gatedTabs;
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab,i){
       var disabled = (i+1) > limit;
@@ -1060,13 +1065,19 @@ var Proj = {
     if (el) el.textContent = msg || '';
   },
 
-  /** 保存当前 Tab 对应阶段 */
+  /** 保存当前 Tab 对应阶段（try/catch 兜住同步异常：如 AuditAPI 未加载，避免静默卡住） */
   save: function() {
-    var active = this._activeTab || 1;
-    if (active === 1) this.saveBasic();
-    else if (active === 2) this.saveTargetScope();
-    else if (active === 3) this.saveItems();
-    else AuditWorkbench.toast('督办提醒无需手动保存','info');
+    try {
+      this._setSaveStatus('正在保存…');
+      var active = this._activeTab || 1;
+      if (active === 1) this.saveBasic();
+      else if (active === 2) this.saveTargetScope();
+      else if (active === 3) this.saveItems();
+      else AuditWorkbench.toast('督办提醒无需手动保存','info');
+    } catch (e) {
+      this._setSaveStatus('✗ 保存失败（前端异常）');
+      AuditWorkbench.toast('保存失败：' + ((e && e.message) || '前端异常'), 'error');
+    }
   },
 
   /** 保存基础信息（Tab1）：新建→POST /projects；已有→PUT /projects/{id} */
@@ -1084,7 +1095,7 @@ var Proj = {
       start_date: get('f-start') || null,
       entry_date: get('f-entry-date') || null
     };
-    if (!data.name) { AuditWorkbench.toast('请填写项目名称','warning'); return; }
+    if (!data.name) { this._setSaveStatus('请填写项目名称'); AuditWorkbench.toast('请填写项目名称','warning'); return; }
     var self = this;
     var afterSave = function(r) {
       if (r && r.success) {
@@ -1092,7 +1103,9 @@ var Proj = {
         self.init();  // 后台刷新列表，不离开当前表单
         self._setSaveStatus('✓ 基础信息已保存');
         AuditWorkbench.toast('✓ 基础信息已保存，已进入【审计对象和范围】','success');
-        if (self._gatedTabs >= 2) self.tab(2);  // 自动进入下一步
+        self._gatedTabs = Math.max(self._gatedTabs || 1, 2);  // 完成本阶段→解锁下一步
+        self._applyGatingVisual();
+        self.tab(2);  // 自动进入【审计对象和范围】
       } else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     };
     if (self._editingProjectId) {
@@ -1124,7 +1137,9 @@ var Proj = {
         self.init();
         self._setSaveStatus('✓ 对象和范围已保存');
         AuditWorkbench.toast('✓ 对象和范围已保存，已进入【审计事项】','success');
-        if (self._gatedTabs >= 3) self.tab(3);  // 自动进入下一步
+        self._gatedTabs = Math.max(self._gatedTabs || 1, 3);  // 完成本阶段→解锁下一步
+        self._applyGatingVisual();
+        self.tab(3);  // 自动进入【审计事项】
       }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
@@ -1144,6 +1159,87 @@ var Proj = {
       }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+  },
+  // ── P3-1: 从 API 加载真实项目列表 ──
+  _projectMap: {},
+  init: function() {
+    var self = this;
+    if (typeof AuditAPI === 'undefined') return;
+    AuditAPI.projects.list().then(function(resp) {
+      if (!resp || !resp.success || !resp.projects || resp.projects.length === 0) return;
+      self._renderProjectCards(resp.projects);
+    }).catch(function() {});
+  },
+
+  _renderProjectCards: function(projects) {
+    var self = this;
+    var grid = document.getElementById('proj-card-grid');
+    if (!grid) return;
+
+    // 缓存项目数据
+    projects.forEach(function(p) { self._projectMap[p.id] = p; });
+
+    var html = projects.map(function(p) {
+      var statusColor = p.status === 'completed' ? 'var(--color-success)' :
+                        p.status === 'active' ? 'var(--color-warning)' : 'var(--color-text-muted)';
+      var statusText = p.status === 'completed' ? '已完成' :
+                       p.status === 'active' ? '进行中' : '草稿';
+      var date = (p.create_time || '').substring(5, 10);
+      self._projectMap[p.id] = p;
+      return '<div class="apple-card" style="cursor:pointer;" onclick="Proj.showDetailById(\'' + p.id + '\')">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+          '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0;"></div>' +
+          '<span style="font-size:12px;color:' + statusColor + ';font-weight:500;">' + statusText + '</span>' +
+          '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">' + date + '</span>' +
+        '</div>' +
+        '<h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">' + _esc(p.name || '未命名') + '</h3>' +
+        '<p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">' + (p.audit_period || '') + '</p>' +
+        '<button class="card-launch" onclick="event.stopPropagation();Proj.launchFromCard(\'' + p.id + '\')"><i class="bi bi-rocket-takeoff"></i> 启动分析</button>' +
+      '</div>';
+    }).join('');
+
+    // 加上"新建项目"卡片
+    html += '<div class="apple-card" style="cursor:pointer;border:2px dashed var(--color-border);display:flex;align-items:center;justify-content:center;gap:10px;min-height:130px;" onclick="Proj.open()">' +
+      '<i class="bi bi-plus-circle" style="font-size:32px;color:var(--color-primary);opacity:0.5;"></i>' +
+      '<span style="font-size:15px;font-weight:600;color:var(--color-primary);opacity:0.7;">新建项目</span></div>';
+
+    grid.innerHTML = html;
+  },
+
+  showDetailById: function(projectId) {
+    var p = this._projectMap[projectId];
+    if (!p) return;
+    this.currentDetail = p;  // 2.0: 缓存完整项目对象，供 launchFromDetail 读取（不读 DOM，解耦）
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+    document.getElementById('detail-title').innerHTML = '<i class="bi bi-folder2-open"></i> ' + _esc(p.name || '未命名');
+    document.getElementById('d-name').textContent = p.name || '—';
+    document.getElementById('d-code').textContent = p.id || '—';
+    document.getElementById('d-unit').textContent = p.description || '—';
+    document.getElementById('d-type').textContent = '审计项目';
+    document.getElementById('d-period').textContent = p.audit_period || '—';
+    document.getElementById('d-level').textContent = '—';
+    document.getElementById('d-leader').textContent = p.creator || '—';
+    document.getElementById('d-auditor').textContent = '—';
+    document.getElementById('d-objective').textContent = p.description || '—';
+    this._currentProjectId = projectId;
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  },
+
+  createProject: function() {
+    var name = document.getElementById('setup-name') ? document.getElementById('setup-name').value.trim() : '';
+    if (!name) { AuditWorkbench.toast('请填写项目名称', 'warning'); return; }
+    var period = document.getElementById('setup-period') ? document.getElementById('setup-period').value : '';
+    var self = this;
+    AuditAPI.projects.create({name: name, audit_period: period}).then(function(resp) {
+      if (resp.success) {
+        AuditWorkbench.toast('项目已创建：' + name, 'success');
+        self.cancel();
+        self.init();
+      } else {
+        AuditWorkbench.toast('创建失败：' + (resp.error || ''), 'error');
+      }
+    }).catch(function() { AuditWorkbench.toast('网络错误', 'error'); });
   }
 };
 
@@ -1240,88 +1336,6 @@ var PhaseBoard = {
     btn.textContent = '✓ 已完成';
     btn.className = 'btn btn-xs btn-success';
     AuditWorkbench.toast('节点已完成，已更新下一节点期限','success');
-  },
-
-  // ── P3-1: 从 API 加载真实项目列表 ──
-  _projectMap: {},
-  init: function() {
-    var self = this;
-    if (typeof AuditAPI === 'undefined') return;
-    AuditAPI.projects.list().then(function(resp) {
-      if (!resp || !resp.success || !resp.projects || resp.projects.length === 0) return;
-      self._renderProjectCards(resp.projects);
-    }).catch(function() {});
-  },
-
-  _renderProjectCards: function(projects) {
-    var self = this;
-    var grid = document.getElementById('proj-card-grid');
-    if (!grid) return;
-
-    // 缓存项目数据
-    projects.forEach(function(p) { self._projectMap[p.id] = p; });
-
-    var html = projects.map(function(p) {
-      var statusColor = p.status === 'completed' ? 'var(--color-success)' :
-                        p.status === 'active' ? 'var(--color-warning)' : 'var(--color-text-muted)';
-      var statusText = p.status === 'completed' ? '已完成' :
-                       p.status === 'active' ? '进行中' : '草稿';
-      var date = (p.create_time || '').substring(5, 10);
-      self._projectMap[p.id] = p;
-      return '<div class="apple-card" style="cursor:pointer;" onclick="Proj.showDetailById(\'' + p.id + '\')">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
-          '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0;"></div>' +
-          '<span style="font-size:12px;color:' + statusColor + ';font-weight:500;">' + statusText + '</span>' +
-          '<span style="margin-left:auto;font-size:13px;color:var(--color-text-muted);">' + date + '</span>' +
-        '</div>' +
-        '<h3 style="font-size:17px;font-weight:600;margin:0 0 4px;line-height:1.3;">' + _esc(p.name || '未命名') + '</h3>' +
-        '<p style="font-size:14px;color:var(--color-text-muted);margin:0 0 16px;">' + (p.audit_period || '') + '</p>' +
-        '<button class="card-launch" onclick="event.stopPropagation();Proj.launchFromCard(\'' + p.id + '\')"><i class="bi bi-rocket-takeoff"></i> 启动分析</button>' +
-      '</div>';
-    }).join('');
-
-    // 加上"新建项目"卡片
-    html += '<div class="apple-card" style="cursor:pointer;border:2px dashed var(--color-border);display:flex;align-items:center;justify-content:center;gap:10px;min-height:130px;" onclick="Proj.open()">' +
-      '<i class="bi bi-plus-circle" style="font-size:32px;color:var(--color-primary);opacity:0.5;"></i>' +
-      '<span style="font-size:15px;font-weight:600;color:var(--color-primary);opacity:0.7;">新建项目</span></div>';
-
-    grid.innerHTML = html;
-  },
-
-  showDetailById: function(projectId) {
-    var p = this._projectMap[projectId];
-    if (!p) return;
-    this.currentDetail = p;  // 2.0: 缓存完整项目对象，供 launchFromDetail 读取（不读 DOM，解耦）
-    document.getElementById('view-list').style.display = 'none';
-    document.getElementById('view-detail').style.display = 'block';
-    document.getElementById('detail-title').innerHTML = '<i class="bi bi-folder2-open"></i> ' + _esc(p.name || '未命名');
-    document.getElementById('d-name').textContent = p.name || '—';
-    document.getElementById('d-code').textContent = p.id || '—';
-    document.getElementById('d-unit').textContent = p.description || '—';
-    document.getElementById('d-type').textContent = '审计项目';
-    document.getElementById('d-period').textContent = p.audit_period || '—';
-    document.getElementById('d-level').textContent = '—';
-    document.getElementById('d-leader').textContent = p.creator || '—';
-    document.getElementById('d-auditor').textContent = '—';
-    document.getElementById('d-objective').textContent = p.description || '—';
-    this._currentProjectId = projectId;
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  },
-
-  createProject: function() {
-    var name = document.getElementById('setup-name') ? document.getElementById('setup-name').value.trim() : '';
-    if (!name) { AuditWorkbench.toast('请填写项目名称', 'warning'); return; }
-    var period = document.getElementById('setup-period') ? document.getElementById('setup-period').value : '';
-    var self = this;
-    AuditAPI.projects.create({name: name, audit_period: period}).then(function(resp) {
-      if (resp.success) {
-        AuditWorkbench.toast('项目已创建：' + name, 'success');
-        self.cancel();
-        self.init();
-      } else {
-        AuditWorkbench.toast('创建失败：' + (resp.error || ''), 'error');
-      }
-    }).catch(function() { AuditWorkbench.toast('网络错误', 'error'); });
   }
 };
 
