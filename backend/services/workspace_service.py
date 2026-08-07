@@ -5,6 +5,7 @@
 
 本文件随 P2-1..P2-10 逐步填充；当前实现：P2-1 derive_audit_year。
 """
+import json
 import re
 from datetime import datetime
 
@@ -80,3 +81,133 @@ def classify_file(filename, content_type=None):
     if ext in ('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv'):
         return 'video', None
     return 'other', None
+
+
+# ── workspace manifest（§3.3 / §6.9）──
+# manifest 是 MinIO 对象（非 MySQL 表），存在 {year}/{pid}-{safe_name}/workspace-manifest.json。
+# 年度树/文件列表以 manifest 为单一事实源；上传/软删是唯一合法变更点（§7）。
+
+MANIFEST_VERSION = 1
+MANIFEST_FILENAME = "workspace-manifest.json"
+
+
+def compute_safe_name(project_name):
+    """计算项目安全名（用于 MinIO 前缀，§3.1/§3.3）。
+
+    前缀形如 {year}/{pid}-{safe_name}/。安全名取项目名，仅清洗 MinIO 对象键非法字符
+    （路径分隔符 / 控制字符），中文等保留。§3.3 示例中 safe_name 与 project_name 文字略异
+    系示意，方案未定义文字级转换规则，故本实现只做路径清洗，不臆造删字规则。
+    """
+    cleaned = []
+    for ch in (project_name or '').strip():
+        if ch in ('/', '\\'):
+            cleaned.append('_')
+        elif ord(ch) < 0x20:
+            continue  # 丢弃控制字符
+        else:
+            cleaned.append(ch)
+    safe = ''.join(cleaned).strip()
+    return safe or 'unnamed'
+
+
+def build_file_prefix(audit_year, project_id, safe_name):
+    """项目文件前缀（带尾斜杠）：{year}/{pid}-{safe_name}/"""
+    return "{}/{}-{}/".format(audit_year, project_id, safe_name)
+
+
+def build_manifest_path(audit_year, project_id, safe_name):
+    """manifest 对象键：{year}/{pid}-{safe_name}/workspace-manifest.json"""
+    return "{}workspace-manifest.json".format(build_file_prefix(audit_year, project_id, safe_name))
+
+
+def load_manifest(bucket, manifest_path):
+    """读取 manifest；不存在或解析失败返回 None（§7：读失败可重建，不静默崩）。"""
+    from services.minio_client import download_file
+    try:
+        data = download_file(manifest_path, bucket=bucket)
+    except Exception:
+        return None
+    try:
+        return json.loads(data.decode('utf-8'))
+    except Exception:
+        return None
+
+
+def save_manifest(bucket, manifest_path, manifest):
+    """写回 manifest（覆盖，JSON）。"""
+    from services.minio_client import upload_file
+    data = json.dumps(manifest, ensure_ascii=False, indent=2).encode('utf-8')
+    upload_file(data, manifest_path, content_type='application/json', bucket=bucket)
+
+
+def init_first_manifest(project_id, project_name, audit_year, bucket):
+    """finalize 生成首版 manifest（§6.6，幂等）。
+
+    已存在则直接返回不覆盖；不存在则建空 files[] 首版并写回。
+    Returns: manifest dict。
+    """
+    safe_name = compute_safe_name(project_name)
+    manifest_path = build_manifest_path(audit_year, project_id, safe_name)
+    existing = load_manifest(bucket, manifest_path)
+    if existing:
+        return existing
+    now = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    manifest = {
+        "manifest_version": MANIFEST_VERSION,
+        "project_id": project_id,
+        "project_name": project_name,
+        "safe_name": safe_name,
+        "audit_year": audit_year,
+        "bucket": bucket,
+        "prefix": build_file_prefix(audit_year, project_id, safe_name),
+        "created_at": now,
+        "updated_at": now,
+        "files": [],
+    }
+    save_manifest(bucket, manifest_path, manifest)
+    return manifest
+
+
+def build_file_entry(trace_id, file_name, object_key, category, subcategory,
+                     size=None, md5=None, content_type=None, legacy_raw=False):
+    """构造 files[] 单条记录（§3.3 结构）。object_key 由调用方（P2-6 upload）按 §6.1 构造。"""
+    return {
+        "trace_id": trace_id,
+        "file_name": file_name,
+        "object_key": object_key,
+        "category": category,
+        "subcategory": subcategory,
+        "size": size,
+        "md5": md5,
+        "content_type": content_type,
+        "uploaded_at": datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
+        "deleted": False,
+        "legacy_raw": bool(legacy_raw),
+    }
+
+
+def append_file_to_manifest(manifest, file_entry):
+    """把 file_entry 追加进 manifest.files[]（增量更新 updated_at）。
+
+    纯内存操作；调用方随后 save_manifest 落盘（上传是唯一合法变更点，§7）。
+    """
+    manifest.setdefault("files", []).append(file_entry)
+    manifest["updated_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    return manifest
+
+
+def mark_file_deleted(manifest, trace_id=None, object_key=None):
+    """软删标记：files[].deleted=True（增量更新 updated_at，§3.5）。
+
+    按 trace_id 优先匹配，否则 object_key。纯内存操作；调用方随后 save_manifest。
+    Returns: 是否找到并标记。
+    """
+    found = False
+    for f in manifest.get("files", []):
+        if (trace_id is not None and f.get("trace_id") == trace_id) or \
+           (object_key is not None and f.get("object_key") == object_key):
+            f["deleted"] = True
+            found = True
+    if found:
+        manifest["updated_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    return found

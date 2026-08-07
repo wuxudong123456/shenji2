@@ -64,6 +64,35 @@ def main():
     check('未知 .dat → other', classify_file('data.dat')[0] == 'other')
     check('无扩展无 MIME → other', classify_file('noext')[0] == 'other')
 
+    print('[P2-3] manifest 纯函数')
+    from services.workspace_service import (
+        compute_safe_name, build_manifest_path, build_file_prefix,
+        build_file_entry, append_file_to_manifest, mark_file_deleted,
+    )
+    check('safe_name 保留中文', compute_safe_name('某局2026预算审计') == '某局2026预算审计')
+    check('safe_name 替换斜杠', compute_safe_name('a/b\\c') == 'a_b_c')
+    check('safe_name 去控制字符', compute_safe_name('a\x07b') == 'ab')
+    check('safe_name 空串 → unnamed', compute_safe_name('') == 'unnamed')
+    check('safe_name strip 首尾空', compute_safe_name('  x  ') == 'x')
+    check('manifest_path 格式',
+          build_manifest_path('2026', 'f0ce', '某局') == '2026/f0ce-某局/workspace-manifest.json')
+    check('file_prefix 带尾斜杠',
+          build_file_prefix('2026', 'f0ce', '某局') == '2026/f0ce-某局/')
+    e = build_file_entry(123, '采购合同.pdf', '2026/x/text/pdf/a.pdf', 'text', 'pdf',
+                         size=10, md5='abc', content_type='application/pdf')
+    check('file_entry.trace_id', e['trace_id'] == 123)
+    check('file_entry.deleted 默认 False', e['deleted'] is False)
+    check('file_entry.legacy_raw 默认 False', e['legacy_raw'] is False)
+    check('file_entry.uploaded_at 已设', bool(e.get('uploaded_at')))
+    m = {"files": [], "updated_at": "old"}
+    append_file_to_manifest(m, e)
+    check('append 加入 files', len(m['files']) == 1)
+    check('append 更新 updated_at', m['updated_at'] != 'old')
+    marked = mark_file_deleted(m, trace_id=123)
+    check('mark_deleted 按 trace_id 命中', marked and m['files'][0]['deleted'] is True)
+    marked2 = mark_file_deleted(m, object_key='不存在')
+    check('mark_deleted 未命中 → False', marked2 is False)
+
     passed = sum(1 for _, c in results if c)
     total = len(results)
     print('\n[result] workspace_service 单测：通过 %d / 失败 %d' % (passed, total - passed))

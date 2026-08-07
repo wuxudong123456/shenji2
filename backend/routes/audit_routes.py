@@ -372,6 +372,18 @@ def register_audit_routes(app):
             (project_id,), database="tt",
         )
         row = query_one("SELECT * FROM audit_projects WHERE id = %s", (project_id,), database="tt")
+
+        # P2-3 §6.6：生成首版 workspace-manifest.json（幂等；失败不阻断 finalize，§7 兜底重建）
+        try:
+            from services.workspace_service import init_first_manifest, derive_audit_year
+            audit_year, _ = derive_audit_year(
+                row.get("audit_period"),
+                row.get("create_time") or row.get("workspace_created_at"),
+            )
+            init_first_manifest(project_id, row.get("name") or "", audit_year, minio_bucket)
+        except Exception as e:
+            print("[finalize] manifest 首版初始化失败（不阻断）: %s" % e)
+
         return jsonify({
             "success": True,
             "project": _stage_enrich(_project_to_dto(row)),
