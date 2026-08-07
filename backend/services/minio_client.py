@@ -2,6 +2,7 @@
 from minio import Minio
 from minio.error import S3Error
 from config import Config
+from datetime import timedelta
 import os
 import io
 
@@ -54,16 +55,31 @@ def download_file(object_path: str, bucket: str = None) -> bytes:
     return response.read()
 
 
-def get_presigned_url(object_path: str, expires: int = 3600) -> str:
-    """生成预签名下载 URL（有效期默认1小时）"""
+def get_presigned_url(object_path: str, bucket: str = None, expires: int = 3600) -> str:
+    """生成预签名下载 URL（有效期默认1小时）
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）。
+                项目文件存在 audit-project-{project_id} bucket，下载须显式传入。
+    """
     client = get_client()
-    return client.presigned_get_object(Config.MINIO_BUCKET, object_path, expires=expires)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    # 兼容 int（秒）入参；新版 minio 的 presigned_get_object 要求 timedelta
+    if isinstance(expires, (int, float)):
+        expires = timedelta(seconds=int(expires))
+    return client.presigned_get_object(target_bucket, object_path, expires=expires)
 
 
-def list_objects(prefix: str = '') -> list:
-    """列出指定前缀下的对象"""
+def list_objects(prefix: str = '', bucket: str = None, recursive: bool = True) -> list:
+    """列出指定前缀下的对象
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）
+        recursive: 是否递归列出子前缀下的对象（默认 True）
+    """
     client = get_client()
-    objects = client.list_objects(Config.MINIO_BUCKET, prefix=prefix, recursive=True)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    objects = client.list_objects(target_bucket, prefix=prefix, recursive=recursive)
     result = []
     for obj in objects:
         result.append({
@@ -75,10 +91,15 @@ def list_objects(prefix: str = '') -> list:
     return result
 
 
-def list_folders(prefix: str = '') -> list:
-    """列出指定前缀下的文件夹（项目目录）"""
+def list_folders(prefix: str = '', bucket: str = None) -> list:
+    """列出指定前缀下的文件夹（项目目录）
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）
+    """
     client = get_client()
-    objects = client.list_objects(Config.MINIO_BUCKET, prefix=prefix, recursive=False)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    objects = client.list_objects(target_bucket, prefix=prefix, recursive=False)
     folders = set()
     for obj in objects:
         if obj.is_dir:
@@ -86,16 +107,26 @@ def list_folders(prefix: str = '') -> list:
     return sorted(folders)
 
 
-def delete_object(object_path: str):
-    """删除对象"""
+def delete_object(object_path: str, bucket: str = None):
+    """删除对象
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）
+    """
     client = get_client()
-    client.remove_object(Config.MINIO_BUCKET, object_path)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    client.remove_object(target_bucket, object_path)
 
 
-def get_object_info(object_path: str) -> dict:
-    """获取对象元数据"""
+def get_object_info(object_path: str, bucket: str = None) -> dict:
+    """获取对象元数据
+
+    Args:
+        bucket: 指定 bucket（默认用 Config.MINIO_BUCKET）
+    """
     client = get_client()
-    stat = client.stat_object(Config.MINIO_BUCKET, object_path)
+    target_bucket = bucket or Config.MINIO_BUCKET
+    stat = client.stat_object(target_bucket, object_path)
     return {
         'name': stat.object_name,
         'size': stat.size,
