@@ -84,15 +84,18 @@ def missing_for(project, target_stage, item_count=0):
 
 
 def check_stage(project, min_stage, item_count=0):
-    """校验项目是否至少处于 min_stage。
+    """校验项目是否至少处于 min_stage，且前置必填字段完整。
 
     Returns:
         (ok: bool, missing: list[str])
-        未达标时 ok=False，并返回推进所需的缺失字段清单。
+        阶段未达标、或虽达标但前置必填（如 target_scope 的 scope）缺失时，
+        ok=False 并返回缺失字段清单。后者防止 setup_stage 被绕过推进而漏填字段
+        （如直接 PUT /items 把 stage 推到 items 却没填 scope）。
     """
     cur = stage_index((project or {}).get("setup_stage") or "basic")
-    if cur < stage_index(min_stage):
-        return False, missing_for(project, min_stage, item_count)
+    missing = missing_for(project, min_stage, item_count)
+    if cur < stage_index(min_stage) or missing:
+        return False, missing
     return True, []
 
 

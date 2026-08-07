@@ -619,6 +619,17 @@ def register_audit_routes(app):
         if not row:
             return jsonify({"success": False, "error": "项目不存在"}), 404
 
+        # P1-5 前置阶段校验：保存事项前必须先完成 target_scope（scope 必填），
+        # 不允许 basic 跳过对象和范围直存事项（§2 任何客户端不能跳过前序阶段）。
+        cur_stage = row.get("setup_stage") or "basic"
+        if plc.stage_index(cur_stage) < plc.stage_index("target_scope"):
+            return jsonify({
+                "success": False,
+                "error": "前置阶段未完成，请先完成对象和范围",
+                "setup_stage": cur_stage,
+                "missing_fields": plc.missing_for(row, "target_scope"),
+            }), 409
+
         # P1-7 乐观锁：可选 expected_update_time，不匹配 → 409（并发覆盖防护；旧前端不传则跳过）
         expected = data.get("expected_update_time")
         if expected:
