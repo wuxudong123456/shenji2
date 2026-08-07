@@ -914,6 +914,92 @@ def register_audit_routes(app):
             "files": out,
         })
 
+    @app.route("/api/audit/workspace/tree", methods=["GET"])
+    def audit_workspace_tree():
+        """GET /api/audit/workspace/tree?year= — 年度项目树（P2-5/P2-10，§6.3）
+
+        读所有 setup_stage=workspace 项目，按 audit_year 过滤（不串年度，P2-10），
+        返回 manifest 汇总的年度—项目—类型—文件树。manifest 缺失 → 回退 trace 对账、
+        重建首版 manifest 并告警（不静默，§6.3/§7）。
+        """
+        year_q = (request.args.get("year") or "").strip() or None
+
+        projects = query(
+            "SELECT id, name, audit_period, create_time, minio_bucket "
+            "FROM audit_projects WHERE deleted = 0 AND setup_stage = 'workspace' "
+            "ORDER BY create_time DESC",
+            (), database="tt",
+        )
+        from services.workspace_service import (
+            derive_audit_year, compute_safe_name, build_manifest_path,
+            load_manifest, init_first_manifest, save_manifest,
+            append_file_to_manifest, build_file_entry,
+        )
+        cats = ["text", "image", "audio", "video", "other"]
+        out = []
+        for p in projects:
+            audit_year, _ = derive_audit_year(p.get("audit_period"), p.get("create_time"))
+            if year_q and year_q != audit_year:
+                continue  # P2-10：年度树不串年度
+            pid = p["id"]
+            bucket = p.get("minio_bucket") or "audit-project-{}".format(pid)
+            mpath = build_manifest_path(audit_year, pid, compute_safe_name(p.get("name") or ""))
+            manifest = load_manifest(bucket, mpath)
+            counts = {c: 0 for c in cats}
+            files_out = []
+            if manifest:
+                for f in manifest.get("files", []):
+                    if f.get("deleted"):
+                        continue
+                    cat = f.get("category") or "other"
+                    counts[cat] = counts.get(cat, 0) + 1
+                    files_out.append({
+                        "trace_id": f.get("trace_id"),
+                        "file_name": f.get("file_name"),
+                        "category": f.get("category"),
+                        "subcategory": f.get("subcategory"),
+                        "size": f.get("size"),
+                        "uploaded_at": f.get("uploaded_at"),
+                    })
+            else:
+                # §6.3/§7 兜底：manifest 缺失 → trace 对账重建首版并告警（不静默）
+                traces = query(
+                    "SELECT id, file_name, file_category, file_subcategory, file_size, "
+                    "minio_path, created_at FROM audit_document_traces "
+                    "WHERE project_id = %s AND deleted_at IS NULL ORDER BY id",
+                    (pid,), database="tt",
+                )
+                if traces:
+                    print("[tree] WARN 项目 %s manifest 缺失，回退 trace 对账重建" % pid)
+                    m = init_first_manifest(pid, p.get("name") or "", audit_year, bucket)
+                    for t in traces:
+                        cat = t.get("file_category") or "other"
+                        counts[cat] = counts.get(cat, 0) + 1
+                        files_out.append({
+                            "trace_id": t["id"],
+                            "file_name": t.get("file_name"),
+                            "category": cat,
+                            "subcategory": t.get("file_subcategory"),
+                            "size": t.get("file_size"),
+                            "uploaded_at": str(t["created_at"]) if t.get("created_at") else None,
+                        })
+                        append_file_to_manifest(m, build_file_entry(
+                            trace_id=t["id"], file_name=t.get("file_name") or "",
+                            object_key=t.get("minio_path") or "", category=cat,
+                            subcategory=t.get("file_subcategory"),
+                            size=t.get("file_size"), legacy_raw=True,
+                        ))
+                    save_manifest(bucket, mpath, m)
+            out.append({
+                "project_id": pid,
+                "project_name": p.get("name"),
+                "safe_name": compute_safe_name(p.get("name") or ""),
+                "audit_year": audit_year,
+                "counts": counts,
+                "files": files_out,
+            })
+        return jsonify({"success": True, "year": year_q, "projects": out})
+
     @app.route("/api/audit/documents/<int:doc_id>/trace", methods=["GET"])
     def audit_document_trace(doc_id):
         """GET /api/audit/documents/<id>/trace — 溯源锚点"""
