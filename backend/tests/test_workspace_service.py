@@ -42,6 +42,28 @@ def main():
     y, s = derive_audit_year(None, None)
     check('两源皆无 → year=None', y is None and s == 'created_at')
 
+    print('[P2-4] classify_file 文件分类')
+    from services.workspace_service import classify_file
+
+    def cls(fn, ct=None):
+        c, sc = classify_file(fn, ct)
+        return '%s/%s' % (c, sc) if sc else c
+
+    check('.docx → text/word', cls('report.docx') == 'text/word')
+    check('.doc → text/word', cls('report.doc') == 'text/word')
+    check('.pdf → text/pdf', cls('合同.pdf') == 'text/pdf')
+    check('无扩展名靠 MIME application/pdf', cls('file', 'application/pdf') == 'text/pdf')
+    check('.xlsx → text/excel', cls('data.xlsx') == 'text/excel')
+    check('.csv → text/excel', cls('data.csv') == 'text/excel')
+    check('.txt → text/txt', cls('note.txt') == 'text/txt')
+    check('.md → text/txt', cls('readme.md') == 'text/txt')
+    check('image MIME → image', classify_file('x', 'image/png')[0] == 'image')
+    check('audio MIME → audio/original', cls('x', 'audio/mpeg') == 'audio/original')
+    check('video MIME → video', classify_file('x', 'video/mp4')[0] == 'video')
+    check('.png 靠扩展名 → image', classify_file('pic.png')[0] == 'image')
+    check('未知 .dat → other', classify_file('data.dat')[0] == 'other')
+    check('无扩展无 MIME → other', classify_file('noext')[0] == 'other')
+
     passed = sum(1 for _, c in results if c)
     total = len(results)
     print('\n[result] workspace_service 单测：通过 %d / 失败 %d' % (passed, total - passed))

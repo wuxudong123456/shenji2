@@ -41,3 +41,42 @@ def derive_audit_year(audit_period, created_at):
     if m:
         return m.group(0), 'created_at'
     return None, 'created_at'
+
+
+def classify_file(filename, content_type=None):
+    """文件类型分类（§3.4）。后端判定，前端不传分类。
+
+    判定优先级：扩展名（text 类）→ MIME（image/audio/video）→ 扩展名兜底 → other。
+    Legacy {pid}/raw/ 旧文件首次纳入时按本表尽量归类，无法判定归 other。
+
+    Returns:
+        (category: str, subcategory: str|None)
+        category ∈ text/image/audio/video/other
+    """
+    name = (filename or '').lower()
+    ct = (content_type or '').lower()
+    ext = '.' + name.rsplit('.', 1)[-1] if '.' in name else ''
+    # text 类按扩展名
+    if ext in ('.doc', '.docx'):
+        return 'text', 'word'
+    if ext == '.pdf' or ct == 'application/pdf':
+        return 'text', 'pdf'
+    if ext in ('.xls', '.xlsx', '.csv'):
+        return 'text', 'excel'
+    if ext in ('.txt', '.md'):
+        return 'text', 'txt'
+    # MIME 类
+    if ct.startswith('image/'):
+        return 'image', None
+    if ct.startswith('audio/'):
+        return 'audio', 'original'
+    if ct.startswith('video/'):
+        return 'video', None
+    # 扩展名兜底（无 MIME 时）
+    if ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'):
+        return 'image', None
+    if ext in ('.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg'):
+        return 'audio', 'original'
+    if ext in ('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv'):
+        return 'video', None
+    return 'other', None
