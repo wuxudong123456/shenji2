@@ -208,6 +208,35 @@ def migrate_law_refs_collation():
         print(f"[migrate] + {table}.law_id COLLATE → utf8mb4_0900_ai_ci")
 
 
+def migrate_phase2_trace_columns():
+    """Phase2 — audit_document_traces 增加资料空间管理列（年度/分类/桶/大小/软删）
+
+    PHASE_2 §5 M002：6 列 + 2 索引。资料空间年度树/分类过滤/软删/manifest 对账依赖。
+    幂等：每列/索引先查 information_schema，已存在则跳过。
+    """
+    table = "audit_document_traces"
+    columns = [
+        ("audit_year", "VARCHAR(4) DEFAULT NULL COMMENT '审计年度（决策12派生）'"),
+        ("file_category", "VARCHAR(20) DEFAULT NULL COMMENT '一级分类 text/image/audio/video/other'"),
+        ("file_subcategory", "VARCHAR(20) DEFAULT NULL COMMENT '二级分类 word/pdf/excel/txt/original/...'"),
+        ("minio_bucket", "VARCHAR(80) DEFAULT NULL COMMENT '所在 bucket（audit-project-{pid}）'"),
+        ("file_size", "BIGINT DEFAULT NULL COMMENT '文件字节数（manifest 对账用）'"),
+        ("deleted_at", "DATETIME DEFAULT NULL COMMENT '软删时间（NULL=未删，留痕可恢复）'"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(table, col):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {table}.{col}")
+        else:
+            print(f"[migrate] = {table}.{col} 已存在，跳过")
+    for idx, cols in [("idx_audit_year", "audit_year"), ("idx_project_cat", "project_id, file_category")]:
+        if not _index_exists(table, idx):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD INDEX {idx} ({cols})", database=DATABASE)
+            print(f"[migrate] + {table}.{idx}")
+        else:
+            print(f"[migrate] = {table}.{idx} 已存在，跳过")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -216,6 +245,7 @@ def main():
         migrate_project_context_columns()
         migrate_case_indexes()
         migrate_law_refs_collation()
+        migrate_phase2_trace_columns()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
