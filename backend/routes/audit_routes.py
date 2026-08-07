@@ -703,8 +703,8 @@ def register_audit_routes(app):
         """
         # P2-2 前置校验：项目须已 finalize（setup_stage=workspace 且资料空间桶已建）
         proj = query_one(
-            "SELECT setup_stage, minio_bucket FROM audit_projects "
-            "WHERE id = %s AND deleted = 0",
+            "SELECT setup_stage, minio_bucket, name, audit_period, create_time "
+            "FROM audit_projects WHERE id = %s AND deleted = 0",
             (project_id,), database="tt",
         )
         if not proj:
@@ -731,6 +731,21 @@ def register_audit_routes(app):
         file_bytes = f.read()
         file_id = str(uuid.uuid4()).replace("-", "")[:12]
 
+        # P2-6 年度派生 + 分类 + 安全名（§6.1，规则集中在 workspace_service）
+        from services.workspace_service import (
+            derive_audit_year, classify_file, compute_safe_name,
+            build_file_prefix, build_manifest_path,
+            load_manifest, save_manifest, init_first_manifest,
+            append_file_to_manifest, build_file_entry,
+        )
+        audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
+        category, subcategory = classify_file(filename, f.content_type)
+        safe_name = compute_safe_name(proj.get("name") or "")
+        # object_key 叶子 = {file_id}.{filename}（保留原名，§3.3 示例口径）
+        leaf = "{}.{}".format(file_id, filename)
+        cat_part = "{}/{}/{}".format(category, subcategory, leaf) if subcategory else "{}/{}".format(category, leaf)
+        minio_path = build_file_prefix(audit_year, project_id, safe_name) + cat_part
+
         # 1. 计算 MD5
         import hashlib
         file_md5 = hashlib.md5(file_bytes).hexdigest()
@@ -739,7 +754,7 @@ def register_audit_routes(app):
         existing = query_one(
             "SELECT id, file_name, ocr_content IS NOT NULL AS ocr_done "
             "FROM audit_document_traces WHERE project_id = %s AND file_md5 = %s "
-            "ORDER BY id DESC LIMIT 1",
+            "AND deleted_at IS NULL ORDER BY id DESC LIMIT 1",
             (project_id, file_md5), database="tt",
         )
         if existing:
@@ -752,8 +767,7 @@ def register_audit_routes(app):
                 "message": "文件已存在，跳过重复处理",
             })
 
-        # 3. 存入 MinIO（bucket 由 finalize 创建，P2-2 删除二次 make_bucket）
-        minio_path = f"{project_id}/raw/{file_id}/{filename}"
+        # 3. 存入 MinIO（minio_path 由 P2-6 按 §3.1 前缀构造；bucket 由 finalize 创建）
         try:
             client = get_client()
             import io
@@ -763,13 +777,33 @@ def register_audit_routes(app):
         except Exception as e:
             return jsonify({"success": False, "error": f"文件存储失败: {e}"}), 500
 
-        # 4. 创建溯源记录（含 MD5）
+        # 4. 创建溯源记录（含 MD5 + P2-6 资料空间列）
         trace_id = insert(
             "INSERT INTO audit_document_traces "
-            "(project_id, file_name, file_md5, minio_path, ocr_version, created_at) "
-            "VALUES (%s,%s,%s,%s,1,NOW())",
-            (project_id, filename, file_md5, minio_path), database="tt",
+            "(project_id, file_name, file_md5, minio_path, ocr_version, created_at, "
+            "audit_year, file_category, file_subcategory, minio_bucket, file_size) "
+            "VALUES (%s,%s,%s,%s,1,NOW(),%s,%s,%s,%s,%s)",
+            (project_id, filename, file_md5, minio_path,
+             audit_year, category, subcategory, bucket, len(file_bytes)),
+            database="tt",
         )
+
+        # P2-6 §6.1 manifest 增量追加（upload 为唯一合法变更点之一，§7；失败不阻断上传）
+        try:
+            mpath = build_manifest_path(audit_year, project_id, safe_name)
+            m = load_manifest(bucket, mpath)
+            if m is None:
+                # §7 兜底：finalize 应已建首版，缺失则按空重建并写回
+                m = init_first_manifest(project_id, proj.get("name") or "", audit_year, bucket)
+            append_file_to_manifest(m, build_file_entry(
+                trace_id=trace_id, file_name=filename, object_key=minio_path,
+                category=category, subcategory=subcategory,
+                size=len(file_bytes), md5=file_md5,
+                content_type=f.content_type or "application/octet-stream",
+            ))
+            save_manifest(bucket, mpath, m)
+        except Exception as e:
+            print("[upload] manifest 增量写入失败（不阻断上传）: %s" % e)
 
         # 5. 提交异步 OCR 任务（task_worker 后台处理）
         from services.task_manager import create_task
