@@ -60,4 +60,6 @@ testdata/**/*.doc
 backend/data/langgraph_checkpoints.db
 backend/data/langgraph_checkpoints.db-shm
 backend/data/langgraph_checkpoints.db-wal
+# 数据备份（开发期 DB 快照，不入库）
+backend/data/backups/
 .gstack/

@@ -1,4 +1,4 @@
-"""P1-4..P1-9 流程验收脚本（Phase 1：target-scope / items 保存 / finalize 幂等）
+r"""P1-4..P1-9 流程验收脚本（Phase 1：target-scope / items 保存 / finalize 幂等）
 
 用法：cd backend && .venv\Scripts\python.exe tests\test_p1_flow.py [BASE_URL]
 """
