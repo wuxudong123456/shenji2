@@ -144,9 +144,8 @@ var Portal = window.Portal = {
   function loadTodos() {
     const list = document.getElementById('todo-list');
     if (!list) return;
-    var projMem = localStorage.getItem('aw_project_memory');
-    var projName = '';
-    try { var pm = JSON.parse(projMem); if(pm && pm.title) projName = pm.title; } catch(e) {}
+    var pm = AuditWorkbench.getProjectMemory();
+    var projName = (pm && pm.title) ? pm.title : '';
 
     var todos = [];
     // 督办提醒（项目上下文）
@@ -191,36 +190,44 @@ var Portal = window.Portal = {
 
   // ---- Load document status ----
   function loadDocStatus() {
-    // 3.2: 基于 backgroundTasks 真实统计，去除 mock（total=6 / 假"银行流水2026Q1.csv"）
-    const tasks = (AuditWorkbench.backgroundTasks || []);
-    const ocrTasks = tasks.filter(t => t.type === 'ocr');
-    const processing = ocrTasks.filter(t => t.status === 'processing').length;
-    const completed = ocrTasks.filter(t => t.status === 'completed' || t.status === 'done').length;
-    const total = ocrTasks.length;
-    const pending = Math.max(0, total - completed - processing);
-
-    countUp(document.getElementById('stat-total-docs'), total, 600);
-    countUp(document.getElementById('stat-parsed-docs'), completed, 800);
-    countUp(document.getElementById('stat-processing-docs'), processing, 1000);
-    countUp(document.getElementById('stat-pending-docs'), pending, 1200);
-
-    // Show processing items（无则空状态，不塞假项）
+    // 任务真相在后端 audit_task_queue；拉取后统计 OCR 文档处理状态
     const list = document.getElementById('doc-processing-list');
-    if (!list) return;
-    const procItems = ocrTasks.filter(t => t.status === 'processing');
-    if (!procItems.length) {
-      list.innerHTML = '<div style="padding:14px;font-size:13px;color:var(--color-text-muted);text-align:center;">暂无处理中文档</div>';
+    const emptyHtml = '<div style="padding:14px;font-size:13px;color:var(--color-text-muted);text-align:center;">暂无处理中文档</div>';
+    if (typeof AuditAPI === 'undefined' || !AuditAPI.tasks) {
+      if (list) list.innerHTML = emptyHtml;
       return;
     }
-    list.innerHTML = procItems.map(item => `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;">
-        <span class="pulse" style="color:var(--color-warning);">●</span>
-        <span>${item.name}</span>
-        <span style="color:var(--color-text-muted);">识别中...</span>
-        <div class="progress" style="width:100px;margin-left:auto;"><div class="progress-bar" style="width:65%;"></div></div>
-        <a href="docworkshop.html" style="font-size:12px;">查看</a>
-      </div>
-    `).join('');
+    AuditAPI.tasks.list({ limit: 100 }).then(function(resp) {
+      const tasks = (resp && resp.success && resp.tasks) ? resp.tasks : [];
+      const ocrTasks = tasks.filter(t => (t.task_type || t.type) === 'ocr');
+      const processing = ocrTasks.filter(t => t.status === 'processing' || t.status === 'pending').length;
+      const completed = ocrTasks.filter(t => t.status === 'completed').length;
+      const total = ocrTasks.length;
+      const pending = Math.max(0, total - completed - processing);
+
+      countUp(document.getElementById('stat-total-docs'), total, 600);
+      countUp(document.getElementById('stat-parsed-docs'), completed, 800);
+      countUp(document.getElementById('stat-processing-docs'), processing, 1000);
+      countUp(document.getElementById('stat-pending-docs'), pending, 1200);
+
+      // Show processing items（无则空状态，不塞假项）
+      if (!list) return;
+      const procItems = ocrTasks.filter(t => t.status === 'processing' || t.status === 'pending');
+      if (!procItems.length) { list.innerHTML = emptyHtml; return; }
+      list.innerHTML = procItems.map(item => {
+        const prog = (typeof item.progress === 'number') ? item.progress : 65;
+        return `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;">
+            <span class="pulse" style="color:var(--color-warning);">●</span>
+            <span>${item.task_name || item.name || '文档'}</span>
+            <span style="color:var(--color-text-muted);">识别中...</span>
+            <div class="progress" style="width:100px;margin-left:auto;"><div class="progress-bar" style="width:${Math.max(15,prog)}%;"></div></div>
+            <a href="docworkshop.html" style="font-size:12px;">查看</a>
+          </div>`;
+      }).join('');
+    }).catch(function() {
+      if (list) list.innerHTML = emptyHtml;
+    });
   }
 
 // ---- Smart Search ----

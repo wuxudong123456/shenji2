@@ -61,7 +61,7 @@ var AW = {
   /** 从项目背景提取业务关键词（用于违规类型相关性过滤与排序）*/
   _projectKeywords: function() {
     var pm = this.mem.project || {};
-    try { if(!pm.title) pm = JSON.parse(localStorage.getItem('aw_project_memory')||'{}') || {}; } catch(e){}
+    try { if(!pm.title) pm = AuditWorkbench.getProjectMemory(); } catch(e){}
     var kws = [];
     var raw = [pm.title, pm.domain, pm.items, pm.concerns].join(' ');
     // 关注环节里的【标签】是最干净的业务类别，如【招标投标】【采购方式】
@@ -345,8 +345,8 @@ var AW = {
       this._scanResult = prog.scanResult || null;
       this._suspicionData = prog.suspicionData || null;
       // Load project memory
-      var pm = localStorage.getItem('aw_project_memory');
-      if(pm) this.mem.project = JSON.parse(pm);
+      var pm = AuditWorkbench.getProjectMemory();
+      if(pm && pm.title) this.mem.project = pm;
       // Show the saved step
       this.showStep(prog.step);
       this.updateStepBar(prog.step);
@@ -382,7 +382,7 @@ var AW = {
     // Load project context with compressed memory
     var ctx = '';
     try {
-      var pm = JSON.parse(localStorage.getItem('aw_project_memory')||'{}');
+      var pm = AuditWorkbench.getProjectMemory();
       if(pm.title) {
         this.mem.project = pm;
         // 延迟填充：等右侧面板渲染完成

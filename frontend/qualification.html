@@ -104,7 +104,7 @@ var Qualification = {
 
   _export: function() {
     var desc = document.getElementById('qual-desc').value.trim();
-    var mem = {}; try { mem = JSON.parse(localStorage.getItem('aw_project_memory') || '{}'); } catch(e) {}
+    var mem = AuditWorkbench.getProjectMemory();
     AuditAPI.documents.generate({type: 'review', context: {project_title: mem.title || '审计项目', analysis_summary: desc}}).then(function(resp) {
       if (resp.success) AuditWorkbench.toast('定性意见书已生成', 'success');
       else AuditWorkbench.toast('生成失败: ' + (resp.error || ''), 'error');

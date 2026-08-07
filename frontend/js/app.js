@@ -4,7 +4,6 @@
 const AuditWorkbench = {
   version: '1.0.0',
   currentPage: '',
-  backgroundTasks: JSON.parse(localStorage.getItem('aw_bg_tasks') || '[]'),
 
   nav: [
     { id: 'home', icon: 'bi-speedometer2', label: '首页', href: 'index.html' },
@@ -43,56 +42,10 @@ const AuditWorkbench = {
     this.renderNavbar();
     this.renderSidebar();
     this.bindEvents();
+    // 任务状态以后端 audit_task_queue 为唯一真相，启动时拉取一次徽章
     this.updateTaskBadge();
-    // 启动时同步后端真实任务状态，修正 localStorage 里"永远处理中"的脏数据
-    this.syncTasksWithBackend();
-  },
-
-  // 用后端真实状态同步本地任务徽章（解决本地漏调 completeTask 导致永远"处理中"）
-  // 启动时调用：清理幽灵任务 + 同步真实状态
-  syncTasksWithBackend() {
-    var self = this;
-    if (typeof AuditAPI === 'undefined' || !AuditAPI.tasks) return;
-    AuditAPI.tasks.list({ limit: 20 }).then(function(resp) {
-      if (!resp || !resp.success || !resp.tasks) return;
-      var backendByName = {};
-      resp.tasks.forEach(function(t) { backendByName[t.task_name] = t; });
-      var changed = false;
-
-      // 第一遍：同步状态 + 标记幽灵任务（后端找不到对应的本地 processing 任务）
-      self.backgroundTasks.forEach(function(localTask) {
-        var bt = backendByName[localTask.name];
-        if (bt) {
-          // 后端有对应任务，同步真实状态
-          var newStatus = bt.status === 'completed' ? 'completed' :
-                          (bt.status === 'failed' || bt.status === 'cancelled' ? 'failed' : 'processing');
-          if (newStatus !== localTask.status) {
-            localTask.status = newStatus;
-            if (newStatus === 'completed' && !localTask.completedAt) {
-              localTask.completedAt = new Date().toISOString();
-            }
-            changed = true;
-          }
-        } else if (localTask.status === 'processing') {
-          // 后端找不到对应任务 + 本地还显示处理中 → 幽灵任务，标记完成
-          localTask.status = 'completed';
-          localTask.completedAt = new Date().toISOString();
-          localTask._ghost = true;  // 标记为幽灵，第二遍清除
-          changed = true;
-        }
-      });
-
-      // 第二遍：清除幽灵任务 + 超过 20 条的旧记录
-      var before = self.backgroundTasks.length;
-      self.backgroundTasks = self.backgroundTasks.filter(function(t) { return !t._ghost; });
-      // 只保留最近 20 条
-      if (self.backgroundTasks.length > 20) {
-        self.backgroundTasks = self.backgroundTasks.slice(0, 20);
-      }
-      if (self.backgroundTasks.length !== before) changed = true;
-
-      if (changed) { self.saveTasks(); self.updateTaskBadge(); }
-    }).catch(function() {});
+    // 方案B：每次进页面异步回查项目记忆，自愈 stale 缓存（无 pid 则跳过）
+    this.refreshProjectMemory();
   },
 
   renderNavbar() {
@@ -257,46 +210,38 @@ const AuditWorkbench = {
   },
 
   addTask(name, type) {
-    var task = { id: Date.now(), name: name, type: type, status: 'processing', createdAt: new Date().toISOString() };
-    this.backgroundTasks.unshift(task);
-    this.saveTasks();
-    this.updateTaskBadge();
+    // 任务真相在后端 audit_task_queue；此处仅做即时反馈 + 刷新徽章
     this.toast(name + ' 已加入后台处理队列', 'info');
-    return task.id;
+    this.updateTaskBadge();
+    return Date.now();
   },
 
   completeTask(taskId) {
-    var task = this.backgroundTasks.find(function(t) { return t.id === taskId; });
-    if (task) {
-      task.status = 'completed';
-      task.completedAt = new Date().toISOString();
-      this.saveTasks();
-      this.updateTaskBadge();
-      this.toast(task.name + ' 处理完成', 'success');
-    }
+    // 后端任务完成由轮询/列表反映；保留方法兼容旧调用点，刷新徽章即可
+    this.updateTaskBadge();
   },
 
   updateTaskBadge() {
-    var processing = this.backgroundTasks.filter(function(t) { return t.status === 'processing'; }).length;
-    var completed = this.backgroundTasks.filter(function(t) { return t.status === 'completed'; }).length;
-    var total = this.backgroundTasks.length;
     var badge = document.getElementById('nav-task-count');
-    if (badge) {
-      var showCount = processing > 0 ? processing : (completed > 0 ? completed : 0);
-      badge.textContent = showCount;
-      badge.style.display = total > 0 ? 'block' : 'none';
-      badge.style.background = processing > 0 ? 'var(--color-accent)' : 'var(--color-success)';
-      badge.title = '处理中: ' + processing + ' | 已完成: ' + completed + ' | 总计: ' + total;
-    }
-    // Also update the task indicator dot color
     var dot = document.querySelector('#nav-task-badge i');
-    if (dot) {
-      dot.style.color = processing > 0 ? 'var(--color-warning)' : (completed > 0 ? 'var(--color-success)' : 'rgba(255,255,255,0.5)');
-    }
-  },
-
-  saveTasks() {
-    localStorage.setItem('aw_bg_tasks', JSON.stringify(this.backgroundTasks));
+    if (typeof AuditAPI === 'undefined' || !AuditAPI.tasks) return;
+    AuditAPI.tasks.list({ limit: 50 }).then(function(resp) {
+      var tasks = (resp && resp.success && resp.tasks) ? resp.tasks : [];
+      var processing = 0, failed = 0;
+      tasks.forEach(function(t) {
+        if (t.status === 'processing' || t.status === 'pending') processing++;
+        else if (t.status === 'failed' || t.status === 'cancelled') failed++;
+      });
+      if (badge) {
+        badge.textContent = processing;
+        badge.style.display = processing > 0 ? 'block' : 'none';
+        badge.style.background = 'var(--color-accent)';
+        badge.title = '处理中: ' + processing + (failed > 0 ? ' | 失败: ' + failed : '');
+      }
+      if (dot) {
+        dot.style.color = processing > 0 ? 'var(--color-warning)' : 'rgba(255,255,255,0.5)';
+      }
+    }).catch(function() {});
   },
 
   showTasks() {
@@ -304,40 +249,28 @@ const AuditWorkbench = {
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
     document.body.appendChild(modal);
-
-    // 先用本地数据快速渲染，再异步查后端真实状态刷新
-    self._renderTaskModal(modal, self.backgroundTasks.slice(0, 10));
-
-    // 异步查后端真实任务状态（修正本地 localStorage 里"永远处理中"的脏数据）
+    // 先渲染 loading 占位，再异步拉后端真实任务
+    self._renderTaskModal(modal, null);
     if (typeof AuditAPI !== 'undefined' && AuditAPI.tasks) {
       AuditAPI.tasks.list({ limit: 10 }).then(function(resp) {
-        if (resp && resp.success && resp.tasks) {
-          // 用 task_name（文件名）匹配本地任务，同步后端真实状态
-          var backendByName = {};
-          resp.tasks.forEach(function(t) { backendByName[t.task_name] = t; });
-          self.backgroundTasks.forEach(function(localTask) {
-            var bt = backendByName[localTask.name];
-            if (bt) {
-              localTask.status = bt.status === 'completed' ? 'completed' :
-                                 (bt.status === 'failed' || bt.status === 'cancelled' ? 'failed' : 'processing');
-              if (localTask.status === 'completed' && !localTask.completedAt) {
-                localTask.completedAt = new Date().toISOString();
-              }
-            }
-          });
-          self.saveTasks();
-          self.updateTaskBadge();
-          self._renderTaskModal(modal, self.backgroundTasks.slice(0, 10));
-        }
-      }).catch(function() {});
+        var tasks = (resp && resp.success && resp.tasks) ? resp.tasks : [];
+        self._renderTaskModal(modal, tasks);
+      }).catch(function() { self._renderTaskModal(modal, []); });
+    } else {
+      self._renderTaskModal(modal, []);
     }
   },
 
   _renderTaskModal(modal, tasks) {
-    var self = this;
-    var processing = tasks.filter(function(t) { return t.status === 'processing'; }).length;
-    var completed = tasks.filter(function(t) { return t.status === 'completed'; }).length;
-    var total = this.backgroundTasks.length;
+    var loading = (tasks === null);
+    var list = loading ? [] : tasks;
+    var processing = 0, completed = 0, failed = 0;
+    list.forEach(function(t) {
+      var st = t.status;
+      if (st === 'processing' || st === 'pending') processing++;
+      else if (st === 'completed') completed++;
+      else if (st === 'failed' || st === 'cancelled') failed++;
+    });
 
     // Summary header
     var summaryHtml = '<div style="display:flex;gap:16px;padding:12px 0;margin-bottom:8px;">' +
@@ -346,18 +279,35 @@ const AuditWorkbench = {
       '<div style="text-align:center;flex:1;background:var(--color-bg);border-radius:var(--radius-sm);padding:8px;">' +
       '<div style="font-size:20px;font-weight:700;color:var(--color-success);">' + completed + '</div><div style="font-size:11px;color:var(--color-text-muted);">已完成</div></div>' +
       '<div style="text-align:center;flex:1;background:var(--color-bg);border-radius:var(--radius-sm);padding:8px;">' +
-      '<div style="font-size:20px;font-weight:700;color:var(--color-text-muted);">' + total + '</div><div style="font-size:11px;color:var(--color-text-muted);">总计</div></div></div>';
+      '<div style="font-size:20px;font-weight:700;color:var(--color-accent);">' + failed + '</div><div style="font-size:11px;color:var(--color-text-muted);">失败</div></div></div>';
 
-    var itemsHtml = tasks.length === 0 ? '<p style="text-align:center;color:var(--color-text-muted);padding:20px;">暂无后台任务</p>' : summaryHtml;
-    tasks.forEach(function(t) {
-      itemsHtml += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--color-border);">' +
-        '<i class="bi ' + (t.type==='ocr'?'bi-file-earmark-text':'bi-cpu') + '" style="font-size:18px;color:' + (t.status==='completed'?'var(--color-success)':'var(--color-warning)') + ';"></i>' +
-        '<div style="flex:1;"><div style="font-size:14px;">' + t.name + '</div><div style="font-size:12px;color:var(--color-text-muted);">' + (t.status==='completed'?'已完成':'处理中...') + '</div></div>' +
-        (t.status==='processing'?'<div class="progress" style="width:60px;"><div class="progress-bar" style="width:65%;animation:pulse 1.5s infinite;"></div></div>':'') + '</div>';
-    });
+    var itemsHtml = loading
+      ? '<p style="text-align:center;color:var(--color-text-muted);padding:20px;"><span class="pulse">●</span> 正在加载任务...</p>'
+      : summaryHtml;
+    if (!loading) {
+      if (list.length === 0) {
+        itemsHtml += '<p style="text-align:center;color:var(--color-text-muted);padding:20px;">暂无后台任务</p>';
+      }
+      list.forEach(function(t) {
+        var name = t.task_name || t.name || '任务';
+        var type = t.task_type || t.type || '';
+        var st = t.status;
+        var isProc = (st === 'processing' || st === 'pending');
+        var isDone = (st === 'completed');
+        var icon = type === 'ocr' ? 'bi-file-earmark-text' : 'bi-cpu';
+        var color = isDone ? 'var(--color-success)' : (isProc ? 'var(--color-warning)' : 'var(--color-accent)');
+        var prog = (typeof t.progress === 'number') ? t.progress : (isProc ? 65 : 100);
+        var label = isDone ? '已完成' : (isProc ? ('处理中 ' + prog + '%') : '失败');
+        itemsHtml += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--color-border);">' +
+          '<i class="bi ' + icon + '" style="font-size:18px;color:' + color + ';"></i>' +
+          '<div style="flex:1;"><div style="font-size:14px;">' + name + '</div><div style="font-size:12px;color:var(--color-text-muted);">' + label + '</div></div>' +
+          (isProc ? '<div class="progress" style="width:60px;"><div class="progress-bar" style="width:' + Math.max(15, prog) + '%;animation:pulse 1.5s infinite;"></div></div>' : '') +
+          '</div>';
+      });
+    }
     var footerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
       '<a href="index.html" style="font-size:13px;">在首页待办中查看详情 &rarr;</a>' +
-      (completed > 0 ? '<button class="btn btn-sm btn-outline" onclick="AuditWorkbench.clearCompletedTasks()"><i class="bi bi-trash"></i> 清除已完成</button>' : '') +
+      '<button class="btn btn-sm btn-outline" onclick="AuditWorkbench.showTasks();this.closest(\'[style*=fixed]\').remove()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>' +
       '</div>';
 
     modal.innerHTML = '<div style="background:#fff;border-radius:var(--radius-lg);max-width:500px;width:90%;padding:24px;box-shadow:var(--shadow-lg);">' +
@@ -366,17 +316,6 @@ const AuditWorkbench = {
       '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button></div>' +
       itemsHtml + footerHtml + '</div>';
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-  },
-
-  // 清除本地已完成的任务记录（不动后端，只清理前端 localStorage + 徽章）
-  clearCompletedTasks() {
-    this.backgroundTasks = this.backgroundTasks.filter(function(t) { return t.status !== 'completed'; });
-    this.saveTasks();
-    this.updateTaskBadge();
-    // 关闭并重新打开面板
-    var stale = document.querySelector('[style*="fixed"][style*="z-index:9999"]');
-    if (stale) stale.remove();
-    this.showTasks();
   },
 
   /** Toggle user dropdown */
@@ -443,6 +382,40 @@ const AuditWorkbench = {
     toast.innerHTML = '<i class="bi ' + (icons[type] || icons.info) + '"></i> ' + message;
     container.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 4000);
+  },
+
+  /** 读取当前项目记忆（集中入口；方案C 切 URL 参数时只需改这里）*/
+  getProjectMemory() {
+    try { return JSON.parse(localStorage.getItem('aw_project_memory') || '{}') || {}; }
+    catch(e) { return {}; }
+  },
+
+  /** 方案B 回查校验：若 memory 带 project_id，向后端核对并刷新缓存（自愈 stale）。
+   *  返回 Promise<最新 memory>；无 pid 或后端不可用时原样返回缓存，绝不抛错。*/
+  refreshProjectMemory() {
+    var mem = this.getProjectMemory();
+    var pid = mem.project_id || mem.id || '';
+    if (!pid || typeof AuditAPI === 'undefined' || !AuditAPI.projects || !AuditAPI.projects.get) {
+      return Promise.resolve(mem);
+    }
+    return AuditAPI.projects.get(pid).then(function(resp) {
+      if (!resp || !resp.success) return mem;
+      var p = resp.project || {};
+      var fresh = {};
+      for (var k in mem) { fresh[k] = mem[k]; }   // 浅拷贝，保留 focus/auditItem/summary 等临时字段
+      fresh.project_id = pid;
+      if (p.name || p.title) fresh.title = p.name || p.title;
+      if (p.audit_type || p.domain) fresh.domain = p.audit_type || p.domain;
+      if (p.audited_unit || p.unit) fresh.unit = p.audited_unit || p.unit;
+      if (p.target_level || p.level) fresh.level = p.target_level || p.level;
+      if (p.objective) fresh.objective = p.objective;
+      if (p.scope) fresh.scope = p.scope;
+      // 仅当权威字段确实变了才写回，避免无谓写入
+      if (fresh.title !== mem.title || fresh.domain !== mem.domain) {
+        try { localStorage.setItem('aw_project_memory', JSON.stringify(fresh)); } catch(e) {}
+      }
+      return fresh;
+    }).catch(function() { return mem; });
   }
 };
 

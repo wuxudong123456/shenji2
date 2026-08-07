@@ -67,7 +67,7 @@ var DocGen = {
   _currentType: null,
   _context: function() {
     var mem = {};
-    try { mem = JSON.parse(localStorage.getItem('aw_project_memory') || '{}'); } catch(e) {}
+    mem = AuditWorkbench.getProjectMemory();
     return {
       project_title: mem.title || '审计项目',
       auditor: '审计员',
