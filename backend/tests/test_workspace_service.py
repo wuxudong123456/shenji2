@@ -93,6 +93,17 @@ def main():
     marked2 = mark_file_deleted(m, object_key='不存在')
     check('mark_deleted 未命中 → False', marked2 is False)
 
+    print('[P2-10] parse_pid_from_key 跨项目归属解析')
+    from services.workspace_service import parse_pid_from_key
+    check('新格式 解析 pid',
+          parse_pid_from_key('2026/abc123def456-某局/text/pdf/x.合同.pdf') == 'abc123def456')
+    check('新格式 safe_name 含 dash 不影响 pid',
+          parse_pid_from_key('2026/abc123def456-某局-2026/image/x.png') == 'abc123def456')
+    check('legacy 格式 {pid}/raw/ 解析 pid',
+          parse_pid_from_key('abc123def456/raw/fileid/旧文件.pdf') == 'abc123def456')
+    check('空 key → None', parse_pid_from_key('') is None)
+    check('单段无斜杠 → None', parse_pid_from_key('abc') is None)
+
     passed = sum(1 for _, c in results if c)
     total = len(results)
     print('\n[result] workspace_service 单测：通过 %d / 失败 %d' % (passed, total - passed))

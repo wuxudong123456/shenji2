@@ -211,3 +211,24 @@ def mark_file_deleted(manifest, trace_id=None, object_key=None):
     if found:
         manifest["updated_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     return found
+
+
+def parse_pid_from_key(object_key):
+    """从 object_key 前缀解析 project_id（§3.6 P2-10 跨项目归属校验）。
+
+    支持两种前缀：
+      - 新格式：{year}/{pid}-{safe_name}/...（first 段是 4 位年份 → pid 在 second 段 dash 前）
+      - legacy 格式：{pid}/raw/...（first 段即 pid）
+    解析失败/无法判定返回 None。
+    """
+    if not object_key:
+        return None
+    parts = object_key.split("/")
+    if len(parts) < 2:
+        return None
+    first, second = parts[0], parts[1]
+    if _YEAR_RE.fullmatch(first):
+        # 新格式：second = "{pid}-{safe_name}"，pid 在首个 dash 前（pid 本身无 dash）
+        return second.split("-", 1)[0] if "-" in second else None
+    # legacy 格式：first 段即 pid
+    return first

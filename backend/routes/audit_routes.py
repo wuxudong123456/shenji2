@@ -1717,27 +1717,106 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/workspace/download", methods=["GET"])
     def audit_workspace_download():
-        """GET /api/audit/workspace/download?project=<name>&file=<filename> — MinIO 预签名下载"""
+        """GET /api/audit/workspace/download — 预签名下载（P2-8/P2-10 §6.4）
+
+        新逻辑：?project_id=<pid>&file=<object_key>（每项目 bucket + 跨项目 pid 校验，不匹配 403）。
+        旧逻辑（§6.8 deprecated）：?project=<name>&file=<filename>（单桶，灰度至 Phase 5）。
+        """
+        project_id = (request.args.get("project_id") or "").strip()
+        object_key = (request.args.get("file") or "").strip()
+        # 新逻辑（带 project_id）
+        if project_id:
+            if not object_key:
+                return jsonify({"success": False, "error": "缺少 file 参数"}), 400
+            proj = query_one(
+                "SELECT minio_bucket FROM audit_projects WHERE id = %s AND deleted = 0",
+                (project_id,), database="tt",
+            )
+            if not proj:
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            bucket = proj.get("minio_bucket") or "audit-project-{}".format(project_id)
+            # P2-10 跨项目校验：object_key 前缀 pid 须 == project_id
+            from services.workspace_service import parse_pid_from_key
+            if parse_pid_from_key(object_key) != project_id:
+                return jsonify({"success": False, "error": "无权访问该文件（跨项目）"}), 403
+            try:
+                from services.minio_client import get_presigned_url
+                url = get_presigned_url(object_key, bucket=bucket, expires=3600)
+                return jsonify({"success": True, "url": url, "bucket": bucket})
+            except Exception as e:
+                return jsonify({"success": False, "error": str(e)}), 500
+        # 旧逻辑（deprecated，按 MinIO 文件夹名寻址，§6.8 灰度保留）
         project = request.args.get("project", "")
         filename = request.args.get("file", "")
         if not project or not filename:
-            return jsonify({"success": False, "error": "缺少参数"}), 400
+            return jsonify({"success": False, "error": "缺少参数（需 project_id 或 project+file）"}), 400
         try:
             from services.minio_client import get_presigned_url
-            url = get_presigned_url(f"{project}/{filename}", expires=3600)
+            url = get_presigned_url("{}/{}".format(project, filename), expires=3600)
             return jsonify({"success": True, "url": url})
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route("/api/audit/workspace/delete", methods=["DELETE"])
     def audit_workspace_delete():
-        """DELETE /api/audit/workspace/delete?project=<name>&file=<filename>"""
+        """DELETE /api/audit/workspace/delete — 删除文件（P2-9/P2-10 §6.5）
+
+        新逻辑：?project_id=<pid>&file=<object_key> → 软删（trace.deleted_at=NOW()
+        + manifest.files[].deleted=true，MinIO 对象留原位 §3.5，可恢复）。
+        旧逻辑（§6.8 deprecated）：?project=<name>&file=<filename> → 物理删（单桶，灰度）。
+        """
+        project_id = (request.args.get("project_id") or "").strip()
+        object_key = (request.args.get("file") or "").strip()
+        # 新逻辑（软删）
+        if project_id:
+            if not object_key:
+                return jsonify({"success": False, "error": "缺少 file 参数"}), 400
+            proj = query_one(
+                "SELECT name, audit_period, create_time, minio_bucket "
+                "FROM audit_projects WHERE id = %s AND deleted = 0",
+                (project_id,), database="tt",
+            )
+            if not proj:
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            bucket = proj.get("minio_bucket") or "audit-project-{}".format(project_id)
+            from services.workspace_service import (
+                parse_pid_from_key, derive_audit_year, compute_safe_name,
+                build_manifest_path, load_manifest, save_manifest, mark_file_deleted,
+            )
+            # P2-10 跨项目校验
+            if parse_pid_from_key(object_key) != project_id:
+                return jsonify({"success": False, "error": "无权删除该文件（跨项目）"}), 403
+            # 软删 trace（§3.5 留痕）
+            trace = query_one(
+                "SELECT id FROM audit_document_traces "
+                "WHERE project_id = %s AND minio_path = %s AND deleted_at IS NULL",
+                (project_id, object_key), database="tt",
+            )
+            trace_id = None
+            if trace:
+                execute("UPDATE audit_document_traces SET deleted_at = NOW() WHERE id = %s",
+                        (trace["id"],), database="tt")
+                trace_id = trace["id"]
+            # 软删 manifest（增量更新）
+            audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
+            mpath = build_manifest_path(audit_year, project_id, compute_safe_name(proj.get("name") or ""))
+            m = load_manifest(bucket, mpath)
+            marked = False
+            if m:
+                marked = mark_file_deleted(m, object_key=object_key)
+                save_manifest(bucket, mpath, m)
+            return jsonify({
+                "success": True, "soft_deleted": True, "trace_id": trace_id,
+                "manifest_marked": marked,
+                "message": "文件已软删（对象保留原位，可恢复）",
+            })
+        # 旧逻辑（deprecated 物理删，§6.8 灰度保留）
         project = request.args.get("project", "")
         filename = request.args.get("file", "")
         try:
             from services.minio_client import delete_object
-            delete_object(f"{project}/{filename}")
-            return jsonify({"success": True, "message": f"{filename} 已删除"})
+            delete_object("{}/{}".format(project, filename))
+            return jsonify({"success": True, "message": "{} 已删除".format(filename)})
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
 
