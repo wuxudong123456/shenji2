@@ -1008,30 +1008,72 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/documents/reparse", methods=["POST"])
     def audit_document_reparse():
-        """POST /api/audit/documents/reparse — 重新推理"""
+        """POST /api/audit/documents/reparse — 重新解析（P3-12：异步重跑 OCR+提取）
+
+        重写为异步 OCR 任务（原实现仅同步重提取、不重 OCR/不写库/不 ocr_version+1，名实不符）：
+          1. 校验 trace 存在 + 关联项目 setup_stage=workspace（OCR 类操作统一前置，§6 约定）
+          2. 从 trace 读 minio 信息，入队 ocr 任务（payload 与 upload 同形态 + is_reparse=True）
+          3. 立即返回 task_id（不再同步返 extract_result）
+        worker 跑完后 trace.ocr_version 自然 +1、各列覆盖写（决策3；旧版本 Phase 4 标 superseded）。
+        """
         data = request.get_json() or {}
         doc_id = data.get("document_id")
         template_name = data.get("template_name", "")
         if not doc_id:
             return jsonify({"success": False, "error": "请提供 document_id"}), 400
 
-        # 查原始 OCR 内容
+        # 1. 查 trace（document_id 即 trace.id）
         trace = query_one(
-            "SELECT * FROM audit_document_traces WHERE id = %s",
+            "SELECT id, project_id, file_name, minio_bucket, minio_path, ocr_version "
+            "FROM audit_document_traces WHERE id = %s",
             (doc_id,), database="tt",
         )
         if not trace:
             return jsonify({"success": False, "error": "溯源记录不存在"}), 404
 
-        # 重新提取
-        from services.extraction_service import extract_fields, auto_classify_and_extract
-        markdown = trace.get("ocr_content") or ""
-        if template_name:
-            extract_result = extract_fields(template_name, markdown)
-        else:
-            extract_result = auto_classify_and_extract(markdown)
+        # 2. 校验项目 setup_stage=workspace（OCR 类操作统一前置，§6 约定）
+        project_id = trace.get("project_id") or ""
+        proj = query_one(
+            "SELECT setup_stage FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not proj:
+            return jsonify({"success": False, "error": "关联项目不存在"}), 404
+        if (proj.get("setup_stage") or "") != "workspace":
+            return jsonify({
+                "success": False,
+                "error": "项目未完成资料空间创建，不能重新解析",
+                "setup_stage": proj.get("setup_stage") or "basic",
+            }), 409
 
-        return jsonify({"success": True, "document_id": doc_id, "result": extract_result})
+        # 3. 从 trace 读 minio 信息，入队异步 OCR 任务（payload 与 upload 同形态 + is_reparse 标记）
+        from services.task_manager import create_task
+        from services.task_worker import submit_task
+        task_result = create_task(
+            task_name=f"reparse:{trace.get('file_name') or doc_id}",
+            task_type="ocr",
+            project_id=project_id,
+            payload={
+                "trace_id": trace["id"],
+                "minio_bucket": trace.get("minio_bucket"),
+                "minio_path": trace.get("minio_path"),
+                "filename": trace.get("file_name") or "",
+                "project_id": project_id,
+                "sku_profile": template_name or None,  # 前端可指定模板 profile
+                "is_reparse": True,  # 决策3：worker 覆盖写 + ocr_version+1（旧版本 Phase 4 标 superseded）
+            },
+        )
+        task_id = task_result.get("task", {}).get("id")
+        if task_id:
+            submit_task(task_id)
+
+        return jsonify({
+            "success": True,
+            "document_id": doc_id,
+            "task_id": task_id,
+            "ocr_version": trace.get("ocr_version") or 1,
+            "message": "重新解析已入队，完成后 ocr_version 递增" if task_id else "入队失败",
+        })
 
     # ═══════════════════════════════════════════════════════════
     #  数据工坊

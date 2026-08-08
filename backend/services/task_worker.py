@@ -114,15 +114,20 @@ def _fail_with_trace(task_id, trace_id, error_msg):
 
 
 def _run_ocr_task(task_id: int, task_data: dict):
-    """OCR + 字段提取任务（Q1.2 改造：调 OntoSKU 原生引擎，字段映射入表）
+    """OCR + 字段提取任务（Q1.2 → P3 加固：三档选路唯一入口 + 字段映射入表）
+
+    【唯一选路点 §3.1】OntoSKU 主 → LiteParse 降级 → 本地 LLM 兜底，
+        全程写 trace.parse_engine ∈ {ontosku, liteparse, local-llm}；
+        OCREngine.get_engine() 不再承担选路（P3-12，仅取客户端）。
 
     流程:
-      1. 从 task.result 读 trace_id（不再靠 file_name 反查）
-      2. 从 MinIO 下载文件
-      3. 调 OntoSKU 提取（含 sku_profile 匹配）
-      4. 字段映射：OntoSKU 中文字段 → data_xxx 表英文列
-      5. 写入溯源记录 + 数据工坊表
-      失败兜底：OntoSKU 不可用时降级到本地 LLM 提取
+      1. 从 task.payload 读 trace_id/minio 信息（P3-2，payload 优先 result 兜底兼容在途任务）
+      2. trace.parse_status→running（P3-5）；从 MinIO 下载文件
+      3. OntoSKU 提取（含 sku_profile 匹配）；失败→_fallback_local_extract 三档降级（P3-4）
+      4. 字段映射：中文字段 → data_xxx 表英文列（field_mapper）
+      5. 落库（P3-3/5done/7/9 合并 UPDATE：external_document_id/external_job_id/parse_engine/
+         parse_status='done'/parsed_at/ontosku_template 真值）+ 写 data_*(doc_type)
+      失败：_fail_with_trace → fail_task 退避重试（P3-10）；终态→trace.parse_status=failed（P3-5）
     """
     start_task(task_id)
     update_progress(task_id, 10)

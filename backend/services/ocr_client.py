@@ -12,10 +12,16 @@ from config import Config
 
 
 class OCREngine:
-    """OCR 引擎抽象层"""
+    """OCR 引擎抽象层
+
+    ⚠️ 选路权移交（P3-12 §3.1）：OCR 三档选路（OntoSKU 主 → LiteParse 降级 → 本地 LLM 兜底）
+    现以 task_worker._run_ocr_task 为唯一选路点；本类 get_engine()/parse() 仅作"取客户端"，
+    不再承担生产选路（保留供旧调用方/调试用）。不新建 OcrOrchestrator。
+    """
 
     @staticmethod
     def get_engine():
+        """取 OCR 客户端（仅取实例，不承担选路；选路权在 _run_ocr_task，§3.1）"""
         engine = Config.OCR_ENGINE or 'mineru'
         if engine == 'liteparse':
             return LiteParseClient()
