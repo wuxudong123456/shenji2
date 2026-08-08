@@ -192,10 +192,10 @@ def _run_ocr_task(task_id: int, task_data: dict):
                 }
                 extract_engine = "ontosku"
             except OntoSKUError as oe:
-                # OntoSKU 不可用 → 降级本地 LLM 提取
+                # OntoSKU 失败 → 三档降级（P3-4 §6.4）：LiteParse → LLM 兜底
                 update_progress(task_id, 40)
                 ocr_result = _fallback_local_extract(tmp.name, trace.get("ocr_content") or "")
-                extract_engine = "local-llm(fallback)"
+                extract_engine = ocr_result.get("engine", "local-llm")  # liteparse 或 local-llm
         finally:
             if os.path.exists(tmp.name):
                 os.unlink(tmp.name)
@@ -261,33 +261,55 @@ def _run_ocr_task(task_id: int, task_data: dict):
 
 
 def _fallback_local_extract(file_path: str, existing_ocr: str = "") -> dict:
-    """OntoSKU 不可用时的降级：LiteParse OCR + 本地 LLM 提取
+    r"""OntoSKU 失败后的降级（P3-4 §6.4 三档后两档）：LiteParse → 本地 LLM 兜底。
+
+    OntoSKU 已在调用方失败，本函数负责：
+      ① LiteParse OCR 成功且文本非空（len(strip)≥10）→ engine='liteparse'
+      ② LiteParse 失败或空文本（扫描件，<10）→ 本地 LLM 兜底抽取 → engine='local-llm'（决策 10）
+
+    字段提取统一走 LLM（auto_classify_and_extract），引擎标签反映【文本来源】档位；
+    三档产物归一化为 {text/markdown, fields} 后走同一落库路径（§6.4）。
 
     注意：必须显式用 LiteParseClient，不能用 OCREngine.parse()——
-    因为 OCREngine 受 OCR_ENGINE=mineru 配置控制，会再次调用 OntoSKU（已在主路径失败），形成死循环。
+    OCREngine 受 OCR_ENGINE=mineru 配置控制会回调 OntoSKU（主路径已失败），形成死循环。
     """
+    lp_text = ""
+    engine = "local-llm"  # 默认兜底档；LiteParse 命中实质文本时升级为 liteparse
+
+    # ① LiteParse 档
     try:
         from services.ocr_client import LiteParseClient
         ocr = LiteParseClient().parse(file_path)
-        if not ocr.get("success"):
-            return ocr
-        markdown = ocr.get("text") or ocr.get("markdown") or ""
-        # 用本地 LLM 分类 + 提取
+        if ocr.get("success"):
+            lp_text = ocr.get("text") or ocr.get("markdown") or ""
+            if len(lp_text.strip()) >= 10:  # 实质文本（扫描件常为空白/残渣）→ liteparse 档
+                engine = "liteparse"
+    except Exception:
+        pass  # LiteParse 不可用 → 落 LLM 兜底档
+
+    # ② LLM 兜底档：LiteParse 失败/空文本时，在现有文本上尽力抽取
+    #   liteparse 档用 LiteParse 实质文本；local-llm 档：LiteParse 有非空白残渣则用之，
+    #   否则（纯空白/扫描件）回落历史 ocr_content
+    if engine == "liteparse":
+        text = lp_text
+    else:
+        text = lp_text if lp_text.strip() else existing_ocr
+    try:
         from services.extraction_service import auto_classify_and_extract
-        extract = auto_classify_and_extract(markdown)
-        fields = {}
-        if extract.get("success"):
-            fields = {f["name"]: f["value"] for f in extract.get("fields", [])}
-        return {
-            "success": True,
-            "engine": "local-llm",
-            "text": markdown,
-            "fields": fields,
-            "document_id": "",
-            "chunks": [],
-        }
+        extract = auto_classify_and_extract(text)
+        fields = {f["name"]: f["value"] for f in extract.get("fields", [])} \
+            if extract.get("success") else {}
     except Exception as e:
-        return {"success": False, "engine": "local-llm", "error": str(e)}
+        return {"success": False, "engine": engine, "error": f"LLM兜底抽取失败: {e}"}
+
+    return {
+        "success": True,
+        "engine": engine,
+        "text": text,
+        "fields": fields,
+        "document_id": "",
+        "chunks": [],
+    }
 
 
 def _classify_for_table(ocr_text: str, filename: str) -> str:
