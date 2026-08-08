@@ -32,6 +32,18 @@ def _clean_rows(rows: list) -> list:
     return [_clean_row(r) for r in rows] if rows else []
 
 
+def _json_loads(v):
+    """DB 取回的 JSON 列（str/已解析）统一成 python 对象，非法/NULL 原样返回。"""
+    if v is None or isinstance(v, (list, dict)):
+        return v
+    if isinstance(v, str):
+        try:
+            return json.loads(v)
+        except ValueError:
+            return v
+    return v
+
+
 def _project_to_dto(row: dict | None) -> dict:
     """项目 DTO：DB 行 → 统一字段 + 旧别名兼容（前端 title/unit/domain/level）
 
@@ -1073,6 +1085,93 @@ def register_audit_routes(app):
             "task_id": task_id,
             "ocr_version": trace.get("ocr_version") or 1,
             "message": "重新解析已入队，完成后 ocr_version 递增" if task_id else "入队失败",
+        })
+
+    @app.route("/api/audit/traces/<result_type>/<result_id>", methods=["GET"])
+    def audit_trace_provenance(result_type, result_id):
+        """GET /api/audit/traces/<result_type>/<result_id> — 完整溯源链（P4-8）
+
+        聚合 audit_source_refs（EvidenceService.get_refs，含 expired 推导）+
+        audit_field_sources（JOIN audit_document_chunks 取原文/页码/坐标/status）。
+        可选 ?table= 限定数据表（data_row 行 id 跨表可能重复）。
+
+        P4-10 推导（留痕不删）：
+          - chunk.status='superseded' → refs/field_sources 的 expired=True（证据已过期，待复核）；
+          - chunk page_nums 空 → has_page=False（无精确页码，待人工核实，决策6）。
+        本 Phase result_type∈{document,data_row}；其余类型（AI 结论类）有数据即返，无则空。
+        无任何溯源数据 → 404。
+        """
+        from services import evidence_service as es
+        table = request.args.get("table")
+
+        refs = es.get_refs(result_type, result_id)
+        refs_out = [{
+            "source_type": r.get("source_type"),
+            "source_id": r.get("source_id"),
+            "document_id": r.get("document_id"),
+            "file_name": r.get("file_name"),
+            "page_number": r.get("page_number"),
+            "bbox": _json_loads(r.get("bbox")),
+            "quote": r.get("quote"),
+            "relation": r.get("relation"),
+            "expired": r.get("expired"),
+        } for r in refs]
+
+        field_sources_out = []
+        if result_type == "data_row":
+            if table:
+                fs_rows = query(
+                    "SELECT fs.table_name, fs.row_id, fs.field_name, fs.chunk_id, fs.ocr_version, "
+                    "c.text AS chunk_text, c.page_nums AS chunk_page_nums, "
+                    "c.bbox AS chunk_bbox, c.status AS chunk_status "
+                    "FROM audit_field_sources fs "
+                    "LEFT JOIN audit_document_chunks c ON fs.chunk_id = c.id "
+                    "WHERE fs.row_id = %s AND fs.table_name = %s ORDER BY fs.id",
+                    (result_id, table), database="tt",
+                )
+            else:
+                fs_rows = query(
+                    "SELECT fs.table_name, fs.row_id, fs.field_name, fs.chunk_id, fs.ocr_version, "
+                    "c.text AS chunk_text, c.page_nums AS chunk_page_nums, "
+                    "c.bbox AS chunk_bbox, c.status AS chunk_status "
+                    "FROM audit_field_sources fs "
+                    "LEFT JOIN audit_document_chunks c ON fs.chunk_id = c.id "
+                    "WHERE fs.row_id = %s ORDER BY fs.id",
+                    (result_id,), database="tt",
+                )
+            for fr in fs_rows:
+                page_nums = _json_loads(fr.get("chunk_page_nums"))
+                bbox = _json_loads(fr.get("chunk_bbox"))
+                status = fr.get("chunk_status")
+                chunk_id = fr.get("chunk_id")
+                field_sources_out.append({
+                    "table_name": fr.get("table_name"),
+                    "row_id": fr.get("row_id"),
+                    "field_name": fr.get("field_name"),
+                    "chunk_id": chunk_id,
+                    "ocr_version": fr.get("ocr_version"),
+                    "chunk": {
+                        "text": fr.get("chunk_text"),
+                        "page_nums": page_nums,
+                        "bbox": bbox,
+                        "status": status,
+                    } if chunk_id else None,
+                    "expired": (status == "superseded"),
+                    "has_page": bool(page_nums),
+                })
+
+        if not refs_out and not field_sources_out:
+            return jsonify({
+                "success": False, "error": "未找到该结果的溯源数据",
+                "result_type": result_type, "result_id": result_id,
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "result_type": result_type,
+            "result_id": result_id,
+            "refs": refs_out,
+            "field_sources": field_sources_out,
         })
 
     # ═══════════════════════════════════════════════════════════
