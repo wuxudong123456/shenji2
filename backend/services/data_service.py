@@ -46,6 +46,9 @@ DATE_COLS = {"sign_date", "effective_date", "expiry_date", "voucher_date", "doc_
 # query string 中非筛选键（分页/游标/字段/项目），parse_query_filters 跳过
 _PAGINATION_KEYS = {"page", "per_page", "project_id", "after", "fields"}
 
+# 查询超时保护（P5-6，MySQL MAX_EXECUTION_TIME 优化器 hint，毫秒）
+QUERY_TIMEOUT_MS = 10000
+
 
 class ProjectIDRequiredError(ValueError):
     """项目分析模式 project_id 缺失（方案 §4.4 → 路由转 400）"""
@@ -99,14 +102,17 @@ def list_rows(table: str, *, project_id: str | None = None,
               after: int | None = None, filters: dict | None = None,
               fields: list[str] | None = None,
               require_project: bool = False) -> dict:
-    """统一行查询（P5-3/P5-4/P5-5）。
+    """统一行查询（P5-3/P5-4/P5-5/P5-6）。
 
     双模式：
       require_project=False → 全局浏览（project_id 可空，per_page 硬 cap 200）
       require_project=True  → 项目分析（project_id 必填，空 → ProjectIDRequiredError）
 
-    filters（P5-5 已实现，结构见 parse_query_filters）：等于/金额范围/日期范围，
-    白名单列防注入，非白名单列忽略。after/fields 由后续切片（P5-6）实现。
+    filters（P5-5）：等于/金额范围/日期范围，白名单列防注入，见 parse_query_filters。
+    P5-6：
+      - 字段裁剪：默认剥离 LARGE_FIELDS（raw_text/transcript），fields 显式取回。
+      - 游标分页：after=<id> → WHERE id<%s 深翻页（避开 OFFSET 越翻越慢），与 page 互斥。
+      - 超时保护：SELECT 带 MAX_EXECUTION_TIME hint（QUERY_TIMEOUT_MS）。
     """
     _validate_table(table)
 
@@ -114,12 +120,12 @@ def list_rows(table: str, *, project_id: str | None = None,
     if require_project and not project_id:
         raise ProjectIDRequiredError("项目分析模式 project_id 必填")
 
-    # WHERE 构建
-    where_parts: list[str] = []
-    params: list = []
+    # base WHERE（project_id + filters）—— 不含游标，用于 total 计数
+    base_parts: list[str] = []
+    base_params: list = []
     if project_id:
-        where_parts.append("project_id = %s")
-        params.append(project_id)
+        base_parts.append("project_id = %s")
+        base_params.append(project_id)
 
     # P5-5 字段筛选（白名单列防注入；结构见 parse_query_filters）
     if filters:
@@ -127,8 +133,8 @@ def list_rows(table: str, *, project_id: str | None = None,
         # ① 等于（列须在白名单）
         for col, val in filters.get("eq", {}).items():
             if col in flt_cols:
-                where_parts.append(f"`{col}` = %s")
-                params.append(val)
+                base_parts.append(f"`{col}` = %s")
+                base_params.append(val)
         # ② 金额范围（表的各金额列各自落在 [min,max] → OR 任一命中）
         amt_cols = AMOUNT_COLS & flt_cols
         amin, amax = filters.get("amount_min"), filters.get("amount_max")
@@ -137,11 +143,11 @@ def list_rows(table: str, *, project_id: str | None = None,
             for c in sorted(amt_cols):
                 parts = []
                 if amin is not None:
-                    parts.append(f"`{c}` >= %s"); params.append(amin)
+                    parts.append(f"`{c}` >= %s"); base_params.append(amin)
                 if amax is not None:
-                    parts.append(f"`{c}` <= %s"); params.append(amax)
+                    parts.append(f"`{c}` <= %s"); base_params.append(amax)
                 col_conds.append("(" + " AND ".join(parts) + ")")
-            where_parts.append("(" + " OR ".join(col_conds) + ")")
+            base_parts.append("(" + " OR ".join(col_conds) + ")")
         # ③ 日期范围（表的各日期列各自落在 [from,to] → OR 任一命中）
         dt_cols = DATE_COLS & flt_cols
         dfrom, dto = filters.get("date_from"), filters.get("date_to")
@@ -150,33 +156,65 @@ def list_rows(table: str, *, project_id: str | None = None,
             for c in sorted(dt_cols):
                 parts = []
                 if dfrom is not None:
-                    parts.append(f"`{c}` >= %s"); params.append(dfrom)
+                    parts.append(f"`{c}` >= %s"); base_params.append(dfrom)
                 if dto is not None:
-                    parts.append(f"`{c}` <= %s"); params.append(dto)
+                    parts.append(f"`{c}` <= %s"); base_params.append(dto)
                 col_conds.append("(" + " AND ".join(parts) + ")")
-            where_parts.append("(" + " OR ".join(col_conds) + ")")
+            base_parts.append("(" + " OR ".join(col_conds) + ")")
 
-    where = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+    # P5-6 游标条件（仅行查询 WHERE，不进 total）
+    row_parts = base_parts[:]
+    row_params = base_params[:]
+    cursor_mode = after is not None
+    if cursor_mode:
+        row_parts.append("id < %s")
+        row_params.append(int(after))
 
-    # 分页（per_page 硬 cap 200，page 下界 1）
+    base_where = (" WHERE " + " AND ".join(base_parts)) if base_parts else ""
+    row_where = (" WHERE " + " AND ".join(row_parts)) if row_parts else ""
+
     per_page = min(max(int(per_page or 20), 1), 200)
-    page = max(int(page or 1), 1)
-    offset = (page - 1) * per_page
+    hint = f"/*+ MAX_EXECUTION_TIME({QUERY_TIMEOUT_MS}) */"
 
-    rows = query(
-        f"SELECT * FROM {table}{where} ORDER BY id DESC LIMIT %s OFFSET %s",
-        (*params, per_page, offset), database="tt",
-    )
+    if cursor_mode:
+        rows = query(
+            f"SELECT {hint} * FROM {table}{row_where} ORDER BY id DESC LIMIT %s",
+            (*row_params, per_page), database="tt",
+        )
+        page_out = None
+    else:
+        page = max(int(page or 1), 1)
+        offset = (page - 1) * per_page
+        rows = query(
+            f"SELECT {hint} * FROM {table}{row_where} ORDER BY id DESC LIMIT %s OFFSET %s",
+            (*row_params, per_page, offset), database="tt",
+        )
+        page_out = page
+
     total = query_one(
-        f"SELECT COUNT(*) AS n FROM {table}{where}",
-        tuple(params), database="tt",
+        f"SELECT {hint} COUNT(*) AS n FROM {table}{base_where}",
+        tuple(base_params), database="tt",
     )
-    return {
-        "rows": [_clean_row(dict(r)) for r in rows],
+
+    # P5-6 字段裁剪：默认剥离 LARGE_FIELDS，fields 白名单显式取回
+    keep_large = ({f.strip() for f in (fields or [])} & LARGE_FIELDS) if fields else set()
+    clean_rows = []
+    for r in rows:
+        d = _clean_row(dict(r))
+        for lf in LARGE_FIELDS:
+            if lf not in keep_large:
+                d.pop(lf, None)
+        clean_rows.append(d)
+
+    result = {
+        "rows": clean_rows,
         "total": total["n"] if total else 0,
-        "page": page,
+        "page": page_out,
         "per_page": per_page,
+        # 下一页游标（始终返回，便于从任意页切入游标翻页）：满页取末行 id，否则到尾 None
+        "next_cursor": clean_rows[-1]["id"] if (clean_rows and len(clean_rows) == per_page) else None,
     }
+    return result
 
 
 def parse_query_filters(table: str, args: dict) -> dict:
