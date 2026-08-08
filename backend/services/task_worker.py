@@ -80,6 +80,39 @@ def cancel_running_task(task_id: int) -> bool:
 
 # ── 任务处理函数 ──
 
+
+def _set_trace_parse_status(trace_id, status, parsed_at=False):
+    """同步 trace.parse_status（P3-5 状态机）。
+
+    pending(建 trace, P3-1) → running(worker 取走) → done(完成, P3-3) / failed(终态)。
+    parsed_at=True 时一并写 parsed_at=NOW()（done 用）。
+    """
+    if not trace_id:
+        return
+    from services.db import execute
+    if parsed_at:
+        execute(
+            "UPDATE audit_document_traces SET parse_status=%s, parsed_at=NOW() WHERE id=%s",
+            (status, trace_id), database="tt",
+        )
+    else:
+        execute(
+            "UPDATE audit_document_traces SET parse_status=%s WHERE id=%s",
+            (status, trace_id), database="tt",
+        )
+
+
+def _fail_with_trace(task_id, trace_id, error_msg):
+    """fail_task + 终态时同步 trace.parse_status='failed'（P3-5）。
+
+    fail_task 返回 True=已回 pending 待重试（trace 保持 running，用户视角仍在跑），
+    False=重试耗尽终态 failed。trace_id 无效时只 fail_task（不写 trace）。
+    """
+    retried = fail_task(task_id, error_msg)
+    if not retried and trace_id:
+        _set_trace_parse_status(trace_id, "failed")
+
+
 def _run_ocr_task(task_id: int, task_data: dict):
     """OCR + 字段提取任务（Q1.2 改造：调 OntoSKU 原生引擎，字段映射入表）
 
@@ -108,7 +141,7 @@ def _run_ocr_task(task_id: int, task_data: dict):
     filename = task_payload.get("filename") or task_data.get("task_name", "")
 
     if not trace_id:
-        fail_task(task_id, "task 缺少 trace_id（result.trace_id）")
+        fail_task(task_id, "task 缺少 trace_id（payload.trace_id）")
         return
 
     from services.db import query_one, execute, insert
@@ -120,6 +153,8 @@ def _run_ocr_task(task_id: int, task_data: dict):
         fail_task(task_id, f"溯源记录不存在: {trace_id}")
         return
 
+    # P3-5：trace 加载成功 → parse_status='running'
+    _set_trace_parse_status(trace_id, "running")
     update_progress(task_id, 20)
 
     # 2. 从 MinIO 下载文件（从 task_payload 取项目 bucket，不能用默认 bucket）
@@ -128,7 +163,7 @@ def _run_ocr_task(task_id: int, task_data: dict):
         from services.minio_client import download_file
         file_bytes = download_file(path_to_fetch, bucket=minio_bucket)
     except Exception as e:
-        fail_task(task_id, f"从MinIO下载失败(bucket={minio_bucket}): {e}")
+        _fail_with_trace(task_id, trace_id, f"从MinIO下载失败(bucket={minio_bucket}): {e}")
         return
 
     update_progress(task_id, 30)
@@ -165,11 +200,11 @@ def _run_ocr_task(task_id: int, task_data: dict):
             if os.path.exists(tmp.name):
                 os.unlink(tmp.name)
     except Exception as e:
-        fail_task(task_id, f"提取阶段异常: {e}")
+        _fail_with_trace(task_id, trace_id, f"提取阶段异常: {e}")
         return
 
     if not ocr_result or not ocr_result.get("success"):
-        fail_task(task_id, f"提取失败: {ocr_result.get('error', '未知') if ocr_result else '无结果'}")
+        _fail_with_trace(task_id, trace_id, f"提取失败: {ocr_result.get('error', '未知') if ocr_result else '无结果'}")
         return
 
     update_progress(task_id, 70)

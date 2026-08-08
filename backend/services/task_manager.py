@@ -9,6 +9,7 @@
                        → cancelled
 """
 import json
+import time
 from datetime import datetime
 from services.db import query, query_one, execute, insert
 
@@ -177,7 +178,10 @@ def recover_stuck_tasks() -> int:
 
 
 def fail_task(task_id: int, error_msg: str) -> bool:
-    """标记任务为 failed，自动递增重试次数"""
+    """标记任务失败：递增 retry_count，未超限则指数退避后重新提交（P3-10），超限保持 failed 终态。
+
+    Returns: True=已回 pending 待重试；False=重试耗尽 failed 终态（P3-5 据此同步 trace.parse_status）。
+    """
     execute(
         "UPDATE audit_task_queue SET status='failed', error_msg=%s, "
         "retry_count = retry_count + 1 WHERE id = %s",
@@ -196,6 +200,10 @@ def fail_task(task_id: int, error_msg: str) -> bool:
             "error_msg=CONCAT('重试中(第', retry_count, '次): ', error_msg) WHERE id = %s",
             (task_id,), database="tt",
         )
+        # P3-10：指数退避（重试前延迟，避免雪崩）+ 重新提交（修复回 pending 后无人 re-submit 的断链）
+        time.sleep(2 ** (row["retry_count"] - 1))
+        from services.task_worker import submit_task  # 懒加载避免循环导入
+        submit_task(task_id)
         return True  # 已自动重试
 
     # 重试耗尽，保持 failed 状态
