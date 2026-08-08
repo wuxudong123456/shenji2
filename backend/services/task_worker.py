@@ -335,6 +335,103 @@ def _fallback_local_extract(file_path: str, existing_ocr: str = "") -> dict:
     }
 
 
+def _normalize_chunks(raw_chunks, engine: str) -> list:
+    """P4-2 — OntoSKU chunks 归一化为统一最小字段（纯函数，无副作用）
+
+    把各引擎的 chunks 统一为 {chunk_id, chunk_type, page_nums, bbox, text, section_path}，
+    供 P4-3 逐条落 audit_document_chunks、P4-5 文本匹配 chunk。
+
+    - **防御性兼容键名**（K2 §4 chunks.json 真实结构待校准）：
+      chunk_id←chunk_id/id；chunk_type←type/chunk_type；page_nums←page_nums/pages/page；
+      bbox←bbox/bounding_box/coords；text←text/content/markdown；section_path←section_path/section/heading。
+    - **降级路径不伪造（§3.4）**：engine∈{liteparse,local-llm}（无可靠页码/坐标）或输入空 → 返回 []。
+      （_fallback_local_extract 本就返回 chunks:[]，此处 engine 守卫为二次防御。）
+    """
+    if not raw_chunks or engine in ("liteparse", "local-llm"):
+        return []
+    if not isinstance(raw_chunks, list):
+        return []
+
+    normed = []
+    for idx, raw in enumerate(raw_chunks):
+        if not isinstance(raw, dict):
+            continue
+        normed.append({
+            "chunk_id": _first_key(raw, ("chunk_id", "id")) or f"chunk-{idx}",
+            "chunk_type": _first_key(raw, ("type", "chunk_type")) or "text",
+            "page_nums": _coerce_page_nums(
+                _first_key(raw, ("page_nums", "pages", "page", "page_number"))),
+            "bbox": _coerce_bbox(
+                _first_key(raw, ("bbox", "bounding_box", "coords", "box"))),
+            "text": _first_key(raw, ("text", "content", "markdown")) or "",
+            "section_path": _first_key(raw, ("section_path", "section", "heading")),
+        })
+    return normed
+
+
+def _first_key(d: dict, keys) :
+    """取 dict 中第一个存在的键值（键名兼容用）。"""
+    for k in keys:
+        if k in d and d[k] is not None:
+            return d[k]
+    return None
+
+
+def _coerce_page_nums(val) -> list:
+    """页码归一为 list[int]：int→[int]；list→逐项 int；"3-5"→[3,4,5]；其它→[]（不伪造）。"""
+    if val is None:
+        return []
+    if isinstance(val, (list, tuple)):
+        out = []
+        for v in val:
+            try:
+                out.append(int(v))
+            except (TypeError, ValueError):
+                continue
+        return out
+    if isinstance(val, int):
+        return [val]
+    if isinstance(val, str):
+        s = val.strip()
+        if "-" in s and s.count("-") == 1:
+            lo, hi = s.split("-", 1)
+            try:
+                return list(range(int(lo), int(hi) + 1))
+            except ValueError:
+                pass
+        try:
+            return [int(s)]
+        except ValueError:
+            return []
+    return []
+
+
+def _coerce_bbox(val):
+    """坐标归一为 [x0,y0,x1,y1]（数字四元组）或 None（无法解析不伪造）。"""
+    if val is None:
+        return None
+    if isinstance(val, (list, tuple)) and len(val) == 4:
+        try:
+            return [float(val[0]), float(val[1]), float(val[2]), float(val[3])]
+        except (TypeError, ValueError):
+            return None
+    if isinstance(val, dict):
+        # 兼容 {x0,y0,x1,y1} 与 {left,top,right,bottom} 与 {x,y,w,h}
+        try:
+            if "x0" in val:
+                return [float(val["x0"]), float(val["y0"]),
+                        float(val["x1"]), float(val["y1"])]
+            if "left" in val:
+                return [float(val["left"]), float(val["top"]),
+                        float(val["right"]), float(val["bottom"])]
+            if {"x", "y", "w", "h"} <= set(val):
+                x, y, w, h = float(val["x"]), float(val["y"]), float(val["w"]), float(val["h"])
+                return [x, y, x + w, y + h]
+        except (TypeError, ValueError, KeyError):
+            return None
+    return None
+
+
 def _classify_for_table(ocr_text: str, filename: str) -> str:
     """轻量分类（决定写入哪张 data_xxx 表）
 
