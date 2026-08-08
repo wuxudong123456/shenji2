@@ -262,6 +262,10 @@ def _run_ocr_task(task_id: int, task_data: dict):
         database="tt",
     )
 
+    # P4-3/P4-4/P4-10：chunks 逐条落 audit_document_chunks（双写 position_anchor 兼容；
+    # 废旧旧版本；返回 chunks_db 供 P4-5 字段匹配）
+    chunks_db = _persist_chunks(trace_id, project_id, ocr_result.get("chunks", []), extract_engine)
+
     update_progress(task_id, 85)
 
     # 7. 写入数据工坊表（P3-9：传 doc_type）
@@ -280,6 +284,7 @@ def _run_ocr_task(task_id: int, task_data: dict):
         "fields_mapped": len(row_dict),
         "fields_extra": len(extra_fields),
         "text_length": len(ocr_text),
+        "chunks_count": len(chunks_db),
     })
 
 
@@ -430,6 +435,56 @@ def _coerce_bbox(val):
         except (TypeError, ValueError, KeyError):
             return None
     return None
+
+
+def _persist_chunks(trace_id: int, project_id: str, raw_chunks, engine: str) -> list:
+    """P4-3/P4-4/P4-10 — chunks 逐条落 audit_document_chunks（在 trace UPDATE 之后调用）
+
+    - **P4-10 废旧**：先 UPDATE status='superseded' WHERE trace_id AND status='active'
+      （幂等：首次解析 no-op；reparse 自动废旧旧版本，留痕不删，§3.3）。
+    - 归一化（_normalize_chunks）→ 取当前 ocr_version（UPDATE 已 +1）→ 逐条 INSERT active 行，
+      page_nums/bbox 为 JSON 或 NULL（空/降级不伪造，§3.4）。
+    - **双写**：trace.position_anchor 仍由调用方 UPDATE 写（现状前端在读），本函数只追加新表行。
+    - 返回插入的 chunk 行 [{id,text,page_nums,bbox}]，供 P4-5 字段文本匹配。
+    降级/空 chunks → 返回 []（不插行）。
+    """
+    from services.db import execute, insert, query_one
+
+    # P4-10：废旧旧版本（幂等）
+    execute(
+        "UPDATE audit_document_chunks SET status='superseded' "
+        "WHERE trace_id=%s AND status='active'",
+        (trace_id,), database="tt",
+    )
+
+    normed = _normalize_chunks(raw_chunks, engine)
+    if not normed:
+        return []
+
+    ver_row = query_one(
+        "SELECT ocr_version FROM audit_document_traces WHERE id=%s",
+        (trace_id,), database="tt",
+    )
+    ocr_version = (ver_row or {}).get("ocr_version") or 1
+
+    chunks_db = []
+    for c in normed:
+        page_nums_json = json.dumps(c["page_nums"]) if c["page_nums"] else None
+        bbox_json = json.dumps(c["bbox"]) if c["bbox"] else None
+        cid = insert(
+            "INSERT INTO audit_document_chunks "
+            "(trace_id, project_id, chunk_id, chunk_type, page_nums, bbox, "
+            "text, section_path, ocr_version, status) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'active')",
+            (trace_id, project_id, c["chunk_id"], c["chunk_type"],
+             page_nums_json, bbox_json, c["text"], c["section_path"], ocr_version),
+            database="tt",
+        )
+        chunks_db.append({
+            "id": cid, "text": c["text"],
+            "page_nums": c["page_nums"], "bbox": c["bbox"],
+        })
+    return chunks_db
 
 
 def _classify_for_table(ocr_text: str, filename: str) -> str:
