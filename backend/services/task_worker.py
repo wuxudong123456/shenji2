@@ -275,6 +275,11 @@ def _run_ocr_task(task_id: int, task_data: dict):
         doc_type,
     )
 
+    # P4-5/P4-6：字段→chunk 文本匹配溯源 + 行→trace 证据引用
+    if row_id:
+        _build_field_sources(trace_id, project_id, table_name, row_id,
+                             row_dict, extra_fields, chunks_db)
+
     update_progress(task_id, 100)
     complete_task(task_id, {
         "trace_id": trace_id,
@@ -485,6 +490,78 @@ def _persist_chunks(trace_id: int, project_id: str, raw_chunks, engine: str) -> 
             "page_nums": c["page_nums"], "bbox": c["bbox"],
         })
     return chunks_db
+
+
+def _match_field_chunk(value, chunks_db):
+    """P4-5 文本匹配兜底（决策1）：字段值→str→在 chunks_db 文本里找包含，首个命中→chunk_id。
+
+    OntoSKU 字段级溯源结构待 K2 校准，本 Phase 用文本包含兜底；精度有限（短值易误命中），
+    命中不到返回 None（chunk_id=NULL，标待人工核实）。chunks_db 为空（降级）→ 恒 None。
+    """
+    if value is None or not chunks_db:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    for c in chunks_db:
+        if s in (c.get("text") or ""):
+            return c["id"]
+    return None
+
+
+def _build_field_sources(trace_id, project_id, table_name, row_id,
+                         row_dict, extra_fields, chunks_db):
+    """P4-5/P4-6 — 字段→chunk 溯源 + 行→trace 证据引用（_insert_into_data_table 之后调用）
+
+    - audit_field_sources：每个非空字段建一行
+        · row_dict key → field_name=列名
+        · extra_fields key → field_name='extra_fields->$.字段名'（K5 覆盖未映射字段）
+      chunk_id 由 _match_field_chunk 文本匹配（决策1）；命中不到 NULL。
+    - P4-6：调 EvidenceService.link_data_row_to_document 落 data_row→trace 引用；
+      trace_id 缺失打 warning 不静默。
+    降级 chunks_db=[] → 全部 chunk_id=NULL（不伪造）。
+    """
+    from services.db import insert
+
+    ocr_version = None
+    ver_row = None
+    if trace_id:
+        from services.db import query_one
+        ver_row = query_one("SELECT ocr_version FROM audit_document_traces WHERE id=%s",
+                            (trace_id,), database="tt")
+    ocr_version = (ver_row or {}).get("ocr_version")
+
+    sources = []
+    # ① row_dict：列名
+    for col, val in (row_dict or {}).items():
+        if col in ("project_id", "document_trace_id", "template_name", "doc_name", "doc_type"):
+            continue
+        if val in (None, "", 0):
+            # 0 视为无有效值跳过（金额 0 多为占位）；非空字符串/数字才建来源
+            continue
+        sources.append((col, _match_field_chunk(val, chunks_db)))
+    # ② extra_fields：extra_fields->$.字段名（K5）
+    for fname, val in (extra_fields or {}).items():
+        if val in (None, ""):
+            continue
+        field_name = "extra_fields->$.%s" % fname
+        sources.append((field_name, _match_field_chunk(val, chunks_db)))
+
+    for field_name, chunk_id in sources:
+        insert(
+            "INSERT INTO audit_field_sources "
+            "(project_id, table_name, row_id, field_name, chunk_id, ocr_version) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (project_id, table_name, row_id, field_name, chunk_id, ocr_version),
+            database="tt",
+        )
+
+    # P4-6：行→trace 证据引用（document_id 锚 trace，建立 row→trace→document 链路）
+    if trace_id:
+        from services.evidence_service import link_data_row_to_document
+        link_data_row_to_document(project_id, table_name, row_id, trace_id)
+    else:
+        print(f"[warn] P4-6 data 行 {table_name}.{row_id} 缺 trace_id，未建行→文档引用")
 
 
 def _classify_for_table(ocr_text: str, filename: str) -> str:
