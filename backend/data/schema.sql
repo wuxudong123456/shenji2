@@ -269,6 +269,53 @@ CREATE TABLE tt.data_general (
 ) COMMENT '其他杂项/数据表格/政策文件/历史档案/数据信息类';
 
 -- ---------------------------------------------------------------------------
+-- 12b. data_procurements — 采购数据表（Phase 5 / 决策8 / M005）
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.data_procurements (
+    id                  INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    project_id          VARCHAR(32)   NOT NULL                COMMENT '关联项目ID',
+    document_trace_id   INT                                   COMMENT '溯源锚点ID',
+    template_name       VARCHAR(500)                          COMMENT 'OntoSKU模板名',
+    doc_name            VARCHAR(500)                          COMMENT '文档名称',
+    doc_type            VARCHAR(200)                          COMMENT '文档类型',
+    procurement_method  VARCHAR(100)                          COMMENT '采购方式',
+    subject_name        VARCHAR(500)                          COMMENT '采购项目名称',
+    supplier            VARCHAR(500)                          COMMENT '供应商',
+    budget_amount       DECIMAL(20,2)                         COMMENT '预算金额(元，决策11)',
+    contract_amount     DECIMAL(20,2)                         COMMENT '中标/合同金额(元，决策11)',
+    bid_date            DATE                                  COMMENT '招标/开标日期',
+    sign_date           DATE                                  COMMENT '合同签订日期',
+    extra_fields        JSON                                  COMMENT '模板特有字段+未来扩展',
+    raw_text            TEXT                                  COMMENT 'OCR原文片段',
+    created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_project (project_id),
+    INDEX idx_trace (document_trace_id),
+    INDEX idx_sign_date (sign_date)
+) COMMENT '采购数据表（决策8确认）';
+
+-- ---------------------------------------------------------------------------
+-- 12c. data_interviews — 访谈数据表（Phase 5 / 决策8 / 占位）
+-- ---------------------------------------------------------------------------
+-- 注：补 template_name/doc_type 两列（与 _insert_into_data_table 七公共列一致，执行包 §5 原漏）
+CREATE TABLE tt.data_interviews (
+    id                  INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    project_id          VARCHAR(32)   NOT NULL                COMMENT '关联项目ID',
+    document_trace_id   INT                                   COMMENT '溯源锚点ID',
+    template_name       VARCHAR(500)                          COMMENT 'OntoSKU模板名',
+    doc_name            VARCHAR(500)                          COMMENT '访谈录音/转写文件名称',
+    doc_type            VARCHAR(200)                          COMMENT '文档类型',
+    interviewee         VARCHAR(200)                          COMMENT '被访谈人',
+    interview_date      DATE                                  COMMENT '访谈日期',
+    location            VARCHAR(200)                          COMMENT '访谈地点',
+    transcript          LONGTEXT                              COMMENT '转写全文（音频转写接入后填充，决策7）',
+    extra_fields        JSON                                  COMMENT '模板特有字段+未来扩展',
+    raw_text            TEXT                                  COMMENT '原文片段',
+    created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_project (project_id),
+    INDEX idx_trace (document_trace_id)
+) COMMENT '访谈数据表（决策8确认，占位）';
+
+-- ---------------------------------------------------------------------------
 -- 13. project_suspicions — 疑点报告
 -- ---------------------------------------------------------------------------
 CREATE TABLE tt.project_suspicions (

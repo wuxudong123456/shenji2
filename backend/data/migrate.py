@@ -355,6 +355,66 @@ def migrate_phase4_provenance_tables():
         print(f"[migrate] + 表 {table}")
 
 
+def migrate_phase5_data_tables():
+    """Phase5 — 数据工坊两张新表（PHASE_5 §5 M005，决策8）
+
+    data_procurements（采购数据表，充实字段）、data_interviews（访谈数据表，决策7 占位）。
+    DDL 照搬执行包 §5；**data_interviews 补 template_name/doc_type 两列**——_insert_into_data_table
+    （task_worker.py:604）硬编码七公共列（project_id/document_trace_id/template_name/doc_name/
+    doc_type/extra_fields/raw_text），八表须一致否则访谈类插入报错。执行包 §5 原始 data_interviews
+    DDL 漏此两列，此为依现状修正（非臆造）。逐表 _table_exists 预检幂等。
+    """
+    tables = [
+        (
+            "data_procurements",
+            f"""CREATE TABLE {DATABASE}.data_procurements (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  project_id          VARCHAR(32) NOT NULL COMMENT '关联项目ID',
+  document_trace_id   INT COMMENT '溯源锚点ID',
+  template_name       VARCHAR(500) COMMENT 'OntoSKU模板名',
+  doc_name            VARCHAR(500) COMMENT '文档名称',
+  doc_type            VARCHAR(200) COMMENT '文档类型',
+  procurement_method  VARCHAR(100) COMMENT '采购方式',
+  subject_name        VARCHAR(500) COMMENT '采购项目名称',
+  supplier            VARCHAR(500) COMMENT '供应商',
+  budget_amount       DECIMAL(20,2) COMMENT '预算金额(元，决策11)',
+  contract_amount     DECIMAL(20,2) COMMENT '中标/合同金额(元，决策11)',
+  bid_date            DATE COMMENT '招标/开标日期',
+  sign_date           DATE COMMENT '合同签订日期',
+  extra_fields        JSON COMMENT '扩展字段',
+  raw_text            TEXT COMMENT 'OCR原文片段',
+  created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_project (project_id), INDEX idx_trace (document_trace_id)
+) COMMENT '采购数据表（决策8确认）'""",
+        ),
+        (
+            "data_interviews",
+            f"""CREATE TABLE {DATABASE}.data_interviews (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  project_id          VARCHAR(32) NOT NULL COMMENT '关联项目ID',
+  document_trace_id   INT COMMENT '溯源锚点ID',
+  template_name       VARCHAR(500) COMMENT 'OntoSKU模板名',
+  doc_name            VARCHAR(500) COMMENT '访谈录音/转写文件名称',
+  doc_type            VARCHAR(200) COMMENT '文档类型',
+  interviewee         VARCHAR(200) COMMENT '被访谈人',
+  interview_date      DATE COMMENT '访谈日期',
+  location            VARCHAR(200) COMMENT '访谈地点',
+  transcript          LONGTEXT COMMENT '转写全文（音频转写接入后填充，决策7）',
+  extra_fields        JSON COMMENT '扩展字段',
+  raw_text            TEXT COMMENT '原文片段',
+  created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_project (project_id), INDEX idx_trace (document_trace_id)
+) COMMENT '访谈数据表（决策8确认，占位）'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -367,6 +427,7 @@ def main():
         migrate_phase3_trace_parse_columns()
         migrate_phase3_task_payload()
         migrate_phase4_provenance_tables()
+        migrate_phase5_data_tables()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
