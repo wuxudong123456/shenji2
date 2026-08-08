@@ -10,6 +10,10 @@ from datetime import datetime, date
 from decimal import Decimal
 from flask import request, jsonify
 
+from services.data_service import (
+    list_table_counts, list_rows, ProjectIDRequiredError,
+)
+
 
 def _clean_row(row: dict) -> dict:
     """将数据库返回的行转换为 JSON 可序列化格式"""
@@ -1180,84 +1184,51 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/projects/<project_id>/data", methods=["GET"])
     def audit_data_tables(project_id):
-        """GET /api/audit/projects/<id>/data — 6张数据表列表+行数"""
-        tables = ["data_contracts", "data_finance", "data_legal_docs",
-                  "data_registers", "data_credentials", "data_general",
-                  "data_procurements", "data_interviews"]
-        result = []
-        for t in tables:
-            row = query_one(
-                f"SELECT COUNT(*) AS n FROM {t} WHERE project_id = %s",
-                (project_id,), database="tt",
-            )
-            result.append({
-                "table": t,
-                "label": t.replace("data_", ""),
-                "rows": row["n"] if row else 0,
-            })
-        return jsonify({"success": True, "project_id": project_id, "tables": result})
+        """GET /api/audit/projects/<id>/data — 8张数据表项目级行数（P5-2）"""
+        tables = list_table_counts(project_id)
+        return jsonify({"success": True, "project_id": project_id, "tables": tables})
 
     @app.route("/api/audit/data/tables", methods=["GET"])
     def audit_data_tables_global():
-        """GET /api/audit/data/tables — 6张数据表的全库行数（全局视图，不按项目过滤）"""
-        tables = ["data_contracts", "data_finance", "data_legal_docs",
-                  "data_registers", "data_credentials", "data_general",
-                  "data_procurements", "data_interviews"]
-        result = []
-        for t in tables:
-            row = query_one(f"SELECT COUNT(*) AS n FROM {t}", (), database="tt")
-            result.append({
-                "table": t,
-                "label": t.replace("data_", ""),
-                "rows": row["n"] if row else 0,
-            })
-        return jsonify({"success": True, "tables": result})
+        """GET /api/audit/data/tables — 8张数据表全库行数（全局浏览，P5-2）"""
+        tables = list_table_counts(None)
+        return jsonify({"success": True, "tables": tables})
 
     @app.route("/api/audit/data/<table_name>/rows", methods=["GET"])
     def audit_data_rows(table_name):
-        """GET /api/audit/data/<table>/rows — 数据浏览+分页"""
-        allowed = {"data_contracts", "data_finance", "data_legal_docs",
-                   "data_registers", "data_credentials", "data_general",
-                   "data_procurements", "data_interviews"}
-        if table_name not in allowed:
-            return jsonify({"success": False, "error": f"不支持的表: {table_name}"}), 400
+        """GET /api/audit/data/<table>/rows — 全局浏览模式（无 project_id，硬 cap 200，P5-3）
 
-        project_id = request.args.get("project_id", "")
-        page = request.args.get("page", 1, type=int)
-        per_page = min(request.args.get("per_page", 20, type=int), 200)
-        offset = (page - 1) * per_page
+        全局浏览：不按项目过滤，per_page 硬 cap 200（DataService 兜底）。
+        项目级行查询见 /projects/<id>/data/<table>/rows（项目分析模式）。
+        """
+        try:
+            result = list_rows(
+                table_name, project_id=None,
+                page=request.args.get("page", 1, type=int),
+                per_page=request.args.get("per_page", 20, type=int),
+            )
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+        return jsonify({"success": True, "table": table_name, **result})
 
-        where = "WHERE project_id = %s" if project_id else "WHERE 1=1"
-        params = (project_id,) if project_id else ()
+    @app.route("/api/audit/projects/<project_id>/data/<table_name>/rows", methods=["GET"])
+    def audit_data_rows_project(project_id, table_name):
+        """GET /api/audit/projects/<id>/data/<table>/rows — 项目分析模式（project_id 强制，P5-3/P5-4）
 
-        rows = query(
-            f"SELECT * FROM {table_name} {where} ORDER BY id DESC LIMIT %s OFFSET %s",
-            (*params, per_page, offset), database="tt",
-        )
-        total = query_one(
-            f"SELECT COUNT(*) AS n FROM {table_name} {where}",
-            params, database="tt",
-        )
-
-        # 清理非JSON字段
-        clean_rows = []
-        for r in rows:
-            d = dict(r)
-            for k, v in d.items():
-                if isinstance(v, (datetime,)):
-                    d[k] = v.isoformat()
-                elif isinstance(v, bytes):
-                    d[k] = None
-            clean_rows.append(d)
-
-        return jsonify({
-            "success": True,
-            "table": table_name,
-            "rows": clean_rows,
-            "total": total["n"] if total else 0,
-            "page": page,
-            "per_page": per_page,
-        })
+        project_id 路径参数强制非空；空/伪造 → DataService 拒绝（ProjectIDRequiredError→400）。
+        DataService 内部附加 WHERE project_id=%s，调用方/LLM 无法绕过跨项目隔离。
+        """
+        try:
+            result = list_rows(
+                table_name, project_id=project_id, require_project=True,
+                page=request.args.get("page", 1, type=int),
+                per_page=request.args.get("per_page", 20, type=int),
+            )
+        except ProjectIDRequiredError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+        return jsonify({"success": True, "table": table_name, "project_id": project_id, **result})
 
     @app.route("/api/audit/data/query", methods=["POST"])
     def audit_data_query():
