@@ -237,6 +237,54 @@ def migrate_phase2_trace_columns():
             print(f"[migrate] = {table}.{idx} 已存在，跳过")
 
 
+def migrate_phase3_trace_parse_columns():
+    """Phase3 — audit_document_traces 增加解析技术标识列（PHASE_3 §5 M003 ①）
+
+    5 列 + 2 索引：external_document_id/external_job_id（OntoSKU 标识）、
+    parse_engine（ontosku/liteparse/local-llm）、parse_status（pending/running/done/failed）、
+    parsed_at。OntoSKU 调用/降级/状态同步/重新解析依赖。幂等：列/索引先查 information_schema。
+    """
+    table = "audit_document_traces"
+    columns = [
+        ("external_document_id", "VARCHAR(100) DEFAULT NULL COMMENT 'OntoSKU document_id'"),
+        ("external_job_id", "VARCHAR(100) DEFAULT NULL COMMENT 'OntoSKU job_id'"),
+        ("parse_engine", "VARCHAR(50) DEFAULT NULL COMMENT '实际解析引擎 ontosku/liteparse/local-llm'"),
+        ("parse_status", "VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '解析状态 pending/running/done/failed'"),
+        ("parsed_at", "DATETIME DEFAULT NULL COMMENT '解析完成时间'"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(table, col):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {table}.{col}")
+        else:
+            print(f"[migrate] = {table}.{col} 已存在，跳过")
+    for idx, cols in [("idx_parse_status", "parse_status"), ("idx_external_doc", "external_document_id")]:
+        if not _index_exists(table, idx):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD INDEX {idx} ({cols})", database=DATABASE)
+            print(f"[migrate] + {table}.{idx}")
+        else:
+            print(f"[migrate] = {table}.{idx} 已存在，跳过")
+
+
+def migrate_phase3_task_payload():
+    """Phase3 — audit_task_queue 加 payload 列（PHASE_3 §5 M003 ②）
+
+    分离任务输入(payload)与结果(result)：payload 存入参（trace_id/minio_bucket/minio_path/
+    filename/project_id/sku_profile 等），result 专存最终结果。现状 result 双向复用，P3-2 起
+    worker 改读 payload（payload 优先，result 过渡兜底兼容在途任务）。幂等：列先查 information_schema。
+    """
+    table = "audit_task_queue"
+    if not _column_exists(table, "payload"):
+        execute(
+            f"ALTER TABLE {DATABASE}.{table} ADD COLUMN payload JSON DEFAULT NULL "
+            "COMMENT '任务输入参数（trace_id/minio_bucket/minio_path/sku_profile 等）'",
+            database=DATABASE,
+        )
+        print(f"[migrate] + {table}.payload")
+    else:
+        print(f"[migrate] = {table}.payload 已存在，跳过")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -246,6 +294,8 @@ def main():
         migrate_case_indexes()
         migrate_law_refs_collation()
         migrate_phase2_trace_columns()
+        migrate_phase3_trace_parse_columns()
+        migrate_phase3_task_payload()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
