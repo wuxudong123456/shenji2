@@ -11,7 +11,8 @@ from decimal import Decimal
 from flask import request, jsonify
 
 from services.data_service import (
-    list_table_counts, list_rows, parse_query_filters, ProjectIDRequiredError,
+    list_table_counts, list_rows, parse_query_filters,
+    quality_check, missing_check, ProjectIDRequiredError,
 )
 
 
@@ -1239,6 +1240,24 @@ def register_audit_routes(app):
         except ValueError as e:
             return jsonify({"success": False, "error": str(e)}), 400
         return jsonify({"success": True, "table": table_name, "project_id": project_id, **result})
+
+    @app.route("/api/audit/projects/<project_id>/data/quality", methods=["GET"])
+    def audit_data_quality(project_id):
+        """GET /projects/<id>/data/quality — 数据质量报告（P5-7，项目分析模式）
+
+        每表空值率 + 金额列 min/max + 金额单位异常软告警（决策11：元）。
+        """
+        report = quality_check(project_id)
+        return jsonify({"success": True, **report})
+
+    @app.route("/api/audit/projects/<project_id>/data/missing", methods=["GET"])
+    def audit_data_missing(project_id):
+        """GET /projects/<id>/data/missing — 关键业务列缺失清单（P5-8，项目分析模式）
+
+        DB 仅 project_id NOT NULL；关键列应用层定义（DataService.KEY_COLS）。
+        """
+        report = missing_check(project_id)
+        return jsonify({"success": True, **report})
 
     @app.route("/api/audit/data/query", methods=["POST"])
     def audit_data_query():

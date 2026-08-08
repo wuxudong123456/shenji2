@@ -49,6 +49,30 @@ _PAGINATION_KEYS = {"page", "per_page", "project_id", "after", "fields"}
 # 查询超时保护（P5-6，MySQL MAX_EXECUTION_TIME 优化器 hint，毫秒）
 QUERY_TIMEOUT_MS = 10000
 
+# 各表应用层「关键业务列」（P5-8 缺失检查 + P5-7 空值率；DB 仅 project_id NOT NULL）
+KEY_COLS = {
+    "data_contracts": ["party_a", "party_b", "amount", "contract_no", "sign_date"],
+    "data_finance": ["account_name", "account_no", "voucher_no", "voucher_date",
+                     "debit_amount", "credit_amount"],
+    "data_legal_docs": ["case_no", "issuing_body", "doc_date"],
+    "data_registers": ["register_type", "item_name", "register_date"],
+    "data_credentials": ["cert_type", "cert_no", "holder", "issue_date"],
+    "data_general": ["category", "title", "doc_date"],
+    "data_procurements": ["subject_name", "supplier", "budget_amount", "contract_amount", "bid_date"],
+    "data_interviews": ["interviewee", "interview_date", "location"],
+}
+
+# 各表金额列（决策11 单位=元；P5-7 金额统计 + 单位异常软告警）
+TABLE_AMOUNT_COLS = {
+    "data_contracts": ["amount"],
+    "data_finance": ["debit_amount", "credit_amount"],
+    "data_procurements": ["budget_amount", "contract_amount"],
+}
+
+# 金额单位异常软告警阈值（P5-7，决策11）
+AMOUNT_TOO_LARGE = 1e9   # max > 1e9 疑似万元/亿元混入
+AMOUNT_TOO_SMALL = 10    # max < 10 疑似应为万元单位
+
 
 class ProjectIDRequiredError(ValueError):
     """项目分析模式 project_id 缺失（方案 §4.4 → 路由转 400）"""
@@ -253,3 +277,85 @@ def parse_query_filters(table: str, args: dict) -> dict:
             flt["date_to"] = val
         # 其他键忽略（防注入）
     return flt
+
+
+def _num(v):
+    """Decimal→float，None 保留（金额统计用）"""
+    return float(v) if isinstance(v, Decimal) else v
+
+
+def _table_stats(table: str, project_id: str) -> tuple[dict | None, list[str], list[str]]:
+    """单表列统计（1 查询）：total + 各 KEY_COL 空值数 + 各金额列 min/max/count"""
+    key_cols = KEY_COLS.get(table, [])
+    amt_cols = TABLE_AMOUNT_COLS.get(table, [])
+    selects = ["COUNT(*) AS total"]
+    for c in key_cols:
+        # CAST AS CHAR 避免 DATE/DECIMAL 列与 '' 比较时类型强转报错（Incorrect DATE value）
+        selects.append(
+            f"SUM(CASE WHEN `{c}` IS NULL OR CAST(`{c}` AS CHAR)='' THEN 1 ELSE 0 END) AS `null_{c}`"
+        )
+    for c in amt_cols:
+        selects.append(f"MIN(`{c}`) AS `min_{c}`")
+        selects.append(f"MAX(`{c}`) AS `max_{c}`")
+        selects.append(f"COUNT(`{c}`) AS `cnt_{c}`")
+    sql = f"SELECT {', '.join(selects)} FROM `{table}` WHERE project_id = %s"
+    row = query_one(sql, (project_id,), database="tt")
+    return row, key_cols, amt_cols
+
+
+def quality_check(project_id: str) -> dict:
+    """数据质量报告（P5-7）：每表空值率 + 金额列统计 + 金额单位异常软告警（决策11）。
+
+    金额单位统一「元」（决策11）；max>1e9 或 max<10 标「疑似单位异常待核实」（软告警）。
+    """
+    tables_out = []
+    for table in DATA_TABLES:
+        row, key_cols, amt_cols = _table_stats(table, project_id)
+        total = int((row or {}).get("total") or 0)
+        entry = {"table": table, "label": table.replace("data_", ""), "total": total}
+        if total == 0:
+            tables_out.append(entry)
+            continue
+        # 空值率（关键业务列）
+        entry["nulls"] = [
+            {"col": c, "null": int(row.get(f"null_{c}") or 0),
+             "rate": round(int(row.get(f"null_{c}") or 0) / total, 4)}
+            for c in key_cols
+        ]
+        # 金额列统计 + 单位告警
+        amounts = []
+        for c in amt_cols:
+            cnt = int(row.get(f"cnt_{c}") or 0)
+            mn = _num(row.get(f"min_{c}"))
+            mx = _num(row.get(f"max_{c}"))
+            warnings = []
+            if cnt > 0 and mx is not None:
+                if mx > AMOUNT_TOO_LARGE:
+                    warnings.append(f"max>{AMOUNT_TOO_LARGE:g}，疑似万元/亿元混入")
+                if mx < AMOUNT_TOO_SMALL:
+                    warnings.append(f"max<{AMOUNT_TOO_SMALL}，疑似应为万元单位")
+            amounts.append({"col": c, "min": mn, "max": mx, "count": cnt,
+                            "unit": "元", "warnings": warnings})
+        entry["amounts"] = amounts
+        tables_out.append(entry)
+    return {"project_id": project_id, "unit": "元（决策11，应用层标注）", "tables": tables_out}
+
+
+def missing_check(project_id: str) -> dict:
+    """关键业务列缺失清单（P5-8）：DB 仅 project_id NOT NULL，关键列应用层定义（KEY_COLS）。
+
+    仅列出缺失数>0 的列（null 或空串）。
+    """
+    tables_out = []
+    for table in DATA_TABLES:
+        row, key_cols, _ = _table_stats(table, project_id)
+        total = int((row or {}).get("total") or 0)
+        missing = []
+        if total > 0:
+            for c in key_cols:
+                n = int(row.get(f"null_{c}") or 0)
+                if n > 0:
+                    missing.append({"col": c, "missing": n, "rate": round(n / total, 4)})
+        tables_out.append({"table": table, "label": table.replace("data_", ""),
+                           "total": total, "missing": missing})
+    return {"project_id": project_id, "tables": tables_out}
