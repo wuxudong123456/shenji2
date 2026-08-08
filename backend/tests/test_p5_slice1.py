@@ -1,0 +1,132 @@
+r"""Phase5 切片1 验收：P5-1 八类表映射（纯函数，不需 backend）
+
+测三块：
+  ① _classify_for_table 关键词分类：采购/招标/中标→采购类，访谈/谈话→访谈类，
+     合同→合同协议类（采购合同仍命中「合同」优先→合同类，业务正确）
+  ② _map_category_to_table：采购类→data_procurements，访谈类→data_interviews
+  ③ field_mapper.map_extracted_fields：
+     - data_procurements 别名（采购方式/供应商/预算金额/合同金额/招标日期/项目名称）
+     - data_interviews 别名（被访谈人/访谈日期/地点）
+     - NUMERIC_COLS 扩 budget_amount/contract_amount（万元换算）
+     - DATE_COLS 扩 bid_date/interview_date（日期校验+归一化）
+     - 未映射字段进 extra_fields
+
+用法：cd backend && .venv\Scripts\python.exe tests\test_p5_slice1.py
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services.task_worker import _classify_for_table, _map_category_to_table  # noqa: E402
+from services.field_mapper import map_extracted_fields  # noqa: E402
+
+PASS = 0
+FAIL = 0
+
+
+def check(name, cond, detail=""):
+    global PASS, FAIL
+    if cond:
+        PASS += 1
+        print(f"  ✅ {name}")
+    else:
+        FAIL += 1
+        print(f"  ❌ {name} {detail}")
+
+
+def main():
+    print("[test] Phase5 切片1：P5-1 八类表映射\n")
+
+    # ── ① _classify_for_table 关键词分类 ──
+    print("── ① 分类关键词 ──")
+    check("① 采购合同 → 合同协议类（合同优先命中）",
+          _classify_for_table("", "采购合同.pdf") == "合同协议类",
+          _classify_for_table("", "采购合同.pdf"))
+    check("① 采购计划 → 采购类",
+          _classify_for_table("", "采购计划.pdf") == "采购类",
+          _classify_for_table("", "采购计划.pdf"))
+    check("① 招标公告 → 采购类",
+          _classify_for_table("", "招标公告.pdf") == "采购类",
+          _classify_for_table("", "招标公告.pdf"))
+    check("① 中标通知书 → 采购类",
+          _classify_for_table("", "中标通知书.pdf") == "采购类",
+          _classify_for_table("", "中标通知书.pdf"))
+    check("① 访谈记录 → 访谈类",
+          _classify_for_table("", "访谈记录.pdf") == "访谈类",
+          _classify_for_table("", "访谈记录.pdf"))
+    check("① 谈话笔录 → 访谈类",
+          _classify_for_table("", "谈话笔录.pdf") == "访谈类",
+          _classify_for_table("", "谈话笔录.pdf"))
+    check("① 发票 → 财务票据类（不受影响）",
+          _classify_for_table("", "发票.pdf") == "财务票据类")
+    check("① 无关键词 → 其他杂项类",
+          _classify_for_table("", "杂项.pdf") == "其他杂项类")
+    # OCR 文本关键词也生效（不只是 filename）
+    check("① 文本含「招标」→ 采购类",
+          _classify_for_table("本项目招标方式为公开招标", "xxx.pdf") == "采购类")
+
+    # ── ② _map_category_to_table ──
+    print("\n── ② 类别→表映射 ──")
+    check("② 采购类 → data_procurements",
+          _map_category_to_table("采购类") == "data_procurements")
+    check("② 访谈类 → data_interviews",
+          _map_category_to_table("访谈类") == "data_interviews")
+    check("② 合同协议类 → data_contracts（不变）",
+          _map_category_to_table("合同协议类") == "data_contracts")
+    check("② 财务凭证类 → data_finance（不变）",
+          _map_category_to_table("财务凭证类") == "data_finance")
+    check("② 未知类 → data_general（兜底）",
+          _map_category_to_table("不存在的类") == "data_general")
+
+    # ── ③ data_procurements 别名 + 类型转换 ──
+    print("\n── ③ data_procurements 字段映射 ──")
+    row, extra = map_extracted_fields("data_procurements", {
+        "采购方式": "公开招标",
+        "供应商": "甲公司",
+        "预算金额": "100万元",
+        "合同金额": "200万",
+        "招标日期": "2025-03-01",
+        "项目名称": "办公电脑采购",
+        "未映射字段": "xxx",
+    })
+    check("③ procurement_method", row.get("procurement_method") == "公开招标", str(row))
+    check("③ supplier", row.get("supplier") == "甲公司", str(row))
+    check("③ budget_amount 100万元 → 1000000.0",
+          row.get("budget_amount") == 1000000.0, str(row))
+    check("③ contract_amount 200万 → 2000000.0",
+          row.get("contract_amount") == 2000000.0, str(row))
+    check("③ bid_date 2025-03-01", row.get("bid_date") == "2025-03-01", str(row))
+    check("③ subject_name", row.get("subject_name") == "办公电脑采购", str(row))
+    check("③ 未映射字段进 extra_fields", "未映射字段" in extra, str(extra))
+
+    # ── ④ data_interviews 别名 + 日期归一化 ──
+    print("\n── ④ data_interviews 字段映射 ──")
+    row2, extra2 = map_extracted_fields("data_interviews", {
+        "被访谈人": "张三",
+        "访谈日期": "2025/3/5",
+        "地点": "三楼会议室",
+    })
+    check("④ interviewee", row2.get("interviewee") == "张三", str(row2))
+    check("④ interview_date 2025/3/5 → 2025-03-05",
+          row2.get("interview_date") == "2025-03-05", str(row2))
+    check("④ location", row2.get("location") == "三楼会议室", str(row2))
+
+    # ── ⑤ 类型校验：无效金额/日期 → None ──
+    print("\n── ⑤ 类型校验（NUMERIC/DATE 扩列）──")
+    row3, _ = map_extracted_fields("data_procurements", {
+        "预算金额": "未提供",      # → None（空值词）
+        "合同金额": "面议",        # → None（无数字）
+        "招标日期": "2025年13月",  # → None（非法日期）
+    })
+    check("⑤ 预算金额「未提供」→ None", row3.get("budget_amount") is None, str(row3))
+    check("⑤ 合同金额「面议」→ None", row3.get("contract_amount") is None, str(row3))
+    check("⑤ 招标日期非法 → None", row3.get("bid_date") is None, str(row3))
+
+    print(f"\n{'='*48}")
+    print(f"切片1 结果：PASS={PASS}  FAIL={FAIL}")
+    print(f"{'='*48}")
+    sys.exit(0 if FAIL == 0 else 1)
+
+
+if __name__ == "__main__":
+    main()

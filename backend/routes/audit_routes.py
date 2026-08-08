@@ -1182,7 +1182,8 @@ def register_audit_routes(app):
     def audit_data_tables(project_id):
         """GET /api/audit/projects/<id>/data — 6张数据表列表+行数"""
         tables = ["data_contracts", "data_finance", "data_legal_docs",
-                  "data_registers", "data_credentials", "data_general"]
+                  "data_registers", "data_credentials", "data_general",
+                  "data_procurements", "data_interviews"]
         result = []
         for t in tables:
             row = query_one(
@@ -1200,7 +1201,8 @@ def register_audit_routes(app):
     def audit_data_tables_global():
         """GET /api/audit/data/tables — 6张数据表的全库行数（全局视图，不按项目过滤）"""
         tables = ["data_contracts", "data_finance", "data_legal_docs",
-                  "data_registers", "data_credentials", "data_general"]
+                  "data_registers", "data_credentials", "data_general",
+                  "data_procurements", "data_interviews"]
         result = []
         for t in tables:
             row = query_one(f"SELECT COUNT(*) AS n FROM {t}", (), database="tt")
@@ -1215,7 +1217,8 @@ def register_audit_routes(app):
     def audit_data_rows(table_name):
         """GET /api/audit/data/<table>/rows — 数据浏览+分页"""
         allowed = {"data_contracts", "data_finance", "data_legal_docs",
-                   "data_registers", "data_credentials", "data_general"}
+                   "data_registers", "data_credentials", "data_general",
+                   "data_procurements", "data_interviews"}
         if table_name not in allowed:
             return jsonify({"success": False, "error": f"不支持的表: {table_name}"}), 400
 

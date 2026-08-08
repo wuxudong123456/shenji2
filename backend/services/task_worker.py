@@ -576,7 +576,9 @@ def _classify_for_table(ocr_text: str, filename: str) -> str:
     """
     text = (filename + " " + ocr_text[:2000])
     KEYWORD_CATEGORY = [
-        ("合同", "合同协议类"), ("采购", "合同协议类"), ("招标", "合同协议类"),
+        ("合同", "合同协议类"),
+        ("采购", "采购类"), ("招标", "采购类"), ("中标", "采购类"),
+        ("访谈", "访谈类"), ("谈话", "访谈类"),
         ("发票", "财务票据类"), ("凭证", "财务凭证类"), ("账簿", "财务账簿类"),
         ("银行", "财务凭证类"), ("流水", "财务凭证类"),
         ("判决", "法律文书类"), ("裁定", "法律文书类"), ("处罚", "法律文书类"),
@@ -600,7 +602,7 @@ def _insert_into_data_table(table_name: str, project_id: str, trace_id: int,
     extra_json = json.dumps(extra_fields, ensure_ascii=False) if extra_fields else None
     tmpl = template_name or row_dict.get("template_name") or ""
 
-    # 公共列（doc_type P3-9 新增；六表均有该列 schema.sql:133/160/186/210/233/257）
+    # 公共列（doc_type P3-9 新增；八表均有该列 schema.sql:127/154/180/204/227/251 + Phase5采购/访谈）
     cols = ["project_id", "document_trace_id", "template_name", "doc_name", "doc_type",
             "extra_fields", "raw_text"]
     vals = [project_id, trace_id, tmpl, filename, doc_type, extra_json, ocr_text[:10000]]
@@ -768,6 +770,8 @@ def _map_category_to_table(category: str) -> str:
     """文档分类 → 数据工坊表名映射"""
     mapping = {
         "合同协议类": "data_contracts",
+        "采购类": "data_procurements",
+        "访谈类": "data_interviews",
         "财务凭证类": "data_finance",
         "财务票据类": "data_finance",
         "财务账簿类": "data_finance",

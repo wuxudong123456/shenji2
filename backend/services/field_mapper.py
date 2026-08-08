@@ -83,6 +83,32 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "发布机关": "issuing_body", "发文单位": "issuing_body", "发布单位": "issuing_body",
         "日期": "doc_date", "发文日期": "doc_date", "发布日期": "doc_date",
     },
+    "data_procurements": {
+        # 采购方式
+        "采购方式": "procurement_method", "招标方式": "procurement_method",
+        # 采购项目名称/标的
+        "采购项目名称": "subject_name", "项目名称": "subject_name", "采购标的": "subject_name",
+        "标的名称": "subject_name", "采购内容": "subject_name",
+        # 供应商
+        "供应商": "supplier", "供应商名称": "supplier", "中标人": "supplier",
+        "中标单位": "supplier", "中标供应商": "supplier",
+        # 预算金额
+        "预算金额": "budget_amount", "采购预算": "budget_amount", "预算价": "budget_amount",
+        "控制价": "budget_amount", "最高限价": "budget_amount",
+        # 合同/中标金额
+        "合同金额": "contract_amount", "中标金额": "contract_amount", "成交金额": "contract_amount",
+        "合同价": "contract_amount", "采购金额": "contract_amount",
+        # 招标/开标日期
+        "招标日期": "bid_date", "开标日期": "bid_date", "投标截止日期": "bid_date",
+        # 签订日期
+        "签订日期": "sign_date", "合同签订日期": "sign_date",
+    },
+    "data_interviews": {
+        "被访谈人": "interviewee", "受访人": "interviewee", "谈话对象": "interviewee",
+        "被询问人": "interviewee", "访谈对象": "interviewee",
+        "访谈日期": "interview_date", "谈话日期": "interview_date", "询问日期": "interview_date",
+        "访谈地点": "location", "谈话地点": "location", "地点": "location", "场所": "location",
+    },
 }
 
 # ── 表达式中文字段名 → 表列名（用于扫描时取值）──
@@ -174,7 +200,8 @@ def _cast_value(col: str, value: Any, table: str) -> Any:
         return None
 
     # 数值列
-    NUMERIC_COLS = {"amount", "debit_amount", "credit_amount", "quantity"}
+    NUMERIC_COLS = {"amount", "debit_amount", "credit_amount", "quantity",
+                    "budget_amount", "contract_amount"}
     if col in NUMERIC_COLS:
         try:
             s = str(value)
@@ -194,6 +221,7 @@ def _cast_value(col: str, value: Any, table: str) -> Any:
         "sign_date", "effective_date", "expiry_date",
         "voucher_date", "doc_date", "register_date",
         "issue_date", "expire_date",
+        "bid_date", "interview_date",
     }
     if col in DATE_COLS:
         if _is_valid_date(str(value)):
