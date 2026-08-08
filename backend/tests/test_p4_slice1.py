@@ -111,6 +111,21 @@ def main():
     b = _normalize_chunks([{"text": "a", "bbox": "garbage"}], "ontosku")[0]["bbox"]
     check("⑥ bbox 垃圾 → None（不伪造）", b is None, str(b))
 
+    # ⑦ K2 §4 联调校准：真实 OntoSKU 结构 metadata 嵌套（chunk_id/type/content/path/metadata）
+    print("\n── ⑦ metadata 嵌套（真实 OntoSKU 结构）──")
+    real = _normalize_chunks([
+        {"chunk_id": "r1", "type": "text", "content": "采购合同明细表",
+         "path": "tmp.pdf", "metadata": {"page_nums": [2], "bbox": [1, 2, 3, 4]}},
+        {"chunk_id": "r2", "type": "text", "content": "无页码切片",
+         "metadata": {"page_nums": []}},
+    ], "ontosku")
+    check("⑦ content→text", real[0]["text"] == "采购合同明细表", str(real[0]))
+    check("⑦ metadata.page_nums=[2] 下钻命中", real[0]["page_nums"] == [2], str(real[0]))
+    check("⑦ metadata.bbox 下钻命中", real[0]["bbox"] == [1.0, 2.0, 3.0, 4.0], str(real[0]))
+    check("⑦ path 不映射 section_path（是文件名）", real[0]["section_path"] is None, str(real[0]))
+    check("⑦ metadata.page_nums=[] → []（源端空，不伪造）",
+          real[1]["page_nums"] == [], str(real[1]))
+
     print(f"\n{'='*48}")
     print(f"切片1 结果：PASS={PASS}  FAIL={FAIL}")
     print(f"{'='*48}")

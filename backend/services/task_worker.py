@@ -366,13 +366,18 @@ def _normalize_chunks(raw_chunks, engine: str) -> list:
     for idx, raw in enumerate(raw_chunks):
         if not isinstance(raw, dict):
             continue
+        # K2 §4 联调校准：真实 OntoSKU chunk = {chunk_id,type,content,path,metadata{page_nums,...}}
+        # 页码/坐标在嵌套 metadata 内（path 是源文件名，非章节，不映射）。
+        meta = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
+        page_raw = (_first_key(raw, ("page_nums", "pages", "page", "page_number"))
+                    or _first_key(meta, ("page_nums", "pages", "page", "page_number")))
+        bbox_raw = (_first_key(raw, ("bbox", "bounding_box", "coords", "box"))
+                    or _first_key(meta, ("bbox", "bounding_box", "coords", "box")))
         normed.append({
             "chunk_id": _first_key(raw, ("chunk_id", "id")) or f"chunk-{idx}",
             "chunk_type": _first_key(raw, ("type", "chunk_type")) or "text",
-            "page_nums": _coerce_page_nums(
-                _first_key(raw, ("page_nums", "pages", "page", "page_number"))),
-            "bbox": _coerce_bbox(
-                _first_key(raw, ("bbox", "bounding_box", "coords", "box"))),
+            "page_nums": _coerce_page_nums(page_raw),
+            "bbox": _coerce_bbox(bbox_raw),
             "text": _first_key(raw, ("text", "content", "markdown")) or "",
             "section_path": _first_key(raw, ("section_path", "section", "heading")),
         })
