@@ -11,7 +11,7 @@ from decimal import Decimal
 from flask import request, jsonify
 
 from services.data_service import (
-    list_table_counts, list_rows, ProjectIDRequiredError,
+    list_table_counts, list_rows, parse_query_filters, ProjectIDRequiredError,
 )
 
 
@@ -1202,8 +1202,9 @@ def register_audit_routes(app):
         项目级行查询见 /projects/<id>/data/<table>/rows（项目分析模式）。
         """
         try:
+            filters = parse_query_filters(table_name, request.args.to_dict())
             result = list_rows(
-                table_name, project_id=None,
+                table_name, project_id=None, filters=filters,
                 page=request.args.get("page", 1, type=int),
                 per_page=request.args.get("per_page", 20, type=int),
             )
@@ -1219,8 +1220,9 @@ def register_audit_routes(app):
         DataService 内部附加 WHERE project_id=%s，调用方/LLM 无法绕过跨项目隔离。
         """
         try:
+            filters = parse_query_filters(table_name, request.args.to_dict())
             result = list_rows(
-                table_name, project_id=project_id, require_project=True,
+                table_name, project_id=project_id, require_project=True, filters=filters,
                 page=request.args.get("page", 1, type=int),
                 per_page=request.args.get("per_page", 20, type=int),
             )

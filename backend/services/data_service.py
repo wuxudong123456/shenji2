@@ -43,6 +43,9 @@ AMOUNT_COLS = {"amount", "debit_amount", "credit_amount", "budget_amount", "cont
 DATE_COLS = {"sign_date", "effective_date", "expiry_date", "voucher_date", "doc_date",
              "register_date", "issue_date", "expire_date", "bid_date", "interview_date"}
 
+# query string 中非筛选键（分页/游标/字段/项目），parse_query_filters 跳过
+_PAGINATION_KEYS = {"page", "per_page", "project_id", "after", "fields"}
+
 
 class ProjectIDRequiredError(ValueError):
     """项目分析模式 project_id 缺失（方案 §4.4 → 路由转 400）"""
@@ -96,13 +99,14 @@ def list_rows(table: str, *, project_id: str | None = None,
               after: int | None = None, filters: dict | None = None,
               fields: list[str] | None = None,
               require_project: bool = False) -> dict:
-    """统一行查询（P5-3/P5-4）。
+    """统一行查询（P5-3/P5-4/P5-5）。
 
     双模式：
       require_project=False → 全局浏览（project_id 可空，per_page 硬 cap 200）
       require_project=True  → 项目分析（project_id 必填，空 → ProjectIDRequiredError）
 
-    after/filters/fields 由后续切片（P5-5/P5-6）实现，本切片预留参数。
+    filters（P5-5 已实现，结构见 parse_query_filters）：等于/金额范围/日期范围，
+    白名单列防注入，非白名单列忽略。after/fields 由后续切片（P5-6）实现。
     """
     _validate_table(table)
 
@@ -110,12 +114,48 @@ def list_rows(table: str, *, project_id: str | None = None,
     if require_project and not project_id:
         raise ProjectIDRequiredError("项目分析模式 project_id 必填")
 
-    # WHERE 构建（只允许 project_id 条件；筛选/游标后续切片填）
+    # WHERE 构建
     where_parts: list[str] = []
     params: list = []
     if project_id:
         where_parts.append("project_id = %s")
         params.append(project_id)
+
+    # P5-5 字段筛选（白名单列防注入；结构见 parse_query_filters）
+    if filters:
+        flt_cols = FILTERABLE_COLS.get(table, set())
+        # ① 等于（列须在白名单）
+        for col, val in filters.get("eq", {}).items():
+            if col in flt_cols:
+                where_parts.append(f"`{col}` = %s")
+                params.append(val)
+        # ② 金额范围（表的各金额列各自落在 [min,max] → OR 任一命中）
+        amt_cols = AMOUNT_COLS & flt_cols
+        amin, amax = filters.get("amount_min"), filters.get("amount_max")
+        if amt_cols and (amin is not None or amax is not None):
+            col_conds = []
+            for c in sorted(amt_cols):
+                parts = []
+                if amin is not None:
+                    parts.append(f"`{c}` >= %s"); params.append(amin)
+                if amax is not None:
+                    parts.append(f"`{c}` <= %s"); params.append(amax)
+                col_conds.append("(" + " AND ".join(parts) + ")")
+            where_parts.append("(" + " OR ".join(col_conds) + ")")
+        # ③ 日期范围（表的各日期列各自落在 [from,to] → OR 任一命中）
+        dt_cols = DATE_COLS & flt_cols
+        dfrom, dto = filters.get("date_from"), filters.get("date_to")
+        if dt_cols and (dfrom is not None or dto is not None):
+            col_conds = []
+            for c in sorted(dt_cols):
+                parts = []
+                if dfrom is not None:
+                    parts.append(f"`{c}` >= %s"); params.append(dfrom)
+                if dto is not None:
+                    parts.append(f"`{c}` <= %s"); params.append(dto)
+                col_conds.append("(" + " AND ".join(parts) + ")")
+            where_parts.append("(" + " OR ".join(col_conds) + ")")
+
     where = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
     # 分页（per_page 硬 cap 200，page 下界 1）
@@ -137,3 +177,41 @@ def list_rows(table: str, *, project_id: str | None = None,
         "page": page,
         "per_page": per_page,
     }
+
+
+def parse_query_filters(table: str, args: dict) -> dict:
+    """从路由 query string 解析筛选条件（P5-5，白名单列防注入）。
+
+    三类筛选（非白名单/无法解析的键静默忽略）：
+      - 等于：?col=value（col 须在 FILTERABLE_COLS[table]）
+      - 金额范围：?amount_min=&amount_max=（float，应用到表的金额列）
+      - 日期范围：?date_from=&date_to=（YYYY-MM-DD，应用到表的日期列）
+
+    返回结构供 list_rows 的 filters 参数消费：
+      {"eq": {col: val}, "amount_min": float|None, "amount_max": float|None,
+       "date_from": str|None, "date_to": str|None}
+    """
+    _validate_table(table)
+    flt = {"eq": {}}
+    flt_cols = FILTERABLE_COLS.get(table, set())
+    for key, val in args.items():
+        if key in _PAGINATION_KEYS or val is None or val == "":
+            continue
+        if key in flt_cols:
+            flt["eq"][key] = val
+        elif key == "amount_min":
+            try:
+                flt["amount_min"] = float(val)
+            except (ValueError, TypeError):
+                pass
+        elif key == "amount_max":
+            try:
+                flt["amount_max"] = float(val)
+            except (ValueError, TypeError):
+                pass
+        elif key == "date_from":
+            flt["date_from"] = val
+        elif key == "date_to":
+            flt["date_to"] = val
+        # 其他键忽略（防注入）
+    return flt
