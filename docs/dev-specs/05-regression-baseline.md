@@ -41,13 +41,22 @@ curl -s http://127.0.0.1:5000/api/audit/projects/<PID> | python -m json.tool
 curl -s -X POST http://127.0.0.1:5000/api/audit/projects/<PID>/upload -F "file=@<某pdf>" | python -m json.tool
 # 期望: {"success":true,"trace_id":N,"task_id":"...","ocr_status":"pending"}
 
-# 数据表统计
+# 数据表统计（Phase 5：8 张表，含 data_procurements/data_interviews）
 curl -s http://127.0.0.1:5000/api/audit/projects/<PID>/data | python -m json.tool
-# 期望: 6 张表 rows 计数
+# 期望: 8 张表 rows 计数
 
-# 数据行（当前允许空 project_id 全局查询——Phase 5 改造前基线）
+# 数据行——全局浏览模式（Phase 5 拆分后：无 project_id，跨项目，per_page 硬 cap 200，裁剪 raw_text）
 curl -s "http://127.0.0.1:5000/api/audit/data/data_contracts/rows?per_page=5" | python -m json.tool
-# 期望: 返回全库行（Phase 5 将拆分全局浏览/项目分析两模式）
+# 期望: 返回全库行（无 project_id 过滤）；行无 raw_text 键
+
+# 数据行——项目分析模式（Phase 5 新增：路径参数 project_id 强制，跨项目隔离）
+curl -s "http://127.0.0.1:5000/api/audit/projects/<PID>/data/data_contracts/rows?party_a=xx&amount_min=10000" | python -m json.tool
+# 期望: 仅返回 project_id=<PID> 的行；支持 ?col=/amount_min/amount_max/date_from/date_to 筛选、?after=<id> 游标、?fields=raw_text 取回大字段
+
+# 质量检查 / 缺失清单（Phase 5 新增）
+curl -s http://127.0.0.1:5000/api/audit/projects/<PID>/data/quality | python -m json.tool
+curl -s http://127.0.0.1:5000/api/audit/projects/<PID>/data/missing | python -m json.tool
+# 期望: 各表空值率 + 金额单位告警（决策11 元）/ 关键业务列缺失清单
 ```
 
 ## 4. 知识接口
