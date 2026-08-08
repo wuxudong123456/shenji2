@@ -112,7 +112,7 @@ class OntoSKUClient:
             doc = self._get_document(document_id)
             zip_data["chunks"] = doc.get("chunks", [])
 
-        return self._normalize(result, zip_data, document_id, job_id)
+        return self._normalize(result, zip_data, document_id, job_id, sku_profile)
 
     # ── 步骤实现 ──
 
@@ -253,8 +253,9 @@ class OntoSKUClient:
         # sku_results.json → 结构化字段（按 sku_profile 分类）
         # 结构: {"general/base_model": {"model_result": {"fields": {...}}},
         #        "audit/财务票据类/发票": {"model_result": {"fields": {...}}}, ...}
-        # 取所有 profile 的 fields 合并，audit/* 优先
+        # 取所有 profile 的 fields 合并，audit/* 优先；首个 audit/* key = 命中模板（P3-7）
         fields = {}
+        template_name = ""  # P3-7：命中的 audit/* 模板 key（→ trace.ontosku_template）
         if "sku_results.json" in z.namelist():
             try:
                 sku = json.loads(z.read("sku_results.json"))
@@ -266,11 +267,22 @@ class OntoSKUClient:
                     model_result = prof.get("model_result") or {}
                     f = model_result.get("fields") or {}
                     if isinstance(f, dict):
+                        # P3-7：首个含字段的 audit/* 模板 key = 命中模板
+                        if not template_name and key.startswith("audit/") and f:
+                            template_name = key
                         for fk, fv in f.items():
                             if fk not in fields and fv:  # 不覆盖已审计模板的值
                                 fields[fk] = fv
             except Exception:
                 pass
+
+        # P3-7 doc_type：_document_overview.document_type 优先（K2 §2.2），扁平 document_type 兜底
+        doc_type = ""
+        ov = fields.get("_document_overview")
+        if isinstance(ov, dict) and ov.get("document_type"):
+            doc_type = ov["document_type"]
+        elif isinstance(fields.get("document_type"), str):
+            doc_type = fields["document_type"]
 
         # chunks.json → 带溯源的 chunks
         chunks = []
@@ -280,15 +292,18 @@ class OntoSKUClient:
             except Exception:
                 pass
 
-        return {"markdown": markdown, "fields": fields, "chunks": chunks}
+        return {"markdown": markdown, "fields": fields, "chunks": chunks,
+                "template_name": template_name, "doc_type": doc_type}
 
     # ── 结果归一化 ──
 
     def _normalize(self, job_result: dict, zip_data: dict,
-                   document_id: str, job_id: str) -> dict:
+                   document_id: str, job_id: str, sku_profile: str = None) -> dict:
         """把 OntoSKU 响应统一为标准结构
 
-        zip_data 来自 result_url 的 ZIP，含 markdown / fields / chunks
+        zip_data 来自 result_url 的 ZIP，含 markdown / fields / chunks / template_name / doc_type。
+        template_name：命中的 audit/* 模板 key（P3-7），无则回落调用方传入的 sku_profile。
+        doc_type：OntoSKU _document_overview.document_type（P3-7 决策2），无则空串（worker 分类兜底）。
         """
         return {
             "document_id": document_id or job_result.get("document_id", ""),
@@ -296,6 +311,8 @@ class OntoSKUClient:
             "markdown": zip_data.get("markdown", ""),
             "fields": zip_data.get("fields", {}),
             "chunks": zip_data.get("chunks", []),
+            "template_name": zip_data.get("template_name", "") or sku_profile or "",
+            "doc_type": zip_data.get("doc_type", ""),
             "raw_job": job_result,
         }
 

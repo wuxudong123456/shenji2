@@ -188,7 +188,10 @@ def _run_ocr_task(task_id: int, task_data: dict):
                     "text": ontosku_result.get("markdown", ""),
                     "fields": ontosku_result.get("fields", {}),
                     "document_id": ontosku_result.get("document_id", ""),
+                    "job_id": ontosku_result.get("job_id", ""),  # P3-3
                     "chunks": ontosku_result.get("chunks", []),
+                    "template_name": ontosku_result.get("template_name", ""),  # P3-7
+                    "doc_type": ontosku_result.get("doc_type", ""),  # P3-7
                 }
                 extract_engine = "ontosku"
             except OntoSKUError as oe:
@@ -220,6 +223,11 @@ def _run_ocr_task(task_id: int, task_data: dict):
     category = _classify_for_table(ocr_text, filename)
     table_name = _map_category_to_table(category)
 
+    # P3-7/9：ontosku_template（命中的 audit/* 模板，仅 OntoSKU 路径有）+ doc_type
+    #   doc_type 决策2：OntoSKU document_type 优先，无则分类 category 兜底，皆无 NULL
+    template_name = ocr_result.get("template_name") or None
+    doc_type = ocr_result.get("doc_type") or category or None
+
     # 5. 字段映射：中文字段 → 表英文列
     from services.field_mapper import map_extracted_fields
     row_dict, extra_fields = map_extracted_fields(table_name, fields)
@@ -228,13 +236,22 @@ def _run_ocr_task(task_id: int, task_data: dict):
     chunks_json = json.dumps(ocr_result.get("chunks", []),
                              ensure_ascii=False) if ocr_result.get("chunks") else None
 
-    # 6. 更新溯源记录
+    # 6. 更新溯源记录（P3-3/5done/7 合并落库）
+    #   external_document_id/external_job_id/parse_engine（P3-3）
+    #   parse_status='done' + parsed_at（P3-5 done）
+    #   ontosku_template=真值 template_name（P3-7，修原 extract_engine 误塞语义 bug）
     execute(
         "UPDATE audit_document_traces SET "
         "ocr_content = %s, ocr_version = ocr_version + 1, "
+        "external_document_id = %s, external_job_id = %s, "
+        "parse_engine = %s, parse_status = 'done', parsed_at = NOW(), "
         "ontosku_template = %s, extracted_fields = %s, position_anchor = %s "
         "WHERE id = %s",
-        (ocr_text[:50000], extract_engine,
+        (ocr_text[:50000],
+         ocr_result.get("document_id") or None,
+         ocr_result.get("job_id") or None,
+         extract_engine,
+         template_name,
          json.dumps({"mapped": row_dict, "extra": extra_fields}, ensure_ascii=False),
          chunks_json, trace_id),
         database="tt",
@@ -242,10 +259,11 @@ def _run_ocr_task(task_id: int, task_data: dict):
 
     update_progress(task_id, 85)
 
-    # 7. 写入数据工坊表
+    # 7. 写入数据工坊表（P3-9：传 doc_type）
     row_id = _insert_into_data_table(
         table_name, project_id, trace_id, filename, ocr_text,
         row_dict, extra_fields, task_payload.get("template_name"),
+        doc_type,
     )
 
     update_progress(task_id, 100)
@@ -336,20 +354,21 @@ def _classify_for_table(ocr_text: str, filename: str) -> str:
 def _insert_into_data_table(table_name: str, project_id: str, trace_id: int,
                             filename: str, ocr_text: str,
                             row_dict: dict, extra_fields: dict,
-                            template_name: str = None) -> int:
-    """把映射后的字段写入对应的 data_xxx 表"""
+                            template_name: str = None,
+                            doc_type: str = None) -> int:
+    """把映射后的字段写入对应的 data_xxx 表（P3-9 补 doc_type 列）"""
     from services.db import insert
     extra_json = json.dumps(extra_fields, ensure_ascii=False) if extra_fields else None
     tmpl = template_name or row_dict.get("template_name") or ""
 
-    # 公共列
-    cols = ["project_id", "document_trace_id", "template_name", "doc_name",
+    # 公共列（doc_type P3-9 新增；六表均有该列 schema.sql:133/160/186/210/233/257）
+    cols = ["project_id", "document_trace_id", "template_name", "doc_name", "doc_type",
             "extra_fields", "raw_text"]
-    vals = [project_id, trace_id, tmpl, filename, extra_json, ocr_text[:10000]]
+    vals = [project_id, trace_id, tmpl, filename, doc_type, extra_json, ocr_text[:10000]]
 
     # 动态追加映射到的列（只 INSERT 有值的列）
     for col, val in row_dict.items():
-        if col in ("project_id", "document_trace_id", "template_name", "doc_name"):
+        if col in ("project_id", "document_trace_id", "template_name", "doc_name", "doc_type"):
             continue  # 已在公共列
         cols.append(col)
         vals.append(val)
