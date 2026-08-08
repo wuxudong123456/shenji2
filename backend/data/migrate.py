@@ -285,6 +285,76 @@ def migrate_phase3_task_payload():
         print(f"[migrate] = {table}.payload 已存在，跳过")
 
 
+def migrate_phase4_provenance_tables():
+    """Phase4 — 文档与字段溯源三张表（PHASE_4 §5 M004）
+
+    audit_document_chunks（文档切片，含页码/坐标/原文/ocr_version/status active|superseded）、
+    audit_source_refs（统一证据引用，result↔source）、audit_field_sources（结构化字段→chunk）。
+    DDL 列定义逐字照搬执行包 §5；⑥/⑦ 不另设状态列——失效靠 chunk.status + ocr_version
+    推导（§3.3/P4-10）。CREATE TABLE IF NOT EXISTS 天然幂等，逐表 _table_exists 预检打日志。
+    """
+    tables = [
+        (
+            "audit_document_chunks",
+            f"""CREATE TABLE {DATABASE}.audit_document_chunks (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  trace_id      INT NOT NULL COMMENT '关联 audit_document_traces',
+  project_id    VARCHAR(32) NOT NULL,
+  chunk_id      VARCHAR(100) COMMENT 'OntoSKU chunk_id',
+  chunk_type    VARCHAR(20) COMMENT 'text/image/table/page',
+  page_nums     JSON COMMENT '页码列表',
+  bbox          JSON COMMENT '坐标 [x0,y0,x1,y1]',
+  text          LONGTEXT COMMENT '切片原文',
+  section_path  VARCHAR(500) COMMENT '章节路径',
+  ocr_version   INT DEFAULT 1 COMMENT '所属解析版本（重解析+1）',
+  status        VARCHAR(20) DEFAULT 'active' COMMENT 'active/superseded',
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_trace (trace_id), INDEX idx_project (project_id), INDEX idx_status (status)
+) COMMENT '文档切片—可逐页逐段查询'""",
+        ),
+        (
+            "audit_source_refs",
+            f"""CREATE TABLE {DATABASE}.audit_source_refs (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  project_id    VARCHAR(32) NOT NULL,
+  result_type   VARCHAR(30) COMMENT 'audit_item/law_recommendation/analysis_hit/suspicion/document/data_row',
+  result_id     VARCHAR(64) NOT NULL,
+  source_type   VARCHAR(30) COMMENT 'document_chunk/data_row/law_clause/violation/case',
+  source_id     VARCHAR(64) NOT NULL,
+  document_id   INT COMMENT '来源文档 trace_id（如适用）',
+  file_name     VARCHAR(500),
+  page_number   INT,
+  bbox          JSON,
+  quote         TEXT COMMENT '支撑结论的原文片段',
+  relation      VARCHAR(20) DEFAULT 'supports' COMMENT 'supports/contradicts/derived_from',
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_result (result_type, result_id),
+  INDEX idx_project (project_id)
+) COMMENT '结论证据引用—统一溯源'""",
+        ),
+        (
+            "audit_field_sources",
+            f"""CREATE TABLE {DATABASE}.audit_field_sources (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  project_id    VARCHAR(32) NOT NULL,
+  table_name    VARCHAR(100) COMMENT 'data_* 表名',
+  row_id        INT NOT NULL,
+  field_name    VARCHAR(100) NOT NULL COMMENT '列名 或 extra_fields->$.字段名',
+  chunk_id      INT COMMENT '关联 audit_document_chunks.id',
+  ocr_version   INT COMMENT '所属解析版本',
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_row (table_name, row_id), INDEX idx_chunk (chunk_id)
+) COMMENT '结构化字段来源'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -296,6 +366,7 @@ def main():
         migrate_phase2_trace_columns()
         migrate_phase3_trace_parse_columns()
         migrate_phase3_task_payload()
+        migrate_phase4_provenance_tables()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
