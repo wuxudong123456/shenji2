@@ -17,7 +17,7 @@ VALID_STATUSES = {"pending", "processing", "completed", "failed", "cancelled"}
 
 
 def create_task(task_name: str, task_type: str, project_id: str = "",
-                max_retries: int = 3) -> dict:
+                max_retries: int = 3, payload: dict = None) -> dict:
     """创建后台任务，状态为 pending，立即返回
 
     Args:
@@ -25,6 +25,8 @@ def create_task(task_name: str, task_type: str, project_id: str = "",
         task_type: ocr / extract / analysis / export / archive
         project_id: 关联项目ID（可选）
         max_retries: 最大重试次数
+        payload: 任务输入参数（P3-2，存独立 payload 列；ocr 任务含 trace_id/minio_bucket/
+            minio_path/filename/project_id/sku_profile 等，worker 优先读 payload）
 
     Returns:
         {id, task_name, task_type, status, progress, created_at}
@@ -34,10 +36,11 @@ def create_task(task_name: str, task_type: str, project_id: str = "",
     if not task_name:
         return {"success": False, "error": "任务名称不能为空"}
 
+    payload_json = json.dumps(payload, ensure_ascii=False) if payload else None
     task_id = insert(
         "INSERT INTO audit_task_queue (task_name, task_type, status, progress, "
-        "project_id, max_retries) VALUES (%s,%s,'pending',0,%s,%s)",
-        (task_name, task_type, project_id, max_retries),
+        "project_id, max_retries, payload) VALUES (%s,%s,'pending',0,%s,%s,%s)",
+        (task_name, task_type, project_id, max_retries, payload_json),
         database="tt",
     )
     return get_task(task_id)
@@ -47,7 +50,7 @@ def get_task(task_id: int) -> dict | None:
     """查询单个任务"""
     row = query_one(
         "SELECT id, task_name, task_type, status, progress, project_id, "
-        "result, error_msg, retry_count, max_retries, "
+        "result, payload, error_msg, retry_count, max_retries, "
         "created_at, started_at, completed_at FROM audit_task_queue WHERE id = %s",
         (task_id,), database="tt",
     )
@@ -229,10 +232,11 @@ def _clean_task(row: dict) -> dict:
             d[k] = v.isoformat()
         elif isinstance(v, bytes):
             d[k] = None
-    # 解析 JSON 结果
-    if d.get("result") and isinstance(d["result"], str):
-        try:
-            d["result"] = json.loads(d["result"])
-        except json.JSONDecodeError:
-            pass
+    # 解析 JSON 结果/输入（result 出参；payload 入参 P3-2）
+    for k in ("result", "payload"):
+        if d.get(k) and isinstance(d[k], str):
+            try:
+                d[k] = json.loads(d[k])
+            except json.JSONDecodeError:
+                pass
     return d

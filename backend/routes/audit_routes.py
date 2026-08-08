@@ -781,8 +781,8 @@ def register_audit_routes(app):
         trace_id = insert(
             "INSERT INTO audit_document_traces "
             "(project_id, file_name, file_md5, minio_path, ocr_version, created_at, "
-            "audit_year, file_category, file_subcategory, minio_bucket, file_size) "
-            "VALUES (%s,%s,%s,%s,1,NOW(),%s,%s,%s,%s,%s)",
+            "audit_year, file_category, file_subcategory, minio_bucket, file_size, parse_status) "
+            "VALUES (%s,%s,%s,%s,1,NOW(),%s,%s,%s,%s,%s,'pending')",
             (project_id, filename, file_md5, minio_path,
              audit_year, category, subcategory, bucket, len(file_bytes)),
             database="tt",
@@ -805,30 +805,25 @@ def register_audit_routes(app):
         except Exception as e:
             print("[upload] manifest 增量写入失败（不阻断上传）: %s" % e)
 
-        # 5. 提交异步 OCR 任务（task_worker 后台处理）
+        # 5. 提交异步 OCR 任务（P3-2：入参走 payload 列，不再塞 result；sku_profile 管道打通）
         from services.task_manager import create_task
         from services.task_worker import submit_task
-        import json as _json
         task_result = create_task(
             task_name=filename,
             task_type="ocr",
             project_id=project_id,
+            payload={
+                "trace_id": trace_id,
+                "minio_bucket": bucket,
+                "minio_path": minio_path,
+                "filename": filename,
+                "project_id": project_id,
+                "sku_profile": None,  # 预留：前端指定模板 profile（P3-2 打通管道，当前 None）
+            },
         )
         task_id = task_result.get("task", {}).get("id")
 
-        # 把 trace_id + minio 信息塞进 task 的 result 字段（task_worker 读取）
         if task_id:
-            execute(
-                "UPDATE audit_task_queue SET result = %s WHERE id = %s",
-                (_json.dumps({
-                    "trace_id": trace_id,
-                    "minio_bucket": bucket,
-                    "minio_path": minio_path,
-                    "filename": filename,
-                    "project_id": project_id,
-                }, ensure_ascii=False), task_id),
-                database="tt",
-            )
             submit_task(task_id)
 
         return jsonify({

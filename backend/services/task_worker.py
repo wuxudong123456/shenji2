@@ -94,8 +94,8 @@ def _run_ocr_task(task_id: int, task_data: dict):
     start_task(task_id)
     update_progress(task_id, 10)
 
-    # 1. 从 task.result 读 trace_id（修复脆弱的 file_name 反查）
-    task_payload = task_data.get("result") or {}
+    # 1. 从 task.payload 读入参（P3-2：payload 优先，result 过渡兜底兼容在途任务）
+    task_payload = task_data.get("payload") or task_data.get("result") or {}
     if isinstance(task_payload, str):
         try:
             task_payload = json.loads(task_payload)
