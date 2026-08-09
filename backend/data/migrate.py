@@ -143,6 +143,108 @@ def migrate_project_context_columns():
             print(f"[migrate] = {table}.{idx} 已存在，跳过")
 
 
+def migrate_audit_violations_columns():
+    """知识工坊 — audit_violations 加 audit_procedure / required_data 两列
+
+    import_excel.py 文档要求"前提：已执行 ALTER 加这两列"——此前纯人工、无脚本，
+    新库冷启动会缺。现纳入幂等迁移（_column_exists 预检）。
+    audit_procedure 存审计方法步骤(Markdown)，required_data 存所需数据(JSON)，
+    DDL 与 schema.sql 文档对齐（AFTER expression_text 保持列序一致）。
+    audit_violations 主表本身不在 migrate.py（更上游历史表）；若主表不存在
+    （全新空库）则跳过告警，保证 migrate.py 不中断。
+    """
+    table = "audit_violations"
+    if not _table_exists(table):
+        print(f"[migrate] ! {table} 主表不存在，加列跳过（更上游 bootstrap 未建表）")
+        return
+    columns = [
+        ("audit_procedure", "MEDIUMTEXT COMMENT '审计方法步骤（Markdown）' AFTER expression_text"),
+        ("required_data", "JSON COMMENT '审计所需数据（{items:[{name,material_type,fields}]}）' AFTER audit_procedure"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(table, col):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {table}.{col}")
+        else:
+            print(f"[migrate] = {table}.{col} 已存在，跳过")
+
+
+def migrate_knowledge_tables():
+    """知识工坊 — 4 张关联/案例表（此前靠手动跑 migrate_cases.sql /
+    migrate_violation_law_refs.sql，冷启动易漏，现纳入幂等迁移）
+
+    audit_violation_law_refs(违规↔法规，FK→audit_violations)、audit_cases(案例库)、
+    audit_case_violations(案例↔违规)、audit_case_law_refs(案例↔法规)。
+    DDL 与 schema.sql 文档逐字对齐；audit_violation_law_refs 含指向 audit_violations
+    的 FK，主表不存在时跳过该表并告警（其余 3 表无 FK，照建）。
+    """
+    # audit_violation_law_refs：FK 依赖 audit_violations，先预检主表
+    if not _table_exists("audit_violations"):
+        print("[migrate] ! audit_violations 主表不存在，audit_violation_law_refs 跳过（FK 依赖）")
+    elif _table_exists("audit_violation_law_refs"):
+        print("[migrate] = 表 audit_violation_law_refs 已存在，跳过")
+    else:
+        execute(f"""CREATE TABLE {DATABASE}.audit_violation_law_refs (
+  id            INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  violation_id  INT           NOT NULL                COMMENT '关联 audit_violations.id',
+  law_id        VARCHAR(32)   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'sys_core_law_allaudit.id（跨库，排序规则对齐audit_law）',
+  law_title     VARCHAR(500)                          COMMENT '法规名称（冗余，方便查询）',
+  clause_ref    VARCHAR(500)                          COMMENT '条款引用',
+  UNIQUE KEY uk_violation_law (violation_id, law_id),
+  INDEX idx_law (law_id),
+  CONSTRAINT fk_vlaw_violation FOREIGN KEY (violation_id)
+      REFERENCES {DATABASE}.audit_violations (id) ON DELETE CASCADE
+) COMMENT '违规↔法规关联 — 从 YAML 模板 regulation JSON 字段拆解'""", database=DATABASE)
+        print("[migrate] + 表 audit_violation_law_refs")
+
+    # 其余 3 表无 FK，CREATE 幂等 + _table_exists 预检打日志
+    tables = [
+        (
+            "audit_cases",
+            f"""CREATE TABLE {DATABASE}.audit_cases (
+  id              INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  title           VARCHAR(500)  NOT NULL                COMMENT '案例标题',
+  domain          VARCHAR(100)                          COMMENT '领域（前端按此分Tab+下拉框）',
+  case_summary    TEXT                                  COMMENT '案情摘要',
+  audit_method    TEXT                                  COMMENT '审计方法（核查手段）',
+  involved_amount DECIMAL(20,2)                         COMMENT '涉案金额',
+  audit_finding   TEXT                                  COMMENT '审计发现（违规表现）',
+  audit_impact    TEXT                                  COMMENT '风险影响',
+  source          VARCHAR(500)                          COMMENT '来源',
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（列表 ORDER BY）',
+  INDEX idx_domain (domain),
+  INDEX idx_created_at (created_at)
+) COMMENT '审计案例库'""",
+        ),
+        (
+            "audit_case_violations",
+            f"""CREATE TABLE {DATABASE}.audit_case_violations (
+  id            INT  AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  case_id       INT  NOT NULL                   COMMENT '关联 audit_cases.id',
+  violation_id  INT  NOT NULL                   COMMENT '关联 audit_violations.id',
+  UNIQUE KEY uk_cv (case_id, violation_id),
+  INDEX idx_violation (violation_id)
+) COMMENT '案例↔违规关联'""",
+        ),
+        (
+            "audit_case_law_refs",
+            f"""CREATE TABLE {DATABASE}.audit_case_law_refs (
+  id       INT          AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  case_id  INT          NOT NULL                COMMENT '关联 audit_cases.id',
+  law_id   VARCHAR(32)  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'sys_core_law_allaudit.id（跨库，排序规则对齐audit_law）',
+  INDEX idx_law (law_id),
+  INDEX idx_case (case_id)
+) COMMENT '案例↔法规关联'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+
 def migrate_case_indexes():
     """性能加固 — 案例库查询索引（知识工坊案例列表 + 违规关联聚合提速）
 
@@ -421,6 +523,8 @@ def main():
         migrate_trace_md5()
         migrate_expression_sql()
         migrate_project_context_columns()
+        migrate_audit_violations_columns()
+        migrate_knowledge_tables()
         migrate_case_indexes()
         migrate_law_refs_collation()
         migrate_phase2_trace_columns()
