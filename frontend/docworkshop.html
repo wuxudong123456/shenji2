@@ -248,15 +248,15 @@ var FileManager = {
         '<span class="fm-badge ocr-done"><i class="bi bi-check-circle"></i> 已解析</span>' :
         '<span class="fm-badge ocr-pending"><i class="bi bi-hourglass"></i> 解析中</span>';
       var viewBtn = f.ocr_done ?
-        '<button onclick="event.stopPropagation();FileManager.viewDoc('+f.id+')" title="查看OCR内容"><i class="bi bi-eye"></i></button>' : '';
-      html += '<div class="fm-item" onclick="FileManager.viewDoc('+f.id+')">'+
+        '<button onclick="event.stopPropagation();FileManager.viewDoc('+f.trace_id+')" title="查看OCR内容"><i class="bi bi-eye"></i></button>' : '';
+      html += '<div class="fm-item" onclick="FileManager.viewDoc('+f.trace_id+')">'+
         '<div class="fm-actions">'+
         viewBtn +
-        '<button onclick="event.stopPropagation();FileManager.download(\''+f.id+'\',\''+(f.file_name||'').replace(/'/g,'')+'\')" title="下载"><i class="bi bi-download"></i></button>'+
+        '<button onclick="event.stopPropagation();FileManager.download(\''+f.trace_id+'\',\''+(f.file_name||'').replace(/'/g,'')+'\')" title="下载"><i class="bi bi-download"></i></button>'+
         '</div>'+
         '<div class="fm-icon"><i class="bi ' + icon + '"></i></div>'+
         '<div class="fm-name">' + (f.file_name||'未知') + '</div>'+
-        '<div class="fm-meta">' + ((f.created_at||'').substring(0,10)) + '</div>'+
+        '<div class="fm-meta">' + ((f.uploaded_at||'').substring(0,10)) + '</div>'+
         ocrBadge + '</div>';
     });
     grid.innerHTML = html;
