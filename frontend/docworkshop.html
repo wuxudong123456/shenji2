@@ -249,9 +249,12 @@ var FileManager = {
         '<span class="fm-badge ocr-pending"><i class="bi bi-hourglass"></i> 解析中</span>';
       var viewBtn = f.ocr_done ?
         '<button onclick="event.stopPropagation();FileManager.viewDoc('+f.trace_id+')" title="查看OCR内容"><i class="bi bi-eye"></i></button>' : '';
+      var reparseBtn = f.ocr_done ?
+        '<button onclick="event.stopPropagation();FileManager.reparse('+f.trace_id+',\''+(f.file_name||'').replace(/'/g,'')+'\')" title="重新解析"><i class="bi bi-arrow-repeat"></i></button>' : '';
       html += '<div class="fm-item" onclick="FileManager.viewDoc('+f.trace_id+')">'+
         '<div class="fm-actions">'+
         viewBtn +
+        reparseBtn +
         '<button onclick="event.stopPropagation();FileManager.download(\''+f.trace_id+'\',\''+(f.file_name||'').replace(/'/g,'')+'\')" title="下载"><i class="bi bi-download"></i></button>'+
         '</div>'+
         '<div class="fm-icon"><i class="bi ' + icon + '"></i></div>'+
@@ -458,6 +461,20 @@ var FileManager = {
       AuditWorkbench.toast(resp.success ? '已删除' : '删除失败', resp.success ? 'info' : 'error');
       if (resp.success) self.refresh();
     });
+  },
+
+  // ── 重新解析（reparse）：对老文档用最新分类逻辑重抽，存量错分行自愈 ──
+  reparse: function(docId, fileName) {
+    if (!confirm('确定重新解析「'+(fileName||'该文档')+'」？\n将重新 OCR+提取，旧版本证据标记失效，下游数据需复核。')) return;
+    var self = this;
+    // 查看器开着就先关掉：重抽完列表已刷新，用户重新点开即新内容（不在共享轮询里塞条件）
+    if (self._viewerDocId) self.closeViewer();
+    AuditWorkbench.toast('正在提交重新解析...', 'info');
+    AuditAPI.files.reparse({document_id: docId}).then(function(resp){
+      if (!resp.success || !resp.task_id) { AuditWorkbench.toast('提交失败: '+((resp&&resp.error)||'入队失败'), 'error'); return; }
+      AuditWorkbench.toast((fileName||'文档')+' 重新解析进行中...', 'info');
+      self._pollOcrTask(resp.task_id, fileName, self.currentProjectId);
+    }).catch(function(){ AuditWorkbench.toast('网络错误', 'error'); });
   },
 
   newProject: function() {

@@ -65,6 +65,35 @@ def main():
     check("① 文本含「招标」→ 采购类",
           _classify_for_table("本项目招标方式为公开招标", "xxx.pdf") == "采购类")
 
+    # ── 三阶段加固（方案A）：文件名弱信号词拦截，治 id5/6 错分类 ──
+    print("── ① 三阶段：弱词拦截 / 强词优先 / 正文降级 ──")
+    check("① 卷宗目录 → 资料材料类（弱词拦截，正文含合同也不误判）",
+          _classify_for_table("本卷宗收录采购合同XX号", "001_项目资料卷宗目录.pdf") == "资料材料类",
+          _classify_for_table("本卷宗收录采购合同XX号", "001_项目资料卷宗目录.pdf"))
+    check("① 情况说明 → 资料材料类（弱词拦截）",
+          _classify_for_table("项目引用了施工合同条款", "002_单位及项目基本情况说明.pdf") == "资料材料类",
+          _classify_for_table("项目引用了施工合同条款", "002_单位及项目基本情况说明.pdf"))
+    check("① 采购需求申请 → 采购类（不回归，trace152）",
+          _classify_for_table("", "005_第一批采购需求申请.pdf") == "采购类",
+          _classify_for_table("", "005_第一批采购需求申请.pdf"))
+    check("① 采购目录 → 采购类（强词优先于弱词，不误伤）",
+          _classify_for_table("", "采购目录.pdf") == "采购类",
+          _classify_for_table("", "采购目录.pdf"))
+    check("① 采购方案 → 采购类（强词优先于弱词）",
+          _classify_for_table("", "采购方案.pdf") == "采购类",
+          _classify_for_table("", "采购方案.pdf"))
+    # 阶段③降级：纯编号文件名无强/弱信号 → 正文关键词仍生效
+    check("① 纯编号文件名+正文合同 → 合同协议类（阶段③降级正文）",
+          _classify_for_table("本合同由甲乙双方签订", "DHJY-2025-001.pdf") == "合同协议类",
+          _classify_for_table("本合同由甲乙双方签订", "DHJY-2025-001.pdf"))
+    # 扩充弱词：会议纪要/实施方案 → 资料材料类
+    check("① 会议纪要 → 资料材料类（扩充弱词）",
+          _classify_for_table("", "会议纪要.pdf") == "资料材料类",
+          _classify_for_table("", "会议纪要.pdf"))
+    check("① 实施方案 → 资料材料类（扩充弱词）",
+          _classify_for_table("", "实施方案.pdf") == "资料材料类",
+          _classify_for_table("", "实施方案.pdf"))
+
     # ── ② _map_category_to_table ──
     print("\n── ② 类别→表映射 ──")
     check("② 采购类 → data_procurements",

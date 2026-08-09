@@ -572,9 +572,16 @@ def _build_field_sources(trace_id, project_id, table_name, row_id,
 def _classify_for_table(ocr_text: str, filename: str) -> str:
     """轻量分类（决定写入哪张 data_xxx 表）
 
-    优先用文件名/内容关键词快速判断，避免每次都调 LLM。
+    三阶段（文件名强信号优先，避免正文误命中）：
+      1) 文件名强业务词（合同/采购/招标/...）→ 对应类别。
+         「采购目录/采购方案」阶段①即命中「采购」→采购类，不会被阶段②误伤。
+      2) 文件名弱信号词（目录/说明/纪要/方案/通知/...）→ 资料材料类(data_general)，
+         拦截「卷宗目录/情况说明/会议纪要/实施方案」等非业务主体文档（正文可能
+         罗列合同条目却本身并非合同，避免被阶段③的正文「合同」关键词误判）。
+      3) 文件名无强/弱信号 → 降级到正文关键词（原逻辑）。
+    仍启发式，弱信号词表刻意未含「报告/办法/规定/制度/意见」（语义另有归属）。
     """
-    text = (filename + " " + ocr_text[:2000])
+    fname = (filename or "")
     KEYWORD_CATEGORY = [
         ("合同", "合同协议类"),
         ("采购", "采购类"), ("招标", "采购类"), ("中标", "采购类"),
@@ -586,6 +593,18 @@ def _classify_for_table(ocr_text: str, filename: str) -> str:
         ("执照", "资质证照类"), ("资质", "资质证照类"), ("证书", "资质证照类"),
         ("许可证", "资质证照类"),
     ]
+    # 阶段1：文件名强业务词
+    for kw, cat in KEYWORD_CATEGORY:
+        if kw in fname:
+            return cat
+    # 阶段2：文件名弱信号词 → 资料材料类（此时文件名已无强业务词）
+    WEAK_NAME_HINTS = ("目录", "卷宗", "说明", "纪要", "总结", "概况", "简介",
+                       "底稿", "汇编", "材料", "方案", "通知", "函", "请示",
+                       "批复", "备忘录", "记录")
+    if any(w in fname for w in WEAK_NAME_HINTS):
+        return "资料材料类"  # → data_general
+    # 阶段3：降级正文关键词
+    text = fname + " " + (ocr_text or "")[:2000]
     for kw, cat in KEYWORD_CATEGORY:
         if kw in text:
             return cat
