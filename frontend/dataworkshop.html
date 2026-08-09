@@ -24,6 +24,11 @@
     .result-stat { text-align: center; }
     .result-stat .val { font-size: 24px; font-weight: 700; }
     .result-stat .lbl { font-size: 12px; color: var(--color-text-muted); }
+    /* 「更多字段」明细表（克隆自 docworkshop .doc-field-table） */
+    .dw-field-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .dw-field-table th, .dw-field-table td { padding:8px 10px; border-bottom:1px solid var(--color-border); text-align:left; vertical-align:top; }
+    .dw-field-table thead th { background:var(--color-bg); }
+    .dw-field-table tbody th { width:35%; background:var(--color-bg); font-weight:600; white-space:nowrap; }
   </style>
 </head>
 <body data-page="dataworkshop">
@@ -84,7 +89,8 @@
       currentTable: 'data_contracts',
       TABLE_LABEL: {
         data_contracts: '采购合同', data_finance: '财务凭证', data_legal_docs: '法律文书',
-        data_registers: '登记台账', data_credentials: '证照资质', data_general: '通用文档'
+        data_registers: '登记台账', data_credentials: '证照资质', data_general: '通用文档',
+        data_procurements: '采购记录', data_interviews: '谈话笔录'
       },
 
       init() { this.loadTables(); },
@@ -144,22 +150,73 @@
             '<div style="color:var(--color-text-muted);padding:20px;text-align:center;">该表暂无数据（上传对应类型文件后会自动生成并出现在这里）</div></div>';
           return;
         }
+        var self = this;
         var rows = d.rows;
+        this._rowsCache = rows;  // 供「更多」按钮按行索引取 extra_fields
         var keys = [];
         rows.forEach(function(r){ Object.keys(r).forEach(function(k){ if(keys.indexOf(k)<0 && k!=='raw_text' && k!=='extra_fields') keys.push(k); }); });
         if (keys.indexOf('project_id') > 0) keys = ['project_id'].concat(keys.filter(function(k){return k!=='project_id';}));
         keys = keys.slice(0, 9);
-        var th = keys.map(function(k){return '<th>'+k+'</th>';}).join('');
-        var tr = rows.map(function(r){
-          return '<tr>' + keys.map(function(k){ var v = r[k];
-            return '<td>' + (v===null||v===undefined||v==='' ? '<span style="color:var(--color-text-muted);">—</span>' : String(v).substring(0,40)) + '</td>';
-          }).join('') + '</tr>';
+        var th = keys.map(function(k){return '<th>'+k+'</th>';}).join('') + '<th style="text-align:center;">更多字段</th>';
+        var tr = rows.map(function(r, idx){
+          var cells = keys.map(function(k){ var v = r[k];
+            return '<td>' + (v===null||v===undefined||v==='' ? '<span style="color:var(--color-text-muted);">—</span>' : self._escape(String(v).substring(0,40))) + '</td>';
+          }).join('');
+          var hasExtra = r.extra_fields && typeof r.extra_fields === 'object' && Object.keys(r.extra_fields).length > 0;
+          var extraBtn = hasExtra
+            ? '<td style="text-align:center;"><button class="btn btn-sm btn-outline" onclick="DataWorkshop.viewExtra('+idx+')" title="查看该行未入规范列的提取字段"><i class="bi bi-list-ul"></i> 更多</button></td>'
+            : '<td></td>';
+          return '<tr>' + cells + extraBtn + '</tr>';
         }).join('');
         box.innerHTML =
           '<div class="card"><div class="card-header"><h3>'+label+' <span style="font-size:12px;color:var(--color-text-muted);font-weight:400;">'+table+'</span></h3>'+
           '<span class="badge badge-accent">共 '+d.total+' 条（全局·显示前 '+rows.length+'）</span></div>'+
           '<div class="table-wrap"><table class="table"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>'+
-          '<div style="margin-top:8px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 点击表卡片浏览全部数据；用上方"多维筛选"或"智能问数"做条件查询。</div></div>';
+          '<div style="margin-top:8px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 点击「更多」查看该行未入规范列的提取字段；用上方"多维筛选"或"智能问数"做条件查询。</div></div>';
+      },
+
+      // 「更多」按钮：弹窗展示该行 extra_fields（未映射进规范列的提取字段）
+      viewExtra(idx) {
+        var row = (this._rowsCache || [])[idx];
+        if (!row) return;
+        var ef = row.extra_fields;
+        if (typeof ef === 'string') { try { ef = JSON.parse(ef); } catch (e) { ef = {}; } }
+        var label = this.TABLE_LABEL[this.currentTable] || this.currentTable;
+        var bodyHtml = this._renderExtraTable(ef);
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML =
+          '<div style="background:#fff;border-radius:12px;max-width:760px;width:92%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--color-border);">' +
+              '<h3 style="margin:0;font-size:16px;"><i class="bi bi-list-ul" style="color:var(--color-primary);"></i> 其他提取字段 <span style="font-size:12px;color:var(--color-text-muted);font-weight:400;">'+this._escape(label)+'</span></h3>' +
+              '<button class="btn btn-sm" onclick="this.closest(\'[style*=fixed]\').remove();"><i class="bi bi-x-lg"></i></button>' +
+            '</div>' +
+            '<div style="padding:16px 18px;overflow-y:auto;">' +
+              '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:10px;">'+this._escape(row.doc_name||'')+' · 未入规范列的字段（规范列见上行）</div>' +
+              bodyHtml +
+            '</div>' +
+          '</div>';
+        overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+      },
+
+      _renderExtraTable(ef) {
+        if (!ef || typeof ef !== 'object') return '<div class="alert alert-info">无其他提取字段</div>';
+        var keys = Object.keys(ef);
+        if (!keys.length) return '<div class="alert alert-info">无其他提取字段</div>';
+        var shown = keys.slice(0, 50);
+        var trs = shown.map(function(k){
+          var v = ef[k];
+          var vs = (v===null||v===undefined||v==='') ? '未提供' : String(v);
+          return '<tr><th>'+DataWorkshop._escape(k)+'</th><td>'+DataWorkshop._escape(vs.substring(0,200))+'</td></tr>';
+        }).join('');
+        var more = keys.length > 50 ? '<div style="font-size:12px;color:var(--color-text-muted);padding:8px 0;">还有 '+(keys.length-50)+' 个字段未显示</div>' : '';
+        return '<table class="dw-field-table"><thead><tr><th>字段</th><th>值</th></tr></thead><tbody>'+trs+'</tbody></table>'+more;
+      },
+
+      _escape(s) {
+        if (s === null || s === undefined) s = '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       },
 
       // 智能问数：自然语言 → 伪SQL（Layer3 改为生成后自动执行）

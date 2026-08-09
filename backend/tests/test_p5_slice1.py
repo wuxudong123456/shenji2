@@ -122,6 +122,39 @@ def main():
     check("⑤ 合同金额「面议」→ None", row3.get("contract_amount") is None, str(row3))
     check("⑤ 招标日期非法 → None", row3.get("bid_date") is None, str(row3))
 
+    # ── ⑥ Phase3 加固：OntoSKU 信封键别名扩展（涉及金额/文档日期/谈话内容/strip）──
+    print("\n── ⑥ OntoSKU 信封键别名扩展 ──")
+    # data_procurements：涉及金额→contract_amount（trace152 真实场景）
+    row6a, extra6a = map_extracted_fields("data_procurements", {
+        "涉及金额": "1462800.0",
+        "文档编号": "清政服采申〔2025〕11号",
+        "文档日期": "2025-03-03",
+        "涉及单位": "信息技术科",
+    })
+    check("⑥ 涉及金额→contract_amount", row6a.get("contract_amount") == 1462800.0, str(row6a))
+    check("⑥ 文档编号无规范列→留 extra", "文档编号" in extra6a, str(extra6a))
+    check("⑥ 文档日期无规范列→留 extra（procurements）", "文档日期" in extra6a, str(extra6a))
+    check("⑥ 涉及单位无规范列→留 extra", "涉及单位" in extra6a, str(extra6a))
+    # data_contracts：涉及金额→amount
+    row6b, _ = map_extracted_fields("data_contracts", {"涉及金额": "50万"})
+    check("⑥ contracts 涉及金额→amount 500000.0", row6b.get("amount") == 500000.0, str(row6b))
+    # data_general：信封键 name/description/文档日期
+    row6c, _ = map_extracted_fields("data_general", {
+        "name": "某项目", "description": "内容摘要", "文档日期": "2025-01-01",
+    })
+    check("⑥ general name→title", row6c.get("title") == "某项目", str(row6c))
+    check("⑥ general description→summary", row6c.get("summary") == "内容摘要", str(row6c))
+    check("⑥ general 文档日期→doc_date", row6c.get("doc_date") == "2025-01-01", str(row6c))
+    # data_interviews：谈话内容→transcript
+    row6d, _ = map_extracted_fields("data_interviews", {"谈话内容": "笔录正文..."})
+    check("⑥ interviews 谈话内容→transcript", row6d.get("transcript") == "笔录正文...", str(row6d))
+    # data_legal_docs：文档日期→doc_date
+    row6e, _ = map_extracted_fields("data_legal_docs", {"文档日期": "2025-06-06"})
+    check("⑥ legal_docs 文档日期→doc_date", row6e.get("doc_date") == "2025-06-06", str(row6e))
+    # strip 防御：带首尾空白的键仍命中
+    row6f, _ = map_extracted_fields("data_procurements", {" 涉及金额 ": "123"})
+    check("⑥ 带空白键 strip 后仍命中", row6f.get("contract_amount") == 123.0, str(row6f))
+
     print(f"\n{'='*48}")
     print(f"切片1 结果：PASS={PASS}  FAIL={FAIL}")
     print(f"{'='*48}")

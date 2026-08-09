@@ -7,7 +7,7 @@
 
 本模块提供双向映射:
   map_extracted_fields(table, fields) — 提取结果 → 表列（写入用）
-  get_expr_field_alias(table)        — 表达式中文字段 → 表列（扫描用）
+  get_column_for_expr_field(table, cn_field_name) — 表达式中文字段 → 表列（扫描用）
 """
 import re
 import json
@@ -24,11 +24,11 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "乙方": "party_b", "供应商": "party_b", "供应商名称": "party_b", "中标人": "party_b",
         "中标单位": "party_b", "中标供应商": "party_b", "卖方": "party_b", "供货方": "party_b",
         "供货单位": "party_b", "承包方": "party_b", "合同乙方名称": "party_b",
-        # 金额
+        # 金额（含 OntoSKU 信封键「涉及金额」= 文档所述交易额）
         "合同金额": "amount", "金额": "amount", "采购金额": "amount", "合同总价": "amount",
         "总价": "amount", "中标金额": "amount", "成交金额": "amount", "价款": "amount",
         "合同总额": "amount", "总额": "amount", "合计金额": "amount", "价税合计": "amount",
-        "不含税金额": "amount", "合同不含税金额": "amount", "预算金额": "amount",
+        "不含税金额": "amount", "合同不含税金额": "amount", "预算金额": "amount", "涉及金额": "amount",
         # 币种
         "币种": "currency", "货币": "currency",
         # 日期
@@ -56,6 +56,7 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "发布机关": "issuing_body", "出具机关": "issuing_body", "裁决机关": "issuing_body",
         "发文机关": "issuing_body", "颁布机关": "issuing_body",
         "文书日期": "doc_date", "发文日期": "doc_date", "判决日期": "doc_date", "裁决日期": "doc_date",
+        "文档日期": "doc_date",
         "生效日期": "effective_date",
         "法律依据": "legal_basis", "法律条文": "legal_basis", "适用依据": "legal_basis",
         "判决": "verdict", "判决结果": "verdict", "裁决": "verdict", "结论": "verdict", "处理决定": "verdict",
@@ -79,9 +80,10 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
     "data_general": {
         "分类": "category", "类别": "category",
         "标题": "title", "名称": "title", "主题": "title",
-        "摘要": "summary", "内容简介": "summary", "概述": "summary",
+        "name": "title", "文档标题": "title",
+        "摘要": "summary", "内容简介": "summary", "概述": "summary", "description": "summary",
         "发布机关": "issuing_body", "发文单位": "issuing_body", "发布单位": "issuing_body",
-        "日期": "doc_date", "发文日期": "doc_date", "发布日期": "doc_date",
+        "日期": "doc_date", "发文日期": "doc_date", "发布日期": "doc_date", "文档日期": "doc_date",
     },
     "data_procurements": {
         # 采购方式
@@ -95,19 +97,24 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         # 预算金额
         "预算金额": "budget_amount", "采购预算": "budget_amount", "预算价": "budget_amount",
         "控制价": "budget_amount", "最高限价": "budget_amount",
-        # 合同/中标金额
+        # 合同/中标金额（含 OntoSKU 信封键「涉及金额」= 文档所述交易额）
         "合同金额": "contract_amount", "中标金额": "contract_amount", "成交金额": "contract_amount",
         "合同价": "contract_amount", "采购金额": "contract_amount",
+        "涉及金额": "contract_amount", "合同总价": "contract_amount",
+        "合同总额": "contract_amount", "总价": "contract_amount",
         # 招标/开标日期
         "招标日期": "bid_date", "开标日期": "bid_date", "投标截止日期": "bid_date",
         # 签订日期
         "签订日期": "sign_date", "合同签订日期": "sign_date",
+        "合同日期": "sign_date", "签约日期": "sign_date",
     },
     "data_interviews": {
         "被访谈人": "interviewee", "受访人": "interviewee", "谈话对象": "interviewee",
         "被询问人": "interviewee", "访谈对象": "interviewee",
         "访谈日期": "interview_date", "谈话日期": "interview_date", "询问日期": "interview_date",
         "访谈地点": "location", "谈话地点": "location", "地点": "location", "场所": "location",
+        # 谈话内容/笔录（OntoSKU 常见键）
+        "谈话内容": "transcript", "笔录": "transcript", "谈话笔录": "transcript", "转写": "transcript",
     },
 }
 
@@ -167,7 +174,9 @@ def map_extracted_fields(table: str, extracted_fields: dict | list) -> tuple[dic
     extra_fields = {}
 
     for cn_name, value in flat.items():
-        col = alias.get(cn_name) or _fuzzy_match_alias(cn_name, alias)
+        # 防御首尾空白键（OntoSKU 偶发），strip 后再精确/模糊匹配
+        cn = cn_name.strip() if isinstance(cn_name, str) else cn_name
+        col = alias.get(cn) or _fuzzy_match_alias(cn, alias)
         if col:
             casted = _cast_value(col, value, table)
             # 防 last-wins 覆盖：仅当列未赋值或现值为空(None/"")时才写入。
@@ -175,7 +184,7 @@ def map_extracted_fields(table: str, extracted_fields: dict | list) -> tuple[dic
             if row_dict.get(col) in (None, ""):
                 row_dict[col] = casted
         else:
-            extra_fields[cn_name] = value
+            extra_fields[cn] = value
 
     return row_dict, extra_fields
 

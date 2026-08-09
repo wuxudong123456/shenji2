@@ -592,13 +592,35 @@ def _classify_for_table(ocr_text: str, filename: str) -> str:
     return "其他杂项类"  # → data_general
 
 
+def _delete_trace_data_rows(trace_id: int):
+    """删除某 trace 在所有 data_* 表里的旧行（reparse 去重 / insert 幂等）。
+
+    不变式：一条 trace ≤ 一条 data 行（当前一文档→一分类→一行）。
+    重抽先清掉该 trace 的旧 data 行（含跨表重分类时旧表残留），再插新行；
+    首次上传各表无旧行，DELETE 为 noop。
+    """
+    from services.db import execute
+    from services.data_service import DATA_TABLES
+    for tbl in DATA_TABLES:
+        execute(
+            f"DELETE FROM {tbl} WHERE document_trace_id = %s",
+            (trace_id,), database="tt",
+        )
+
+
 def _insert_into_data_table(table_name: str, project_id: str, trace_id: int,
                             filename: str, ocr_text: str,
                             row_dict: dict, extra_fields: dict,
                             template_name: str = None,
                             doc_type: str = None) -> int:
-    """把映射后的字段写入对应的 data_xxx 表（P3-9 补 doc_type 列）"""
+    """把映射后的字段写入对应的 data_xxx 表（P3-9 补 doc_type 列）
+
+    插入前先 _delete_trace_data_rows 清旧：保证一条 trace 在 data_* 表里只留
+    最新一次抽取的行（reparse 不再产生重复行）。
+    """
     from services.db import insert
+    if trace_id:
+        _delete_trace_data_rows(trace_id)
     extra_json = json.dumps(extra_fields, ensure_ascii=False) if extra_fields else None
     tmpl = template_name or row_dict.get("template_name") or ""
 
