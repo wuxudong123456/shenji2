@@ -105,8 +105,10 @@ CREATE TABLE tt.audit_violations (
     audititem_id    VARCHAR(32)                           COMMENT '关联sys_audititem审计事项分类',
     category_path   VARCHAR(500)                          COMMENT '分类路径',
     severity        VARCHAR(20)   DEFAULT 'medium'        COMMENT 'high/medium/low',
-    expression_text TEXT                                  COMMENT '违规表达式伪SQL',
-    description     TEXT                                  COMMENT '违规描述',
+    expression_text   TEXT                                COMMENT '违规表达式伪SQL',
+    audit_procedure   MEDIUMTEXT                          COMMENT '审计方法步骤（Markdown）',
+    required_data     JSON                                COMMENT '审计所需数据（{items:[{name,material_type,fields}]}）',
+    description       TEXT                                COMMENT '违规描述',
     source_file     VARCHAR(255)                          COMMENT '来源文件',
     author          VARCHAR(200)                          COMMENT '来源单位',
     import_batch    VARCHAR(100)                          COMMENT '导入批次',
@@ -120,6 +122,70 @@ CREATE TABLE tt.audit_violations (
     INDEX idx_audititem (audititem_id),
     INDEX idx_review (is_reviewed, review_status)
 ) COMMENT '违规行为库—关联sys_audititem审计事项分类';
+
+-- ===========================================================================
+-- 知识工坊关联表（违规↔法规 / 案例↔违规 / 案例↔法规 三向关联桥）
+-- 与违规库共同构成知识工坊数据底座，详见 docs/KNOWLEDGE_WORKSHOP_SCHEMA_DESIGN.md
+-- 注: 这些表已存在于生产 tt 库，此处补全 DDL 记录（参考文档，非执行脚本）
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 6.1 audit_violation_law_refs — 违规↔法规关联
+-- law_id 跨库指向 audit_law.sys_core_law_allaudit.id
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_violation_law_refs (
+    id            INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    violation_id  INT           NOT NULL                COMMENT '关联 audit_violations.id',
+    law_id        VARCHAR(32)   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'sys_core_law_allaudit.id（跨库，排序规则对齐audit_law）',
+    law_title     VARCHAR(500)                          COMMENT '法规名称（冗余，方便查询）',
+    clause_ref    VARCHAR(500)                          COMMENT '条款引用',
+    UNIQUE KEY uk_violation_law (violation_id, law_id),
+    INDEX idx_law (law_id),
+    CONSTRAINT fk_vlaw_violation FOREIGN KEY (violation_id)
+        REFERENCES tt.audit_violations (id) ON DELETE CASCADE
+) COMMENT '违规↔法规关联 — 从 YAML 模板 regulation JSON 字段拆解';
+
+-- ---------------------------------------------------------------------------
+-- 6.2 audit_cases — 审计案例库（知识工坊·案例 Tab）
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_cases (
+    id              INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    title           VARCHAR(500)  NOT NULL                COMMENT '案例标题',
+    domain          VARCHAR(100)                          COMMENT '领域（前端按此分Tab+下拉框）',
+    case_summary    TEXT                                  COMMENT '案情摘要',
+    audit_method    TEXT                                  COMMENT '审计方法（核查手段）',
+    involved_amount DECIMAL(20,2)                         COMMENT '涉案金额',
+    audit_finding   TEXT                                  COMMENT '审计发现（违规表现）',
+    audit_impact    TEXT                                  COMMENT '风险影响',
+    source          VARCHAR(500)                          COMMENT '来源',
+    created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（列表 ORDER BY）',
+    INDEX idx_domain (domain),
+    INDEX idx_created_at (created_at)
+) COMMENT '审计案例库';
+
+-- ---------------------------------------------------------------------------
+-- 6.3 audit_case_violations — 案例↔违规关联
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_case_violations (
+    id            INT  AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    case_id       INT  NOT NULL                   COMMENT '关联 audit_cases.id',
+    violation_id  INT  NOT NULL                   COMMENT '关联 audit_violations.id',
+    UNIQUE KEY uk_cv (case_id, violation_id),
+    INDEX idx_violation (violation_id)
+) COMMENT '案例↔违规关联';
+
+-- ---------------------------------------------------------------------------
+-- 6.4 audit_case_law_refs — 案例↔法规关联
+-- law_id 跨库指向 audit_law.sys_core_law_allaudit.id
+-- 注: 与 violation_law_refs 不同，此表未冗余 law_title，跨库JOIN失效时无法显示名称
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_case_law_refs (
+    id       INT          AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    case_id  INT          NOT NULL                COMMENT '关联 audit_cases.id',
+    law_id   VARCHAR(32)  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'sys_core_law_allaudit.id（跨库，排序规则对齐audit_law）',
+    INDEX idx_law (law_id),
+    INDEX idx_case (case_id)
+) COMMENT '案例↔法规关联';
 
 -- ---------------------------------------------------------------------------
 -- 7. data_contracts — 合同协议类
