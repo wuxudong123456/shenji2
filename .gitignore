@@ -47,8 +47,9 @@ temp/
 tmp/
 /.worktrees/
 
-# 后端运行错误日志（*.err 结尾）
+# 后端运行输出/错误日志（*.err / *.out 结尾）
 backend/*.err
+backend/*.out
 
 # ======================
 # 测试案例包二进制（可由 scripts/case_pack 重建，不入库）
