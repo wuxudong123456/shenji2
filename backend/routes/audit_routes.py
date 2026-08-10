@@ -81,6 +81,9 @@ from services.knowledge_service import (
 from services.regulation_graph import get_regulation_graph, get_law_clauses
 from services.expression_engine import execute_expression
 from services.template_service import list_templates as tmpl_list
+from services import analysis_lifecycle as alc
+from services import analysis_context_builder as acb
+from services import evidence_service
 from agents.registry import AgentRegistry
 
 
@@ -1499,21 +1502,75 @@ def register_audit_routes(app):
 
     @app.route("/api/audit/suspicion/generate", methods=["POST"])
     def audit_suspicion_generate():
-        """POST /api/audit/suspicion/generate — 生成疑点报告"""
+        """POST /api/audit/suspicion/generate — Step6 疑点生成（附录A §7）
+
+        P8-7: 收 task_id，由 ContextBuilder 装配 Step5命中+Step3法规；Agent 仅组织疑点；
+        结果落 project_suspicions（verify_status=MODEL_FOUND，待人工核实流转）。
+        body: {task_id} 或兼容旧 {project_id, analysis_results, ...}
+        """
         data = request.get_json() or {}
+        task_id = data.get("task_id")
+
+        project_id = data.get("project_id", "")
+        analysis_results = data.get("analysis_results", [])
+        selected_laws = data.get("selected_laws", [])
+        primary_laws = data.get("primary_laws", [])
+
+        # 有 task_id 则从 DB 权威装配上下文（P8-10），否则用 body（旧前端兼容）
+        if task_id:
+            ctx = acb.build(task_id, step=6) or {}
+            sd = ctx.get("confirmed_results", {}) or {}
+            project_id = project_id or ctx["task"].get("project_id", "")
+            analysis_results = analysis_results or sd.get("analysis_results", [])
+            selected_laws = selected_laws or sd.get("selected_laws", [])
+            primary_laws = primary_laws or sd.get("primary_laws", [])
 
         agent = AgentRegistry().create_agent("suspicion_generator")
         result = agent.run({
-            "analysis_results": data.get("analysis_results", []),
+            "analysis_results": analysis_results,
             "overall_assessment": data.get("overall_assessment", ""),
             "domain": data.get("domain", ""),
             "audit_item": data.get("item", ""),
-            "project_id": data.get("project_id", ""),
-            "primary_laws": data.get("primary_laws", []),
-            "selected_laws": data.get("selected_laws", []),
-        })
+            "project_id": project_id,
+            "primary_laws": primary_laws,
+            "selected_laws": selected_laws,
+        }, context={"task_id": task_id, "project_id": project_id, "step": 6,
+                    "node_name": "suspicion_endpoint"})
 
-        return jsonify(result)
+        suspicion_report = result.get("output", {}).get("suspicion_report", {}) \
+            if result.get("success") else {}
+
+        # P8-7: 落库 project_suspicions（MODEL_FOUND，待人工核实）+ 推进 current_step=6
+        suspicion_id = None
+        if project_id and suspicion_report:
+            items = suspicion_report.get("items", [])
+            # analysis_id 列为 INT（关联 audit_analysis_tasks.id 自增主键），
+            # 需由 task_code(task_id) 反查数值 id；无 task_id 时留空
+            analysis_id_num = None
+            if task_id:
+                row = query_one("SELECT id FROM audit_analysis_tasks WHERE task_code = %s",
+                                (task_id,), database="tt")
+                analysis_id_num = (row or {}).get("id")
+            suspicion_id = insert(
+                "INSERT INTO project_suspicions "
+                "(project_id, analysis_id, suspicion_items, evidence_chain, status, verify_status) "
+                "VALUES (%s,%s,%s,%s,'draft','MODEL_FOUND')",
+                (project_id, analysis_id_num,
+                 json.dumps(items, ensure_ascii=False),
+                 json.dumps({"analysis_results": analysis_results,
+                             "selected_laws": selected_laws}, ensure_ascii=False)),
+                database="tt",
+            )
+        if task_id:
+            alc.advance_step(task_id, to_step=6, step_data_patch={"suspicion_report": suspicion_report},
+                             summary_content=f"Step6 疑点生成：{suspicion_report.get('total_suspicions', 0)} 条疑点（待人工核实）",
+                             summary_structured={"suspicion_report": suspicion_report,
+                                                 "suspicion_id": suspicion_id})
+
+        return jsonify({**result, "task_id": task_id, "suspicion_id": suspicion_id,
+                        "suspicion_report": suspicion_report,
+                        "verify_status": "MODEL_FOUND" if suspicion_id else None,
+                        "next": "POST /analysis/{id}/suspicions/review 五态核实流转"})
 
     # ═══════════════════════════════════════════════════════════
     #  模板
@@ -1579,6 +1636,134 @@ def register_audit_routes(app):
             "errors": state.get("errors", []),
         }
 
+    def _enrich_candidates(matches: list) -> list:
+        """P8-3: 给违规模型候选补 engine_rule + audit_methods + match_score（确定性，非 AI 打分）。
+
+        读 Phase7 audit_engine_rules（target_table/expression）+ audit_item_methods（data_requirements）。
+        match_score 规则排序：命中表达式/方法数据的优先（有 engine_rule→100，否则按 id 稳定次序递减）。
+        """
+        if not matches:
+            return matches
+        # 批量取 engine_rule + audit_methods（按 violation_id）
+        vids = []
+        for m in matches:
+            vid = m.get("violation_id") or m.get("id")
+            if isinstance(vid, int) or (isinstance(vid, str) and vid.isdigit()):
+                vids.append(int(vid))
+        rule_map, method_map = {}, {}
+        if vids:
+            ph = ",".join(["%s"] * len(vids))
+            for r in query(f"SELECT violation_id, target_table, expression FROM "
+                           f"audit_engine_rules WHERE violation_id IN ({ph})", tuple(vids), database="tt"):
+                rule_map[r["violation_id"]] = {"target_table": r.get("target_table"),
+                                               "expression": r.get("expression")}
+            for r in query(f"SELECT violation_id, data_requirements FROM "
+                           f"audit_item_methods WHERE violation_id IN ({ph})", tuple(vids), database="tt"):
+                method_map[r["violation_id"]] = {"data_requirements": _json_loads(r.get("data_requirements"))}
+        enriched = []
+        for i, m in enumerate(matches):
+            vid = m.get("violation_id") or m.get("id")
+            vid_int = int(vid) if (isinstance(vid, int) or (isinstance(vid, str) and vid.isdigit())) else None
+            has_rule = vid_int in rule_map
+            m2 = dict(m)
+            m2["engine_rule"] = rule_map.get(vid_int, {})
+            m2["audit_methods"] = method_map.get(vid_int, {})
+            # 确定性打分：有规则 100，否则按原顺序递减（保留 LLM relevance 时不覆盖）
+            if not m2.get("match") and not m2.get("match_score"):
+                m2["match_score"] = 100 if has_rule else max(10, 90 - i * 10)
+            enriched.append(m2)
+        return enriched
+
+    def _build_law_recommendations(laws, project_id, task_id):
+        """P8-4: 构造 law_recommendations（附录A §4）。
+
+        逐法规查条款（regulation_graph.get_law_clauses），无条款/无原文 → confirm_status="待人工核实"
+        （禁入文书）；落 source_refs 到 audit_source_refs。
+        laws: [law_id_str] 或 [{law_id, law, clause, ...}]
+        """
+        recs = []
+        for law in (laws or []):
+            law_id = law.get("law_id") if isinstance(law, dict) else law
+            law_title = law.get("law") or law.get("law_title", "") if isinstance(law, dict) else ""
+            if not law_id:
+                continue
+            try:
+                clauses = get_law_clauses(str(law_id)) or []
+            except Exception:
+                clauses = []
+            clause = clauses[0] if clauses else {}
+            clause_text = clause.get("clause_text") or clause.get("text") or ""
+            has_evidence = bool(clause_text)
+            # 落 source_ref（法规→条款）
+            if project_id and has_evidence:
+                try:
+                    evidence_service.add_ref(project_id, "law_recommendation", task_id,
+                                             "law_clause", clause.get("clause_id") or law_id,
+                                             quote=clause_text[:500])
+                except Exception:
+                    pass
+            recs.append({
+                "law_id": str(law_id),
+                "law_title": law_title,
+                "clause_id": clause.get("clause_id") or "",
+                "clause_no": clause.get("clause_no") or clause.get("no") or "",
+                "clause_text": clause_text,
+                "source_refs": [f"law_clause:{clause.get('clause_id') or law_id}"] if has_evidence else [],
+                "confirm_status": "已确认" if has_evidence else "待人工核实",
+            })
+        return recs
+
+    @app.route("/api/audit/analysis/<task_id>/readiness", methods=["GET"])
+    def audit_analysis_readiness(task_id):
+        """GET /analysis/{id}/readiness?stage=entry|data_ready|evidence_complete — 三道控制层检查（附录A §9）"""
+        stage = request.args.get("stage", "entry")
+        result = alc.check_readiness(task_id, stage)
+        code = 200 if result.get("ready") else 412
+        return jsonify({"success": result.get("ready", False),
+                        "task_id": task_id, "stage": stage, **result}), code
+
+    @app.route("/api/audit/analysis/<task_id>/suspicions/review", methods=["POST"])
+    def audit_suspicion_review(task_id):
+        """POST /analysis/{id}/suspicions/review — 疑点五态核实流转（附录A §7）
+
+        body: {suspicion_id, verify_status, evidence?, reviewer?, note?}
+        verify_status ∈ {MODEL_FOUND, WAIT_CONFIRM, CONFIRMED, REJECTED, NEED_MORE_EVIDENCE}
+        流转：MODEL_FOUND→WAIT_CONFIRM→{CONFIRMED|REJECTED|NEED_MORE_EVIDENCE}，NEED_MORE_EVIDENCE→WAIT_CONFIRM
+        """
+        data = request.get_json() or {}
+        suspicion_id = data.get("suspicion_id")
+        new_status = (data.get("verify_status") or "").strip()
+        allowed = {"MODEL_FOUND", "WAIT_CONFIRM", "CONFIRMED", "REJECTED", "NEED_MORE_EVIDENCE"}
+        if not suspicion_id or new_status not in allowed:
+            return jsonify({"success": False,
+                            "error": "需 suspicion_id + verify_status(五态之一)"}), 400
+
+        row = query_one("SELECT id, project_id, verify_status FROM project_suspicions WHERE id = %s",
+                        (suspicion_id,), database="tt")
+        if not row:
+            return jsonify({"success": False, "error": "疑点不存在"}), 404
+
+        # 合并证据/备注到 evidence_chain（JSON_MERGE_PATCH）
+        patch = {}
+        if data.get("evidence"):
+            patch["review_evidence"] = data.get("evidence")
+        if data.get("note"):
+            patch["review_note"] = data.get("note")
+        patch_json = json.dumps({"review": patch, "reviewer": data.get("reviewer") or "system",
+                                 "at": datetime.now().isoformat()}, ensure_ascii=False)
+        # status 列与 verify_status 保持同步：CONFIRMED→confirmed / REJECTED→rejected
+        sync_status = ("confirmed" if new_status == "CONFIRMED"
+                       else "rejected" if new_status == "REJECTED" else row.get("status") or "draft")
+        execute(
+            "UPDATE project_suspicions SET verify_status = %s, status = %s, "
+            "evidence_chain = JSON_MERGE_PATCH(COALESCE(evidence_chain,'{}'), %s) WHERE id = %s",
+            (new_status, sync_status, patch_json, suspicion_id),
+            database="tt",
+        )
+        updated = query_one("SELECT id, verify_status, status FROM project_suspicions WHERE id = %s",
+                            (suspicion_id,), database="tt")
+        return jsonify({"success": True, "suspicion": dict(updated) if updated else {}})
+
     @app.route("/api/audit/analysis", methods=["POST"])
     def audit_analysis_create():
         """POST /api/audit/analysis — 创建分析任务，启动 LangGraph 工作流
@@ -1588,32 +1773,46 @@ def register_audit_routes(app):
         """
         data = request.get_json() or {}
         project_id = data.get("project_id", "")
-        user_intent = data.get("intent", "")
+        # P8-2: 附录A body = {project_id, focus_item_id?, user_intent?}；intent 作旧前端别名
+        focus_item_id = data.get("focus_item_id")
+        user_intent = data.get("user_intent") or data.get("intent", "")
 
+        if not project_id:
+            return jsonify({"success": False, "error": "缺少 project_id"}), 400
         if not user_intent:
             return jsonify({"success": False, "error": "请输入审计意图"}), 400
 
-        task_id = str(uuid.uuid4()).replace("-", "")[:16]
+        # P3.4: 清理同 project_id 的旧未完成任务（防僵尸堆积）
+        execute(
+            "UPDATE audit_analysis_tasks SET status = 'cancelled' "
+            "WHERE project_id = %s AND status IN ('in_progress','awaiting_confirmation','awaiting_upload')",
+            (project_id,), database="tt",
+        )
 
-        # P1.4: 按 project_id 从 DB 读完整项目上下文，注入工作流 state
-        # （P1.6 守卫修复后，IntentAnalyzer 不会用空串覆盖这些 DB 值）
-        project_context = {}
-        if project_id:
-            proj = query_one(
-                "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
-                (project_id,), database="tt",
+        # P8-2: 建任务（current_step=1）—— analysis_target/scope 由 ContextBuilder 推导后回填
+        task_id = alc.create_analysis_task(project_id, focus_item_id=focus_item_id,
+                                            user_intent=user_intent)
+
+        # P8-10: ContextBuilder 从 DB 装配 project_context（禁 HTML）+ 推导 target/scope
+        ctx = acb.build(task_id, step=1)
+        pc = (ctx or {}).get("project_context", {})
+        analysis_target = pc.pop("_analysis_target", None)
+        analysis_scope = pc.pop("_analysis_scope", None)
+        if analysis_target or analysis_scope:
+            execute(
+                "UPDATE audit_analysis_tasks SET analysis_target = %s, analysis_scope = %s "
+                "WHERE task_code = %s",
+                (analysis_target, analysis_scope, task_id), database="tt",
             )
-            if proj:
-                p = _project_to_dto(proj)
-                project_context = {
-                    "domain": p.get("audit_type", "") or p.get("domain", ""),
-                    "audit_item": p.get("name", ""),
-                    "audit_period": p.get("audit_period", ""),
-                    "target_level": p.get("target_level", "") or p.get("level", ""),
-                    "target_unit": p.get("audited_unit", "") or p.get("unit", ""),
-                }
+        project_context = {
+            "domain": pc.get("audit_type", ""),
+            "audit_item": (ctx or {}).get("focus_item", {}).get("title", "") or pc.get("name", ""),
+            "audit_period": pc.get("audit_period", ""),
+            "target_level": pc.get("target_level", ""),
+            "target_unit": pc.get("audited_unit", ""),
+        }
 
-        # 启动 LangGraph 工作流
+        # 启动 LangGraph 工作流（Step① + Step②，在 Step③ 断点暂停）
         config = {"configurable": {"thread_id": task_id}}
         state = _analysis_graph.invoke({
             "task_id": task_id,
@@ -1623,55 +1822,70 @@ def register_audit_routes(app):
             **project_context,  # P1.4: 注入 DB 项目上下文
         }, config)
 
-        # P3.4: 清理同 project_id 的旧未完成任务（防僵尸堆积——每次 parseIntent 创建新任务前清理旧的）
-        execute(
-            "UPDATE audit_analysis_tasks SET status = 'cancelled' "
-            "WHERE project_id = %s AND status IN ('in_progress','awaiting_confirmation','awaiting_upload')",
-            (project_id,), database="tt",
-        )
-        # 持久化到 MySQL
-        insert(
-            "INSERT INTO audit_analysis_tasks "
-            "(task_code, project_id, title, step, step_data, agent_results, status, created_at) "
-            "VALUES (%s,%s,%s,%s,%s,%s,'in_progress',NOW())",
-            (task_id, project_id, user_intent[:500],
-             state.get("current_step", 2),
-             json.dumps({"intent_result": state.get("intent_result", {})}, ensure_ascii=False),
-             json.dumps({
-                 "intent_analyzer": state.get("intent_result", {}),
-                 "matches": state.get("matches", []),
-                 "primary_laws": state.get("primary_laws", []),
-                 "recommended_materials": state.get("recommended_materials", []),
-             }, ensure_ascii=False)),
-            database="tt",
-        )
+        # 持久化 Step1-2 结果到 step_data（current_step 由 graph 算，权威落 MySQL）
+        matches_enriched = _enrich_candidates(state.get("matches", []))
+        alc.advance_step(task_id, to_step=state.get("current_step", 2), step_data_patch={
+            "intent_result": state.get("intent_result", {}),
+            "matches": matches_enriched,
+            "primary_laws": state.get("primary_laws", []),
+            "recommended_materials": state.get("recommended_materials", []),
+        })
 
-        # 构造响应
+        # P8-1: entry 门禁（附录A §9）— 当前前端仍自推进（C6 前），门禁结果随响应返回，
+        # 不硬阻断 create；项目缺失才 400。C6 前端化后由前端调 /readiness 显式门禁。
+        entry = alc.check_readiness(task_id, "entry")
+        if not (ctx or {}).get("project_context", {}).get("name"):
+            return jsonify({"success": False, "error": "项目不存在或已删",
+                            "task_id": task_id}), 400
+
         snapshot = _analysis_graph.get_state(config)
-        return jsonify(_graph_state_to_response(task_id, state, snapshot))
+        resp = _graph_state_to_response(task_id, state, snapshot)
+        resp["matches"] = matches_enriched
+        resp["project_context"] = pc
+        resp["focus_item"] = (ctx or {}).get("focus_item")
+        resp["readiness"] = {"entry": entry}
+        return jsonify(resp)
 
     @app.route("/api/audit/analysis/<task_id>", methods=["GET"])
     def audit_analysis_status(task_id):
-        """GET /api/audit/analysis/<id> — 查询分析任务状态
+        """GET /api/audit/analysis/<id> — 查询分析任务权威状态（P8 Q1：MySQL 唯一权威源）
 
-        优先从 LangGraph 状态快照获取（实时），
-        回退到 MySQL 持久化记录。
+        current_step/step_data/summaries 均从 MySQL 读；LangGraph 快照仅作 in-flight 兜底
+        （兼容旧任务或 Step1-2 刚 invoke 尚未落 step_data 的极短窗口）。
         """
-        config = {"configurable": {"thread_id": task_id}}
-        snapshot = _analysis_graph.get_state(config)
-
-        if snapshot and snapshot.values:
-            state = snapshot.values
-            return jsonify(_graph_state_to_response(task_id, state, snapshot))
-
-        # 回退：查 MySQL
-        row = query_one(
-            "SELECT * FROM audit_analysis_tasks WHERE task_code = %s",
-            (task_id,), database="tt",
-        )
-        if not row:
+        auth = alc.get_authoritative_state(task_id)
+        if not auth:
+            # 兜底：查 graph（旧任务 / 极短窗口）
+            config = {"configurable": {"thread_id": task_id}}
+            snapshot = _analysis_graph.get_state(config)
+            if snapshot and snapshot.values:
+                return jsonify(_graph_state_to_response(task_id, snapshot.values, snapshot))
             return jsonify({"success": False, "error": "任务不存在"}), 404
-        return jsonify({"success": True, "task": dict(row)})
+
+        sd = auth.get("step_data", {})
+        return jsonify({
+            "success": True,
+            "task_id": auth["task_id"],
+            "project_id": auth.get("project_id"),
+            "current_step": auth["current_step"],   # P8 Q1: 权威步骤
+            "step": auth["current_step"],           # 旧前端兼容别名
+            "status": auth.get("status"),
+            "intent_result": sd.get("intent_result", {}),
+            "domain": sd.get("intent_result", {}).get("domain", ""),
+            "audit_item": sd.get("audit_item", ""),
+            "matches": sd.get("matches", []),
+            "primary_laws": sd.get("primary_laws", []),
+            "layer_advice": sd.get("layer_advice", ""),
+            "recommended_materials": sd.get("recommended_materials", []),
+            "analysis_results": (auth.get("agent_results") or {}).get("audit_analyzer", []),
+            "suspicion_report": auth.get("result") or {},
+            "selected_violations": sd.get("selected_violations", []),
+            "selected_laws": sd.get("selected_laws", []),
+            "summaries": auth.get("summaries", {}),
+            "focus_item_id": auth.get("focus_item_id"),
+            "analysis_target": auth.get("analysis_target"),
+            "analysis_scope": auth.get("analysis_scope"),
+        })
 
     @app.route("/api/audit/analysis/<task_id>/step/<int:step_num>", methods=["POST"])
     def audit_analysis_step(task_id, step_num):
@@ -1689,42 +1903,58 @@ def register_audit_routes(app):
         state = snapshot.values
 
         if step_num == 4:
-            # Step④: 标记文件已上传，继续执行后续步骤
+            # Step④: 标记文件已上传，继续执行 Step⑤（P8 Q2: Step6 疑点已移出 graph）
             data = request.get_json() or {}
             uploaded_files = data.get("uploaded_files", [])
+
+            # P8-5: data_ready 门禁（附录A §9）— 当前随响应返回，不硬阻断（C6 前）；
+            # 真无文件/无数据时 graph 跑空，analysis_results 为空，前端据 readiness 提示。
+            data_ready = alc.check_readiness(task_id, "data_ready")
 
             _analysis_graph.update_state(config, {
                 "uploaded_files": uploaded_files,
                 "current_step": 4,
             }, as_node="step_4_upload")
 
-            # 继续执行 Step⑤ + Step⑥
+            # 继续执行 Step⑤（step5→END，疑点走独立端点）
             final_state = _analysis_graph.invoke(None, config)
 
-            # 持久化最终结果
+            # P8-6: 命中行证据（field_sources→chunk）逐条装配
+            analysis_results = final_state.get("analysis_results", [])
+            project_id = (snapshot.values or {}).get("project_id", "")
+            for r in analysis_results:
+                tbl = r.get("target_table") or r.get("table")
+                for hit in (r.get("hits") or r.get("evidence") or []):
+                    rid = hit.get("row_id") or hit.get("id")
+                    if tbl and rid is not None:
+                        hit["field_sources"] = evidence_service.build_field_sources_evidence(
+                            project_id, tbl, rid)
+
+            # 持久化 Step5 结果（current_step=5 权威）+ 写 Step5 正式总结
+            alc.advance_step(task_id, to_step=5, step_data_patch={
+                "uploaded_files": uploaded_files,
+                "analysis_results": analysis_results,
+                "overall_assessment": final_state.get("overall_assessment", ""),
+            }, summary_content=final_state.get("overall_assessment", ""),
+               summary_structured={"analysis_results": analysis_results})
+            # agent_results 单独合并（GET 读 agent_results.audit_analyzer）
             execute(
-                "UPDATE audit_analysis_tasks SET step = 6, status = 'completed', "
-                "step_data = JSON_MERGE_PATCH(COALESCE(step_data,'{}'), %s), "
-                "agent_results = JSON_MERGE_PATCH(COALESCE(agent_results,'{}'), %s), "
-                "result = %s WHERE task_code = %s",
-                (json.dumps({"uploaded_files": uploaded_files}, ensure_ascii=False),
-                 json.dumps({
-                     "audit_analyzer": final_state.get("analysis_results", []),
-                     "suspicion_generator": final_state.get("suspicion_report", {}),
-                 }, ensure_ascii=False),
-                 json.dumps(final_state.get("suspicion_report", {}), ensure_ascii=False),
-                 task_id),
+                "UPDATE audit_analysis_tasks SET agent_results = JSON_MERGE_PATCH("
+                "COALESCE(agent_results,'{}'), %s) WHERE task_code = %s",
+                (json.dumps({"audit_analyzer": analysis_results}, ensure_ascii=False), task_id),
                 database="tt",
             )
 
             return jsonify({
                 "success": True,
                 "task_id": task_id,
-                "step": final_state.get("current_step", 6),
-                "status": "completed",
-                "analysis_results": final_state.get("analysis_results", []),
+                "current_step": 5,                 # P8 Q1: 权威步骤
+                "step": 5,                         # 旧前端兼容
+                "status": "step5_done",
+                "analysis_results": analysis_results,
                 "overall_assessment": final_state.get("overall_assessment", ""),
-                "suspicion_report": final_state.get("suspicion_report", {}),
+                "readiness": {"data_ready": data_ready},
+                "next": "POST /suspicion/generate 生成疑点（Step6）",
             })
 
         # 对于其他步骤，返回当前状态（工作流由 confirm 端点驱动）
@@ -1767,6 +1997,11 @@ def register_audit_routes(app):
         except Exception:
             pass
 
+        # P8-4: 构造 law_recommendations（附录A §4）— 逐法规查条款，无条款/无原文→待人工核实
+        project_id = snapshot.values.get("project_id", "")
+        law_recs = _build_law_recommendations(selected_laws or snapshot.values.get("primary_laws", []),
+                                              project_id, task_id)
+
         # 注入用户确认数据（as_node 指向确认节点，消除并行后的歧义更新）
         _analysis_graph.update_state(config, {
             "selected_violations": selected_violations,
@@ -1776,36 +2011,38 @@ def register_audit_routes(app):
             "current_step": 3,
         }, as_node="step_3_confirm")
 
-        # 持久化确认记录
-        execute(
-            "UPDATE audit_analysis_tasks SET step = 3, step_data = JSON_MERGE_PATCH("
-            "COALESCE(step_data,'{}'), %s) WHERE task_code = %s",
-            (json.dumps({
-                "selected_violations": selected_violations,
-                "selected_laws": selected_laws,
-                "custom_regulations": custom_regulations,
-                "action": action,
-                "confirmed_at": datetime.now().isoformat(),
-            }, ensure_ascii=False), task_id),
-            database="tt",
-        )
+        # 持久化确认记录（current_step=3 权威 + law_recommendations + Step3 总结）
+        alc.advance_step(task_id, to_step=3, step_data_patch={
+            "selected_violations": selected_violations,
+            "selected_laws": selected_laws,
+            "custom_regulations": custom_regulations,
+            "law_recommendations": law_recs,
+            "action": action,
+            "confirmed_at": datetime.now().isoformat(),
+        }, summary_content=f"Step3 法规确认：{len(selected_laws)} 部法规，"
+           f"{'通过' if action == 'confirm' else '拒绝'}",
+           summary_structured={"law_recommendations": law_recs,
+                               "selected_violations": selected_violations})
 
         if action == "reject":
             return jsonify({
                 "success": True,
                 "task_id": task_id,
+                "current_step": 3,
                 "step": 3,
                 "status": "rejected",
+                "law_recommendations": law_recs,
                 "message": "分析已取消，用户拒绝AI推荐",
             })
 
-        # 确认通过：继续工作流（执行 Step④）
-        # Step④ 是文件上传等待节点，不阻塞
+        # 确认通过：继续工作流（执行 Step④ 上传等待节点，不阻塞）
         state = _analysis_graph.invoke(None, config)
-
-        # 检查是否到达 Step④ 等待点
         new_snapshot = _analysis_graph.get_state(config)
-        return jsonify(_graph_state_to_response(task_id, state, new_snapshot))
+        resp = _graph_state_to_response(task_id, state, new_snapshot)
+        resp["current_step"] = 3
+        resp["step"] = 3
+        resp["law_recommendations"] = law_recs
+        return jsonify(resp)
 
     # ═══════════════════════════════════════════════════════════
     #  工作区（资料工坊兼容）

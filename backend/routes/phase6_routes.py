@@ -205,8 +205,45 @@ def register_phase6_routes(app):
 
     @app.route("/api/audit/documents/batch", methods=["POST"])
     def phase6_document_batch_generate():
-        """POST /api/audit/documents/batch — 批量生成四件套"""
+        """POST /api/audit/documents/batch — 批量生成四件套（P8-8 Step7）
+
+        body: {task_id} 或兼容旧 {context:{...}}。
+        有 task_id 时由 AnalysisContextBuilder 装配上下文（project_context 仅 DB、已确认疑点 +
+        证据链继承、source_refs），替代前端 _buildDocContext；evidence_complete 门禁随响应返回。
+        """
         data = request.get_json() or {}
+        task_id = data.get("task_id")
+
+        if task_id:
+            # P8-10: 后端按 task_id 构建上下文（替前端 _buildDocContext）
+            from services import analysis_context_builder as acb
+            from services import analysis_lifecycle as alc
+            from services import evidence_service
+            ctx_obj = acb.build(task_id, step=7) or {}
+            pc = ctx_obj.get("project_context", {})
+            sd = ctx_obj.get("confirmed_results", {}) or {}
+            project_id = ctx_obj["task"].get("project_id", "")
+            # 已确认疑点 + 证据链（P8-8: 报告读 CONFIRMED 疑点，无来源禁入文书）
+            suspicions = evidence_service.get_confirmed_suspicion_evidence(project_id, task_id)
+            analysis_results = sd.get("analysis_results", [])
+            context = {
+                "project_title": pc.get("name", ""),
+                "audit_period": pc.get("audit_period", ""),
+                "audited_unit": pc.get("audited_unit", ""),
+                "domain": pc.get("audit_type", ""),
+                "item": (ctx_obj.get("focus_item") or {}).get("title", ""),
+                "analysis_summary": sd.get("overall_assessment", ""),
+                "analysis_results": analysis_results,
+                "selected_laws": sd.get("selected_laws", []),
+                "suspicions": suspicions,
+                "laws": sd.get("law_recommendations", []),
+            }
+            ev_ready = alc.check_readiness(task_id, "evidence_complete")
+            result = batch_generate(context)
+            result["task_id"] = task_id
+            result["readiness"] = {"evidence_complete": ev_ready}
+            return jsonify(result)
+
         result = batch_generate(data.get("context", {}))
         return jsonify(result)
 

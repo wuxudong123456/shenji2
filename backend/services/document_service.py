@@ -1,6 +1,6 @@
 """Phase 6.3 — 审计文书生成服务
 
-基于 SuspicionGenerator Agent 生成四类审计文书:
+四类审计文书（P8-8: 报告改读已确认疑点，不再重调 Agent）:
   1. 取证单 (Evidence Sheet)
   2. 审计底稿 (Working Paper)
   3. 审计报告 (Audit Report)
@@ -8,7 +8,6 @@
 """
 import json
 from datetime import datetime
-from agents.registry import AgentRegistry
 
 
 def generate_document(doc_type: str, context: dict) -> dict:
@@ -99,25 +98,28 @@ def _build_workpaper_template(ctx: dict) -> dict:
 
 
 def _build_report_template(ctx: dict) -> dict:
-    """审计报告"""
-    agent = AgentRegistry().create_agent("suspicion_generator")
-    result = agent.run({
-        "analysis_results": ctx.get("analysis_results", []),
-        "overall_assessment": ctx.get("analysis_summary", ""),
-        "domain": ctx.get("domain", ""),
-        "audit_item": ctx.get("item", ""),
-    })
+    """审计报告（P8-8: 不再重调 suspicion_generator Agent——读已确认疑点）
 
-    report = result.get("output", {}).get("suspicion_report", {}) if result.get("success") else {}
+    原 _build_report_template 第三次调 suspicion_generator Agent（继 graph step_6、
+    /suspicion/generate 之外），不接收 selected_laws 法规链断。P8-8 改读 ctx["suspicions"]
+    （由路由从 project_suspicions(CONFIRMED) + 证据链装配），AI 只组织语言不创造事实。
+    """
+    suspicions = ctx.get("suspicions", [])
+    # 仅取已确认（CONFIRMED）疑点进报告；无来源（待人工核实）的禁入文书（§3.3）
+    confirmed = [s for s in suspicions
+                 if s.get("verify_status") == "CONFIRMED" or s.get("status") == "confirmed"]
+    total = len(confirmed)
+    high = sum(1 for s in confirmed
+               if (s.get("risk_level") or s.get("risk") or "") in ("高", "high"))
 
     return {
         "doc_type": "report",
         "title": f"审计报告 — {ctx.get('project_title', '')}",
         "code": f"AR-{datetime.now().strftime('%Y%m%d-%H%M')}",
-        "summary": report.get("summary", ctx.get("analysis_summary", "")),
-        "suspicions": report.get("items", []),
-        "high_risk_count": report.get("high_risk_count", 0),
-        "total_suspicions": report.get("total_suspicions", 0),
+        "summary": ctx.get("analysis_summary", ""),
+        "suspicions": confirmed,
+        "high_risk_count": high,
+        "total_suspicions": total,
         "recommendations": [
             "建议被审计单位针对上述问题逐项整改",
             "完善内部控制制度，堵塞管理漏洞",

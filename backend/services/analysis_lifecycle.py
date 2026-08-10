@@ -98,13 +98,13 @@ def _check_data_ready(project_id):
                 ["文件存在", "OCR完成", "分类完成", "结构化完成", "字段完整", "进入data_*", "trace存在"]]
 
     traces = query(
-        "SELECT id, parse_status, template_name, doc_type, file_name "
+        "SELECT id, parse_status, file_category, file_subcategory, file_name "
         "FROM audit_document_traces WHERE project_id = %s AND deleted_at IS NULL",
         (project_id,), database=DATABASE,
     )
     trace_n = len(traces)
     ocr_done = sum(1 for t in traces if t.get("parse_status") == "done")
-    classified = sum(1 for t in traces if t.get("template_name") or t.get("doc_type"))
+    classified = sum(1 for t in traces if t.get("file_category") or t.get("file_subcategory"))
     data_n = _data_row_count(project_id)
     field_n = query_one(
         "SELECT COUNT(*) AS n FROM audit_field_sources WHERE project_id = %s",
