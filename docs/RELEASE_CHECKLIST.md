@@ -55,7 +55,7 @@
 | # | 检查项 | 证据 | 状态 | 签字 |
 |---|--------|------|:----:|:----:|
 | 3.1 | U1 旧接口灰度开关 | 前端 feature flag 可切换新旧接口；新异常可切回旧 | ☐ **待建**（前端现状无 flag，见 §5） | |
-| 3.2 | U2 溯源抽样验收 | 抽样 N≥10 条 AI 结论，逐条 GET /traces 回溯到 chunk/页/原文 | ☐ 待做 | |
+| 3.2 | U2 溯源抽样验收 | 抽样 N≥10 条 AI 结论，逐条回溯到 chunk/页/原文 | ✅ [TEST_REPORT §16](TEST_REPORT_PHASE_9.md)：20 条结论 0 断链 | |
 | 3.3 | U3 性能并发压测 | locust（或同等）达标：大数据表扫描 + 七步并发不超时 | ☐ 待做（工具选型） | |
 
 ---
@@ -90,7 +90,7 @@
 | 运维 / DBA | | | |
 
 > **上线准则**：第 0-5 节全部 ✅（或「待」项有书面放行）+ 第 6 节四方签字 → 准予上线。
-> **当前阻塞**（截至 2026-08-10）：U1 灰度开关（§3.1 待建）、U2 溯源抽样（§3.2）、U3 压测（§3.3）、网关鉴权（§1 备注）。**此 4 项闭环前不可正式上线**。
+> **当前阻塞**（截至 2026-08-10）：U1 灰度开关（§3.1 待建）、U3 压测（§3.3）、网关鉴权（§1 备注）。U2 溯源抽样已完成（§3.2 ✅）。**此 3 项闭环前不可正式上线**。
 
 ---
 
@@ -105,6 +105,7 @@ python tests/test_p9_t5_amount.py                    # T5 金额边界
 python tests/test_p9_t6_llm_down.py                  # T6 LLM 停机降级
 python tests/test_p9_t7_large_scan.py                # T7 大数据扫描（~40s）
 python tests/test_p9_t8_concurrency.py               # T8 并发编辑
+python tests/test_p9_u2_provenance_sampling.py        # U2 溯源抽样（20 条结论 0 断链）
 python tests/test_p8_seven_step.py                   # 回归：契约层
 python tests/test_p5_data.py                         # 回归：Phase1-6
 python tests/test_p7_rules.py                        # 回归：Phase7
