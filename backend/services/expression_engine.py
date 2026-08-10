@@ -39,6 +39,17 @@ def _eval_ast(ast: dict, row: dict) -> bool:
         if "." in field_name:
             field_name = field_name.split(".")[-1]
 
+        # 裸字字段引用：target 是非数字字符串且能解析到本行列时，视为字段引用
+        # （使 field=field / field>field 生效，如 合同金额>预算金额、合同项目名称=预算项目名称；
+        #  带引号字面量如 '公开招标' 与不匹配任何列的裸字仍按字面量处理，安全）
+        if isinstance(target, str):
+            try:
+                float(target)
+            except (ValueError, TypeError):
+                ref_val = _get_row_value(row, target)
+                if ref_val is not None:
+                    target = ref_val
+
         # 取字段值（支持英文列名 + 中文别名，如 金额→amount）
         row_value = _get_row_value(row, field_name)
 
