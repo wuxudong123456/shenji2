@@ -18,6 +18,7 @@
 | **T4 跨项目隔离（数据/文件面 ✅；analysis 面=网关鉴权）** | ✅ **PASS=8 / FAIL=0**（本报告 §10）|
 | **T5 金额边界（万/元归一 + 阈值无万倍误判）** | ✅ **PASS=16 / FAIL=0**（本报告 §11）|
 | **T6 LLM 停机降级（不白屏/不 500）** | ✅ **PASS=10 / FAIL=0**（本报告 §12）|
+| **T7 大数据表扫描（10万行 游标分页+超时保护）** | ✅ **PASS=20 / FAIL=0**（本报告 §13）|
 | 回归 test_p8_seven_step.py（契约层） | ✅ PASS=47 / FAIL=0 |
 | 回归 test_p5_data.py（Phase1-6） | ✅ PASS=23 / FAIL=0 |
 | 回归 test_p7_rules.py（Phase7） | ✅ PASS=18 / FAIL=0 |
@@ -103,12 +104,12 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **T4** | 跨项目隔离（项目 A 访问项目 B 数据 → 403） | ✅ §10（数据/文件面；analysis 面=网关鉴权） | T1 |
 | **T5** | 金额边界（万/元混入，阈值比对不差万倍） | ✅ §11 | T1 |
 | **T6** | LLM 停机（规则步骤仍出结果，LLM 步骤降级提示） | ✅ §12 | T1 |
-| **T7** | 大数据表扫描（10 万+ 行，游标分页+超时保护） | ⬜ 待做 | T1 |
+| **T7** | 大数据表扫描（10 万+ 行，游标分页+超时保护） | ✅ §13 | T1 |
 | **T8** | 并发编辑事项（乐观锁，后提交者冲突提示） | ✅ §9 | T1 |
 | **U1-U4** | 上线（构建打包 / 部署文档 / 健康检查 / 回滚预案） | ⬜ 待做 | T1-T8 |
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | ⬜ 独立 | — |
 
-T1/§0/T2/T3/T4/T5/T6/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判+LLM 停机降级不白屏。余 T7 为规模（大数据扫描），analysis 面 403 属网关鉴权（上线依赖），U1-U4 为上线准备。
+**T1-T8 + §0 溯源全绿**（8 验收场景全通过）：主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判+LLM 停机降级不白屏+大数据扫描限时分页不超时。analysis 面 403 属网关鉴权（上线依赖）。余 **U1-U4 上线动作**（灰度/抽样/压测/检查单）+ **P8-12 质量评测**（需标注集，独立排期）。
 
 ---
 
@@ -466,3 +467,79 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 - **无代码缺陷**：降级路径分散在各 Phase 但均已实现（call_llm_json 兜底 + Agent _failure + Step5 LLM 无关 + _fallback_report），本轮为验证（PASS=10/0），未改业务代码（仅新增测试）。
 - **方法说明**：LLM 停机用进程内死端点 env 模拟（不影响旁路后端进程），桩 Agent 隔离依赖精准测降级链；未真杀 LLM 服务（避免影响同会话其他测试），降级契约在函数/Agent 层验证即覆盖 spec 意图。
 - **测试自管理**：抛错项目 `T6LLMDOWN_TEST`（植 2 行 data_contracts）+ 桩 trace 全程自建自清，env finally 恢复，可重复运行。
+
+---
+
+## §13 T7 大数据表扫描（本轮完成，验证+记录）—— T1-T8 收官
+
+验证附录A §6.7：`data_*` 灌入大批量行（如 10 万+），跑 Step5 + 数据工坊查询；断言游标分页 + 超时保护生效，不超时（Phase 5 P5-6）。**本节完成即 T1-T8 全部验收场景通过。**
+
+### 13.1 机制核查（faithful-mode）：三重规模保护已实现
+
+| 保护 | 机制 | 状态 |
+|------|------|:----:|
+| **超时保护** | `data_service.list_rows` 的 SELECT/COUNT 带 `/*+ MAX_EXECUTION_TIME(10000) */` hint（[data_service.py:50](backend/services/data_service.py#L50) `QUERY_TIMEOUT_MS=10000` / [:201](backend/services/data_service.py#L201)），MySQL 超 10s 自杀查询 | ✅ |
+| **游标分页** | `list_rows(after=<id>)` → `WHERE id<%s ORDER BY id DESC LIMIT per_page`（[:193-196](backend/services/data_service.py#L193)），避开 OFFSET 越翻越慢；`next_cursor`=满页末行 id（[:239](backend/services/data_service.py#L239)）；路由透传 after/per_page（[audit_routes.py:1248-1254](backend/routes/audit_routes.py#L1248)） | ✅ |
+| **Step5 扫描有界** | `expression_engine._execute_row` 行级 `LIMIT %s`（默认 2000，[:292-295](backend/services/expression_engine.py#L292)），大表扫描不爆 |
+| **隔离索引** | `data_contracts INDEX idx_project(project_id)`（schema.sql:357），WHERE project_id=%s 走索引 | ✅ |
+
+**结论**：规模保护机制已实现，**无需代码修复**。本轮为 10 万行级规模验证。
+
+### 13.2 实测（`test_p9_t7_large_scan.py`，N=100000，**PASS=20 / FAIL=0**）
+
+**灌入**：`get_connection + executemany`（2000/批 × 50 批，绕开逐行 `log_db_write` 开销）**100000 行 / 7.8s**；DB 直查 total=100000 ✅。
+
+| 场景 | 断言 | 实测 | 结果 |
+|------|------|------|:----:|
+| ① 大表查询不超时 | 首页 200 / rows=100 / total=100000 | rows=100, total=100000 | ✅ |
+| | next_cursor 非空（可切入游标） | next_cursor=100069 | ✅ |
+| | 首页查询 < 超时预算（3s，远 < 10s） | **140ms** | ✅ |
+| ② 游标分页深翻页 | 连翻 7 页，每页 id < 游标（推进正确） | 第2-7页全过 | ✅×6 |
+| | 连翻 ≥5 页 | pages_ok=6 | ✅ |
+| | 深页查询 < 预算（cursor 走 PK 索引） | **119ms** | ✅ |
+| | 每页游标推进（无停滞） | distinct cursors=6 | ✅ |
+| ③ Step5 扫描大表 | success（大表不崩） | success=true | ✅ |
+| | 行级 LIMIT 2000 cap（total(扫) ≤2000） | total(扫)=2000 | ✅ |
+| | 命中疑点行（300万 询价 hits>0） | hits=667 | ✅ |
+| | 扫描 < 预算（不超时） | **84ms** | ✅ |
+
+> **双保护实证**：①数据工坊查询走 `MAX_EXECUTION_TIME(10s)` hint + 游标分页（首页 140ms、深页 119ms，深页不因翻深变慢——cursor `WHERE id<%s` 走 PK 索引，无 OFFSET 全表扫）；②Step5 扫描走行级 `LIMIT 2000` cap（total(扫)=2000、84ms，大表扫描有界不爆）。10 万行规模下所有查询远未触 10s 超时。
+
+### 13.3 小结
+
+- **T7 达成**：附录A §6.7「大数据表扫描，游标分页 + 超时保护生效，不超时」**实证达成**——10 万行规模下数据工坊查询（140/119ms）+ Step5 扫描（84ms）均远 < 10s 超时，游标深翻页不退化、Step5 行级有界。
+- **无代码缺陷**：三重规模保护（MAX_EXECUTION_TIME hint + 游标分页 + Step5 LIMIT cap）均已在 Phase 5 实现，本轮为 10 万行验证（PASS=20/0），未改业务代码（仅新增测试）。
+- **批量插入法**：`get_connection + executemany`（2000/批）7.8s 灌 10 万行，绕开 `execute`/`insert` 逐行 `log_db_write` 开销（否则日志表暴涨 + 慢）——大夹具造数须知。
+- **测试自管理**：抛错项目 `T7LARGE_TEST`（植 10 万行 data_contracts）全程自建自清（清理 2.8s），N 可调，可重复运行。
+
+---
+
+## 14. T1-T8 验收总结
+
+**8 个验收场景 + §0 溯源全部通过**（详见各节）：
+
+| 项 | 节 | PASS | 性质 |
+|----|:--:|:--:|------|
+| T1 全链路（真 LLM） | §2 | 26 | 端到端 |
+| §0 溯源穿透 | §7 | 10 | 铁律横切 |
+| T2 OCR 门禁 | §8 | 5 | 门禁 |
+| T3 恢复分析 | §8 | 6 | resume |
+| T4 跨项目隔离 | §10 | 8 | 隔离（数据/文件面；analysis=网关） |
+| T5 金额边界 | §11 | 16 | 单位归一 |
+| T6 LLM 停机降级 | §12 | 10 | 降级不白屏 |
+| T7 大数据扫描 | §13 | 20 | 规模/超时 |
+| T8 并发编辑 | §9 | 15 | 乐观锁 |
+
+**修复汇总**（本轮 T2-T8 新增验证中发现的真缺陷，均已修）：
+- T1（§3）：Step7 不推进 current_step / POST /analysis 缺 current_step / 缺 step-2 summary（3 处）。
+- §0（§7.5/§7.8）：溯源接线 + 表达式引擎 field=field 裸字（2 处）。
+- T8（§9）：乐观锁 Gap A（前端发 token）+ Gap B（items 阶段每次 bump）（2 处）。
+
+**验证-only（机制已有效，未改业务代码）**：T4（隔离已实现）/ T5（归一已实现）/ T6（降级已实现）/ T7（规模保护已实现）——这 4 项为 faithful-mode 逐点核查 + 测试覆盖，确认 spec 意图已达成。
+
+**遗留/独立**：
+- analysis/documents/suspicion 面 403（网关鉴权，U1-U4/网关实现时闭环）。
+- 退化表达式假阳性 + 隐式金额单位 gap（P8-12 数据/表达式质量评测，独立排期）。
+- 乐观锁 Gap C 秒精度 token（审计低并发可接受，已知局限）。
+
+**下一步**：U1-U4 上线动作（灰度开关 / 溯源抽样 / 压测 / 检查单+回滚预案）+ P8-12 质量评测（需标注集）。
