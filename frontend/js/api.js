@@ -40,10 +40,12 @@ var AuditAPI = {
     items: function(id) {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/items').then(function(r) { return r.json(); });
     },
-    // 全量保存项目的审计事项
-    saveItems: function(id, items) {
+    // 全量保存项目的审计事项（T8: expectedUpdateTime=乐观锁 token=加载时的 update_time）
+    saveItems: function(id, items, expectedUpdateTime) {
+      var body = {audit_items: items};
+      if (expectedUpdateTime) body.expected_update_time = expectedUpdateTime;
       return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/items', {
-        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({audit_items: items})
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
       }).then(function(r) { return r.json(); });
     },
     // P1-4: 保存审计对象和范围（scope/target_unit/extend_unit/audit_focus）

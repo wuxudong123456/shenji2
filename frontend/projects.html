@@ -541,6 +541,7 @@ var Proj = {
     this._activeTab = 1;
     this._gatedTabs = 4;
     this._editingProjectId = null;
+    this._editingUpdateTime = null;  // T8 乐观锁 token（加载/每次保存后刷新）
     this._setSaveStatus('');
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab){ tab.style.opacity=''; tab.style.cursor=''; });
   },
@@ -598,6 +599,7 @@ var Proj = {
         Proj.open();
         // T8: 编辑状态 + 按 setup_stage 收紧后续 Tab
         Proj._editingProjectId = pid;
+        Proj._editingUpdateTime = p.update_time;  // T8 乐观锁 token（加载时刻的 update_time）
         Proj._applyTabGating(p.setup_stage);
         setTimeout(function(){
           var set = function(id, v){ var el = document.getElementById(id); if(el && v != null) el.value = v; };
@@ -1143,7 +1145,10 @@ var Proj = {
     var self = this;
     var afterSave = function(r) {
       if (r && r.success) {
-        if (r.project) self._editingProjectId = r.project.id;
+        if (r.project) {
+          self._editingProjectId = r.project.id;
+          self._editingUpdateTime = r.project.update_time;  // T8: 刷新乐观锁 token
+        }
         self.init();  // 后台刷新列表，不离开当前表单
         self._setSaveStatus('✓ 基础信息已保存');
         AuditWorkbench.toast('✓ 基础信息已保存，已进入【审计对象和范围】','success');
@@ -1178,6 +1183,7 @@ var Proj = {
     var self = this;
     AuditAPI.projects.saveTargetScope(this._editingProjectId, data).then(function(r){
       if (r && r.success) {
+        if (r.project) self._editingUpdateTime = r.project.update_time;  // T8: 刷新乐观锁 token
         self.init();
         self._setSaveStatus('✓ 对象和范围已保存');
         AuditWorkbench.toast('✓ 对象和范围已保存，已进入【审计事项】','success');
@@ -1189,17 +1195,29 @@ var Proj = {
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
   },
 
-  /** 保存审计事项（Tab3）→ PUT /items */
+  /** 保存审计事项（Tab3）→ PUT /items（T8: 带乐观锁 token expected_update_time） */
   saveItems: function() {
     if (!this._editingProjectId) { AuditWorkbench.toast('请先保存基础信息','warning'); return; }
     var items = this._items || [];
     if (!items.length) { AuditWorkbench.toast('没有可保存的审计事项','warning'); return; }
     var self = this;
-    AuditAPI.projects.saveItems(this._editingProjectId, items).then(function(r){
+    AuditAPI.projects.saveItems(this._editingProjectId, items, this._editingUpdateTime).then(function(r){
       if (r && r.success) {
+        self._editingUpdateTime = r.update_time || self._editingUpdateTime;  // T8: 刷新乐观锁 token
         self.init();
         self._setSaveStatus('✓ 审计事项已保存');
         AuditWorkbench.toast('✓ 审计事项已保存，可返回列表或继续调整','success');
+      } else if (r && r.current_update_time) {
+        // T8 乐观锁冲突：他人已先保存。拉取最新事项 + 刷新 token，提示用户核对后重存
+        AuditWorkbench.toast('⚠️ ' + (r.error || '项目已被他人修改，请核对最新事项后重新保存'), 'warning');
+        AuditAPI.projects.get(self._editingProjectId).then(function(resp){
+          if (resp && resp.success && resp.project) {
+            var fresh = resp.project.audit_items || [];
+            self._items = fresh.slice();
+            self._renderItems(fresh);
+            self._editingUpdateTime = resp.project.update_time || self._editingUpdateTime;
+          }
+        });
       }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });

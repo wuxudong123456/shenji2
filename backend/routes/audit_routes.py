@@ -704,7 +704,21 @@ def register_audit_routes(app):
                     "WHERE id = %s AND deleted = 0",
                     (project_id,), database="tt",
                 )
-        return jsonify({"success": True, "count": len(items)})
+            else:
+                # T8(Gap B)：items/workspace 阶段重存也 bump update_time，
+                # 使乐观锁（expected_update_time）在所有阶段都能检出并发冲突
+                execute(
+                    "UPDATE audit_projects SET update_time = NOW() "
+                    "WHERE id = %s AND deleted = 0",
+                    (project_id,), database="tt",
+                )
+        # T8：返回最新 update_time 供前端刷新乐观锁 token（每次成功存后 token 必变）
+        ut_row = query_one(
+            "SELECT update_time FROM audit_projects WHERE id = %s", (project_id,), database="tt",
+        )
+        ut_val = ut_row["update_time"] if ut_row else None
+        ut_str = ut_val.isoformat() if hasattr(ut_val, "isoformat") else (str(ut_val) if ut_val else "")
+        return jsonify({"success": True, "count": len(items), "update_time": ut_str})
 
     # ═══════════════════════════════════════════════════════════
     #  文件管理

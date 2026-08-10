@@ -14,6 +14,7 @@
 | **§0 溯源穿透（真 LLM，本报告 §7）** | ✅ **PASS=10 / FAIL=0**（source_refs 3/3 蜕绿）|
 | **T2 OCR 门禁拦截/放行** | ✅ **PASS=5 / FAIL=0**（本报告 §8）|
 | **T3 恢复分析（后端权威 resume）** | ✅ **PASS=6 / FAIL=0**（本报告 §8）|
+| **T8 并发编辑事项（乐观锁，含 Gap A+B 修复）** | ✅ **PASS=15 / FAIL=0**（本报告 §9）|
 | 回归 test_p8_seven_step.py（契约层） | ✅ PASS=47 / FAIL=0 |
 | 回归 test_p5_data.py（Phase1-6） | ✅ PASS=23 / FAIL=0 |
 | 回归 test_p7_rules.py（Phase7） | ✅ PASS=18 / FAIL=0 |
@@ -100,11 +101,11 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **T5** | 金额边界（万/元混入，阈值比对不差万倍） | ⬜ 待做 | T1 |
 | **T6** | LLM 停机（规则步骤仍出结果，LLM 步骤降级提示） | ⬜ 待做 | T1 |
 | **T7** | 大数据表扫描（10 万+ 行，游标分页+超时保护） | ⬜ 待做 | T1 |
-| **T8** | 并发编辑事项（乐观锁，后提交者冲突提示） | ⬜ 待做 | T1 |
+| **T8** | 并发编辑事项（乐观锁，后提交者冲突提示） | ✅ §9 | T1 |
 | **U1-U4** | 上线（构建打包 / 部署文档 / 健康检查 / 回滚预案） | ⬜ 待做 | T1-T8 |
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | ⬜ 独立 | — |
 
-T1/§0/T2/T3 已绿，主链通+能溯源+门禁拦+可恢复。余 T4-T8 为隔离/鲁棒性/并发，U1-U4 为上线准备。
+T1/§0/T2/T3/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆。余 T4-T7 为隔离/鲁棒性，U1-U4 为上线准备。
 
 ---
 
@@ -276,3 +277,49 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 - **T3 恢复**：confirm→GET 链路从 MySQL 权威恢复 `current_step=3` + 顶层选择，纯后端、可刷新——附录A §6.3 + Phase8 Q1 实证达成。
 - **无代码缺陷**：两轮首跑的 3 个 FAIL 均为**测试断言坑**（HTTP 412 非误判、GET 选择在顶层非 step_data），修测试断言后 PASS=11/0；后端门禁与 resume 逻辑本身正确。
 - **测试自管理**：T2 用抛错项目 `T2GATE_TEST` 全程自建自清；T3 复用 fixture 项目 `4a0946e4c4c0`、结束清理任务级数据（agent_traces/step_summaries/tasks）。两测试可重复运行。
+
+---
+
+## §9 T8 并发编辑事项（乐观锁，本轮完成 + Gap A/B 修复）
+
+验证附录A §6.8：两个会话同时编辑同一 `audit_item` → 乐观锁生效，后提交者收冲突提示，不静默覆盖。
+
+### 9.1 现状核查（faithful-mode）：机制存在，但有 3 个 Gap
+
+后端 P1-7 乐观锁已在 [audit_routes.py:665-675](backend/routes/audit_routes.py#L665)：`PUT /projects/<id>/items` 收 `expected_update_time`，与 `audit_projects.update_time` 不匹配 → **409「项目已被他人修改，请刷新后重试」** + `current_update_time`；check 在 DELETE+INSERT 之前（冲突时不落库）。但核查发现 3 个 Gap：
+
+| Gap | 归属 | 现象 | 本轮处置 |
+|-----|------|------|----------|
+| **A 前端** | 前端从不传 `expected_update_time`（grep frontend 零命中）→ 实际 UI 并发静默覆盖，乐观锁从未触发 | **✅ 已修**：`projects.html saveItems` 带 token + 409 自动拉新；`api.js` 增形参 |
+| **B 后端完整性** | 保存事项仅在 stage 推进（`<items→items`）时 bump `update_time`；items/workspace 阶段重存不 bump → 即便传 token，该阶段并发重编不检出 | **✅ 已修**：items-save 每次成功都 bump + 响应返回最新 `update_time` |
+| **C 秒精度** | token = 秒精度 `DATETIME`（非 spec §6.8 所述 `version INT`）→ 同秒并发不可区分 | **未修（已知局限）**：审计低并发场景可接受；测试用 `sleep(1.2)` 隔秒避开 |
+
+### 9.2 修复内容
+
+**后端**（[audit_routes.py](backend/routes/audit_routes.py) items-save 路由）：
+- Gap B：stage 未推进时（已 items/workspace）也 `UPDATE audit_projects SET update_time=NOW()`，使乐观锁在所有阶段都能检出并发。
+- 响应增加 `update_time` 字段（供前端成功后刷新 token，避免自冲突）。
+
+**前端**（[projects.html](frontend/projects.html) + [js/api.js](frontend/js/api.js)）：
+- `_editingUpdateTime` 在 editProject 加载（GET）、saveBasic / saveTargetScope / saveItems 成功后刷新（每次存都 bump，token 必同步）。
+- `saveItems` 发 `expected_update_time`；**409 时自动 GET 拉取最新事项 + 刷新 token + 提示用户核对后重存**（非盲目覆盖）。
+
+### 9.3 实测（`test_p9_t8_concurrency.py`，**PASS=15 / FAIL=0**）
+
+| 场景 | 断言 | 结果 |
+|------|------|:----:|
+| ① 乐观锁正向（stage 推进 + 传 token，spec 主场景） | A 存成功 + bump token | ✅ |
+| | B 过期 token → 409「已被他人修改」+ `current_update_time` | ✅ |
+| | B 未覆盖（事项仍为 A 的） | ✅ |
+| | B 刷新 token 重存成功 | ✅ |
+| ② items 阶段重编（Gap B 已修） | C items 阶段重存 bump + 返回 token | ✅ |
+| | D 过期 token → 409，未覆盖（事项仍为 C 的） | ✅ |
+| ③ opt-in 兼容性 | 不传 token → 200（兼容旧客户端） | ✅ |
+
+**回归**（修复不破坏既有）：`test_p1_flow.py` 7/7（含原 P1-7 乐观锁 409 断言）；items-save 响应仅**新增** `update_time` 字段，`count`/`success` 不变，旧断言 `r.get("count")==1` 兼容。
+
+### 9.4 小结
+
+- **T8 达成**：附录A §6.8「乐观锁生效，后提交者收冲突提示，不静默覆盖」**实证达成**——setup 阶段与 items 阶段并发编辑均检出冲突、409 提示、不覆盖；前端实际 UI 已接线（发 token + 409 拉新）。
+- **Gap A+B 已闭环**，Gap C（秒精度 token vs version INT）记为已知局限——审计场景两人同秒编辑同一事项概率极低，`update_time` token 足够；若未来需严格化，可加 `items_version INT` 列（属 DDL，超「Phase9 无 DDL」边界，未做）。
+- **测试自管理**：抛错项目 `T8LOCK_TEST` 全程自建自清，可重复运行。
