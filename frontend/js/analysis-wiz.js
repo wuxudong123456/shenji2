@@ -9,6 +9,41 @@ var AW = {
   _dataLoaded: false,
   _apiBase: '/api/audit',
 
+  /** U1 灰度：演示模式 = aw_lab_demomode==='1'（默认实模式=调真实后端） */
+  _useRealApi: function() {
+    try { return localStorage.getItem('aw_lab_demomode') !== '1'; } catch(e){ return true; }
+  },
+
+  /**
+   * U1 统一 API 网关。演示模式 reject → 各调用点现有 .catch() 降级路径自动触发
+   * （全流程走 mock/空态/项目背景），即「新接口异常一键切回旧行为」。
+   * err.demo=true 供调用点识别；实模式转发 fetch 并 .json()。
+   */
+  _api: function(method, path, body) {
+    var self = this;
+    if(!self._useRealApi()){
+      var e = new Error('演示模式：智能分析数据已切换为降级内容');
+      e.demo = true;
+      return Promise.reject(e);
+    }
+    var opts = {method: method, headers: {'Content-Type': 'application/json'}};
+    if(body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(self._apiBase + path, opts).then(function(r){ return r.json(); });
+  },
+
+  /** 同上，但返回 Blob（documents/export 用） */
+  _apiBlob: function(method, path, body) {
+    var self = this;
+    if(!self._useRealApi()){
+      var e = new Error('演示模式：导出暂不可用');
+      e.demo = true;
+      return Promise.reject(e);
+    }
+    var opts = {method: method, headers: {'Content-Type': 'application/json'}};
+    if(body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(self._apiBase + path, opts).then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.blob(); });
+  },
+
   _initData: function() {
     if (this._dataLoaded) return Promise.resolve();
     var self = this;
@@ -17,7 +52,7 @@ var AW = {
         // 按项目上下文提取关键词，避免出现与项目无关的违规类型（如采购项目混入农药类）
         var kws = self._projectKeywords();
         var primaryQ = self._primaryViolationQuery(kws);
-        var buildUrl = function(q){ return self._apiBase + '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
+        var buildUrl = function(q){ return '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
         // 按关键词命中数计算真实匹配度并排序，只取 Top 8
         var rank = function(list){
           return (list||[]).map(function(v){
@@ -35,11 +70,11 @@ var AW = {
             };
           }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
         };
-        return fetch(buildUrl(primaryQ)).then(function(r){return r.json();}).then(function(d){
+        return self._api('GET', buildUrl(primaryQ)).then(function(d){
           var ranked = rank(d.violations || []);
           // 命中过少则放宽关键词再取一次，保证有足够相关条目
           if(ranked.length < 5 && primaryQ){
-            return fetch(buildUrl('')).then(function(r){return r.json();}).then(function(d2){ return rank(d2.violations || []); });
+            return self._api('GET', buildUrl('')).then(function(d2){ return rank(d2.violations || []); });
           }
           return ranked;
         }).then(function(ranked){
@@ -48,7 +83,7 @@ var AW = {
         }).catch(function(){ self.violationDB = []; });
       })(),
 
-      fetch(this._apiBase + '/knowledge/regulations?per_page=50').then(function(r){return r.json();}).then(function(d){
+      self._api('GET', '/knowledge/regulations?per_page=50').then(function(d){
         self._regulations = (d.regulations || []).slice(0, 20);
       }).catch(function(){ self._regulations = []; })
     ]).then(function(){ self._dataLoaded = true; });
@@ -202,11 +237,7 @@ var AW = {
       var pid = (self.mem.project||{}).id || '';
       var vIds = self.selectedViolations.length > 0 ? self.selectedViolations.slice()
         : self.violationDB.map(function(v){return v.id;});
-      fetch('/api/audit/expression/execute', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({violation_ids: vIds, project_id: pid})
-      }).then(function(r){return r.json();}).then(function(data){
+      self._api('POST', '/expression/execute', {violation_ids: vIds, project_id: pid}).then(function(data){
         if (data && data.success === false) {
           self._scanResult = {results:[], hits:0, total:0};
           self.renderS5();
@@ -234,18 +265,14 @@ var AW = {
       self.say('ai','<span class="pulse">●</span> AI正在生成疑点报告...');
       // Phase 7: 调用真实疑点生成API
       var scanData = self._scanResult || {};
-      fetch('/api/audit/suspicion/generate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          task_id: self._taskId || '',
-          analysis_results: (scanData.results && scanData.results.length > 0) ? scanData.results.map(function(r){
-            return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total: r.total||0, rows: (r.rows||[]).slice(0,20)}};
-          }) : [{violation_model: '违规分析', scan_summary: scanData}],
-          overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常',
-          project_id: (self.mem.project||{}).id || ''
-        })
-      }).then(function(r){return r.json();}).then(function(data){
+      self._api('POST', '/suspicion/generate', {
+        task_id: self._taskId || '',
+        analysis_results: (scanData.results && scanData.results.length > 0) ? scanData.results.map(function(r){
+          return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total: r.total||0, rows: (r.rows||[]).slice(0,20)}};
+        }) : [{violation_model: '违规分析', scan_summary: scanData}],
+        overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常',
+        project_id: (self.mem.project||{}).id || ''
+      }).then(function(data){
         if (data && data.success === false) {
           self.renderS6();
           self.say('ai','❌ 疑点报告生成失败：' + (data.error || '未知错误') + '。请稍后重试。');
@@ -265,11 +292,7 @@ var AW = {
       var self = this;
       self.say('ai','<span class="pulse">●</span> 正在生成审计文书...');
       // Phase 7: 调用真实文书生成API
-      fetch('/api/audit/documents/batch', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({task_id: self._taskId || '', context: self._buildDocContext()})
-      }).then(function(r){return r.json();}).then(function(data){
+      self._api('POST', '/documents/batch', {task_id: self._taskId || '', context: self._buildDocContext()}).then(function(data){
         if (data && data.success === false) {
           self.renderS7();
           self.say('ai','❌ 文书生成失败：' + (data.error || '未知错误') + '。请稍后重试。');
@@ -314,7 +337,7 @@ var AW = {
   syncStepFromTask: function(taskId) {
     if(!taskId) return Promise.resolve(null);
     var self = this;
-    return fetch(this._apiBase + '/analysis/' + taskId).then(function(r){return r.json();}).then(function(st){
+    return self._api('GET', '/analysis/' + taskId).then(function(st){
       if(st && st.success && st.current_step){
         if(self.step !== st.current_step){
           self.step = st.current_step;
@@ -428,10 +451,7 @@ var AW = {
           if(c) c.value = pm.concerns || '';
           // 3.6: 无 concerns 时调 AI 推断（替代写死的"招标投标/采购方式..."默认）
           if(!pm.concerns && pm.title){
-            fetch('/api/audit/projects/infer-concerns', {
-              method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({project_name: pm.title, domain: pm.domain||''})
-            }).then(function(r){return r.json();}).then(function(resp){
+            AW._api('POST', '/projects/infer-concerns', {project_name: pm.title, domain: pm.domain||''}).then(function(resp){
               if(resp && resp.success && resp.concerns && resp.concerns.length){
                 var cc = document.getElementById('s1-concerns');
                 if(cc && !cc.value.trim()) cc.value = resp.concerns.join('\n');
@@ -510,11 +530,7 @@ var AW = {
     var pm = this.mem.project || {};
 
     // Phase 7: 调用真实 IntentAnalyzer Agent
-    fetch('/api/audit/analysis', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({project_id: pm.id || '', intent: msg || pm.title || pm.objective || ''})
-    }).then(function(r){ return r.json(); }).then(function(data){
+    self._api('POST', '/analysis', {project_id: pm.id || '', intent: msg || pm.title || pm.objective || ''}).then(function(data){
       // P1.8: 保存 task_id + 真实推荐（供 renderS2/renderS3 消费）
       self._taskId = (data && data.task_id) || '';
       self._matches = (data && data.matches) || [];
@@ -672,7 +688,7 @@ var AW = {
     if(!nm) return AuditWorkbench.toast('未识别到违规名称','warning');
     var self = this;
     AuditWorkbench.toast('正在查询违规语料库…','info');
-    fetch(this._apiBase + '/knowledge/violations?q=' + encodeURIComponent(nm) + '&per_page=1').then(function(r){return r.json();}).then(function(d){
+    self._api('GET', '/knowledge/violations?q=' + encodeURIComponent(nm) + '&per_page=1').then(function(d){
       self._showCorpusModal((d.violations||[])[0], nm);
     }).catch(function(){ AuditWorkbench.toast('违规语料库暂不可用','danger'); });
   },
@@ -1176,14 +1192,7 @@ var AW = {
     var body = { context: this._buildDocContext() };
     if (docType) body.doc_type = docType;
     AuditWorkbench.toast(docType ? ('正在导出'+(cn[docType]||'文书')+'…') : '正在生成并打包四件套，报告需 AI 推理、可能稍候…', 'info');
-    fetch('/api/audit/documents/export', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    }).then(function(res){
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return res.blob();
-    }).then(function(blob){
+    this._apiBlob('POST', '/documents/export', body).then(function(blob){
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = docType ? (docType+'.docx') : '审计文书四件套.zip';
@@ -1362,10 +1371,10 @@ var AW = {
     if(!name) return AuditWorkbench.toast('未提供法规名称','warning');
     var self = this;
     AuditWorkbench.toast('正在溯源到法规库原文...','info');
-    fetch(this._apiBase + '/knowledge/regulations?q=' + encodeURIComponent(name) + '&per_page=1').then(function(r){return r.json();}).then(function(d){
+    self._api('GET', '/knowledge/regulations?q=' + encodeURIComponent(name) + '&per_page=1').then(function(d){
       var hit = (d.regulations || [])[0];
       if(!hit) { self._showLawSourceModal(null, name); return; }
-      fetch(self._apiBase + '/knowledge/regulation/' + encodeURIComponent(hit.id)).then(function(r){return r.json();}).then(function(det){
+      self._api('GET', '/knowledge/regulation/' + encodeURIComponent(hit.id)).then(function(det){
         var merged = Object.assign({}, hit, (det && det.law) ? det.law : {});
         self._showLawSourceModal(merged, name);
       }).catch(function(){ self._showLawSourceModal(hit, name); });
@@ -1456,7 +1465,7 @@ var AW = {
       if (resp.success && resp.regulations && resp.regulations.length > 0) {
         var lawId = resp.regulations[0].id;
         // 取法规详情（含全文）
-        fetch(self._apiBase + '/knowledge/regulation/' + lawId).then(function(r) { return r.json(); }).then(function(det) {
+        self._api('GET', '/knowledge/regulation/' + lawId).then(function(det) {
           var lawData = det.law || det.regulation || det;
           var content = lawData.content || lawData.pro_content || '';
           var el = document.getElementById(placeholderId);
@@ -1538,12 +1547,10 @@ var AW = {
 
   /** 加载阈值规则实时扫描结果（替换原来的写死表）*/
   _loadThresholdResult: function() {
+    var self = this;
     var box = document.getElementById('s3-threshold-result');
     if(!box) return;
-    fetch('/api/audit/threshold/check', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({project_id: '', table: 'data_contracts'})
-    }).then(function(r){return r.json();}).then(function(d){
+    self._api('POST', '/threshold/check', {project_id: '', table: 'data_contracts'}).then(function(d){
       var results = d.results || [];
       var s = d.summary || {};
       var rows = results.map(function(r){

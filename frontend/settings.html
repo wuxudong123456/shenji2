@@ -351,6 +351,14 @@
     </div>
   </div>
 
+  <!-- U1 灰度开关（独立于实验室总开关，避免 lab-master 全开时误切到演示数据） -->
+  <div class="card" style="border:2px solid var(--color-accent);background:rgba(26,58,92,0.02);margin-bottom:12px;">
+    <div class="card-header"><h4><i class="bi bi-sign-split"></i> 灰度开关（U1）</h4></div>
+    <div class="setting-row"><span class="setting-label">智能分析·演示模式</span>
+      <span style="font-size:13px;color:var(--color-text-muted);">关闭(默认)=调真实后端；开启=强制走 mock/降级数据（新接口异常时一键切回旧行为，免重发版）。即时生效，无需刷新。</span>
+      <label class="switch"><input type="checkbox" id="u1-demomode" onchange="SettingsTab.toggleDemo(this)"><span class="slider round"></span></label></div>
+  </div>
+
   <!-- 数据工坊实验室 -->
   <div class="card" style="border-left:4px solid var(--color-success);margin-bottom:12px;">
     <div class="card-header"><h4><i class="bi bi-grid-3x3-gap"></i> 数据工坊实验室</h4></div>
@@ -425,6 +433,18 @@ var SettingsTab = {
     document.getElementById('panel-' + tab).classList.add('active');
     // Restore lab toggle states
     if(tab === 'lab') this.restoreLabToggles();
+    // U1 灰度开关（独立于 lab-master）
+    if(tab === 'lab') {
+      var u1 = document.getElementById('u1-demomode');
+      if(u1) u1.checked = localStorage.getItem('aw_lab_demomode') === '1';
+    }
+  },
+
+  /** U1 灰度开关：智能分析·演示模式（默认实模式=调真实后端） */
+  toggleDemo: function(cb) {
+    localStorage.setItem('aw_lab_demomode', cb.checked ? '1' : '0');
+    var mode = cb.checked ? '演示模式（智能分析走 mock/降级数据）' : '实模式（智能分析调真实后端）';
+    if (window.AuditWorkbench) AuditWorkbench.toast('灰度开关：' + mode, cb.checked ? 'warning' : 'success');
   },
 
   /** 🧪 实验室功能 */
@@ -462,7 +482,6 @@ var SettingsTab = {
     this.updateLabMaster();
   },
 
-  testConnection: function() {
   testConnection: function() {
     AuditWorkbench.toast('正在测试LLM网关连接...', 'info');
     setTimeout(function(){ AuditWorkbench.toast('所有服务连接正常', 'success'); }, 1500);
