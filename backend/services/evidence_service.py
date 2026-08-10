@@ -169,3 +169,37 @@ def get_confirmed_suspicion_evidence(project_id: str, analysis_id=None) -> list:
         "source_refs": get_refs("suspicion", r["id"]),
     } for r in rows]
 
+
+def link_suspicion_evidence(project_id: str, task_id: str, suspicion_id) -> int:
+    """P9-T4: 疑点继承本任务分析命中的 chunk 证据（result_type=suspicion）。
+
+    查 audit_source_refs 中 result_type=analysis_hit 且 result_id LIKE '{task_id}:%' 的全部引用，
+    复制为 result_type=suspicion、result_id=suspicion_id 的引用，使疑点可溯源到同一批文档 chunk。
+    Returns: 写入的引用条数。
+    """
+    if not (project_id and task_id and suspicion_id):
+        return 0
+    rows = query(
+        "SELECT source_type, source_id, document_id, file_name, page_number, bbox, quote, relation "
+        "FROM audit_source_refs WHERE project_id = %s AND result_type = 'analysis_hit' "
+        "AND result_id LIKE %s",
+        (project_id, f"{task_id}:%"), database="tt",
+    )
+    n = 0
+    for r in rows:
+        bbox = r.get("bbox")
+        if isinstance(bbox, str):
+            try:
+                bbox = json.loads(bbox)
+            except Exception:
+                pass
+        add_ref(
+            project_id=project_id, result_type="suspicion", result_id=suspicion_id,
+            source_type=r.get("source_type"), source_id=r.get("source_id"),
+            document_id=r.get("document_id"), file_name=r.get("file_name"),
+            page_number=r.get("page_number"), bbox=bbox,
+            quote=r.get("quote"), relation=r.get("relation") or "supports",
+        )
+        n += 1
+    return n
+

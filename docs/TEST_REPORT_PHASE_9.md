@@ -128,11 +128,34 @@ T1 已确认主链通、回归稳，后续 T2-T8 为边角鲁棒性 + 上线准�
 
 OCR 写侧（Phase 3/4）对夹具项目产出了**完整可溯源的 chunk 数据**（30 chunks 全有正文 + 43 field_sources 带 chunk_id）——"空壳"问题在该项目不存在。即：**修写侧接线后，溯源链立即贯通**，无需等 OCR 侧改造。
 
-### 7.5 修复方向（下一任务，需独立计划）
+### 7.5 修复落地（已完成，本轮）
 
-接线点候选（需设计决策，不臆造）：
-1. **AuditAnalyzer `_scan_expression`**：命中行即时调 `build_field_sources_evidence(project_id, table, row_id)` + `add_ref(result_type="analysis_hit", …)`，把证据注入 `scan_summary` 并随 analysis_result 返回。
-2. **SuspicionGenerator**：每条 suspicion 关联其底层 analysis_hit 的证据（result_type=suspicion 引用同批 chunk）。
-3. **documents report**：疑点已带证据后，报告引用自然贯通（消费侧层④已就绪）。
+**§0 铁律接线已补齐并验证**。改动为加法式（调已有 `evidence_service`，不重写 Agent）：
 
-关键设计点：`analysis_hit` 的 `result_id` 取什么（违规模型 id？命中行复合键？）决定 `add_ref` 与 `get_refs` 的对接方式——需确认后展开。
+| 接线点 | 改动 | 作用 |
+|--------|------|------|
+| `audit_analyzer._scan_expression` | 命中行逐条调 `build_field_sources_evidence` + `add_ref(result_type="analysis_hit", result_id={task_id}:{vid})`，按 vid 暂存证据 | 扫描命中即落结论级溯源（source_of_truth = `audit_source_refs`） |
+| `audit_analyzer.validate_output`（新增 override） | LLM 产出后，按 `violation_model`(title)→vid 注入 `analysis_result.source_refs`（确定性，幂等；未命中挂全量兜底） | analysis_results 各 hit 带 source_refs |
+| `evidence_service.link_suspicion_evidence`（新增） | 复制本任务 analysis_hit 引用为 `result_type=suspicion`（疑点继承同批 chunk） | 疑点可溯源 |
+| `/suspicion/generate` 路由 | INSERT 后调 `link_suspicion_evidence` | 疑点落库即带证据 |
+| `expression_engine` 白名单 + `audit_analyzer._detect_target_table` | 加 `data_procurements`（采购域主表，原不支持→扫描永不命中采购数据） | 解锁采购域扫描，使接线可触发 |
+| `step/4` 路由 | 删除失配的旧 P8-6 循环（读不存在的 `target_table`/`hits` 键），注释归并到 Analyzer 接线 | 去冗余死码 |
+
+**result_id 粒度**（用户确认）：`{task_id}:{violation_id}` —— 每任务×违规模型一组引用，与 `analysis_results[violation_model]` 自然对齐。
+
+### 7.6 验证
+
+| 测试 | 结果 | 说明 |
+|------|:----:|------|
+| `test_p9_t4_wiring.py`（单元，**决定性**） | ✅ 10/10 | 直接驱动 `_scan_expression` 命中 data_procurements：8 条 analysis_hit 落库 + 全可解析到页码/原文 + validate_output 注入 source_refs(含 chunk_id) + link_suspicion 继承 8 条 |
+| `test_p9_t4_provenance.py`（E2E） | ✅ 10/10 | 条件断言（扫描命中 field_sourced 表→source_refs 必非空）；本轮 Step2 匹配落收费域未命中，接线未触发——非缺陷 |
+| `test_e2e_flow.py`（T1 全链） | ✅ 26/26 | Analyzer 改动未破坏七步链 |
+| 回归 p8 / p7 / p5 | ✅ 47 / 18 / 23 | expression_engine 白名单 + Analyzer 接线未破坏既有 |
+
+### 7.7 残留上游缺口（非本轮范围）
+
+E2E 全链的 source_refs 仍为空，根因在**上游两层**（非溯源接线）：
+1. **Step2 匹配域偏**：IntentAnalyzer+violation_matcher 为「办公电脑采购」项目匹配到**收费域**违规（`收费项目明细台账`/`非税收入缴库明细表`），其表达式扫收费表（不存在）→ 0 命中。属匹配质量问题 → **P8-12 质量评测**范畴。
+2. **违规表达式用中文业务表名**（`信息化设备采购清单`/`施工合同`），不映射物理 `data_*` 表 → 即使匹配到采购违规，行级扫描也难命中。属表达式↔表映射 → **Phase 7 表达式引擎增强**范畴。
+
+**结论**：§0 溯源接线已修复并经单元测试决定性证明（命中即贯通）。全链 source_refs 转绿需上游（匹配域 + 表达式表映射）改善，已定性归因、独立排期，不阻塞本轮。

@@ -1561,6 +1561,12 @@ def register_audit_routes(app):
                              "selected_laws": selected_laws}, ensure_ascii=False)),
                 database="tt",
             )
+            # P9-T4: 疑点继承本任务分析命中证据（result_type=suspicion，可溯源到文档 chunk）
+            if task_id and suspicion_id:
+                try:
+                    evidence_service.link_suspicion_evidence(project_id, task_id, suspicion_id)
+                except Exception:
+                    pass
         if task_id:
             alc.advance_step(task_id, to_step=6, step_data_patch={"suspicion_report": suspicion_report},
                              summary_content=f"Step6 疑点生成：{suspicion_report.get('total_suspicions', 0)} 条疑点（待人工核实）",
@@ -1933,16 +1939,10 @@ def register_audit_routes(app):
             # 继续执行 Step⑤（step5→END，疑点走独立端点）
             final_state = _analysis_graph.invoke(None, config)
 
-            # P8-6: 命中行证据（field_sources→chunk）逐条装配
+            # P9-T4: 命中行证据（field_sources→chunk→audit_source_refs）由 AuditAnalyzer
+            # 在扫描期写库 + validate_output 注入 analysis_result.source_refs（确定性，vid/table
+            # 已知处接线）。此处 analysis_results 已带 source_refs，直接持久化即可。
             analysis_results = final_state.get("analysis_results", [])
-            project_id = (snapshot.values or {}).get("project_id", "")
-            for r in analysis_results:
-                tbl = r.get("target_table") or r.get("table")
-                for hit in (r.get("hits") or r.get("evidence") or []):
-                    rid = hit.get("row_id") or hit.get("id")
-                    if tbl and rid is not None:
-                        hit["field_sources"] = evidence_service.build_field_sources_evidence(
-                            project_id, tbl, rid)
 
             # 持久化 Step5 结果（current_step=5 权威）+ 写 Step5 正式总结
             alc.advance_step(task_id, to_step=5, step_data_patch={

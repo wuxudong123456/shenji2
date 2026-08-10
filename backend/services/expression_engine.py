@@ -245,8 +245,9 @@ def execute_expression(expression: str, table: str, project_id: str,
     # 标准化表名
     allowed_tables = {
         "data_contracts", "data_finance", "data_legal_docs",
-        "data_registers", "data_credentials", "data_general",
+        "data_registers", "data_credentials", "data_general", "data_procurements",
         "contracts", "finance", "legal_docs", "registers", "credentials", "general",
+        "procurements",
     }
     if table not in allowed_tables:
         return {"success": False, "error": f"不支持的表: {table}"}

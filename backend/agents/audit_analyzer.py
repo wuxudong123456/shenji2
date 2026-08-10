@@ -14,6 +14,7 @@
 import re
 import json
 from agents.base import BaseAgent, AgentDefinition
+from services import evidence_service
 
 
 class AuditAnalyzerAgent(BaseAgent):
@@ -21,6 +22,13 @@ class AuditAnalyzerAgent(BaseAgent):
 
     def build_prompt(self, input_data: dict, context: dict) -> str:
         """构建分析 Prompt — 包含真实表达式扫描结果"""
+        # P9-T4: 溯源接线上下文（task_id 来自 graph context，project_id 来自 input）
+        # 命中行证据按 vid 暂存，validate_output 时注入各 analysis_result.source_refs
+        self._task_id = (context or {}).get("task_id")
+        self._project_id = input_data.get("project_id", "")
+        self._evidence_by_vid = {}      # {vid: [evidence_entry, ...]}
+        self._vid_by_title = {}         # {violation_title: vid}（LLM 输出按 title 反查 vid）
+
         lines = [
             "## 审计分析任务",
             "",
@@ -84,7 +92,7 @@ class AuditAnalyzerAgent(BaseAgent):
             lines.append("")
 
             if expr and project_id:
-                scan = self._scan_expression(expr, project_id)
+                scan = self._scan_expression(expr, project_id, v, self._task_id)
                 if scan.get("success"):
                     lines.append(f"**扫描结果**（表: {scan.get('table', '?')}）:")
                     lines.append(f"- 扫描记录数: {scan.get('total', 0)}")
@@ -125,6 +133,29 @@ class AuditAnalyzerAgent(BaseAgent):
 
         return "\n".join(lines)
 
+    def validate_output(self, output: dict) -> dict:
+        """P9-T4: 在基类校验后，把扫描期暂存的证据注入各 analysis_result.source_refs。
+
+        确定性后处理（不依赖 LLM）：按 violation_model(title)→vid 反查 _evidence_by_vid，
+        命中即挂 source_refs；未命中的挂全量（兜底，保证 §0「结论必带 source_refs」）。
+        幂等：已有 source_refs 不重挂。
+        """
+        validation = super().validate_output(output)
+        results = output.get("analysis_results")
+        if not isinstance(results, list) or not results:
+            return validation
+        all_ev = []
+        for evs in self._evidence_by_vid.values():
+            all_ev.extend(evs)
+        for r in results:
+            if not isinstance(r, dict) or r.get("source_refs"):
+                continue
+            title = r.get("violation_model") or ""
+            vid = self._vid_by_title.get(title)
+            ev = self._evidence_by_vid.get(vid) if vid is not None else None
+            r["source_refs"] = ev if ev else all_ev
+        return validation
+
     def _get_violation(self, vid) -> dict | None:
         """通过 MCP 查询违规详情（支持 ID 或标题）"""
         # 通过 MCP 工具查详情
@@ -140,6 +171,7 @@ class AuditAnalyzerAgent(BaseAgent):
                         item_id=v.get("id", vid),
                         snippet=v.get("violation_title", ""),
                     )
+                    self._vid_by_title[v.get("violation_title", "")] = v.get("id") or vid
                     return v
 
         # 通过标题查找
@@ -160,11 +192,18 @@ class AuditAnalyzerAgent(BaseAgent):
                             item_id=v.get("id"),
                             snippet=v.get("violation_title", ""),
                         )
+                        self._vid_by_title[v.get("violation_title", "")] = v.get("id") or vid
                         return v
         return None
 
-    def _scan_expression(self, expression: str, project_id: str) -> dict:
-        """通过 MCP 执行表达式扫描"""
+    def _scan_expression(self, expression: str, project_id: str,
+                         violation: dict | None = None, task_id: str | None = None) -> dict:
+        """通过 MCP 执行表达式扫描 + 落结论级溯源（P9-T4）
+
+        命中行逐条连 field_sources→document_chunk，写 audit_source_refs
+        (result_type=analysis_hit, result_id=``{task_id}:{violation_id}``)，
+        并按 vid 暂存证据，供 validate_output 注入各 analysis_result.source_refs。
+        """
         target_table = self._detect_target_table(expression, project_id)
         if not target_table:
             return {"success": False, "error": "未找到匹配的数据表"}
@@ -186,6 +225,55 @@ class AuditAnalyzerAgent(BaseAgent):
                 item_id=f"{project_id}:{target_table}",
                 snippet=f"命中{scan.get('hits', 0)}/{scan.get('total', 0)}条",
             )
+
+        # P9-T4: 命中行 → field_sources → chunk 证据链 + 写 audit_source_refs
+        vid = None
+        if violation:
+            vid = violation.get("id") or violation.get("violation_id")
+        rid_key = f"{task_id}:{vid}" if (task_id and vid) else None
+        ev_stash = []
+        seen_chunks = set()
+        for hr in (scan.get("rows") or []):
+            rid = hr.get("row_id") or hr.get("id")
+            if rid is None:
+                continue
+            try:
+                row_ev = evidence_service.build_field_sources_evidence(
+                    project_id, target_table, rid)
+            except Exception:
+                row_ev = []
+            for e in row_ev:
+                cid = e.get("chunk_id")
+                ev_stash.append(e)
+                # 写结论级引用（去重同 chunk；source_of_truth = audit_source_refs）
+                if rid_key and cid and cid not in seen_chunks:
+                    seen_chunks.add(cid)
+                    pages = e.get("page_nums") or []
+                    pno = pages[0] if isinstance(pages, list) and pages else None
+                    try:
+                        evidence_service.add_ref(
+                            project_id=project_id,
+                            result_type="analysis_hit",
+                            result_id=rid_key,
+                            source_type="document_chunk",
+                            source_id=cid,
+                            file_name=e.get("file_name"),
+                            page_number=pno,
+                            bbox=e.get("bbox"),
+                            quote=(e.get("text") or "")[:200],
+                            relation="supports",
+                        )
+                    except Exception:
+                        pass
+        if vid is not None:
+            self._evidence_by_vid.setdefault(vid, [])
+            # 暂存紧凑版（供注入 analysis_result.source_refs）
+            self._evidence_by_vid[vid].extend([
+                {"chunk_id": e.get("chunk_id"), "file_name": e.get("file_name"),
+                 "page_nums": e.get("page_nums"), "quote": (e.get("text") or "")[:160]}
+                for e in ev_stash
+            ])
+
         return {
             "success": True,
             "table": target_table,
@@ -203,6 +291,8 @@ class AuditAnalyzerAgent(BaseAgent):
             "data_legal_docs": ["case_no", "issuing_body", "legal_basis", "verdict"],
             "data_registers": ["register_type", "item_name", "quantity", "responsible_person"],
             "data_credentials": ["cert_type", "cert_no", "holder", "expire_date"],
+            "data_procurements": ["procurement_method", "contract_amount", "budget_amount",
+                                  "bid_date", "sign_date", "supplier", "doc_name"],
         }
 
         field_pattern = re.compile(r'([a-zA-Z_一-鿿][a-zA-Z0-9_一-鿿]*)')
