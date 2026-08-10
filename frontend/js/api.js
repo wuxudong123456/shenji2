@@ -82,6 +82,14 @@ var AuditAPI = {
     }
   },
 
+  // ── 资料空间：年度项目树（P2-5，tree 仅返回已 finalize 项目）──
+  workspace: {
+    tree: function(year) {
+      var qs = year ? ('?year=' + encodeURIComponent(year)) : '';
+      return fetch(AuditAPI.base + '/api/audit/workspace/tree' + qs).then(function(r) { return r.json(); });
+    }
+  },
+
   // ── 数据工坊 ──
   data: {
     tables: function(projectId) {

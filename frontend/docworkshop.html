@@ -112,6 +112,61 @@
       padding: 8px 10px; border-bottom: 1px solid var(--color-border); text-align: left;
     }
     .doc-field-table th { background: var(--color-bg); font-weight: 600; width: 35%; }
+
+    /* ── 资料空间：左侧年度项目树 + 右侧文件区 ── */
+    .doc-layout { display: flex; gap: 16px; align-items: flex-start; }
+    .doc-tree {
+      width: 250px; flex-shrink: 0; background: #fff; border-radius: 12px;
+      border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden;
+    }
+    .doc-tree-hd {
+      display: flex; align-items: center; gap: 6px; padding: 12px 16px;
+      font-size: 14px; font-weight: 600; color: var(--color-primary);
+      border-bottom: 1px solid var(--color-border); background: var(--color-bg);
+    }
+    .doc-tree-body { padding: 8px; max-height: calc(100vh - 220px); overflow-y: auto; }
+    .tree-empty { text-align: center; padding: 30px 12px; color: var(--color-text-muted); font-size: 13px; }
+    .tree-empty-sub { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+    .tree-year {
+      display: flex; align-items: center; gap: 6px; padding: 7px 10px; margin-top: 4px;
+      font-size: 13px; font-weight: 600; color: var(--color-primary);
+      cursor: pointer; border-radius: 6px; user-select: none;
+    }
+    .tree-year:hover { background: var(--color-bg); }
+    .tree-year-caret { display: inline-block; transition: transform 0.15s; font-size: 10px; opacity: 0.6; }
+    .tree-year:not(.open) .tree-year-caret { transform: rotate(-90deg); }
+    .tree-year-name { flex: 1; }
+    .tree-year-count { font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
+    .tree-projects { padding-left: 8px; }
+    .tree-project {
+      display: flex; align-items: center; gap: 7px; padding: 7px 10px; margin: 2px 0;
+      font-size: 13px; color: var(--color-text); cursor: pointer; border-radius: 6px;
+      border-left: 3px solid transparent;
+    }
+    .tree-project:hover { background: rgba(26,58,92,0.05); }
+    .tree-project.active { background: rgba(26,58,92,0.1); border-left-color: var(--color-primary); font-weight: 600; }
+    .tree-project i { font-size: 14px; color: var(--color-primary); flex-shrink: 0; }
+    .tree-project-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree-count { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: rgba(26,58,92,0.1); color: var(--color-primary); flex-shrink: 0; }
+    .tree-count.zero { background: var(--color-bg); color: var(--color-text-muted); }
+    .tree-stage { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: rgba(184,94,26,0.1); color: var(--color-warning); flex-shrink: 0; }
+    .tree-del { display: none; border: none; background: transparent; cursor: pointer; padding: 2px 4px; font-size: 12px; color: var(--color-text-muted); flex-shrink: 0; }
+    .tree-project:hover .tree-del { display: inline-block; }
+    .tree-del:hover { color: var(--color-accent); }
+
+    .doc-main { flex: 1; min-width: 0; }
+    .fm-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; font-size: 13px;
+      border: 1px solid var(--color-border); background: #fff; border-radius: 16px;
+      cursor: pointer; color: var(--color-text-muted); transition: all 0.15s;
+    }
+    .filter-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .filter-chip.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .filter-chip.on .chip-n { color: rgba(255,255,255,0.85); }
+    .filter-chip.disabled { opacity: 0.4; cursor: not-allowed; }
+    .filter-chip.disabled:hover { border-color: var(--color-border); color: var(--color-text-muted); }
+    .chip-n { font-size: 11px; opacity: 0.7; }
   </style>
 </head>
 <body data-page="docworkshop">
@@ -125,25 +180,39 @@
     <div class="page-header">
       <div>
         <h1><i class="bi bi-cloud"></i> 资料工坊</h1>
-        <div class="breadcrumb" id="fm-path">/</div>
+        <div class="breadcrumb" id="fm-path">/ 资料工坊</div>
       </div>
     </div>
 
-    <!-- Toolbar -->
-    <div class="fm-toolbar">
-      <button class="btn btn-primary btn-sm" onclick="FileManager.upload()"><i class="bi bi-cloud-upload"></i> 上传</button>
-      <button class="btn btn-outline btn-sm" onclick="FileManager.newProject()"><i class="bi bi-folder-plus"></i> 新建项目</button>
-      <input type="text" class="form-input form-input-sm" placeholder="搜索文件..." style="width:200px;margin-left:auto;" oninput="FileManager.filter(this.value)">
-      <button class="btn btn-outline btn-sm" onclick="FileManager.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
-    </div>
+    <div class="doc-layout">
+      <!-- 左侧：年度项目树（年度管理 + 项目管理）-->
+      <aside id="doc-tree" class="doc-tree">
+        <div class="doc-tree-hd"><i class="bi bi-collection"></i> 资料空间</div>
+        <div class="doc-tree-body" id="doc-tree-body"></div>
+      </aside>
 
-    <!-- Breadcrumb -->
-    <div class="fm-breadcrumb" id="fm-breadcrumb">
-      <a href="#" onclick="FileManager.navTo('')"><i class="bi bi-cloud"></i> 全部项目</a>
-    </div>
+      <!-- 右侧：工具栏 + 文件类型筛选 + 文件区 -->
+      <div class="doc-main">
+        <!-- Toolbar -->
+        <div class="fm-toolbar">
+          <button class="btn btn-primary btn-sm" onclick="FileManager.upload()"><i class="bi bi-cloud-upload"></i> 上传</button>
+          <button class="btn btn-outline btn-sm" onclick="FileManager.newProject()"><i class="bi bi-folder-plus"></i> 新建项目</button>
+          <input type="text" class="form-input form-input-sm" placeholder="搜索文件..." style="width:200px;margin-left:auto;" oninput="FileManager.filter(this.value)">
+          <button class="btn btn-outline btn-sm" onclick="FileManager.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
 
-    <!-- File Grid -->
-    <div class="fm-grid active" id="fm-grid"></div>
+        <!-- Breadcrumb -->
+        <div class="fm-breadcrumb" id="fm-breadcrumb">
+          <a href="#" onclick="FileManager.navTo('')"><i class="bi bi-cloud"></i> 资料工坊</a>
+        </div>
+
+        <!-- 文件类型筛选条（文件类型管理，进入项目后显示）-->
+        <div class="fm-filter-bar" id="fm-filter-bar" style="display:none;"></div>
+
+        <!-- File Grid -->
+        <div class="fm-grid active" id="fm-grid"></div>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -170,63 +239,167 @@
 var FileManager = {
   currentProjectId: '',   // 当前项目 UUID
   currentProjectName: '',// 当前项目名（展示用）
+  currentCategory: '',    // 文件类型筛选：''全部 / text / image / audio / video / other
+  _allFiles: [],          // 当前项目全量文件（客户端过滤用）
+  _treeMap: {},           // workspace.tree 结果按 project_id 索引（年度+计数 enrich）
 
   init: function() {
     this.refresh();
   },
 
-  // ── 项目列表（真实 MySQL 项目，UUID）──
+  // ── 资料空间：年度项目树（list 全项目 + tree enrich 已立项项目）──
   refresh: function() {
     var self = this;
-    var grid = document.getElementById('fm-grid');
-    grid.innerHTML = '<div class="fm-empty"><i class="bi bi-hourglass-split" style="font-size:24px;"></i><p>加载中...</p></div>';
     this.currentProjectId = '';
+    this.currentCategory = '';
+    this._allFiles = [];
+    var treeBody = document.getElementById('doc-tree-body');
+    var grid = document.getElementById('fm-grid');
+    treeBody.innerHTML = '<div class="tree-empty">加载中...</div>';
+    document.getElementById('fm-filter-bar').style.display = 'none';
+    document.getElementById('fm-path').innerHTML = '/ 资料工坊';
+    grid.innerHTML = '<div class="fm-empty"><i class="bi bi-arrow-left-circle" style="font-size:36px;opacity:0.3;"></i><p style="margin-top:12px;">请从左侧选择一个项目</p></div>';
 
-    AuditAPI.projects.list().then(function(data) {
-      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败，请确认后端服务已启动</div>'; return; }
-      self.renderProjects(data.projects || []);
+    // list=全项目（含未立项，零回归）；tree=已 finalize 项目的服务端年度+文件计数
+    Promise.all([AuditAPI.projects.list(), AuditAPI.workspace.tree()]).then(function(arr) {
+      var listResp = arr[0] || {}, treeResp = arr[1] || {};
+      if (!listResp.success) { treeBody.innerHTML = '<div class="tree-empty">加载失败，请确认后端服务已启动</div>'; return; }
+      var treeMap = {};
+      (treeResp.projects || []).forEach(function(tp) { treeMap[tp.project_id] = tp; });
+      self._treeMap = treeMap;
+      self.renderTree(listResp.projects || [], treeMap);
     }).catch(function() {
-      grid.innerHTML = '<div class="fm-empty">无法连接后端服务</div>';
+      treeBody.innerHTML = '<div class="tree-empty">无法连接后端服务</div>';
     });
   },
 
-  renderProjects: function(projects) {
-    var grid = document.getElementById('fm-grid');
+  // 年度分组 → 项目叶子（workspace 项目带文件计数，未立项标"配置中"）
+  renderTree: function(projects, treeMap) {
+    var self = this;
+    var body = document.getElementById('doc-tree-body');
     if (!projects || projects.length === 0) {
-      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i><p style="margin-top:12px;">暂无项目</p><p style="font-size:13px;">点击「新建项目」或前往智能分析创建</p></div>';
+      body.innerHTML = '<div class="tree-empty"><i class="bi bi-folder2-open" style="font-size:28px;opacity:0.3;"></i><p>暂无项目</p><p class="tree-empty-sub">点击上方「新建项目」</p></div>';
       return;
     }
-    var html = '';
+    var groups = {};
     projects.forEach(function(p) {
-      var statusBadge = p.status === 'completed' ? '<span class="fm-badge ocr-done">已完成</span>' :
-                        p.status === 'active' ? '<span class="fm-badge ocr-done">进行中</span>' :
-                        '<span class="fm-badge ocr-pending">草稿</span>';
-      html += '<div class="fm-item folder" onclick="FileManager.openProject(\'' + p.id + '\',\'' + (p.name||'').replace(/'/g,'') + '\')">'+
-        '<div class="fm-actions">'+
-        '<button onclick="event.stopPropagation();FileManager.deleteProject(\''+p.id+'\',\''+(p.name||'').replace(/'/g,'')+'\')" title="删除" style="color:var(--color-accent);"><i class="bi bi-trash"></i></button></div>'+
-        '<div class="fm-icon"><i class="bi bi-folder-fill"></i></div>'+
-        '<div class="fm-name">' + (p.name||'未命名') + '</div>'+
-        '<div class="fm-meta">' + (p.audit_period||'') + '</div>'+
-        statusBadge + '</div>';
+      var tp = treeMap[p.id] || {};
+      var year = tp.audit_year || self.deriveYear(p);
+      (groups[year] = groups[year] || []).push({p: p, tp: tp});
     });
-    grid.innerHTML = html;
+    var years = Object.keys(groups).sort(function(a, b) {
+      if (a === '其他') return 1; if (b === '其他') return -1; return b.localeCompare(a);
+    });
+    var html = '';
+    years.forEach(function(y, idx) {
+      var first = idx === 0;
+      html += '<div class="tree-year'+(first?' open':'')+'" onclick="FileManager.toggleYear(this)">'+
+        '<span class="tree-year-caret"><i class="bi bi-caret-down-fill"></i></span>'+
+        '<span class="tree-year-name">'+y+'年度</span>'+
+        '<span class="tree-year-count">'+groups[y].length+' 个项目</span></div>';
+      html += '<div class="tree-projects"'+(first?'':' style="display:none;"')+'>';
+      groups[y].forEach(function(item) {
+        var p = item.p, tp = item.tp, c = tp.counts || {};
+        var total = (c.text||0)+(c.image||0)+(c.audio||0)+(c.video||0)+(c.other||0);
+        var isWs = (p.setup_stage === 'workspace');
+        var badge = isWs ? (total > 0 ? '<span class="tree-count">'+total+' 件</span>' : '<span class="tree-count zero">0</span>')
+                         : '<span class="tree-stage">配置中</span>';
+        var pid = p.id, nm = (p.name||'').replace(/'/g,'');
+        html += '<div class="tree-project'+(pid===self.currentProjectId?' active':'')+'" '+
+          'onclick="FileManager.openProject(\''+pid+'\',\''+nm+'\')">'+
+          '<i class="bi bi-folder'+(isWs?'-fill':'')+'"></i>'+
+          '<span class="tree-project-name">'+self._escape(p.name||'未命名')+'</span>'+
+          badge +
+          '<button class="tree-del" title="删除" onclick="event.stopPropagation();FileManager.deleteProject(\''+pid+'\',\''+nm+'\')"><i class="bi bi-trash"></i></button>'+
+          '</div>';
+      });
+      html += '</div>';
+    });
+    body.innerHTML = html;
   },
 
-  // ── 进入项目，显示文件列表（带 OCR 状态）──
-  openProject: function(projectId, projectName) {
+  toggleYear: function(el) {
+    var open = el.classList.toggle('open');
+    var next = el.nextElementSibling;
+    if (next && next.classList.contains('tree-projects')) next.style.display = open ? '' : 'none';
+  },
+
+  // 年度推导：audit_period 取 4 位年 → 回退 create_time 年 → "其他"
+  deriveYear: function(p) {
+    var m = (p.audit_period||'').match(/(\d{4})/); if (m) return m[1];
+    var c = (p.create_time||'').match(/(\d{4})/); return c ? c[1] : '其他';
+  },
+
+  // ── 进入项目：拉全量文件 → 客户端按 currentCategory 过滤 ──
+  // keepFilter=true 保留筛选态（轮询/上传/重抽完成复用）；否则重置为全部（新点叶子）
+  openProject: function(projectId, projectName, keepFilter) {
     var self = this;
     this.currentProjectId = projectId;
     this.currentProjectName = projectName;
-    document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部项目</a> / <strong>' + projectName + '</strong>';
+    if (!keepFilter) this.currentCategory = '';
+    this._markActiveProject(projectId);
+    document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">资料工坊</a> / <strong>' + this._escape(projectName) + '</strong>';
 
     var grid = document.getElementById('fm-grid');
     grid.innerHTML = '<div class="fm-empty"><i class="bi bi-hourglass-split"></i> 加载中...</div>';
 
     AuditAPI.files.list(projectId).then(function(data) {
-      if (!data.success) { grid.innerHTML = '<div class="fm-empty">加载失败</div>'; return; }
-      self.renderFiles(data.files || []);
+      self._allFiles = (data && data.success) ? (data.files || []) : [];
+      self.applyFilter();
     }).catch(function() {
-      grid.innerHTML = '<div class="fm-empty">该项目暂无资料，请上传文件</div>';
+      self._allFiles = [];
+      self.applyFilter();
+    });
+  },
+
+  // 按 currentCategory 过滤 _allFiles → 渲染 + 更新筛选条
+  applyFilter: function() {
+    var cat = this.currentCategory;
+    var files = !cat ? this._allFiles : this._allFiles.filter(function(f){ return (f.category||'other') === cat; });
+    var grid = document.getElementById('fm-grid');
+    if (files.length === 0) {
+      var empty = this._allFiles.length === 0;
+      grid.innerHTML = '<div class="fm-empty"><i class="bi bi-cloud-upload" style="font-size:48px;opacity:0.3;"></i>'+
+        '<p style="margin-top:12px;">'+(empty?'暂无资料':'该类型暂无文件')+'</p>'+
+        '<p style="font-size:13px;">'+(empty?'点击「上传」添加审计资料，将自动 OCR 解析':'切换其他类型或「全部」')+'</p></div>';
+    } else {
+      this.renderFiles(files);
+    }
+    this.renderFilterBar();
+  },
+
+  // 文件类型筛选条：全部/文本/图片/音频/视频/其他（计数取自 _allFiles）
+  renderFilterBar: function() {
+    var bar = document.getElementById('fm-filter-bar');
+    if (!this.currentProjectId) { bar.style.display = 'none'; return; }
+    var counts = {text:0, image:0, audio:0, video:0, other:0};
+    this._allFiles.forEach(function(f){ var c = f.category || 'other'; if (counts.hasOwnProperty(c)) counts[c]++; else counts.other++; });
+    var chips = [
+      {k:'', label:'全部', n: this._allFiles.length},
+      {k:'text', label:'文本', n: counts.text},
+      {k:'image', label:'图片', n: counts.image},
+      {k:'audio', label:'音频', n: counts.audio},
+      {k:'video', label:'视频', n: counts.video},
+      {k:'other', label:'其他', n: counts.other},
+    ];
+    var cur = this.currentCategory;
+    bar.innerHTML = chips.map(function(c){
+      var cls = 'filter-chip' + (c.k===cur?' on':'') + (c.n===0 && c.k!==''?' disabled':'');
+      return '<button class="'+cls+'" onclick="FileManager.setCategory(\''+c.k+'\')">'+c.label+' <span class="chip-n">'+c.n+'</span></button>';
+    }).join('');
+    bar.style.display = '';
+  },
+
+  setCategory: function(cat) {
+    this.currentCategory = cat;
+    this.applyFilter();
+  },
+
+  // 高亮树中当前项目叶子（按 onclick 内含 projectId 匹配）
+  _markActiveProject: function(projectId) {
+    document.querySelectorAll('.tree-project').forEach(function(el){
+      var oc = el.getAttribute('onclick') || '';
+      el.classList.toggle('active', !!(projectId && oc.indexOf(projectId) >= 0));
     });
   },
 
@@ -266,7 +439,15 @@ var FileManager = {
   },
 
   navTo: function(path) {
-    if (!path) { this.refresh(); document.getElementById('fm-path').innerHTML = '/ <a href="#" onclick="FileManager.navTo(\'\')">全部项目</a>'; }
+    if (!path) {
+      this.currentProjectId = '';
+      this.currentCategory = '';
+      this._allFiles = [];
+      this._markActiveProject('');
+      document.getElementById('fm-path').innerHTML = '/ 资料工坊';
+      document.getElementById('fm-filter-bar').style.display = 'none';
+      document.getElementById('fm-grid').innerHTML = '<div class="fm-empty"><i class="bi bi-arrow-left-circle" style="font-size:36px;opacity:0.3;"></i><p style="margin-top:12px;">请从左侧选择一个项目</p></div>';
+    }
   },
 
   // ── 上传 + 轮询 OCR 进度 ──
@@ -298,7 +479,7 @@ var FileManager = {
       }
       if (resp.deduplicated) {
         AuditWorkbench.toast(file.name + ' 已存在，跳过', 'info');
-        self.openProject(projectId, self.currentProjectName);
+        self.openProject(projectId, self.currentProjectName, true);
         return;
       }
       // 上传成功，轮询 OCR 任务进度
@@ -307,7 +488,7 @@ var FileManager = {
         self._pollOcrTask(resp.task_id, file.name, projectId);
       } else {
         AuditWorkbench.toast(file.name + ' 已上传', 'success');
-        self.openProject(projectId, self.currentProjectName);
+        self.openProject(projectId, self.currentProjectName, true);
       }
     }).catch(function() {
       AuditWorkbench.toast(file.name + ' 上传网络错误', 'error');
@@ -322,10 +503,10 @@ var FileManager = {
         var t = resp.task;
         if (t.status === 'completed') {
           AuditWorkbench.toast('✅ ' + fileName + ' OCR 解析完成', 'success');
-          self.openProject(projectId, self.currentProjectName);
+          self.openProject(projectId, self.currentProjectName, true);
         } else if (t.status === 'failed') {
           AuditWorkbench.toast('❌ ' + fileName + ' 解析失败: ' + (t.error_msg||''), 'error');
-          self.openProject(projectId, self.currentProjectName);
+          self.openProject(projectId, self.currentProjectName, true);
         } else if (t.status === 'cancelled') {
           AuditWorkbench.toast('⚠️ ' + fileName + ' 已取消', 'warning');
         } else {
