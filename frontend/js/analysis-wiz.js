@@ -238,6 +238,7 @@ var AW = {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
+          task_id: self._taskId || '',
           analysis_results: (scanData.results && scanData.results.length > 0) ? scanData.results.map(function(r){
             return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total: r.total||0, rows: (r.rows||[]).slice(0,20)}};
           }) : [{violation_model: '违规分析', scan_summary: scanData}],
@@ -251,6 +252,7 @@ var AW = {
           return;
         }
         self._suspicionData = data;
+        if(self._taskId) self.syncStepFromTask(self._taskId);  // P8-9: 后端权威 step（疑点落库后推进到6）
         self.renderS6();
         self.say('ai','✅ 已生成审计疑点报告。' + (data.output && data.output.suspicion_report ? ('共'+((data.output.suspicion_report.total_suspicions)||0)+'条疑点') : '') + '。每条疑点可溯源到原始数据、法规依据和推理过程。<br><br>确认后说<strong>"生成文书"</strong>进入最后一步。');
       }).catch(function(err){
@@ -266,7 +268,7 @@ var AW = {
       fetch('/api/audit/documents/batch', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({context: self._buildDocContext()})
+        body: JSON.stringify({task_id: self._taskId || '', context: self._buildDocContext()})
       }).then(function(r){return r.json();}).then(function(data){
         if (data && data.success === false) {
           self.renderS7();
@@ -274,6 +276,7 @@ var AW = {
           return;
         }
         self._documentData = data;
+        if(self._taskId) self.syncStepFromTask(self._taskId);  // P8-9: 后端权威 step（文书完成后推进到7）
         self.renderS7();
         self.say('ai','🎉 已通过AI Agent生成全部四件套文书：取证单、审计底稿、报告初稿、定性复核意见。点击右侧卡片预览或导出。所有结果均可溯源。');
       }).catch(function(err){
@@ -303,6 +306,25 @@ var AW = {
         this.say('ai','收到。您可以说：<strong>开始分析</strong> | <strong>推荐模型</strong> | <strong>确认依据</strong> | <strong>上传资料</strong> | <strong>溯源</strong>');
       }
     }
+  },
+
+  /** P8-9 F2: 从后端权威状态同步 step（§0：步骤推进由后端 audit_analysis_tasks 唯一驱动）。
+   *  resume 时以此为准；疑点/文书成功后也调用，best-effort 校正前端本地 step。
+   *  task_id 由 parseIntent(:477) 调 POST /api/audit/analysis 时落库并缓存于 this._taskId。*/
+  syncStepFromTask: function(taskId) {
+    if(!taskId) return Promise.resolve(null);
+    var self = this;
+    return fetch(this._apiBase + '/analysis/' + taskId).then(function(r){return r.json();}).then(function(st){
+      if(st && st.success && st.current_step){
+        if(self.step !== st.current_step){
+          self.step = st.current_step;
+          self.updateStepBar(self.step);
+        }
+        self._taskId = st.task_id || taskId;
+        if(st.summaries) self._stepSummaries = st.summaries;
+      }
+      return st;
+    }).catch(function(){ return null; });
   },
 
   /** 保存当前分析进度到 localStorage */
@@ -363,6 +385,15 @@ var AW = {
         if(chat) chat.innerHTML = prog.chatHTML;
       }
       this.say('ai', '✅ 已恢复到第 '+prog.step+' 步，上次分析的内容都在。继续吧！');
+      // P8-9 F2: 后端权威 step 校正（有 task_id 时以 MySQL current_step 为准）
+      if(this._taskId){
+        var selfR = this;
+        this.syncStepFromTask(this._taskId).then(function(st){
+          if(st && st.current_step && st.current_step !== prog.step){
+            selfR.goBack(st.current_step);  // 后端权威覆盖本地缓存步
+          }
+        });
+      }
     } catch(e) { this.start(); }
   },
 
@@ -458,8 +489,13 @@ var AW = {
     if(!pm) return;
     var detail = '<div style="font-size:14px;line-height:1.8;">'+
       '<div style="margin-bottom:10px;padding:10px 14px;background:rgba(26,58,92,0.03);border-radius:8px;border-left:3px solid var(--color-primary);"><strong>📋 项目基本情况</strong><br>项目名称：'+(pm.title||'—')+'<br>审计类型：'+(pm.domain||'—')+'<br>单位层级：'+(pm.level||'—')+'<br>审计目标：'+(pm.objective||'—')+'</div>'+
-      '<div style="margin-bottom:10px;padding:10px 14px;background:rgba(45,125,70,0.03);border-radius:8px;border-left:3px solid var(--color-success);"><strong>🏢 被审计单位情况</strong><br>被审计单位：'+(pm.unit||'—')+'<br>单位性质：行政机关<br>主要职能：教育行政管理、教学设备采购管理<br>预算规模：年度预算约2.5亿元</div>'+
-      '<div style="margin-bottom:10px;padding:10px 14px;background:rgba(184,94,26,0.03);border-radius:8px;border-left:3px solid var(--color-warning);"><strong>📜 被审计行业政策</strong><br>《中华人民共和国招标投标法》— 法律·现行有效<br>《必须招标的工程项目规定》— 部门规章<br>《湖南省建设工程招标投标管理办法》— 地方性法规<br>《被审计单位采购管理办法》— 单位制度·直接适用</div></div>';
+      '<div style="margin-bottom:10px;padding:10px 14px;background:rgba(45,125,70,0.03);border-radius:8px;border-left:3px solid var(--color-success);"><strong>🏢 被审计单位情况</strong><br>被审计单位：'+(pm.unit||'—')+'<br>单位层级：'+(pm.level||'—')+'<br>审计期间：'+(pm.period||'—')+'</div>'+
+      '<div style="margin-bottom:10px;padding:10px 14px;background:rgba(184,94,26,0.03);border-radius:8px;border-left:3px solid var(--color-warning);"><strong>📜 适用法规</strong><br>'+(function(){
+        // §3.3: 法规来自后端 Step3 推荐（this._primaryLaws），无则提示待确认，不伪造
+        var laws = (window.AW && window.AW._primaryLaws) || [];
+        if(!laws.length) return '<span style="color:var(--color-text-muted);">尚未生成法规推荐（请在第三步「审计依据」确认）</span>';
+        return laws.slice(0,6).map(function(l){return (l.law||'《法规》')+(l.type?(' · '+l.type):'');}).join('<br>');
+      })()+'</div></div>';
     if(pm.concerns){
       detail += '<div style="font-size:14px;margin-top:4px;"><strong>关注业务环节：</strong>'+pm.concerns+'</div>';
     }
@@ -826,7 +862,7 @@ var AW = {
     if(!exists) {
       var newId = 'v' + (this.violationDB.length + 1);
       this.violationDB.push({
-        id: newId, name: dm.name, risk: dm.risk, match: Math.floor(Math.random()*30+55),
+        id: newId, name: dm.name, risk: dm.risk, match: 60,
         symptom: dm.symptom || '用户从审计方法卡片拖入',
         materials: ['相关审计资料（待补充）'],
         regulations: [{law: '待关联法规', type: '参考', note: '请补充具体法规条款'}]
@@ -883,8 +919,6 @@ var AW = {
       r.tags.split(',').forEach(function(t){
         if(ctx.indexOf(t.trim())>=0) score += 10;
       });
-      // Random factor for variety
-      score += Math.random() * 5;
       return {item:r, score:score};
     });
     scored.sort(function(a,b){return b.score - a.score;});
@@ -1019,21 +1053,22 @@ var AW = {
 
   /** 法规条款比对 */
   compareRegulations: function() {
-    var cols = [
-      {name:'招标投标法',level:'国家法律',threshold:'货物≥200万',scope:'全国',penalty:'合同金额5‰-10‰罚款',status:'现行有效'},
-      {name:'必须招标的工程项目规定',level:'部门规章',threshold:'货物≥200万',scope:'全国',penalty:'责令改正/罚款',status:'现行有效'},
-      {name:'湖南省建设工程招标投标管理办法',level:'地方性法规',threshold:'货物≥50万',scope:'湖南省',penalty:'责令改正/通报批评',status:'现行有效'},
-      {name:'被审计单位采购管理办法',level:'其他规范性文件',threshold:'货物≥10万须询价',scope:'被审计单位',penalty:'内部追责',status:'直接适用'}
-    ];
-    var headers = ['比对维度','国家·招标投标法','部门·必须招标规定','省级·湖南省办法','市级·教育局制度'];
+    // §3.3: 法规来自后端 Step3 推荐（this._primaryLaws），不再写死招标投标法等。
+    var laws = (this._primaryLaws || []).slice(0, 5);
+    if(!laws.length){
+      AuditWorkbench.toast('请先完成前三步以生成法规推荐','info');
+      this.say('ai','⚠️ 暂无法规可比对。请先说<strong>"确认依据"</strong>完成第三步，系统将根据项目背景推荐适用法规后再进行比对。');
+      return;
+    }
+    var headers = ['比对维度'].concat(laws.map(function(l,i){
+      return (l.type||'法规')+'·'+((l.law||('法规'+(i+1))).replace(/[《》]/g,'').slice(0,12));
+    }));
+    // 仅从 _primaryLaws 已有字段提取（clause/type/rec），未知维度标 '—'，不臆造门槛/处罚
     var rows = [
-      ['效力级别','法律','部门规章','地方性法规','其他规范性文件'],
-      ['适用层级','全国','全国','湖南省','被审计单位'],
-      ['金额门槛','施工≥400万/货物≥200万','施工≥400万/货物≥200万','施工≥100万/货物≥50万','货物≥10万'],
-      ['处罚条款','第49条:5‰-10‰罚款','责令改正·罚款','责令改正·通报批评','内部追责'],
-      ['时效性','2017修订·现行有效','2018年·现行有效','现行有效','直接适用'],
-      ['适用范围','全部工程建设项目','中央投资/国有企业','省内工程建设项目','局本级采购项目'],
-      ['关系类型','★ 上位法·主依据','相关法·量化依据','地方补充·优先适用','特别适用·审计对象']
+      ['法规名称'].concat(laws.map(function(l){ return l.law || '—'; })),
+      ['适用条款'].concat(laws.map(function(l){ return l.clause || '—'; })),
+      ['关系类型'].concat(laws.map(function(l){ return l.type || '—'; })),
+      ['是否推荐'].concat(laws.map(function(l){ return l.rec ? '★ 推荐依据' : '参考'; }))
     ];
 
     var html = '<div class="table-wrap"><table class="table" style="font-size:14px;"><thead><tr>';
@@ -1043,8 +1078,6 @@ var AW = {
       html += '<tr>';
       r.forEach(function(c,i){
         var style = i===0?'font-weight:600;color:var(--color-primary);':'';
-        if(i===3&&(c.indexOf('优先')>=0||c.indexOf('50万')>=0)) style += 'background:rgba(45,125,70,0.06);';
-        if(i===4) style += 'background:rgba(196,30,58,0.04);';
         html += '<td style="'+style+'">'+c+'</td>';
       });
       html += '</tr>';
@@ -1057,10 +1090,10 @@ var AW = {
       '<div style="padding:16px 20px;border-bottom:2px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:2;">'+
       '<h3 style="margin:0;"><i class="bi bi-layout-split"></i> 法规条款比对</h3>'+
       '<div style="display:flex;gap:8px;">'+
-      '<span class="badge badge-muted">4部法规 · 7个维度</span>'+
+      '<span class="badge badge-muted">'+laws.length+'部法规</span>'+
       '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--color-text-muted);">&times;</button></div></div>'+
       '<div style="padding:20px;">'+
-      '<div class="alert alert-info" style="font-size:14px;margin-bottom:16px;"><i class="bi bi-info-circle"></i> <strong>比对说明：</strong>绿色列为审计对象应优先适用的地方规定，红色列为审计对象直接适用的单位制度。市级单位采购99万/子项目，<strong>已触发省级门槛(≥50万)和市级门槛(≥10万)</strong>。</div>'+
+      '<div class="alert alert-info" style="font-size:14px;margin-bottom:16px;"><i class="bi bi-info-circle"></i> <strong>比对说明：</strong>下表为第三步「审计依据」推荐法规的逐条比对。门槛、处罚等具体维度请以法规原文为准（点击「溯源」查看条款原文）。</div>'+
       html+
       '<div style="margin-top:12px;display:flex;gap:8px;">'+
       '<button class="btn btn-sm btn-outline" onclick="window.print()"><i class="bi bi-printer"></i> 打印比对表</button>'+
@@ -1256,28 +1289,17 @@ var AW = {
 
   renderS3: function() {
     // 业务分类维度（可扩展，多分类不混乱）
-    var categories = (this._primaryLaws && this._primaryLaws.length > 0) ? [{name:'AI推荐法规',icon:'bi-shield-check',regs:this._primaryLaws.map(function(l){return {law:l.law||'',docNo:'',clause:l.clause||'',summary:'',timeliness:'现行有效',scope:'',type:l.type||'主依据',rec:true};})}] : [
-      {name:'招标投标',icon:'bi-bullseye',regs:[
-        {law:'《中华人民共和国招标投标法》',docNo:'主席令第21号',clause:'第3条',summary:'在中华人民共和国境内进行工程建设项目的勘察、设计、施工、监理以及与工程建设有关的重要设备、材料等的采购，必须进行招标。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
-        {law:'《中华人民共和国招标投标法》',docNo:'主席令第21号',clause:'第4条',summary:'任何单位和个人不得将依法必须进行招标的项目化整为零或者以其他任何方式规避招标。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
-        {law:'《中华人民共和国招标投标法》',docNo:'主席令第21号',clause:'第49条',summary:'违反本法规定必须进行招标的项目而不招标的，将必须进行招标的项目化整为零的，责令限期改正，可以处项目合同金额千分之五以上千分之十以下的罚款。',timeliness:'现行有效',scope:'全国',type:'追责依据',rec:true},
-        {law:'《必须招标的工程项目规定》',docNo:'国家发改委16号令',clause:'第5条',summary:'重要设备、材料等货物的采购，单项合同估算价在200万元人民币以上，必须招标。',timeliness:'现行有效',scope:'全国',type:'量化依据',rec:true},
-        {law:'《湖南省建设工程招标投标管理办法》',docNo:'湖南省政府令第288号',clause:'第5条',summary:'本省行政区域内施工单项合同估算价100万元以上、重要设备材料采购50万元以上的建设工程项目，必须进行招标。',timeliness:'现行有效',scope:'湖南省',type:'地方补充',rec:true},
-        {law:'《被审计单位采购管理办法》',docNo:'市教育局〔2025〕15号',clause:'全文',summary:'局机关及所属单位采购货物或服务10万元以上应通过询价方式采购，50万元以上应公开招标。',timeliness:'现行有效',scope:'被审计单位',type:'特别适用',rec:true}
-      ]},
-      {name:'采购方式',icon:'bi-cart',regs:[
-        {law:'《中华人民共和国政府采购法》',docNo:'主席令第68号',clause:'第28条',summary:'采购人不得将应当以公开招标方式采购的货物或者服务化整为零或者以其他任何方式规避公开招标采购。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
-        {law:'《中华人民共和国政府采购法实施条例》',docNo:'国务院令第658号',clause:'第67条',summary:'政府采购项目中，采购人、采购代理机构将应当采用公开招标方式的项目擅自采用其他方式采购的，依照政府采购法追究法律责任。',timeliness:'现行有效',scope:'全国',type:'认定标准',rec:false}
-      ]},
-      {name:'供应商管理',icon:'bi-people',regs:[
-        {law:'《中华人民共和国招标投标法实施条例》',docNo:'国务院令第613号',clause:'第67条',summary:'投标人相互串通投标或者与招标人串通投标的，中标无效，处中标项目金额5‰以上10‰以下的罚款。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:true},
-        {law:'《中华人民共和国刑法》',docNo:'主席令第83号',clause:'第223条',summary:'投标人相互串通投标报价，损害招标人或者其他投标人利益，情节严重的，处三年以下有期徒刑或者拘役，并处或者单处罚金。',timeliness:'现行有效',scope:'全国',type:'追责依据',rec:false}
-      ]},
-      {name:'资金支付',icon:'bi-cash',regs:[
-        {law:'《中华人民共和国预算法》',docNo:'主席令第12号',clause:'第53条',summary:'各级预算由本级政府组织执行，具体工作由本级政府财政部门负责。各部门、各单位是本部门、本单位的预算执行主体，负责本部门、本单位的预算执行，并对执行结果负责。',timeliness:'现行有效',scope:'全国',type:'主依据',rec:false},
-        {law:'《财政违法行为处罚处分条例》',docNo:'国务院令第427号',clause:'第6条',summary:'国家机关及其工作人员有截留、挪用财政资金的，责令改正，追回有关财政资金，限期退还违法所得。对单位给予警告或者通报批评。',timeliness:'现行有效',scope:'全国',type:'追责依据',rec:false}
-      ]}
-    ];
+    var categories = (this._primaryLaws && this._primaryLaws.length > 0) ? [{name:'AI推荐法规',icon:'bi-shield-check',regs:this._primaryLaws.map(function(l){return {law:l.law||'',docNo:'',clause:l.clause||'',summary:'',timeliness:'现行有效',scope:'',type:l.type||'主依据',rec:true};})}] : (function(){
+      // §3.3: _primaryLaws 缺失（Step1-3 未跑/LLM失败）时，从已加载法规库取相关条目；
+      // 法规库也为空则给空态，不伪造「招标投标法」等具体条款。
+      var pool = (window.AW && window.AW._regulations) || [];
+      if(!pool.length){
+        return [{name:'待确认法规',icon:'bi-hourglass-split',regs:[]}];
+      }
+      return [{name:'相关法规',icon:'bi-shield-check',regs:pool.slice(0,12).map(function(r){
+        return {law:r.title||r.law||'',docNo:r.doc_no||'',clause:r.clause||'',summary:r.summary||r.expression_text||'',timeliness:'现行有效',scope:r.scope||'',type:'参考',rec:false};
+      })}];
+    })();
 
     var html = '<div class="card"><div class="card-header"><h3>第三步：审计依据</h3><span class="badge badge-muted">市级·采购审计</span></div>'+
       '<div class="alert alert-info" style="font-size:14px;margin-bottom:12px;"><i class="bi bi-info-circle"></i> '+
@@ -1840,11 +1862,12 @@ var AW = {
     if (useApi) {
       var report = apiData.output.suspicion_report;
       (report.items || []).forEach(function(item, i) {
+        var riskZh = item.risk_level === 'high' ? '高' : item.risk_level === 'medium' ? '中' : '低';
         findings.push({
           id: 'sp' + (i + 1),
           name: item.title || '疑点',
-          risk: item.risk_level === 'high' ? '高' : item.risk_level === 'medium' ? '中' : '低',
-          match: 90 + Math.floor(Math.random() * 10),
+          risk: riskZh,
+          match: riskZh === '高' ? 95 : riskZh === '中' ? 85 : 75,  // 确定性：按风险等级，不随机
           symptom: item.description || '',
           regulations: (item.legal_basis || []).map(function(l) { return {law: l.law_title || '', type: '依据', note: l.clause || ''}; }),
           materials: [],
