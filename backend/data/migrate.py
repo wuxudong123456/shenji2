@@ -517,6 +517,54 @@ def migrate_phase5_data_tables():
         print(f"[migrate] + 表 {table}")
 
 
+def migrate_engine_rules():
+    """Phase7 — 智能分析引擎两张映射表（PHASE_7 §5 M006，反填初始化）
+
+    audit_engine_rules（违规模型→分析规则映射：target_table/expression/field_mapping/threshold，
+    供 Phase8 Step5 确定性取 target_table，替代 audit_analyzer._detect_target_table 运行时猜表）、
+    audit_item_methods（违规模型→审计方法→数据字段要求：data_requirements 由 expression 解析派生；
+    method_name/method_desc 本轮留空——YAML violations[] 无对应字段，无数据源，用户确认）。
+    DDL 逐字照抄执行包 §5 不增减列（audit_item_methods 无 created_at，照抄不加）。两表均逻辑关联
+    audit_violations.id（不设 FK，与 audit_cases 系列一致），主表不存在时跳过告警。
+    逐表 _table_exists 预检幂等。
+    """
+    if not _table_exists("audit_violations"):
+        print("[migrate] ! audit_violations 主表不存在，audit_engine_rules/audit_item_methods 跳过")
+        return
+    tables = [
+        (
+            "audit_engine_rules",
+            f"""CREATE TABLE {DATABASE}.audit_engine_rules (
+  id            INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  violation_id  INT NOT NULL                COMMENT '关联 audit_violations',
+  target_table  VARCHAR(100)                COMMENT '目标 data_* 表',
+  expression    TEXT                        COMMENT '分析规则伪SQL（缺省引用 violation.expression_text）',
+  field_mapping JSON                        COMMENT '模型字段→表字段映射（复用 field_mapper）',
+  threshold     JSON                        COMMENT '阈值配置',
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_violation (violation_id)
+) COMMENT '违规模型→分析规则映射（引擎执行）'""",
+        ),
+        (
+            "audit_item_methods",
+            f"""CREATE TABLE {DATABASE}.audit_item_methods (
+  id                INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  violation_id      INT NOT NULL                COMMENT '关联 audit_violations',
+  method_name       VARCHAR(200)               COMMENT '审计方法名称',
+  method_desc       TEXT                       COMMENT '方法说明',
+  data_requirements JSON                       COMMENT '数据字段要求清单',
+  INDEX idx_violation (violation_id)
+) COMMENT '违规模型→审计方法→数据字段要求'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -532,6 +580,7 @@ def main():
         migrate_phase3_task_payload()
         migrate_phase4_provenance_tables()
         migrate_phase5_data_tables()
+        migrate_engine_rules()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
