@@ -15,6 +15,7 @@
 | **T2 OCR 门禁拦截/放行** | ✅ **PASS=5 / FAIL=0**（本报告 §8）|
 | **T3 恢复分析（后端权威 resume）** | ✅ **PASS=6 / FAIL=0**（本报告 §8）|
 | **T8 并发编辑事项（乐观锁，含 Gap A+B 修复）** | ✅ **PASS=15 / FAIL=0**（本报告 §9）|
+| **T4 跨项目隔离（数据/文件面 ✅；analysis 面=网关鉴权）** | ✅ **PASS=8 / FAIL=0**（本报告 §10）|
 | 回归 test_p8_seven_step.py（契约层） | ✅ PASS=47 / FAIL=0 |
 | 回归 test_p5_data.py（Phase1-6） | ✅ PASS=23 / FAIL=0 |
 | 回归 test_p7_rules.py（Phase7） | ✅ PASS=18 / FAIL=0 |
@@ -97,7 +98,7 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **§0 溯源** | AI 结论必带 source_refs（铁律，横切；非 spec 某 T 项） | ✅ §7 | T1 |
 | **T2** | OCR 未完成进 Step5 → readiness(data_ready) 拦截，完成后放行 | ✅ §8 | T1 |
 | **T3** | 恢复分析：刷新/重开后 GET 权威恢复 current_step+已确认数据 | ✅ §8 | T1 |
-| **T4** | 跨项目隔离（项目 A 访问项目 B 数据 → 403） | ⬜ 待做 | T1 |
+| **T4** | 跨项目隔离（项目 A 访问项目 B 数据 → 403） | ✅ §10（数据/文件面；analysis 面=网关鉴权） | T1 |
 | **T5** | 金额边界（万/元混入，阈值比对不差万倍） | ⬜ 待做 | T1 |
 | **T6** | LLM 停机（规则步骤仍出结果，LLM 步骤降级提示） | ⬜ 待做 | T1 |
 | **T7** | 大数据表扫描（10 万+ 行，游标分页+超时保护） | ⬜ 待做 | T1 |
@@ -105,7 +106,7 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **U1-U4** | 上线（构建打包 / 部署文档 / 健康检查 / 回滚预案） | ⬜ 待做 | T1-T8 |
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | ⬜ 独立 | — |
 
-T1/§0/T2/T3/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆。余 T4-T7 为隔离/鲁棒性，U1-U4 为上线准备。
+T1/§0/T2/T3/T4/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离。余 T5-T7 为鲁棒性/规模，analysis 面 403 属网关鉴权（上线依赖），U1-U4 为上线准备。
 
 ---
 
@@ -323,3 +324,45 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 - **T8 达成**：附录A §6.8「乐观锁生效，后提交者收冲突提示，不静默覆盖」**实证达成**——setup 阶段与 items 阶段并发编辑均检出冲突、409 提示、不覆盖；前端实际 UI 已接线（发 token + 409 拉新）。
 - **Gap A+B 已闭环**，Gap C（秒精度 token vs version INT）记为已知局限——审计场景两人同秒编辑同一事项概率极低，`update_time` token 足够；若未来需严格化，可加 `items_version INT` 列（属 DDL，超「Phase9 无 DDL」边界，未做）。
 - **测试自管理**：抛错项目 `T8LOCK_TEST` 全程自建自清，可重复运行。
+
+---
+
+## §10 T4 跨项目隔离（本轮完成，报告记录）
+
+验证附录A §6.4：项目 A 凭证访问项目 B 的 `/projects/B/data/*`、`/analysis`(B)、`/documents`(B) → 全部 403/拒绝；DataService project_id 强制 + Phase 6 权限双重拦截。
+
+### 10.1 现状核查（faithful-mode）：三面隔离状态不一
+
+| 面 | 隔离机制 | 状态 |
+|----|----------|------|
+| **数据面**（`/projects/<pid>/data/<table>/rows`、quality、missing） | DataService `require_project=True`：`list_rows` 内部附加 `WHERE project_id=%s`，路径参数强制非空，空/伪造 → `ProjectIDRequiredError`→400；调用方/LLM 无法绕过（[data_service.py:5/145/301](backend/services/data_service.py#L145)） | ✅ 已隔离 |
+| **文件面**（download/delete） | `project_id` vs `object_key` 归属校验，不匹配 → 403（[audit_routes.py:2145/2192](backend/routes/audit_routes.py#L2145)） | ✅ 已隔离（P2-10） |
+| **Step5 扫描面**（表达式比对） | `expression_engine` 全部 `WHERE project_id=%s`（:293/475/481） | ✅ 已隔离 |
+| **analysis/documents/suspicion 面** | 按 `task_id` 直读，无 project 归属交叉校验 | ⚠️ 开放（见 10.3） |
+
+**全局浏览** `/data/tables`、`/data/<table>/rows`（无 project_id）为**设计内全局视图**（硬 cap 200，P5-2/3），非泄露。
+
+### 10.2 实测（`test_p9_t4_isolation.py`，**PASS=8 / FAIL=0**）
+
+| 场景 | 断言 | 结果 |
+|------|------|:----:|
+| ① 数据面隔离（spec 核心） | A 路径查到 A 的行 | ✅ |
+| | B 路径行数为 0（B 无数据） | ✅ |
+| | **B 查询不泄露 A 的行**（DataService WHERE project_id） | ✅ |
+| | 响应回显 project_id=A / =B（按路径项目，非全局） | ✅ |
+| ② analysis 按 task_id 开放（gap） | GET /analysis/{A_task} 200、响应 project_id=A | ✅ |
+| ③ 文件面隔离 | download/delete 跨项目 403（test_p2_download_delete.py ②/⑤ 实证 + 路由确认） | ✅ |
+
+### 10.3 analysis/documents 面的开放 —— 网关鉴权职责（非后端 bug）
+
+`GET /analysis/{task_id}`、`/documents/batch`、`/suspicion/*` 按 `task_id` 直读，无 project 交叉校验。**根因：系统无 auth/user 模型**（`creator='system'`，无 session/`current_user`/`g.user`），不存在"调用方所属项目"概念，故无法判"跨项目"→ 无法 403。
+
+这是**目标架构的职责划分**：[analysis_lifecycle.py:87](backend/services/analysis_lifecycle.py#L87) 注释明示"真实鉴权由路由层/网关"。目标状态 `Electron → OpenSquilla 网关(:18791) → 审计扩展层` 中，**user→project 归属鉴权是网关的职责**，网关尚未实现。`task_id`（uuid 衍生 16 位）在无网关的现状下为事实上的能力令牌（不可猜测）。
+
+**处置（用户确认：报告记录）**：后端**自有**隔离职责（DataService project_id 强制 + 文件跨项目 403 + Step5 项目作用域）已验证 ✅；analysis/documents 面的 403 属网关鉴权，记为**上线依赖项**（U1-U4 / 网关实现时闭环），不在 Phase9 后端补。可选的轻量 path 一致性守卫（task_id 路由收 project_id 交叉校验）与网关鉴权职责重叠，未做。
+
+### 10.4 小结
+
+- **T4 数据/文件面达成**：附录A §6.4「DataService project_id 强制」**实证达成**——项目 B 路径绝不返回项目 A 的数据行/文件（WHERE project_id + object_key 归属双隔离）。
+- **analysis 面延后**：按 task_id 开放是无鉴权架构的固有限制，403 归网关鉴权（上线依赖），非后端可简单修复项。
+- **测试自管理**：抛错项目 `T4ISO_A`/`T4ISO_B`（A 植 1 数据行、B 无）全程自建自清，可重复运行。
