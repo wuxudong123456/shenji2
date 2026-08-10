@@ -565,6 +565,113 @@ def migrate_engine_rules():
         print(f"[migrate] + 表 {table}")
 
 
+def migrate_phase8_contract_tables():
+    """Phase8 — 七步智能分析契约层三表 + analysis_tasks 三列（PHASE_8 §5 M008）
+
+    执行包 §4/§110 写 `backend/data/migrations/M008_*.sql`，但项目无 migrations/ 目录、
+    迁移走 migrate.py 函数式——落地为函数（偏差已在执行方案标注）。
+    执行包 §5 假设 project_suspicions/audit_agent_traces 已存在只 ALTER 加 verify_status，
+    但 DB 实测两表 + audit_step_summaries **全未建**——故 M008 须 CREATE 三表
+    （project_suspicions 建表即含 verify_status，§5 ⑪列），非 ALTER。
+
+    ① project_suspicions（schema.sql:387 DDL + §5 ⑪ verify_status 合并）：疑点报告 +
+       五态 verify_status（MODEL_FOUND→WAIT_CONFIRM→{CONFIRMED|REJECTED|NEED_MORE_EVIDENCE}）。
+    ② audit_agent_traces（schema.sql:447 DDL 逐字）：Agent 执行溯源链——本 Phase P8-11
+       `_persist_trace` 落库目标表（trace_id/input/output/knowledge_sources/tool_call_records/
+       llm_raw_response/duration_ms/status）。
+    ③ audit_step_summaries（§5 ⑧ DDL 逐字）：七步正式总结，UNIQUE(analysis_task_id,step_no)，
+       固定消息ID step-N-summary 覆盖。
+    ④ audit_analysis_tasks 加 focus_item_id/analysis_target/analysis_scope（附录A §2 落库增量列）。
+    逐表/列 _table_exists/_column_exists 预检幂等。
+    """
+    tables = [
+        (
+            "project_suspicions",
+            f"""CREATE TABLE {DATABASE}.project_suspicions (
+  id              INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  project_id      VARCHAR(32)   NOT NULL                COMMENT '关联项目ID',
+  analysis_id     INT                                   COMMENT '关联audit_analysis_tasks',
+  violation_id    INT                                   COMMENT '关联audit_violations',
+  suspicion_items JSON                                  COMMENT '疑点条目',
+  evidence_chain  JSON                                  COMMENT '证据溯源链',
+  status          VARCHAR(20)   DEFAULT 'draft'         COMMENT 'draft/confirmed/rejected（原状态语义保留）',
+  verify_status   VARCHAR(30)   DEFAULT 'MODEL_FOUND'   COMMENT 'MODEL_FOUND/WAIT_CONFIRM/CONFIRMED/REJECTED/NEED_MORE_EVIDENCE（五态核实流转）',
+  created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  INDEX idx_project (project_id),
+  INDEX idx_analysis (analysis_id),
+  INDEX idx_violation (violation_id)
+) COMMENT '疑点报告（含五态核实流转）'""",
+        ),
+        (
+            "audit_agent_traces",
+            f"""CREATE TABLE {DATABASE}.audit_agent_traces (
+  id                  INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  trace_id            VARCHAR(64)   NOT NULL                COMMENT '溯源唯一标识(trace-xxxx)',
+  task_id             VARCHAR(64)                           COMMENT '关联分析任务(audit_analysis_tasks.id)',
+  project_id          VARCHAR(32)                           COMMENT '关联审计项目',
+  agent_id            VARCHAR(100)  NOT NULL                COMMENT '执行的Agent标识',
+  agent_name          VARCHAR(200)                          COMMENT 'Agent显示名称',
+  step                TINYINT                               COMMENT '执行步骤(1-6)',
+  node_name           VARCHAR(100)                          COMMENT '工作流节点名',
+  upstream_trace_ids  JSON                                  COMMENT '上游Agent的trace_id列表',
+  input_summary       JSON                                  COMMENT '输入摘要(脱敏/截断)',
+  output_summary      JSON                                  COMMENT '输出摘要(脱敏/截断)',
+  knowledge_sources   JSON                                  COMMENT '引用的知识来源(法规/违规ID等)',
+  tool_call_records   JSON                                  COMMENT '工具调用记录(工具名/参数/结果/状态/耗时)',
+  llm_raw_response    JSON                                  COMMENT 'LLM原始响应(用于推理溯源)',
+  validation_errors   JSON                                  COMMENT '输出校验错误',
+  duration_ms         INT                                   COMMENT '总执行耗时(毫秒)',
+  status              VARCHAR(20)   DEFAULT 'success'       COMMENT 'success/failed',
+  error_message       TEXT                                  COMMENT '失败原因',
+  model               VARCHAR(100)                          COMMENT '使用的模型',
+  created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '执行时间',
+  INDEX idx_trace (trace_id),
+  INDEX idx_task (task_id),
+  INDEX idx_project (project_id),
+  INDEX idx_agent (agent_id),
+  INDEX idx_created (created_at)
+) COMMENT '智能体执行溯源链'""",
+        ),
+        (
+            "audit_step_summaries",
+            f"""CREATE TABLE {DATABASE}.audit_step_summaries (
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  analysis_task_id VARCHAR(64) NOT NULL                COMMENT '关联分析任务',
+  step_no          TINYINT NOT NULL                    COMMENT '步骤号(1-7)',
+  message_id       VARCHAR(30)                         COMMENT 'step-1-summary ... step-7-summary 固定消息ID',
+  content          TEXT                                COMMENT '正式总结文本',
+  structured       JSON                                COMMENT '结构化总结',
+  source_refs      JSON                                COMMENT '来源引用列表',
+  version          INT DEFAULT 1                       COMMENT '版本（返回修改+1覆盖）',
+  created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_task_step (analysis_task_id, step_no)
+) COMMENT '七步正式总结—固定消息ID覆盖'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+    # ④ audit_analysis_tasks 增量列（附录A §2 落库：focus_item_id/analysis_target/analysis_scope）
+    #    current_step/step_data/step 已存在（DB 实测），本 Phase 起启用 current_step 为唯一权威源
+    at = "audit_analysis_tasks"
+    columns = [
+        ("focus_item_id", "INT COMMENT '本次聚焦的审计事项ID（audit_items.id，附录A §2 focus_item_id）' AFTER audit_item_id"),
+        ("analysis_target", "VARCHAR(500) COMMENT '分析对象（附录A §2 target，audited_unit/事项核查对象）' AFTER focus_item_id"),
+        ("analysis_scope", "TEXT COMMENT '分析边界（附录A §2 scope）' AFTER analysis_target"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(at, col):
+            execute(f"ALTER TABLE {DATABASE}.{at} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {at}.{col}")
+        else:
+            print(f"[migrate] = {at}.{col} 已存在，跳过")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -581,6 +688,7 @@ def main():
         migrate_phase4_provenance_tables()
         migrate_phase5_data_tables()
         migrate_engine_rules()
+        migrate_phase8_contract_tables()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
