@@ -70,3 +70,4 @@ class AnalysisState(TypedDict, total=False):
     current_step: Annotated[int, _last]   # 当前步骤 (1-6) — 并行节点用_last合并
     errors: Annotated[list[str], add]     # 累积错误信息
     completed_at: str                     # 完成时间
+    trace_ids: Annotated[list[str], add]  # 各节点 trace_id 累积链（P8-11 溯源串联）

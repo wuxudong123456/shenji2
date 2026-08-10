@@ -90,6 +90,7 @@ class BaseAgent:
         ctx = context or {}
         trace_id = ctx.get("trace_id") or f"trace-{uuid.uuid4().hex[:12]}"
         self._reset_runtime()
+        self._input_snapshot = input_data  # 供 _persist_trace 落 input_summary
 
         timing = {"total_ms": 0}
         t_start = time.perf_counter()
@@ -141,7 +142,7 @@ class BaseAgent:
             validation = self.validate_output(raw)
 
         timing["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-        return {
+        result = {
             "success": validation["valid"],
             "agent": self.defn.agent_id,
             "trace_id": trace_id,
@@ -153,6 +154,8 @@ class BaseAgent:
             "context": ctx,
             "model": self.defn.model,
         }
+        self._persist_trace(result)
+        return result
 
     # ────────────────────────────────────────────────────────────
     #  子类钩子：build_prompt
@@ -340,10 +343,11 @@ class BaseAgent:
         self._tool_logs = []
         self._knowledge_sources = []
         self._last_raw_response = None
+        self._input_snapshot = None
 
     def _failure(self, trace_id, ctx, error, timing, t_start, raw=None) -> dict:
         timing["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-        return {
+        result = {
             "success": False,
             "agent": self.defn.agent_id,
             "trace_id": trace_id,
@@ -355,11 +359,13 @@ class BaseAgent:
             "context": ctx,
             "model": self.defn.model,
         }
+        self._persist_trace(result)
+        return result
 
     def _success_no_llm(self, trace_id, ctx, timing, t_start) -> dict:
         """无需 LLM 的纯检索型 Agent 的成功返回"""
         timing["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-        return {
+        result = {
             "success": True,
             "agent": self.defn.agent_id,
             "trace_id": trace_id,
@@ -370,6 +376,64 @@ class BaseAgent:
             "context": ctx,
             "model": "none",
         }
+        self._persist_trace(result)
+        return result
+
+    # ────────────────────────────────────────────────────────────
+    #  溯源落库（P8-11）：把本次执行写入 audit_agent_traces
+    # ────────────────────────────────────────────────────────────
+
+    def _persist_trace(self, result: dict) -> None:
+        """把本次 Agent 执行写入 audit_agent_traces（best-effort）。
+
+        从 result + self._input_snapshot + ctx 提取全列：
+          trace_id/task_id/project_id/agent_id/agent_name/step/node_name/
+          upstream_trace_ids/input_summary/output_summary/knowledge_sources/
+          tool_call_records/llm_raw_response/validation_errors/duration_ms/
+          status/error_message/model。
+        整体 try/except——落库失败只 log，绝不影响 run() 返回值（溯源不阻塞业务）。
+        task_id/project_id/step/node_name 来自 context（graph 节点装配，见 graph.py）。
+        """
+        try:
+            ctx = result.get("context") or {}
+            timing = result.get("timing") or {}
+            from services.db import insert
+            insert(
+                "INSERT INTO audit_agent_traces "
+                "(trace_id, task_id, project_id, agent_id, agent_name, "
+                " step, node_name, upstream_trace_ids, input_summary, output_summary, "
+                " knowledge_sources, tool_call_records, llm_raw_response, "
+                " validation_errors, duration_ms, status, error_message, model) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    result.get("trace_id"),
+                    ctx.get("task_id"),
+                    ctx.get("project_id"),
+                    self.defn.agent_id,
+                    self.defn.name,
+                    ctx.get("step"),
+                    ctx.get("node_name"),
+                    json.dumps(ctx.get("upstream_trace_ids") or [], ensure_ascii=False),
+                    json.dumps(_safe_serialize(self._input_snapshot, max_str=4000),
+                               ensure_ascii=False),
+                    json.dumps(_safe_serialize(result.get("output"), max_str=4000),
+                               ensure_ascii=False),
+                    json.dumps(result.get("source_knowledge") or [], ensure_ascii=False),
+                    json.dumps(result.get("tool_call_records") or [], ensure_ascii=False),
+                    json.dumps(self._last_raw_response, ensure_ascii=False)
+                        if self._last_raw_response is not None else None,
+                    json.dumps(result.get("validation_errors") or [], ensure_ascii=False)
+                        if result.get("validation_errors") else None,
+                    timing.get("total_ms", 0),
+                    "success" if result.get("success") else "failed",
+                    result.get("error"),
+                    result.get("model"),
+                ),
+                database="tt",
+            )
+        except Exception as e:
+            # 溯源落库失败不阻塞业务流程，仅记录到 stdout（best-effort）
+            print(f"[base._persist_trace] 落库失败(best-effort忽略): {e}")
 
     @property
     def last_raw_response(self) -> Optional[dict]:

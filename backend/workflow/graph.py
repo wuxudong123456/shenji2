@@ -32,19 +32,37 @@ _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 _checkpoint_conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
 
 
+# ── P8-11 溯源上下文装配 ──
+def _trace_ctx(state, step, node_name):
+    """构建 Agent.run 的 context，供 BaseAgent._persist_trace 关联 task/project/step/node。
+
+    upstream_trace_ids 取 state 累积链（各节点成功后 append 自身 trace_id），
+    best-effort：并行节点间竞态下取到的是已落库的子集，不影响溯源可用性。
+    """
+    return {
+        "task_id": state.get("task_id"),
+        "project_id": state.get("project_id"),
+        "step": step,
+        "node_name": node_name,
+        "upstream_trace_ids": state.get("trace_ids", []),
+    }
+
+
 # ── 节点函数 ──
 
 def _node_intent_analyzer(state: AnalysisState) -> dict:
     """Step①: 意图分析（P1.6: 守卫式补全，不空串覆盖 P1.4 注入的 DB 值）"""
     agent = _registry.create_agent("intent_analyzer")
-    result = agent.run({"intent": state.get("user_intent", "")})
+    result = agent.run({"intent": state.get("user_intent", "")},
+                       context=_trace_ctx(state, 1, "step_1_intent"))
 
     if not result["success"]:
-        return {"errors": [f"IntentAnalyzer失败: {result.get('error')}"], "current_step": 1}
+        return {"errors": [f"IntentAnalyzer失败: {result.get('error')}"],
+                "current_step": 1, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     # P1.6 守卫: LLM 抽到非空才写，空串/None 不覆盖 P1.4 注入的 DB 上下文
-    updates = {"intent_result": out, "current_step": 1}
+    updates = {"intent_result": out, "current_step": 1, "trace_ids": [result["trace_id"]]}
     for llm_key, state_key in [("domain", "domain"), ("item", "audit_item"),
                                 ("period", "audit_period"), ("target_level", "target_level"),
                                 ("target_unit", "target_unit"), ("concerns", "concerns")]:
@@ -63,10 +81,11 @@ def _node_violation_matcher(state: AnalysisState) -> dict:
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
         "concerns": state.get("concerns", []),  # P1.6: 贯通 concerns（提升召回质量）
-    })
+    }, context=_trace_ctx(state, 2, "step_2_violations"))
 
     if not result["success"]:
-        return {"errors": [f"ViolationMatcher失败: {result.get('error')}"], "current_step": 2}
+        return {"errors": [f"ViolationMatcher失败: {result.get('error')}"],
+                "current_step": 2, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     raw_matches = out.get("matches", [])
@@ -84,7 +103,7 @@ def _node_violation_matcher(state: AnalysisState) -> dict:
             "regulations": [],
             "key_checkpoints": m.get("key_checkpoints", []),
         })
-    return {"matches": matches, "current_step": 2}
+    return {"matches": matches, "current_step": 2, "trace_ids": [result["trace_id"]]}
 
 
 def _node_data_advisor(state: AnalysisState) -> dict:
@@ -94,15 +113,17 @@ def _node_data_advisor(state: AnalysisState) -> dict:
         "domain": state.get("domain", ""),
         "item": state.get("audit_item", ""),
         "matches": state.get("matches", []),
-    })
+    }, context=_trace_ctx(state, 2, "step_2_data_advice"))
 
     if not result["success"]:
-        return {"errors": [f"DataAdvisor失败: {result.get('error')}"], "current_step": 2}
+        return {"errors": [f"DataAdvisor失败: {result.get('error')}"],
+                "current_step": 2, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     return {
         "recommended_materials": out.get("materials", []),
         "current_step": 2,
+        "trace_ids": [result["trace_id"]],
     }
 
 
@@ -115,10 +136,11 @@ def _node_regulation_advisor(state: AnalysisState) -> dict:
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
         "matches": state.get("matches", []),  # P1.6: 传 matches（关联违规模型，P1.7拓扑修正后生效）
-    })
+    }, context=_trace_ctx(state, 2, "step_2_regulations"))
 
     if not result["success"]:
-        return {"errors": [f"RegulationAdvisor失败: {result.get('error')}"], "current_step": 2}
+        return {"errors": [f"RegulationAdvisor失败: {result.get('error')}"],
+                "current_step": 2, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     raw_laws = out.get("primary_laws", [])
@@ -132,7 +154,8 @@ def _node_regulation_advisor(state: AnalysisState) -> dict:
             "type": l.get("layer_suggestion", "主依据"),
             "rec": True,
         })
-    return {"primary_laws": laws, "layer_advice": out.get("layer_advice", ""), "current_step": 2}
+    return {"primary_laws": laws, "layer_advice": out.get("layer_advice", ""),
+            "current_step": 2, "trace_ids": [result["trace_id"]]}
 
 
 def _node_human_confirm(state: AnalysisState) -> dict:
@@ -165,16 +188,18 @@ def _node_audit_analyzer(state: AnalysisState) -> dict:
         "uploaded_files": state.get("uploaded_files", []),
         "selected_violations": state.get("selected_violations", []),
         "selected_laws": state.get("selected_laws", []),
-    })
+    }, context=_trace_ctx(state, 5, "step_5_analysis"))
 
     if not result["success"]:
-        return {"errors": [f"AuditAnalyzer失败: {result.get('error')}"], "current_step": 5}
+        return {"errors": [f"AuditAnalyzer失败: {result.get('error')}"],
+                "current_step": 5, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     return {
         "analysis_results": out.get("analysis_results", []),
         "overall_assessment": out.get("overall_assessment", ""),
         "current_step": 5,
+        "trace_ids": [result["trace_id"]],
     }
 
 
@@ -187,16 +212,18 @@ def _node_suspicion_generator(state: AnalysisState) -> dict:
         "domain": state.get("domain", ""),
         "audit_item": state.get("audit_item", ""),
         "primary_laws": state.get("primary_laws", []),
-    })
+    }, context=_trace_ctx(state, 6, "step_6_suspicion"))
 
     if not result["success"]:
-        return {"errors": [f"SuspicionGenerator失败: {result.get('error')}"], "current_step": 6}
+        return {"errors": [f"SuspicionGenerator失败: {result.get('error')}"],
+                "current_step": 6, "trace_ids": [result.get("trace_id")]}
 
     out = result["output"]
     return {
         "suspicion_report": out.get("suspicion_report", {}),
         "current_step": 6,
         "completed_at": "",  # 后续由路由层填入时间戳
+        "trace_ids": [result["trace_id"]],
     }
 
 
