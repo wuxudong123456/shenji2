@@ -95,3 +95,44 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | 独立 |
 
 T1 已确认主链通、回归稳，后续 T2-T8 为边角鲁棒性 + 上线准备。
+
+---
+
+## 7. T4 溯源穿透验收（真 LLM）
+
+> 执行：`python tests/test_p9_t4_provenance.py`（PASS=6 / FAIL=4，4 项 FAIL 均为预期暴露的写侧接线缺口）
+
+**验收目标**（§0 铁律）：AI 结论必带 `source_refs`，可穿透到文档 chunk 的页码/坐标/原文；无来源条目禁止入文书。
+
+### 7.1 四层链路实测
+
+| 层 | 内容 | 状态 | 实测值 |
+|----|------|:----:|--------|
+| ① 数据层 | OCR → chunks → field_sources | ✅ | 144 field_sources，43 带 chunk_id，30 chunks 全有正文 |
+| ② evidence API | `build_field_sources_evidence` / `add_ref` / `get_refs` | ✅ | sample row（data_procurements:16）产出 **23 条**证据，含 page_nums/bbox/text/ocr_version 全键 |
+| ③ **Agent 接线** | AuditAnalyzer/SuspicionGenerator 调 evidence_service 落结论级引用 | ❌ **断** | analysis_results **0/3** 带 source_refs；audit_source_refs 结论级（analysis_hit/suspicion/law_rec）=**0**；suspicion source_refs=**0** |
+| ④ 消费侧 | context_builder / documents report 读 source_refs | ✅ 读到空 | report 键有 summary/suspicions/recommendations，**无证据引用** |
+
+### 7.2 缺口定性
+
+- **断点在写侧（Agent），非读侧（evidence_service）**。`evidence_service` 全套接口可用（层②实测 23 条证据），但 `agents/` 目录**零处**调用 `add_ref` / `build_field_sources_evidence`（静态确认：grep `source_refs|add_ref|analysis_hit` 在 `agents/` 无命中）。
+- AuditAnalyzer 的 `_scan_expression` 已拿到命中行（`scan.rows`，每行含 `row_id`+表名），却只 `add_knowledge_source`（Agent 内部知识登记，非 `audit_source_refs`），**不连 field_sources→chunk 证据链**。
+- SuspicionGenerator 产出的 `suspicion_items` 有 `evidence_chain` schema 字段（LLM 自由文本），但行级 `evidence_chain` 列空、`audit_source_refs` 无 `result_type=suspicion` 行。
+- 与 T1 三处缺陷**同病**："契约层（test_p8）证明 evidence_service *能*写、*能*读，但没人在该写的时候写" → 结论级溯源表恒空。
+
+### 7.3 影响
+
+**上线阻塞项（§0 铁律违反）**：审计结论带法律责任，一条不溯源到原文页码的违规发现 = 法律上无效。当前全链产出的 analysis_results / suspicions / documents 均无 chunk 级证据，**不可上线**。
+
+### 7.4 数据层结论（利好）
+
+OCR 写侧（Phase 3/4）对夹具项目产出了**完整可溯源的 chunk 数据**（30 chunks 全有正文 + 43 field_sources 带 chunk_id）——"空壳"问题在该项目不存在。即：**修写侧接线后，溯源链立即贯通**，无需等 OCR 侧改造。
+
+### 7.5 修复方向（下一任务，需独立计划）
+
+接线点候选（需设计决策，不臆造）：
+1. **AuditAnalyzer `_scan_expression`**：命中行即时调 `build_field_sources_evidence(project_id, table, row_id)` + `add_ref(result_type="analysis_hit", …)`，把证据注入 `scan_summary` 并随 analysis_result 返回。
+2. **SuspicionGenerator**：每条 suspicion 关联其底层 analysis_hit 的证据（result_type=suspicion 引用同批 chunk）。
+3. **documents report**：疑点已带证据后，报告引用自然贯通（消费侧层④已就绪）。
+
+关键设计点：`analysis_hit` 的 `result_id` 取什么（违规模型 id？命中行复合键？）决定 `add_ref` 与 `get_refs` 的对接方式——需确认后展开。
