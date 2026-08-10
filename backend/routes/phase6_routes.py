@@ -244,7 +244,14 @@ def register_phase6_routes(app):
             }
             ev_ready = alc.check_readiness(task_id, "evidence_complete")
             result = batch_generate(context)
+            # P8: Step7 完成推进 current_step=7（附录A Step7=文书生成，任务至此 1→7 全程）
+            if result.get("success"):
+                docs = result.get("documents") or {}
+                alc.advance_step(task_id, to_step=7,
+                                 summary_content=f"Step7 文书生成：取证单/底稿/报告/复核意见 四件套",
+                                 summary_structured={"document_types": sorted(docs.keys())})
             result["task_id"] = task_id
+            result["current_step"] = 7
             result["readiness"] = {"evidence_complete": ev_ready}
             return jsonify(result)
 

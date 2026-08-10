@@ -1620,7 +1620,8 @@ def register_audit_routes(app):
         return {
             "success": True,
             "task_id": task_id,
-            "step": current_step,
+            "current_step": current_step,   # P8 Q1: 权威步骤（与 GET 一致）
+            "step": current_step,           # 旧前端兼容别名
             "status": status,
             "intent_result": state.get("intent_result", {}),
             "domain": state.get("domain", ""),
@@ -1824,12 +1825,25 @@ def register_audit_routes(app):
 
         # 持久化 Step1-2 结果到 step_data（current_step 由 graph 算，权威落 MySQL）
         matches_enriched = _enrich_candidates(state.get("matches", []))
-        alc.advance_step(task_id, to_step=state.get("current_step", 2), step_data_patch={
-            "intent_result": state.get("intent_result", {}),
-            "matches": matches_enriched,
-            "primary_laws": state.get("primary_laws", []),
-            "recommended_materials": state.get("recommended_materials", []),
-        })
+        to_step = state.get("current_step", 2)
+        alc.advance_step(task_id, to_step=to_step,
+                         step_data_patch={
+                             "intent_result": state.get("intent_result", {}),
+                             "matches": matches_enriched,
+                             "primary_laws": state.get("primary_laws", []),
+                             "recommended_materials": state.get("recommended_materials", []),
+                         },
+                         # P8 §8: 本步正式总结（固定 message_id=step-{N}-summary）
+                         summary_content=(
+                             state.get("intent_result", {}).get("summary")
+                             or f"Step1-2 完成：意图分析 + 违规模型匹配 {len(matches_enriched)} 条、"
+                                f"法规候选 {len(state.get('primary_laws', []))} 条"
+                         ),
+                         summary_structured={
+                             "matches": len(matches_enriched),
+                             "primary_laws": len(state.get("primary_laws", [])),
+                             "recommended_materials": len(state.get("recommended_materials", [])),
+                         })
 
         # P8-1: entry 门禁（附录A §9）— 当前前端仍自推进（C6 前），门禁结果随响应返回，
         # 不硬阻断 create；项目缺失才 400。C6 前端化后由前端调 /readiness 显式门禁。
