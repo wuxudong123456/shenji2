@@ -224,7 +224,11 @@ def register_phase6_routes(app):
             sd = ctx_obj.get("confirmed_results", {}) or {}
             project_id = ctx_obj["task"].get("project_id", "")
             # 已确认疑点 + 证据链（P8-8: 报告读 CONFIRMED 疑点，无来源禁入文书）
-            suspicions = evidence_service.get_confirmed_suspicion_evidence(project_id, task_id)
+            # analysis_id 列为 INT（audit_analysis_tasks.id），需由 task_code 反查；缺省按 project 取全量
+            aid_row = query_one("SELECT id FROM audit_analysis_tasks WHERE task_code = %s",
+                                (task_id,), database="tt")
+            analysis_id_num = (aid_row or {}).get("id")
+            suspicions = evidence_service.get_confirmed_suspicion_evidence(project_id, analysis_id_num)
             analysis_results = sd.get("analysis_results", [])
             context = {
                 "project_title": pc.get("name", ""),

@@ -150,9 +150,10 @@ def get_confirmed_suspicion_evidence(project_id: str, analysis_id=None) -> list:
     """取已确认疑点（verify_status=CONFIRMED）的证据链（P8-8 文书前置 evidence_complete）。
 
     Returns:
-        [{id, violation_id, suspicion_items, evidence_chain, source_refs}]
+        [{id, violation_id, suspicion_items, evidence_chain, verify_status, status, source_refs}]
+        verify_status/status 透传，供下游 _build_report_template 复核 CONFIRMED（不二次查库）。
     """
-    sql = ("SELECT id, violation_id, suspicion_items, evidence_chain, verify_status "
+    sql = ("SELECT id, violation_id, suspicion_items, evidence_chain, verify_status, status "
            "FROM project_suspicions WHERE project_id = %s AND verify_status = 'CONFIRMED'")
     params = [project_id]
     if analysis_id:
@@ -163,6 +164,8 @@ def get_confirmed_suspicion_evidence(project_id: str, analysis_id=None) -> list:
         "violation_id": r.get("violation_id"),
         "suspicion_items": _loads_json(r.get("suspicion_items")),
         "evidence_chain": _loads_json(r.get("evidence_chain")),
+        "verify_status": r.get("verify_status"),
+        "status": r.get("status"),
         "source_refs": get_refs("suspicion", r["id"]),
     } for r in rows]
 
