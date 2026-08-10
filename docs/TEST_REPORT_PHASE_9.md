@@ -17,6 +17,7 @@
 | **T8 并发编辑事项（乐观锁，含 Gap A+B 修复）** | ✅ **PASS=15 / FAIL=0**（本报告 §9）|
 | **T4 跨项目隔离（数据/文件面 ✅；analysis 面=网关鉴权）** | ✅ **PASS=8 / FAIL=0**（本报告 §10）|
 | **T5 金额边界（万/元归一 + 阈值无万倍误判）** | ✅ **PASS=16 / FAIL=0**（本报告 §11）|
+| **T6 LLM 停机降级（不白屏/不 500）** | ✅ **PASS=10 / FAIL=0**（本报告 §12）|
 | 回归 test_p8_seven_step.py（契约层） | ✅ PASS=47 / FAIL=0 |
 | 回归 test_p5_data.py（Phase1-6） | ✅ PASS=23 / FAIL=0 |
 | 回归 test_p7_rules.py（Phase7） | ✅ PASS=18 / FAIL=0 |
@@ -101,13 +102,13 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **T3** | 恢复分析：刷新/重开后 GET 权威恢复 current_step+已确认数据 | ✅ §8 | T1 |
 | **T4** | 跨项目隔离（项目 A 访问项目 B 数据 → 403） | ✅ §10（数据/文件面；analysis 面=网关鉴权） | T1 |
 | **T5** | 金额边界（万/元混入，阈值比对不差万倍） | ✅ §11 | T1 |
-| **T6** | LLM 停机（规则步骤仍出结果，LLM 步骤降级提示） | ⬜ 待做 | T1 |
+| **T6** | LLM 停机（规则步骤仍出结果，LLM 步骤降级提示） | ✅ §12 | T1 |
 | **T7** | 大数据表扫描（10 万+ 行，游标分页+超时保护） | ⬜ 待做 | T1 |
 | **T8** | 并发编辑事项（乐观锁，后提交者冲突提示） | ✅ §9 | T1 |
 | **U1-U4** | 上线（构建打包 / 部署文档 / 健康检查 / 回滚预案） | ⬜ 待做 | T1-T8 |
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | ⬜ 独立 | — |
 
-T1/§0/T2/T3/T4/T5/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判。余 T6-T7 为鲁棒性/规模，analysis 面 403 属网关鉴权（上线依赖），U1-U4 为上线准备。
+T1/§0/T2/T3/T4/T5/T6/T8 已绿，主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判+LLM 停机降级不白屏。余 T7 为规模（大数据扫描），analysis 面 403 属网关鉴权（上线依赖），U1-U4 为上线准备。
 
 ---
 
@@ -422,3 +423,46 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 - **无代码缺陷**：归一机制（`_cast_value`）+ 元字面量阈值 + advisory 告警三件套已处理 spec 主场景，本轮为验证（PASS=16/0），未改任何业务代码（仅新增测试）。
 - **隐式单位 gap 记录**：裸数无单位后缀不归一是固有限制（field_mapper 不见列头上下文），advisory 告警缓解；与 P8-12 表达式/数据质量评测同性质（数据准入质量），独立排期。
 - **测试自管理**：抛错项目 `T5AMT_TEST`（植 5 行 data_contracts）全程自建自清，可重复运行。
+
+---
+
+## §12 T6 LLM 停机降级（本轮完成，验证+记录）
+
+验证附录A §3.5 / §6.6：LLM 停机时（`/api/llm/health` 不可用），降级路径提示「非 AI 推理」（规则结果仍可用），不白屏/不抛 500。§7 明示「降级路径分散在各 Phase | T6 需逐一验证各降级点不白屏」——本节逐一验证。
+
+### 12.1 降级架构核查（faithful-mode）：各 LLM 依赖点均有降级
+
+| 降级点 | 机制 | 状态 |
+|--------|------|:----:|
+| **LLM 客户端** | `call_llm_json`（[llm_client.py:79-101](backend/services/llm_client.py#L79)）：连接拒绝/超时/非 200/JSON 解析失败统一兜底 → 返回 `{"error":...}` dict，不 raise | ✅ |
+| **Agent 层** | [base.py:133-136](backend/agents/base.py#L133) `if "error" in raw: return self._failure(...)`；`_failure`（[:348-363](backend/agents/base.py#L348)）返回结构化 `{success:False, error:"LLM 返回错误..."}`，不抛异常（=HTTP 不 500）；`_persist_trace` best-effort（:394 整体 try/except） | ✅ |
+| **Step5 规则扫描** | `audit_analyzer._scan_expression` 走 `invoke_tool("expression-mcp.execute_expression")`，grep 确认 [audit_analyzer.py](backend/agents/audit_analyzer.py) **零 `call_llm` import**；`execute_expression` 纯 DB+Python，无 LLM | ✅ LLM 无关 |
+| **Step7 文书** | [document_export_service._fallback_report](backend/services/document_export_service.py#L204) 两级回退：有 `analysis_summary`→用摘要；无→占位「（AI 推理暂不可用，已回退到分析摘要）」；`_safe_batch_generate`（:224）整体 try/except + 逐项降级，"导出永不因 LLM 整批失败" | ✅ |
+
+**结论**：各 LLM 依赖点降级路径已存在且有效，**无需代码修复**。本轮为逐点验证（类 T4/T5）。
+
+### 12.2 实测（`test_p9_t6_llm_down.py`，**PASS=10 / FAIL=0**）
+
+**LLM 停机模拟**：测试进程内 `os.environ["LLM_API_BASE"]=http://127.0.0.1:1/v1`（端口 1 无监听 = 连接拒绝 = LLM 停机），直接调 `call_llm_json` / `Agent.run`（同进程 env 即时生效，finally 恢复，不污染后端进程）。
+
+| 降级点 | 断言 | 结果 |
+|--------|------|:----:|
+| ① LLM 客户端 | 死端点不抛异常（降级非崩溃） | ✅ |
+| | 返回 `{"error":...}` dict（结构化，非白屏） | ✅ |
+| ④ Agent | `Agent.run()` 死端点不抛异常（=HTTP 不 500） | ✅ |
+| | 返回结构化 `success=False`（非崩溃） | ✅ |
+| | failure 含「LLM」错误提示 | ✅ |
+| ② Step5 规则 | `execute_expression` success（纯规则，不依赖 LLM） | ✅ |
+| | 规则命中疑点行（询价 300万 ≥200万，hits=1） | ✅ |
+| ③ Step7 文书 | ③a 有 `analysis_summary` → summary 用摘要（优雅降级，不丢可得数据） | ✅ |
+| | ③a 降级 report 仍带 suspicions + recommendations | ✅ |
+| | ③b 无 `analysis_summary` → 占位「AI 推理暂不可用」（§3.5 非 AI 推理提示） | ✅ |
+
+> **④ 用桩 Agent**（`_StubAgent(AgentDefinition(agent_id="t6_stub"))`，`build_prompt` 返回非空串强制走 LLM 路径）隔离 Agent 的 DB/工具依赖，精准验证 `run()→call_llm_json→_failure` 链。LLM 死端点 → `call_llm_json` 返 error → base.py:133 `_failure` → 结构化 `success=False`，全程不抛。桩 trace（task_id=`T6LLMDOWN_STUB`）结束清理。
+
+### 12.3 小结
+
+- **T6 达成**：附录A §3.5/§6.6「LLM 停机降级不白屏/不 500，规则结果可用，LLM 步骤提示非 AI 推理」**实证达成**——4 个降级点（客户端/Agent/Step5 规则/Step7 文书）逐一验证：LLM 不可用时 `call_llm_json` 返 error dict、Agent 返结构化 failure（不 500）、规则扫描仍命中、文书两级回退占位。
+- **无代码缺陷**：降级路径分散在各 Phase 但均已实现（call_llm_json 兜底 + Agent _failure + Step5 LLM 无关 + _fallback_report），本轮为验证（PASS=10/0），未改业务代码（仅新增测试）。
+- **方法说明**：LLM 停机用进程内死端点 env 模拟（不影响旁路后端进程），桩 Agent 隔离依赖精准测降级链；未真杀 LLM 服务（避免影响同会话其他测试），降级契约在函数/Agent 层验证即覆盖 spec 意图。
+- **测试自管理**：抛错项目 `T6LLMDOWN_TEST`（植 2 行 data_contracts）+ 桩 trace 全程自建自清，env finally 恢复，可重复运行。
