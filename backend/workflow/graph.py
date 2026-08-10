@@ -1,13 +1,13 @@
 """Phase 4.3 — LangGraph 审计分析工作流图
 
-工作流结构:
+工作流结构（P8 Q2: Step6 疑点移出 graph，走独立端点）:
   Step① IntentAnalyzer (串行)
     → Step② {ViolationMatcher ∥ DataAdvisor ∥ RegulationAdvisor} (并行)
     → Step③ 人工确认断点 (interrupt)
     → Step④ 文件上传+OCR处理
     → Step⑤ AuditAnalyzer (串行)
-    → Step⑥ SuspicionGenerator (串行)
     → END
+  Step⑥ SuspicionGenerator 由 POST /suspicion/generate 独立调用（命中≠成立须人工确认）
 
 用法:
     from workflow import build_analysis_graph
@@ -254,7 +254,9 @@ def build_analysis_graph():
     workflow.add_node("step_3_confirm", _node_human_confirm)
     workflow.add_node("step_4_upload", _node_document_processing)
     workflow.add_node("step_5_analysis", _node_audit_analyzer)
-    workflow.add_node("step_6_suspicion", _node_suspicion_generator)
+    # P8 Q2: step_6_suspicion 节点移出 graph（附录A §10 Step6→独立端点；
+    # 命中≠成立须人工确认，graph 不应自动跑疑点）。_node_suspicion_generator 函数保留，
+    # 由 POST /suspicion/generate 独立调用（C4）。
 
     # 定义边（流程）
     workflow.set_entry_point("step_1_intent")
@@ -275,10 +277,9 @@ def build_analysis_graph():
         "END": END,
     })
 
-    # Step④ → Step⑤ → Step⑥ → END
+    # Step④ → Step⑤ → END（P8 Q2: Step6 疑点走独立端点，不入 graph）
     workflow.add_edge("step_4_upload", "step_5_analysis")
-    workflow.add_edge("step_5_analysis", "step_6_suspicion")
-    workflow.add_edge("step_6_suspicion", END)
+    workflow.add_edge("step_5_analysis", END)
 
     # 编译: 两个人工断点
     #   ① step_3_confirm 前 — 等待用户确认违规模型+法规依据
