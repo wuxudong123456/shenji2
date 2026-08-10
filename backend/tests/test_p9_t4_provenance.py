@@ -11,6 +11,11 @@ r"""Phase9 T4 溯源穿透验收：AI 结论是否真的带可解析 source_refs
 预期（依代码静态分析）：agents/ 无任何 add_ref 调用 → ③④链断（写侧不接线）。
 本测试实证确认并量化缺口。结束清理任务级数据。
 
+注：早先误判"Step2 匹配落收费域"，经 p9_expr_probe 逐行诊断已更正——匹配域正确(全采购域)，
+根因是夹具 data_procurements 列稀疏(budget_amount/supplier/procurement_method 全 NULL)：
+比较型表达式对 NULL→0命中(正确行为)；IS NULL 型→满命中退化假阳性。接线正确性由
+test_p9_t4_wiring.py(直接驱动,10/10)决定性证明。
+
 用法：cd backend && python tests\test_p9_t4_provenance.py
 """
 import json
@@ -93,6 +98,38 @@ def main():
           fs_with_chunk > 0 and chk_with_text > 0,
           f"fs_chunk={fs_with_chunk} chk_text={chk_with_text}")
 
+    # ═══ ①b 确保可扫描违规存在（测试前置，幂等，cleanup 还原）═══
+    # §0 链触发前提：扫描命中带 field_sources→chunk 的行。夹具 data_procurements
+    # 若无 contract>budget 的行（列稀疏/合规），9704 等表达式不触发→source_refs 空。
+    # 此处幂等确保：选一行 chunk-linked 行植 contract>budget（真违规），cleanup 还原。
+    # 使本测试不依赖一次性 DB UPDATE，可在任意夹具状态下复现。
+    print("── ①b 确保可扫描违规存在（植 contract>budget，cleanup 还原）──")
+    planted = None
+    has_violation = query_one(
+        "SELECT id FROM data_procurements WHERE project_id=%s "
+        "AND contract_amount IS NOT NULL AND budget_amount IS NOT NULL "
+        "AND contract_amount > budget_amount LIMIT 1", (pid,), database="tt")
+    if has_violation:
+        info("已存在可扫描违规行", has_violation["id"])
+    else:
+        target = query_one(
+            "SELECT dp.id, dp.contract_amount, dp.subject_name, dp.budget_amount "
+            "FROM data_procurements dp "
+            "WHERE dp.project_id=%s AND dp.contract_amount IS NOT NULL "
+            "AND EXISTS (SELECT 1 FROM audit_field_sources fs WHERE fs.project_id=%s "
+            "AND fs.table_name='data_procurements' AND fs.row_id=dp.id AND fs.chunk_id IS NOT NULL) "
+            "ORDER BY dp.id LIMIT 1", (pid, pid), database="tt")
+        if target:
+            planted = dict(target)  # 记录原值用于还原
+            new_budget = round(float(target["contract_amount"]) * 0.85, 2)  # contract>budget 真违规
+            execute("UPDATE data_procurements SET budget_amount=%s, "
+                    "subject_name=COALESCE(subject_name, %s) WHERE id=%s",
+                    (new_budget, "审计测试采购项目（自动化植入违规）", target["id"]), database="tt")
+            info("植入可扫描违规行",
+                 f"row={target['id']} contract={target['contract_amount']} budget={new_budget}")
+        else:
+            info("无 chunk-linked 行可植违规", "source_refs 不触发（见 test_p9_t4_wiring.py 单元证明）")
+
     # ═══ 跑全链到 Step5 ═══
     print("\n── ② 跑全链 POST /analysis（真 LLM）──")
     st, r = req("POST", "/analysis", {"project_id": pid, "focus_item_id": item["id"],
@@ -114,9 +151,10 @@ def main():
     info("analysis_results 数", len(ares))
 
     # ═══ ③ analysis_results 各 hit 是否带 source_refs/evidence ═══
-    # 接线触发前提：扫描命中带 field_sources 的物理表。Step2 若匹配到收费域违规
-    # （表达式扫收费表，非 data_procurements），则 scan 不命中→source_refs 不触发。
-    # 此种情形非接线缺陷；接线正确性由 test_p9_t4_wiring.py（直接驱动，10/10）证明。
+    # 接线触发前提：扫描命中带 field_sources 的物理表。夹具 data_procurements 列稀疏
+    # （budget_amount/supplier/procurement_method 全 NULL），比较型表达式对 NULL→0 命中
+    # （正确行为，非解析缺陷）→ source_refs 不触发。此种情形非接线缺陷；
+    # 接线正确性由 test_p9_t4_wiring.py（直接驱动，10/10）证明。
     print("\n── ③ analysis_results 的 source_refs ──")
     _cr = query_one("SELECT COUNT(*) AS n FROM audit_source_refs WHERE result_type='analysis_hit'",
                     database="tt") or {}
@@ -132,8 +170,8 @@ def main():
         check("接线注入点存在（source_refs 字段）", len(has_key) == len(ares), f"{len(has_key)}/{len(ares)}")
         check("§0：扫描命中 field_sourced 表→source_refs 必非空",
               (not scan_hit_sourced) or len(has_sr) > 0,
-              "本轮扫描未命中 field_sourced 表（Step2 匹配落收费域），接线未触发——"
-              "见 test_p9_t4_wiring.py 单元证明(10/10)")
+              "本轮扫描未命中（夹具 data_procurements 列稀疏→比较表达式对 NULL 不触发），"
+              "接线未触发——见 test_p9_t4_wiring.py 单元证明(10/10)")
     else:
         check("analysis_results 非空", False, "无 analysis_results，无法判定 source_refs")
 
@@ -145,7 +183,7 @@ def main():
     info("source_refs by result_type（全项目历史）", {r["result_type"]: r["n"] for r in by_type})
     concl = sum(r["n"] for r in by_type if r["result_type"] in
                 ("analysis_hit", "suspicion", "law_recommendation"))
-    # 条件断言：扫描命中 field_sourced 表时才有结论级引用（本轮 Step2 匹配落收费域→0，预期）
+    # 条件断言：扫描命中 field_sourced 表时才有结论级引用（夹具列稀疏→本轮 0，预期）
     check("§0：扫描命中时落结论级 source_refs",
           concl > 0 or concl_refs_now == 0,
           f"结论级={concl}（本轮 scan 未命中 field_sourced 表，0 为预期）")
@@ -209,6 +247,18 @@ def main():
     execute("DELETE FROM audit_agent_traces WHERE task_id=%s", (tid,), database="tt")
     execute("DELETE FROM audit_step_summaries WHERE analysis_task_id=%s", (tid,), database="tt")
     execute("DELETE FROM audit_analysis_tasks WHERE task_code=%s", (tid,), database="tt")
+    # 清理本任务结论级 source_refs（避免跨运行累积；analysis_hit result_id={tid}:{vid}）
+    if tid:
+        execute("DELETE FROM audit_source_refs WHERE project_id=%s AND result_type='analysis_hit' "
+                "AND result_id LIKE %s", (pid, f"{tid}:%"), database="tt")
+    if sid:
+        execute("DELETE FROM audit_source_refs WHERE project_id=%s AND result_type='suspicion' "
+                "AND result_id=%s", (pid, sid), database="tt")
+    # 还原 ①b 植造的违规行（恢复原 budget_amount/subject_name）
+    if planted:
+        execute("UPDATE data_procurements SET budget_amount=%s, subject_name=%s WHERE id=%s",
+                (planted["budget_amount"], planted["subject_name"], planted["id"]), database="tt")
+        info("还原植造违规行", planted["id"])
 
     print(f"\n{'='*50}\nPhase9 T4 溯源穿透：PASS={PASS}  FAIL={FAIL}\n{'='*50}")
     sys.exit(1 if FAIL else 0)

@@ -110,7 +110,7 @@ T1 已确认主链通、回归稳，后续 T2-T8 为边角鲁棒性 + 上线准�
 |----|------|:----:|--------|
 | ① 数据层 | OCR → chunks → field_sources | ✅ | 144 field_sources，43 带 chunk_id，30 chunks 全有正文 |
 | ② evidence API | `build_field_sources_evidence` / `add_ref` / `get_refs` | ✅ | sample row（data_procurements:16）产出 **23 条**证据，含 page_nums/bbox/text/ocr_version 全键 |
-| ③ **Agent 接线** | AuditAnalyzer/SuspicionGenerator 调 evidence_service 落结论级引用 | ❌ **断** | analysis_results **0/3** 带 source_refs；audit_source_refs 结论级（analysis_hit/suspicion/law_rec）=**0**；suspicion source_refs=**0** |
+| ③ **Agent 接线** | AuditAnalyzer/SuspicionGenerator 调 evidence_service 落结论级引用 | ✅ **通**（初测为❌断，§7.5/§7.8 修复后转通） | analysis_results **3/3** 带 source_refs；audit_source_refs analysis_hit=**2**；suspicion source_refs=**2**（§7.8 E2E 实测） |
 | ④ 消费侧 | context_builder / documents report 读 source_refs | ✅ 读到空 | report 键有 summary/suspicions/recommendations，**无证据引用** |
 
 ### 7.2 缺口定性
@@ -148,14 +148,58 @@ OCR 写侧（Phase 3/4）对夹具项目产出了**完整可溯源的 chunk 数�
 | 测试 | 结果 | 说明 |
 |------|:----:|------|
 | `test_p9_t4_wiring.py`（单元，**决定性**） | ✅ 10/10 | 直接驱动 `_scan_expression` 命中 data_procurements：8 条 analysis_hit 落库 + 全可解析到页码/原文 + validate_output 注入 source_refs(含 chunk_id) + link_suspicion 继承 8 条 |
-| `test_p9_t4_provenance.py`（E2E） | ✅ 10/10 | 条件断言（扫描命中 field_sourced 表→source_refs 必非空）；本轮 Step2 匹配落收费域未命中，接线未触发——非缺陷 |
+| `test_p9_t4_provenance.py`（E2E） | ✅ 10/10 | **source_refs 3/3 非空 + analysis_hit=2 + suspicion source_refs=2**（§7.8 闭环后，真 LLM 全链贯通） |
 | `test_e2e_flow.py`（T1 全链） | ✅ 26/26 | Analyzer 改动未破坏七步链 |
-| 回归 p8 / p7 / p5 | ✅ 47 / 18 / 23 | expression_engine 白名单 + Analyzer 接线未破坏既有 |
+| 回归 p8 / p7 / p5 | ✅ 47 / 18 / 23 | expression_engine 修复 + Analyzer 接线 + 夹具丰富未破坏既有 |
 
-### 7.7 残留上游缺口（非本轮范围）
+### 7.7 上游缺口精确定位（本轮已闭环，闭环见 §7.8）
 
-E2E 全链的 source_refs 仍为空，根因在**上游两层**（非溯源接线）：
-1. **Step2 匹配域偏**：IntentAnalyzer+violation_matcher 为「办公电脑采购」项目匹配到**收费域**违规（`收费项目明细台账`/`非税收入缴库明细表`），其表达式扫收费表（不存在）→ 0 命中。属匹配质量问题 → **P8-12 质量评测**范畴。
-2. **违规表达式用中文业务表名**（`信息化设备采购清单`/`施工合同`），不映射物理 `data_*` 表 → 即使匹配到采购违规，行级扫描也难命中。属表达式↔表映射 → **Phase 7 表达式引擎增强**范畴。
+> 初测 E2E source_refs 为空，经逐行诊断（`p9_expr_probe`）定位到**两层**根因——均**非溯源接线**。§7.8 已分别修复并转绿。
 
-**结论**：§0 溯源接线已修复并经单元测试决定性证明（命中即贯通）。全链 source_refs 转绿需上游（匹配域 + 表达式表映射）改善，已定性归因、独立排期，不阻塞本轮。
+E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线、非匹配域、非字段别名**：
+
+**① 匹配域正确（已更正早先误判）**：Step2(violation_matcher) 为「办公电脑采购」项目匹配到的 5 条违规**全部是采购域**——政府采购程序(10031)、采购合同超预算(9704)、未纳入采购预算(9706)、未公告中标结果(9782)、采购结果公告缺信息(9783)。`_detect_target_table` 对全部 5 条正确返回 `data_procurements`。（早先据 `LIMIT 3` 探针误判为"收费域匹配"，已更正。）
+
+**② 字段别名已映射（已更正早先误判）**：`field_mapper.FIELD_ALIAS_MAP["data_procurements"]` 含 `合同金额→contract_amount`/`预算金额→budget_amount`/`中标供应商→supplier` 等，`_get_row_value` 模糊匹配生效。违规表达式里的中文业务字段名能正确解析到物理列。（早先误判为"中文表名不映射物理表"，已更正。）
+
+**③ 真实根因 = 夹具数据稀疏**：`data_procurements` 仅 3 行，`budget_amount`/`supplier`/`procurement_method` **全为 NULL**，只有 `contract_amount`(~1.3M) 有值：
+- 比较型表达式（9704 `合同金额>预算金额`）对 NULL 列求值 → 引擎按语义（`row_value is None → return False`）返回 0 命中。**这是正确行为**，不是解析缺陷——数据缺预算列，无法比较。
+- IS NULL 型表达式（9783 `...IS NULL`）对 NULL/不存在的列（`评分明细`无别名→NULL）→ 恒真 → 满 3/3 命中 → **退化假阳性**（命中理由是"数据缺失"非"违规成立"）。
+
+| 缺口 | 归属 | 处置 |
+|------|------|------|
+| 夹具 `data_procurements` 列全 NULL（budget_amount/supplier/procurement_method）→ 真违规表达式不触发 | **测试夹具数据质量** | ✅ §7.8 已丰富（填实列值 + 植入 row21 contract>budget 真违规） |
+| **表达式引擎 field=field 不生效**（EQ/GT 的 RHS 裸字被当字面量，`合同项目名称=预算项目名称` 恒 False）→ 即便丰富数据 9704 仍 0 命中 | **表达式引擎缺陷** | ✅ §7.8 已小修（裸字字段引用解析，~5 行） |
+| 退化表达式假阳性（`评分明细 IS NULL` 对不存在列恒真） | **P8-12 表达式质量评测** | 独立排期（表达式应对"列不存在"与"列值为空"区分，避免空命中） |
+
+### 7.8 上游缺口闭环（本轮完成）—— E2E source_refs 蜕绿
+
+§7.7 两层根因分别修复后，E2E provenance 测试**真 LLM 全链 source_refs 首次蜕绿**。
+
+**修复 ①：表达式引擎 field=field 裸字字段引用（`expression_engine._eval_ast`，~5 行）**
+
+| 现象 | 根因 | 修复 |
+|------|------|------|
+| `合同金额 > 预算金额` → False；`合同项目名称 = 预算项目名称` → False；只有 `合同金额 > 预算金额 * 1.0`（算术包裹）才 True | 比较节点的 RHS 裸字被解析器当**字面量字符串**（`float("预算金额")` 失败 / 与字面串 "预算项目名称" 比较）→ field=field / field>field 不生效 | `_eval_ast` 比较分支：target 为非数字字符串且 `_get_row_value(row, target)` 解析到本行列时，视为字段引用。带引号字面量（`'公开招标'`）与不匹配任何列的裸字仍按字面量——安全。审计核心能力（合同 vs 预算）就此可用 |
+
+**修复 ②：丰富夹具 `data_procurements`（21/22/23）—— 植 1 行真违规**
+
+原 3 行 `budget_amount`/`supplier`/`procurement_method` 全 NULL（不真实）。丰富为：
+- row21：budget=1,200,000，contract=1,389,600 → **★超预算（违规，9704 命中此行）**，supplier=济南恒通，方式=公开招标
+- row22：budget=1,500,000，contract=1,462,800 → 合规
+- row23：budget=1,400,000，contract=1,336,400 → 合规
+
+9704 扫描实测：hits=1/3，命中行=[21]（且仅违规行），`build_field_sources_evidence(21)`→22 条 chunk 证据、7 条可解析到页码。
+
+**E2E 蜕绿实测（`test_p9_t4_provenance.py`，真 LLM）**：
+
+| 断言 | 修复前 | 修复后 |
+|------|:----:|:----:|
+| analysis_results 带 source_refs | 0/3 | **3/3** |
+| audit_source_refs `analysis_hit` | 0 | **2** |
+| suspicion source_refs（继承） | 0 | **2** |
+| 测试结论 | PASS=10（条件断言，接线未触发） | **PASS=10（全链贯通，source_refs 实证非空）** |
+
+**回归**（修复 ①② 不破坏既有）：T1 全链 26/26、p8 契约 47/47、p7 引擎 18/18、p5 数据 23/23。
+
+**结论**：§0 铁律「AI 结论必带可穿透 source_refs」**全链端到端实证达成**——从扫描命中 → `add_ref` 落 `audit_source_refs` → `validate_output` 注入 → 疑点继承 → 可解析到 chunk 页码/原文。早先"匹配收费域/中文表名不映射"两处误判已更正；真实根因（夹具稀疏 + field=field 引擎缺陷）已闭环。残留仅退化表达式假阳性（P8-12 独立排期）。
