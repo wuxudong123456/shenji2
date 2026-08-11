@@ -25,6 +25,7 @@
 | **U4 上线检查单 + 回滚预案** | ✅ §15 |
 | **U2 溯源抽样验收（20 条结论 0 断链）** | ✅ **PASS=12 / FAIL=0**（本报告 §16）|
 | **U1 灰度开关（实模式/演示模式）** | ✅ **PASS=23 / FAIL=0**（本报告 §17）|
+| **U3 性能并发压测（5万行 并发扫描 + 七步并发不超时）** | ✅ **PASS=18 / FAIL=0**（本报告 §18；暴露并修复 focus_item 空值 500 缺陷）|
 | 后端 health | ✅ 200 |
 
 **七步智能分析引擎首次以真 LLM 全程跑通**：立项→意图分析→违规模型匹配→法规确认→资料就绪→数据比对→疑点生成→人工核实→文书生成，`current_step` 1→7 全程后端权威推进，各阶段（step_data / summaries / suspicions / traces / 文书）落库完整。
@@ -112,10 +113,10 @@ python tests/test_p7_rules.py                     # 回归：Phase7
 | **U4** | 上线检查单 + 回滚预案 | ✅ §15 | T1-T8 |
 | **U2** | 溯源抽样验收 | ✅ §16 | U4 |
 | **U1** | 灰度开关（实模式/演示模式，集中门禁替分散 .catch） | ✅ §17 | U2 |
-| **U3** | 压测（工具选型 locust） | ⬜ 待做 | U2/U4 |
+| **U3** | 压测（locust 或同等——自写并发脚本） | ✅ §18 | U2/U4 |
 | P8-12 | 质量评测（黄金集 + 准确率/漏报/误报，需标注集） | ⬜ 独立 | — |
 
-**T1-T8 + §0 溯源全绿**（8 验收场景全通过）：主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判+LLM 停机降级不白屏+大数据扫描限时分页不超时。analysis 面 403 属网关鉴权（上线依赖）。**U4 检查单+回滚预案**（§15）+ **U2 溯源抽样**（§16，20 条结论 0 断链）+ **U1 灰度开关**（§17，实模式/演示模式集中门禁，顺带修 settings.html 静默失效预存缺陷）已完成。余 **U3 压测**（locust 选型）+ **P8-12 质量评测**（需标注集，独立排期）。
+**T1-T8 + §0 溯源全绿**（8 验收场景全通过）：主链通+能溯源+门禁拦+可恢复+并发不互覆+数据/文件跨项目隔离+金额阈值无万倍误判+LLM 停机降级不白屏+大数据扫描限时分页不超时。analysis 面 403 属网关鉴权（上线依赖）。**U4 检查单+回滚预案**（§15）+ **U2 溯源抽样**（§16，20 条结论 0 断链）+ **U1 灰度开关**（§17）+ **U3 压测**（§18，5 万行并发扫描 + 七步并发 0 超时，顺带修 POST /analysis 无 focus_item 500 缺陷）已完成。余 **P8-12 质量评测**（需标注集，独立排期）。
 
 ---
 
@@ -567,9 +568,9 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 - **代码回滚无 tag**：项目无 git tag，方案给出「定位 Phase 首个 commit → reset 到其父」的方法 + 实测锚点表；强制发布前 `git tag pre-release-<date>`。
 - **灰度切回（U1 未建过渡法）**：前端无 feature flag，当前靠「前端 git 回滚到 Phase7 末 + 后端旧路由未删（仅新增契约端点）+ DB 不回滚（新表向后兼容）」手动切回；待 U1 加 flag 后补运行时灰度。
 
-**未闭环（上线阻塞）**：①U1 灰度开关待建；②U3 压测待做；③网关鉴权（analysis/documents/suspicion 面 403）。U2 溯源抽样已完成（§16）。RELEASE_CHECKLIST §6 已列为上线前必闭环项。
+**未闭环（上线阻塞）**：网关鉴权（analysis/documents/suspicion 面 403，OpenSquilla 网关职责）。U1 灰度开关（§17）、U2 溯源抽样（§16）、U3 压测（§18）均已完成。RELEASE_CHECKLIST §6 已列为上线前必闭环项。
 
-**下一步**：U1 灰度开关已按「实模式/演示模式」设计落地（§17）；剩 U3 压测（工具选型）+ P8-12 质量评测（需标注集）。
+**下一步**：U3 压测已达标（§18）；剩网关鉴权（上线依赖）+ P8-12 质量评测（需标注集）。
 
 ---
 
@@ -596,7 +597,7 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 
 **结论**：§0 铁律「AI 结论必带可穿透 source_refs」**在抽样规模（20 条结论，含 analysis_hit + suspicion 两类）实证达成**——逐条 source_id→document_chunk 回溯，**0 条断链**，全部可解析到 chunk 原文片段（quote）。可回溯性走「原文」口径（夹具 chunk 无 page_nums，属源端数据特征非机制缺陷；page_number 通道已接，有页码的 chunk 同样可回溯）。补植行复用真实 chunk 作证据锚（原文链真实可解析），cleanup 定向清零无残留。
 
-**下一步**：U1 灰度开关已按「实模式/演示模式」设计落地（§17）；剩 U3 压测（工具选型）+ P8-12 质量评测（需标注集）。
+**下一步**：U3 压测已达标（§18）；剩网关鉴权（上线依赖）+ P8-12 质量评测（需标注集）。
 
 ---
 
@@ -625,4 +626,64 @@ E2E 全链的 source_refs 初测为空，根因精确定位，**非溯源接线�
 
 **回归**：后端零改动——`test_p9_u2_provenance_sampling.py` 重跑 **PASS=12/0** 仍绿；settings.html 内联脚本 `node --check` 通过；前端 8079 HTTP 冒烟 settings.html / analysis-wiz.js 均 200 且含改动标记（u1-demomode / toggleDemo / _useRealApi）。
 
-**下一步**：U3 压测（工具选型）+ P8-12 质量评测（需标注集）。
+**下一步**：U3 压测已达标（§18）；剩 P8-12 质量评测（需标注集）。
+
+---
+
+## 18. U3 性能并发压测（本轮完成）
+
+> PHASE_9 §6 U3「压测（locust 或同等）达标：大数据表扫描、七步并发不超时」；RELEASE_CHECKLIST §3.3。
+> 工具选型（用户选定）：**自写并发脚本**（`concurrent.futures.ThreadPoolExecutor`，零新依赖；规格「locust 或同等」允许）。
+> 脚本：`backend/tests/test_p9_u3_perf.py`（自建自清，可重复运行）。**PASS=18 / FAIL=0**。
+
+### 18.1 造数与场景
+
+- 前置断言：/api/health ok + LLM 可用（七步种子需真 LLM）。
+- 造数：抛错项目 `U3PERF_TEST`，`executemany`（2000/批）灌 **data_contracts 50,000 行**（amount=300万 if i%3==0 else 50万，procurement_method=询价），耗时 **2.1s**（T7 手法复用）。
+- 基线：后端 `app.run(threaded=True)`（[app.py:443](backend/app.py#L443)），并发请求并行处理。
+
+### 18.2 场景 A — 大数据扫描并发（8 线程 × 5 迭代）
+
+每迭代：`GET /api/audit/projects/{pid}/data/data_contracts/rows?per_page=100&after=<cursor>`（连翻 3 页游标）+ `POST /expression/execute` 单表达式扫描（`金额 >= 2000000 AND 采购方式 != "公开招标"`，row 层 LIMIT 2000 有界）。
+
+| 端点 | 请求数 | p50 | p95 | max | HTTP 错误 | 超时(>3s) |
+|------|:---:|:---:|:---:|:---:|:---:|:---:|
+| GET rows 游标分页 | 120 | 0.233s | 0.460s | 0.842s | 0 | 0 |
+| POST expression/execute | 40 | 0.724s | 1.784s | 1.787s | 0 | 0 |
+
+**并发深度 max_inflight = 8**（8 线程全并行，证明 threaded 真并行，非串行队列）。p95 全 <3s，max 全 <10s（对齐 DB `MAX_EXECUTION_TIME` hint）。
+
+### 18.3 场景 B — 七步并发不超时
+
+**种子**：`POST /analysis`（真 LLM Step1+2）→ **200 / 24.7s**（预算 240s）；单次空选择 confirm → 200 / 0.16s（推进 step4，无 LLM）。
+
+**B1 无 LLM 快端点高并发**：
+
+| 端点 | 线程×迭代 | 请求数 | p50 | p95 | max | 错误 | 超时 |
+|------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| GET /analysis/{id} | 15×5 | 75 | 0.275s | 0.465s | 0.518s | 0 | 0 |
+| POST /documents/batch | 15×3 | 45 | 1.577s | 1.940s | 2.060s | 0 | 0 |
+
+并发深度 max_inflight = 15。p95 全 <3s。
+
+**B2 LLM 慢端点低并发**（suspicion/generate，3 线程 × 1）：
+
+| 端点 | 请求数 | max | 错误 | 超时(>120s) |
+|------|:---:|:---:|:---:|:---:|
+| POST /suspicion/generate | 3 | 7.390s | 0 | 0 |
+
+3 个并发 LLM 疑点生成全部 200 且 success，max=7.39s ≪ 120s 预算。
+
+### 18.4 暴露并修复的真实缺陷（faithful-mode）
+
+压测种子用**无 focus_item 的抛错项目**（真实工作区常态）→ `POST /analysis` **500**（0.1s 快速失败，非 LLM）：
+
+- 根因：[audit_routes.py:1830](backend/routes/audit_routes.py#L1830) `(ctx or {}).get("focus_item", {}).get("title", "")` —— key 存在但值为 `None` 时 `.get("focus_item", {})` 返回 `None`，对 `None` 调 `.get("title")` → `AttributeError`。仅影响无 focus_item 项目；有 focus_item 的项目（T1 夹具）正常。
+- 修复（§0 铁律 targeted bug fix，1 行）：`((ctx or {}).get("focus_item") or {}).get("title", "")`。
+- 验证：修复后种子 POST /analysis → 200 / 24.7s，真 LLM 跑通 Step1+2；回归 test_p8_seven_step.py 无涉。
+
+### 18.5 结论
+
+**大数据表扫描 + 七步并发不超时达标**（RELEASE_CHECKLIST §3.3 闭环）：0 HTTP 错误、0 超时、p95 在预算内、max<10s、并发深度 ≥5（场景A=8 / B1=15 / B2=3）。cleanup 定向删除 0 残留。注：基线为 threaded Flask dev server（gunicorn 多 worker 生产形态非本环境，报告中注明）。
+
+**下一步**：剩网关鉴权（上线依赖）+ P8-12 质量评测（需标注集）。

@@ -1827,7 +1827,7 @@ def register_audit_routes(app):
             )
         project_context = {
             "domain": pc.get("audit_type", ""),
-            "audit_item": (ctx or {}).get("focus_item", {}).get("title", "") or pc.get("name", ""),
+            "audit_item": ((ctx or {}).get("focus_item") or {}).get("title", "") or pc.get("name", ""),
             "audit_period": pc.get("audit_period", ""),
             "target_level": pc.get("target_level", ""),
             "target_unit": pc.get("audited_unit", ""),

@@ -56,7 +56,7 @@
 |---|--------|------|:----:|:----:|
 | 3.1 | U1 旧接口灰度开关 | 前端 feature flag 可切换新旧接口；新异常可切回旧 | ✅ [TEST_REPORT §17](TEST_REPORT_PHASE_9.md)：实模式/演示模式开关，集中门禁替分散 .catch，PASS=23/0（含 settings.html 静默失效预存缺陷修复） | |
 | 3.2 | U2 溯源抽样验收 | 抽样 N≥10 条 AI 结论，逐条回溯到 chunk/页/原文 | ✅ [TEST_REPORT §16](TEST_REPORT_PHASE_9.md)：20 条结论 0 断链 | |
-| 3.3 | U3 性能并发压测 | locust（或同等）达标：大数据表扫描 + 七步并发不超时 | ☐ 待做（工具选型） | |
+| 3.3 | U3 性能并发压测 | locust（或同等）达标：大数据表扫描 + 七步并发不超时 | ✅ [TEST_REPORT §18](TEST_REPORT_PHASE_9.md)：自写并发脚本（零新依赖），5 万行并发扫描 8 并发深度 p95<3s + 七步并发 B1 15 线程/B2 3 并发 LLM 0 超时，PASS=18/0；顺带修 POST /analysis 无 focus_item 500 缺陷 | |
 
 ---
 
@@ -90,7 +90,7 @@
 | 运维 / DBA | | | |
 
 > **上线准则**：第 0-5 节全部 ✅（或「待」项有书面放行）+ 第 6 节四方签字 → 准予上线。
-> **当前阻塞**（截至 2026-08-10）：U1 灰度开关（§3.1 ✅，PASS=23/0）+ U2 溯源抽样（§3.2 ✅，20 条 0 断链）已完成。剩 **U3 压测**（§3.3）、**网关鉴权**（§1 备注）。**此 2 项闭环前不可正式上线**。
+> **当前阻塞**（截至 2026-08-10）：U1 灰度开关（§3.1 ✅，PASS=23/0）+ U2 溯源抽样（§3.2 ✅，20 条 0 断链）+ **U3 压测**（§3.3 ✅，PASS=18/0）均已完成。剩 **网关鉴权**（§1 备注，OpenSquilla 网关职责）。**此 1 项闭环前不可正式上线**。
 
 ---
 
@@ -106,6 +106,7 @@ python tests/test_p9_t6_llm_down.py                  # T6 LLM 停机降级
 python tests/test_p9_t7_large_scan.py                # T7 大数据扫描（~40s）
 python tests/test_p9_t8_concurrency.py               # T8 并发编辑
 python tests/test_p9_u2_provenance_sampling.py        # U2 溯源抽样（20 条结论 0 断链）
+python tests/test_p9_u3_perf.py                       # U3 性能并发压测（~3-5min，真 LLM）
 python tests/test_p8_seven_step.py                   # 回归：契约层
 python tests/test_p5_data.py                         # 回归：Phase1-6
 python tests/test_p7_rules.py                        # 回归：Phase7
