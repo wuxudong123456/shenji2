@@ -1857,6 +1857,7 @@ def register_audit_routes(app):
             "session_id": task_id,
             "user_intent": user_intent,
             **project_context,  # P1.4: 注入 DB 项目上下文
+            "focus_item": (ctx or {}).get("focus_item") or {},  # 事项级指导（common_violations/required_materials 等）
         }, config)
 
         # 持久化 Step1-2 结果到 step_data（current_step 由 graph 算，权威落 MySQL）

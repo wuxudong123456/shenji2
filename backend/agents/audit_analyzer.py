@@ -13,7 +13,7 @@
 """
 import re
 import json
-from agents.base import BaseAgent, AgentDefinition
+from agents.base import BaseAgent, AgentDefinition, fmt_list
 from services import evidence_service
 
 
@@ -42,11 +42,25 @@ class AuditAnalyzerAgent(BaseAgent):
         project_id = input_data.get("project_id", "")
         selected_violations = input_data.get("selected_violations", [])
 
+        # 事项级指导（ContextBuilder 装配的 focus_item）——附录A §2 事项级上下文
+        focus = input_data.get("focus_item") or {}
+        item_problems = focus.get("common_problems") or []
+        item_methods = focus.get("audit_methods") or []
+
         lines.append("## 审计上下文")
         lines.append(f"- 审计领域: {domain or '未指定'}")
         lines.append(f"- 审计事项: {audit_item or '未指定'}")
         lines.append(f"- 项目ID: {project_id or '未指定'}")
         lines.append("")
+
+        # 事项自带的常见问题/审计方法——判定异常时优先对照（事项级核查指引，非 LLM 臆造）
+        if item_problems or item_methods:
+            lines.append("## 聚焦事项核查指引（事项自带，判定时优先对照）")
+            if item_problems:
+                lines.append(f"- 常见问题: {fmt_list(item_problems)}")
+            if item_methods:
+                lines.append(f"- 审计方法: {fmt_list(item_methods)}")
+            lines.append("")
 
         # 已确认的法规依据（通过 MCP 查详情，登记溯源）
         selected_laws = input_data.get("selected_laws", [])

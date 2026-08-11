@@ -443,6 +443,49 @@ class BaseAgent:
 
 # ── 序列化助手：确保溯源记录可 JSON 化 ──
 
+# ── 事项字段渲染助手（agent prompt 用）──
+
+def fmt_list(v, limit=8):
+    """把聚焦事项的 JSON 字段渲染成紧凑一行文本（兼容 str/list/dict，截断防 token 爆炸）。
+
+    供 Step②/⑤ Agent 的 build_prompt 把 focus_item 的 common_violations/
+    required_materials/legal_bases/audit_methods/common_problems 拼进 prompt。
+    元素为 dict 时取 name/title/首个字符串值；返回空串表示无内容。
+    """
+    if not v:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, dict):
+        v = v.get("items") or v.get("list") or list(v.values())
+    if not isinstance(v, list):
+        return str(v)
+    parts = []
+    for it in v[:limit]:
+        if isinstance(it, str):
+            s = it.strip()
+        elif isinstance(it, dict):
+            s = (it.get("name") or it.get("title")
+                 or next((x for x in it.values() if isinstance(x, str)), ""))
+        else:
+            s = str(it)
+        if s:
+            parts.append(s)
+    return "；".join(parts)
+
+
+def elt_text(v):
+    """取单个事项字段元素的可读文本（str 直取；dict 取 name/title/首字符串）。"""
+    if not v:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, dict):
+        return (v.get("name") or v.get("title")
+                or next((x for x in v.values() if isinstance(x, str)), ""))
+    return str(v)
+
+
 def _safe_serialize(obj, max_str: int = 4000) -> object:
     """把任意对象转为可 JSON 序列化的形式（截断超长字符串/列表）"""
     if obj is None or isinstance(obj, (bool, int, float)):

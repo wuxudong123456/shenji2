@@ -9,7 +9,7 @@
   - 违规模型名称、表达式全部来自 tt.audit_violations，不由 LLM 编造
   - 每个匹配项登记 knowledge_source，可在下游溯源
 """
-from agents.base import BaseAgent, AgentDefinition
+from agents.base import BaseAgent, AgentDefinition, fmt_list
 
 
 class ViolationMatcherAgent(BaseAgent):
@@ -21,9 +21,19 @@ class ViolationMatcherAgent(BaseAgent):
         target_level = input_data.get("target_level", "")
         target_unit = input_data.get("target_unit", "")
         concerns = input_data.get("concerns", [])
+        objective = input_data.get("objective", "")  # P9-立项匹配: 审计目标
+        scope = input_data.get("scope", "")          # P9-立项匹配: 审计范围
+
+        # 事项级指导（ContextBuilder 装配的 focus_item）——附录A §2 事项级上下文
+        focus = input_data.get("focus_item") or {}
+        item_violations = focus.get("common_violations") or []
+        item_legal_bases = focus.get("legal_bases") or []
+        item_problems = focus.get("common_problems") or []
 
         # ── 步骤1+2: 通过 MCP 工具检索真实违规库 ──
-        search_terms = self._build_search_terms(domain, item, concerns)
+        # common_violations 是最精准的检索种子（事项自带"我常见哪些违规"，直接拿违规名搜违规库）
+        search_terms = self._build_search_terms(domain, item, concerns, objective, scope,
+                                                item_violations=item_violations)
         retrieved = []
         seen_ids = set()
         for term in search_terms[:4]:
@@ -57,8 +67,19 @@ class ViolationMatcherAgent(BaseAgent):
         lines.append(f"- 审计领域: {domain or '未指定'}")
         lines.append(f"- 审计事项: {item or '未指定'}")
         lines.append(f"- 被审计对象: {target_unit or '未指定'} ({target_level or '未指定层级'})")
+        if objective:
+            lines.append(f"- 审计目标: {objective}")
+        if scope:
+            lines.append(f"- 审计范围: {scope}")
         if concerns:
             lines.append(f"- 关注点: {'；'.join(concerns) if isinstance(concerns, list) else concerns}")
+        # 事项自带的常见违规/法规/问题——匹配评分时优先对照（事项级指导，非 LLM 臆造）
+        if item_problems:
+            lines.append(f"- 事项常见问题: {fmt_list(item_problems)}")
+        if item_violations:
+            lines.append(f"- 事项常见违规（优先匹配）: {fmt_list(item_violations)}")
+        if item_legal_bases:
+            lines.append(f"- 事项法规依据: {fmt_list(item_legal_bases)}")
         lines.append("")
 
         if retrieved:
@@ -104,13 +125,26 @@ class ViolationMatcherAgent(BaseAgent):
         "土地": "土地", "矿产": "矿产", "环保": "环保",
     }
 
-    def _build_search_terms(self, domain: str, item: str, concerns) -> list:
+    def _build_search_terms(self, domain: str, item: str, concerns,
+                            objective: str = "", scope: str = "",
+                            item_violations=None) -> list:
         """构建违规库检索关键词 — 从长句抽取聚焦短词，避免整句检索失效"""
         terms = []
-        # 合并所有文本来源用于关键词扫描
+        # 0. 事项自带的常见违规名（最精准种子——直接拿违规名搜违规库，命中率最高）
+        if item_violations:
+            from agents.base import elt_text
+            for v in item_violations[:6]:
+                s = elt_text(v)
+                if s and s not in terms:
+                    terms.append(s)
+        # 合并所有文本来源用于关键词扫描（P9-立项匹配: 纳入 objective/scope，扩大相关候选召回）
         text_parts = []
         if item:
             text_parts.append(item)
+        if objective:
+            text_parts.append(objective)
+        if scope:
+            text_parts.append(scope)
         if isinstance(concerns, list):
             text_parts.extend(str(c) for c in concerns if c)
         elif concerns:

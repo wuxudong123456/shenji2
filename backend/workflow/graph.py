@@ -81,6 +81,9 @@ def _node_violation_matcher(state: AnalysisState) -> dict:
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
         "concerns": state.get("concerns", []),  # P1.6: 贯通 concerns（提升召回质量）
+        "objective": state.get("objective", ""),  # P9-立项匹配: 审计目标
+        "scope": state.get("scope", ""),          # P9-立项匹配: 审计范围
+        "focus_item": state.get("focus_item") or {},  # 事项常见违规→检索种子（召回质量直接提升）
     }, context=_trace_ctx(state, 2, "step_2_violations"))
 
     if not result["success"]:
@@ -113,6 +116,7 @@ def _node_data_advisor(state: AnalysisState) -> dict:
         "domain": state.get("domain", ""),
         "item": state.get("audit_item", ""),
         "matches": state.get("matches", []),
+        "focus_item": state.get("focus_item") or {},  # 事项 required_materials→资料推荐最高优先级种子
     }, context=_trace_ctx(state, 2, "step_2_data_advice"))
 
     if not result["success"]:
@@ -136,6 +140,7 @@ def _node_regulation_advisor(state: AnalysisState) -> dict:
         "target_level": state.get("target_level", ""),
         "target_unit": state.get("target_unit", ""),
         "matches": state.get("matches", []),  # P1.6: 传 matches（关联违规模型，P1.7拓扑修正后生效）
+        "focus_item": state.get("focus_item") or {},  # 事项 legal_bases→法规检索精准种子
     }, context=_trace_ctx(state, 2, "step_2_regulations"))
 
     if not result["success"]:
@@ -188,6 +193,7 @@ def _node_audit_analyzer(state: AnalysisState) -> dict:
         "uploaded_files": state.get("uploaded_files", []),
         "selected_violations": state.get("selected_violations", []),
         "selected_laws": state.get("selected_laws", []),
+        "focus_item": state.get("focus_item") or {},  # 事项 common_problems/audit_methods→判定核查指引
     }, context=_trace_ctx(state, 5, "step_5_analysis"))
 
     if not result["success"]:

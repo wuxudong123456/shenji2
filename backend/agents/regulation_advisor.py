@@ -10,7 +10,7 @@
   - 每条推荐法规都登记 knowledge_source，可在疑点报告中溯源
   - 依据被审计对象行政层级（target_level）筛选法规地域类型
 """
-from agents.base import BaseAgent, AgentDefinition
+from agents.base import BaseAgent, AgentDefinition, fmt_list
 
 
 # 行政层级 → 法规地域类型映射（region_type: 0=国家, 1=地方）
@@ -33,10 +33,15 @@ class RegulationAdvisorAgent(BaseAgent):
         target_unit = input_data.get("target_unit", "")
         selected_violations = input_data.get("selected_violations") or input_data.get("matches") or []
 
+        # 事项级指导（ContextBuilder 装配的 focus_item）——附录A §2 事项级上下文
+        focus = input_data.get("focus_item") or {}
+        item_legal_bases = focus.get("legal_bases") or []
+
         # ── 步骤1+2: 通过 MCP 工具检索真实法规（不是让 LLM 凭记忆推荐）──
 
-        # 1a. 从审计领域/事项提取检索关键词
-        search_terms = self._extract_search_terms(domain, item, target_unit)
+        # 1a. 从审计领域/事项提取检索关键词（legal_bases 是最精准种子——事项自带法规依据）
+        search_terms = self._extract_search_terms(domain, item, target_unit,
+                                                  item_legal_bases=item_legal_bases)
         retrieved_laws = []
         for term in search_terms[:3]:  # 最多 3 个关键词，控制检索量
             res = self.invoke_tool("knowledge-mcp.search_laws",
@@ -86,6 +91,9 @@ class RegulationAdvisorAgent(BaseAgent):
         lines.append(f"- 审计领域: {domain or '未指定'}")
         lines.append(f"- 审计事项: {item or '未指定'}")
         lines.append(f"- 被审计对象: {target_unit or '未指定'} ({target_level or '未指定层级'})")
+        # 事项自带的法规依据——优先检索/引用（事项规定"凭什么查"，非 LLM 臆造）
+        if item_legal_bases:
+            lines.append(f"- 事项法规依据（优先引用）: {fmt_list(item_legal_bases)}")
         lines.append("")
 
         # 已选违规模型（若有，用于关联法规）
@@ -149,9 +157,17 @@ class RegulationAdvisorAgent(BaseAgent):
 
         return "\n".join(lines)
 
-    def _extract_search_terms(self, domain: str, item: str, target_unit: str) -> list[str]:
+    def _extract_search_terms(self, domain: str, item: str, target_unit: str,
+                             item_legal_bases=None) -> list[str]:
         """从审计上下文提取法规检索关键词"""
         terms = []
+        # 事项自带的法规依据（最精准种子——直接拿法规名搜法规库）
+        if item_legal_bases:
+            from agents.base import elt_text
+            for lb in item_legal_bases[:5]:
+                s = elt_text(lb)
+                if s and s not in terms:
+                    terms.append(s)
         # 审计事项是最精准的检索词
         if item:
             terms.append(item.strip())

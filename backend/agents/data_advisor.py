@@ -9,7 +9,7 @@
   - 推荐的资料类型与违规模型的核查需求关联，而非凭空想象
   - 登记引用的违规模型来源，保持溯源链完整
 """
-from agents.base import BaseAgent, AgentDefinition
+from agents.base import BaseAgent, AgentDefinition, fmt_list
 
 
 # 审计领域/违规模型 → 资料类型 + 模板 知识库（确定性映射，可扩展）
@@ -50,6 +50,10 @@ class DataAdvisorAgent(BaseAgent):
         item = input_data.get("item", "")
         matches = input_data.get("matches", [])
 
+        # 事项级指导（ContextBuilder 装配的 focus_item）——附录A §2 事项级上下文
+        focus = input_data.get("focus_item") or {}
+        item_required = focus.get("required_materials") or []
+
         # ── 步骤1+2: 查询违规模型详情 + 匹配资料知识库 ──
         violation_titles = []
         for m in (matches or [])[:10]:
@@ -73,7 +77,7 @@ class DataAdvisorAgent(BaseAgent):
         # 基于审计事项匹配资料知识库（确定性映射）
         kb_materials = []
         kb_templates = []
-        combined = f"{domain} {item} {' '.join(violation_titles)}"
+        combined = f"{domain} {item} {' '.join(violation_titles)} {fmt_list(item_required)}"
         for keyword, info in _MATERIAL_KB.items():
             if keyword in combined:
                 kb_materials.extend(info["materials"])
@@ -92,6 +96,9 @@ class DataAdvisorAgent(BaseAgent):
         lines.append("## 审计上下文")
         lines.append(f"- 审计领域: {domain or '未指定'}")
         lines.append(f"- 审计事项: {item or '未指定'}")
+        # 事项自带的所需资料——最高优先级（事项规定"本次核查需要哪些资料"，非 LLM 臆造）
+        if item_required:
+            lines.append(f"- 事项规定所需资料（最高优先级）: {fmt_list(item_required)}")
         if violation_titles:
             lines.append("## 已匹配违规模型")
             for t in violation_titles:

@@ -1101,7 +1101,7 @@ var Proj = {
       var i = parseInt(cb.getAttribute('data-i'),10);
       if(!isNaN(i) && cvs[i]) focus.push(cvs[i]);
     });
-    localStorage.setItem('aw_project_memory',JSON.stringify({project_id:this._currentProjectId||'',title:n,domain:d,auditItem:(item?item.title:''),focus:focus,createdAt:new Date().toISOString()}));
+    localStorage.setItem('aw_project_memory',JSON.stringify({project_id:this._currentProjectId||'',itemId:(item?item.id:''),title:n,domain:d,auditItem:(item?item.title:''),focus:focus,createdAt:new Date().toISOString()}));
     location.href='analysis.html';
   },
   // ── T8: 分阶段保存 ──

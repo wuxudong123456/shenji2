@@ -39,6 +39,12 @@ class AnalysisState(TypedDict, total=False):
     audit_period: str                     # 审计期间
     target_level: str                     # 被审计对象层级
     target_unit: str                      # 被审计单位
+    objective: str                        # 审计目标（立项，P9-立项匹配）
+    scope: str                            # 审计范围（立项，P9-立项匹配）
+    focus_item: dict                      # 聚焦事项完整对象（ContextBuilder 装配：title/category/priority
+                                          # + common_violations/required_materials/legal_bases/
+                                          # audit_methods/common_problems；Step②/⑤ Agent 读取事项级指导，
+                                          # 附录A §2 事项级上下文——让 AI 看到本事项"常见违规/所需资料"）
 
     # ── Step②: Agent并行推荐 ──
     # 违规匹配
