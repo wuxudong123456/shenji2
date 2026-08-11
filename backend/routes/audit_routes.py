@@ -973,7 +973,19 @@ def register_audit_routes(app):
             pid = p["id"]
             bucket = p.get("minio_bucket") or "audit-project-{}".format(pid)
             mpath = build_manifest_path(audit_year, pid, compute_safe_name(p.get("name") or ""))
-            manifest = load_manifest(bucket, mpath)
+            # 单项目异常不应炸全树：manifest 读/重建（含 MinIO 写）失败 → 跳过并告警，
+            # 该项目以空文件列表呈现（如 bucket 名非法等历史残留）。
+            try:
+                manifest = load_manifest(bucket, mpath)
+            except Exception as e:
+                print("[tree] WARN 项目 %s load_manifest 失败，跳过: %s" % (pid, e))
+                out.append({
+                    "project_id": pid, "project_name": p.get("name"),
+                    "safe_name": compute_safe_name(p.get("name") or ""),
+                    "audit_year": audit_year,
+                    "counts": {c: 0 for c in cats}, "files": [],
+                })
+                continue
             counts = {c: 0 for c in cats}
             files_out = []
             if manifest:
@@ -1000,25 +1012,29 @@ def register_audit_routes(app):
                 )
                 if traces:
                     print("[tree] WARN 项目 %s manifest 缺失，回退 trace 对账重建" % pid)
-                    m = init_first_manifest(pid, p.get("name") or "", audit_year, bucket)
-                    for t in traces:
-                        cat = t.get("file_category") or "other"
-                        counts[cat] = counts.get(cat, 0) + 1
-                        files_out.append({
-                            "trace_id": t["id"],
-                            "file_name": t.get("file_name"),
-                            "category": cat,
-                            "subcategory": t.get("file_subcategory"),
-                            "size": t.get("file_size"),
-                            "uploaded_at": str(t["created_at"]) if t.get("created_at") else None,
-                        })
-                        append_file_to_manifest(m, build_file_entry(
-                            trace_id=t["id"], file_name=t.get("file_name") or "",
-                            object_key=t.get("minio_path") or "", category=cat,
-                            subcategory=t.get("file_subcategory"),
-                            size=t.get("file_size"), legacy_raw=True,
-                        ))
-                    save_manifest(bucket, mpath, m)
+                    try:
+                        m = init_first_manifest(pid, p.get("name") or "", audit_year, bucket)
+                        for t in traces:
+                            cat = t.get("file_category") or "other"
+                            counts[cat] = counts.get(cat, 0) + 1
+                            files_out.append({
+                                "trace_id": t["id"],
+                                "file_name": t.get("file_name"),
+                                "category": cat,
+                                "subcategory": t.get("file_subcategory"),
+                                "size": t.get("file_size"),
+                                "uploaded_at": str(t["created_at"]) if t.get("created_at") else None,
+                            })
+                            append_file_to_manifest(m, build_file_entry(
+                                trace_id=t["id"], file_name=t.get("file_name") or "",
+                                object_key=t.get("minio_path") or "", category=cat,
+                                subcategory=t.get("file_subcategory"),
+                                size=t.get("file_size"), legacy_raw=True,
+                            ))
+                        save_manifest(bucket, mpath, m)
+                    except Exception as e:
+                        # 重建写 MinIO 失败（如 bucket 名非法）：不炸全树，告警并以已装配文件列表返回
+                        print("[tree] WARN 项目 %s manifest 重建失败，跳过 MinIO 写: %s" % (pid, e))
             out.append({
                 "project_id": pid,
                 "project_name": p.get("name"),
