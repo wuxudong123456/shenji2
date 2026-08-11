@@ -62,6 +62,7 @@ def _project_to_dto(row: dict | None) -> dict:
     d["domain"] = d.get("audit_type", "") or ""
     d["level"] = d.get("target_level", "") or ""
     d["setup_stage"] = d.get("setup_stage") or "basic"
+    rlc.enrich(d)  # 报告段：加 report_allowed_actions（report_stage 透传，None→["start_report"]）
     return d
 
 

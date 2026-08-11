@@ -59,6 +59,35 @@ var AuditAPI = {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/workspace/finalize', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
       }).then(function(r) { return r.json(); });
+    },
+    // ── 报告段（report_stage 状态机）──
+    // POST 推进报告段（带乐观锁 expected_update_time）
+    reportTransition: function(id, to, expectedUpdateTime) {
+      var body = {to: to};
+      if (expectedUpdateTime) body.expected_update_time = expectedUpdateTime;
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/report-transition', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+      }).then(function(r) { return r.json(); });
+    },
+    // PUT 报告台账字段（review_deadline/archive_no/archive_date，带乐观锁）
+    saveReportMeta: function(id, data, expectedUpdateTime) {
+      var body = data || {};
+      if (expectedUpdateTime) body.expected_update_time = expectedUpdateTime;
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/report-meta', {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+      }).then(function(r) { return r.json(); });
+    },
+    // GET 交付物列表（type 可选过滤：report/decision/...）
+    deliverables: function(id, type) {
+      var qs = type ? ('?type=' + encodeURIComponent(type)) : '';
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/deliverables' + qs)
+        .then(function(r) { return r.json(); });
+    },
+    // POST 上传交付物（multipart：formData 含 file + deliverable_type + status?；不设 Content-Type）
+    uploadDeliverable: function(id, formData) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/deliverables', {
+        method: 'POST', body: formData
+      }).then(function(r) { return r.json(); });
     }
   },
 

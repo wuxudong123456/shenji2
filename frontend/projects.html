@@ -326,6 +326,7 @@
     <div class="kw-tab" onclick="Proj.tab(2)">二、审计对象和范围</div>
     <div class="kw-tab" onclick="Proj.tab(3)">三、审计事项</div>
     <div class="kw-tab" onclick="Proj.tab(4)">四、督办提醒</div>
+    <div class="kw-tab" onclick="Proj.tab(5)">五、报告段</div>
   </div>
 
   <!-- Tab 1：审计立项 -->
@@ -509,6 +510,57 @@
       </div>
     </div>
   </div>
+
+  <!-- Tab 5：报告段（report_stage 状态机：drafting→reviewing→issued→filed）-->
+  <div class="kw-panel" id="tab-5" style="display:none;">
+    <div class="audit-standard-ref" style="margin-bottom:var(--space-md);">报告段：审计报告编制 → 征求意见 → 出具 → 归档（依据《国家审计准则》第118-150条）。项目激活后可见。</div>
+
+    <!-- 5-A 状态机 stepper -->
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div class="card-header"><h3>报告进度</h3><span class="badge badge-muted" id="report-stage-label">未启动</span></div>
+      <div id="report-stepper" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:12px 4px;"></div>
+    </div>
+
+    <!-- 5-B 报告台账 -->
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div class="card-header"><h3>报告台账</h3><span style="font-size:12px;color:var(--color-text-muted);">项目级字段，归档号填写后方可推进至「已归档」</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:8px 0;">
+        <div><label style="font-size:13px;display:block;margin-bottom:4px;">征求意见截止日</label>
+          <input type="date" id="f-review-deadline" style="width:100%;padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;"></div>
+        <div><label style="font-size:13px;display:block;margin-bottom:4px;">档案号</label>
+          <input type="text" id="f-archive-no" style="width:100%;padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;" placeholder="如：档2026-001"></div>
+        <div><label style="font-size:13px;display:block;margin-bottom:4px;">归档日期</label>
+          <input type="date" id="f-archive-date" style="width:100%;padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="Proj.saveReportMeta()"><i class="bi bi-save"></i> 保存台账</button>
+    </div>
+
+    <!-- 5-C 交付物列表/上传 -->
+    <div class="card">
+      <div class="card-header"><h3>报告与文书</h3>
+        <button class="btn btn-sm btn-outline" onclick="Proj.refreshDeliverables()"><i class="bi bi-arrow-clockwise"></i> 刷新</button></div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--color-border);margin-bottom:12px;">
+        <div><label style="font-size:13px;display:block;margin-bottom:4px;">文书类型</label>
+          <select id="f-deliv-type" style="padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;">
+            <option value="report">审计报告</option>
+            <option value="decision">审计决定书</option>
+            <option value="review_feedback">征求意见反馈</option>
+            <option value="rectification_report">整改报告</option>
+          </select></div>
+        <div><label style="font-size:13px;display:block;margin-bottom:4px;">状态</label>
+          <select id="f-deliv-status" style="padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;">
+            <option value="draft">草稿</option>
+            <option value="adopted">已采纳/定稿</option>
+          </select></div>
+        <div style="flex:1;min-width:220px;"><label style="font-size:13px;display:block;margin-bottom:4px;">文件</label>
+          <input type="file" id="f-deliv-file" style="width:100%;font-size:13px;"></div>
+        <button class="btn btn-primary btn-sm" onclick="Proj.uploadDeliverable()"><i class="bi bi-upload"></i> 上传</button>
+      </div>
+      <div id="deliverables-list" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="text-align:center;padding:24px;color:var(--color-text-muted);font-size:13px;">暂无文书，上传后按类型与版本展示</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 </main></div>
@@ -599,8 +651,9 @@ var Proj = {
         Proj.open();
         // T8: 编辑状态 + 按 setup_stage 收紧后续 Tab
         Proj._editingProjectId = pid;
+        Proj._editingProject = p;  // 报告段读 report_stage/report_allowed_actions/台账字段
         Proj._editingUpdateTime = p.update_time;  // T8 乐观锁 token（加载时刻的 update_time）
-        Proj._applyTabGating(p.setup_stage);
+        Proj._applyTabGating(p.setup_stage, p.status);
         setTimeout(function(){
           var set = function(id, v){ var el = document.getElementById(id); if(el && v != null) el.value = v; };
           set('f-name', p.name); set('f-code', p.project_code);
@@ -833,13 +886,16 @@ var Proj = {
     }
     this._activeTab = n;
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(t,i){t.classList.toggle('active',i+1===n);});
-    for(var i=1;i<=4;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
+    for(var i=1;i<=5;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
     if(n===4) PhaseBoard.calcAll();
+    if(n===5) Proj.renderReportStage();
   },
   /** T8: 按 setup_stage 收紧后续 Tab（视觉提示）。编辑存量项目时调用 */
-  _applyTabGating: function(setupStage) {
+  _applyTabGating: function(setupStage, status) {
     var map = {'basic':1,'target_scope':2,'items':3,'workspace':4};
-    this._gatedTabs = map[setupStage] || 1;
+    var limit = map[setupStage] || 1;
+    if (setupStage === 'workspace' && status === 'active') limit = 5;  // 报告段 tab-5 解锁条件
+    this._gatedTabs = limit;
     this._applyGatingVisual();
   },
   /** 按 _gatedTabs 刷新 Tab 视觉（置灰/可点） */
@@ -850,6 +906,152 @@ var Proj = {
       tab.style.opacity = disabled ? '0.5' : '';
       tab.style.cursor = disabled ? 'not-allowed' : '';
     });
+  },
+
+  // ===== 报告段（report_stage 状态机）=====
+  _reportActions: {
+    start_report: {to: 'drafting', label: '启动报告编制'},
+    submit_review: {to: 'reviewing', label: '提交征求意见'},
+    adopt_and_issue: {to: 'issued', label: '采纳并出具'},
+    archive: {to: 'filed', label: '归档'}
+  },
+  _reportStageText: {drafting:'编制中', reviewing:'征求意见', issued:'已出具', filed:'已归档'},
+  _missingText: {'status=active':'项目未激活', 'setup_stage=workspace':'立项未完成', report_deliverable:'报告文书', adopted_report:'已采纳的报告', archive_no:'档案号'},
+  /** 渲染报告段 Tab：stepper + 台账回填 + 交付物列表 */
+  renderReportStage: function() {
+    var p = this._editingProject || {};
+    var stage = p.report_stage || null;
+    var actions = p.report_allowed_actions || [];
+    var lbl = document.getElementById('report-stage-label');
+    if (lbl) lbl.textContent = stage ? (this._reportStageText[stage] || stage) : '未启动';
+    // stepper: 未启动 → drafting → reviewing → issued → filed
+    var steps = [{k:null,t:'未启动'},{k:'drafting',t:'编制报告'},{k:'reviewing',t:'征求意见'},{k:'issued',t:'出具报告'},{k:'filed',t:'归档'}];
+    var curIdx = -1;
+    for (var i=0;i<steps.length;i++){ if(steps[i].k===stage){curIdx=i;break;} }
+    var html = '';
+    for (var i=0;i<steps.length;i++){
+      var color = i<curIdx ? 'var(--color-success)' : (i===curIdx ? 'var(--color-primary)' : 'var(--color-text-muted)');
+      html += '<div style="display:flex;align-items:center;gap:4px;">'+
+        '<div style="width:12px;height:12px;border-radius:50%;background:'+color+';"></div>'+
+        '<span style="font-size:13px;color:'+color+';">'+steps[i].t+'</span></div>';
+      if (i<steps.length-1) html += '<i class="bi bi-chevron-right" style="color:var(--color-text-muted);font-size:12px;margin:0 2px;"></i>';
+    }
+    if (actions.length){
+      html += '<div style="margin-left:auto;display:flex;gap:8px;">'+actions.map(function(a){
+        var act = Proj._reportActions[a] || {to:a,label:a};
+        return '<button class="btn btn-primary btn-sm" onclick="Proj.reportTransition(\''+act.to+'\')">'+act.label+'</button>';
+      }).join('')+'</div>';
+    }
+    var stp = document.getElementById('report-stepper');
+    if (stp) stp.innerHTML = html;
+    // 台账回填
+    var set = function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+    set('f-review-deadline', p.review_deadline);
+    set('f-archive-no', p.archive_no);
+    set('f-archive-date', p.archive_date);
+    // 交付物列表
+    this.refreshDeliverables();
+  },
+  /** 推进报告段（带乐观锁 expected_update_time）*/
+  reportTransition: function(to) {
+    var pid = this._editingProjectId;
+    if (!pid){AuditWorkbench.toast('请先选择项目','warning');return;}
+    var self = this;
+    AuditAPI.projects.reportTransition(pid, to, this._editingUpdateTime).then(function(r){
+      if (r && r.success){
+        self._editingUpdateTime = r.update_time || self._editingUpdateTime;
+        if (self._editingProject){
+          self._editingProject.report_stage = r.report_stage;
+          self._editingProject.report_allowed_actions = r.report_allowed_actions || [];
+        }
+        AuditWorkbench.toast('已推进至「'+(self._reportStageText[r.report_stage]||r.report_stage)+'」','success');
+        self.renderReportStage();
+      } else if (r && r.current_update_time){
+        self._handleReportConflict(r);
+      } else {
+        var m = (r && r.missing) ? ('（缺：'+r.missing.map(function(x){return Proj._missingText[x]||x;}).join('、')+'）') : '';
+        AuditWorkbench.toast((r&&r.error)?(r.error+m):('推进失败'+m), 'warning');
+      }
+    }).catch(function(){AuditWorkbench.toast('网络错误','error');});
+  },
+  /** 保存报告台账（review_deadline/archive_no/archive_date，带乐观锁）*/
+  saveReportMeta: function() {
+    var pid = this._editingProjectId;
+    if (!pid){AuditWorkbench.toast('请先选择项目','warning');return;}
+    var get = function(id){var el=document.getElementById(id);return el?(el.value||'').trim():'';};
+    var data = {review_deadline:get('f-review-deadline'), archive_no:get('f-archive-no'), archive_date:get('f-archive-date')};
+    var self = this;
+    this._setSaveStatus('正在保存…');
+    AuditAPI.projects.saveReportMeta(pid, data, this._editingUpdateTime).then(function(r){
+      if (r && r.success){
+        self._editingUpdateTime = r.update_time || self._editingUpdateTime;
+        if (self._editingProject && r.report_meta){
+          self._editingProject.review_deadline = r.report_meta.review_deadline;
+          self._editingProject.archive_no = r.report_meta.archive_no;
+          self._editingProject.archive_date = r.report_meta.archive_date;
+        }
+        self._setSaveStatus('✓ 已保存');
+        AuditWorkbench.toast('台账已保存','success');
+      } else if (r && r.current_update_time){
+        self._handleReportConflict(r);
+        self._setSaveStatus('✗ 冲突，已刷新');
+      } else {
+        self._setSaveStatus('✗ 保存失败');
+        AuditWorkbench.toast((r&&r.error)?r.error:'保存失败','error');
+      }
+    }).catch(function(){self._setSaveStatus('✗ 网络错误');AuditWorkbench.toast('网络错误','error');});
+  },
+  /** 乐观锁冲突：重拉最新 + 刷新 token + 重渲染（用户核对后手动重试）*/
+  _handleReportConflict: function(resp) {
+    AuditWorkbench.toast('⚠️ '+(resp&&resp.error?resp.error:'项目已被他人修改，已刷新为最新'), 'warning');
+    var pid = this._editingProjectId, self = this;
+    AuditAPI.projects.get(pid).then(function(r){
+      if (r && r.success && r.project){
+        self._editingProject = r.project;
+        self._editingUpdateTime = r.project.update_time;
+        self.renderReportStage();
+      }
+    }).catch(function(){AuditWorkbench.toast('刷新失败','error');});
+  },
+  /** 刷新交付物列表 */
+  refreshDeliverables: function() {
+    var pid = this._editingProjectId;
+    var box = document.getElementById('deliverables-list');
+    if (!pid || !box) return;
+    var empty = '<div style="text-align:center;padding:24px;color:var(--color-text-muted);font-size:13px;">暂无文书，上传后按类型与版本展示</div>';
+    box.innerHTML = '<div style="text-align:center;padding:16px;color:var(--color-text-muted);font-size:13px;">加载中…</div>';
+    var typeText = {report:'审计报告', decision:'审计决定书', review_feedback:'征求意见反馈', rectification_report:'整改报告'};
+    var statusText = {draft:'草稿', submitted:'已提交', adopted:'已采纳'};
+    AuditAPI.projects.deliverables(pid).then(function(r){
+      if (!r || !r.success){box.innerHTML='<div style="text-align:center;padding:16px;color:var(--color-accent);font-size:13px;">加载失败</div>';return;}
+      var ds = r.deliverables || [];
+      if (!ds.length){box.innerHTML=empty;return;}
+      box.innerHTML = ds.map(function(d){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--color-border);border-radius:6px;">'+
+          '<i class="bi bi-file-earmark-text" style="font-size:20px;color:var(--color-primary);"></i>'+
+          '<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+(typeText[d.deliverable_type]||d.deliverable_type)+' v'+d.version+(d.title?(' · '+_esc(d.title)):'')+'</div>'+
+          '<div style="font-size:12px;color:var(--color-text-muted);">'+(d.deliverable_no||'无文号')+' · '+(statusText[d.status]||d.status)+(d.issue_date?(' · '+String(d.issue_date).substring(0,10)):'')+'</div></div>'+
+          '</div>';
+      }).join('');
+    }).catch(function(){box.innerHTML='<div style="text-align:center;padding:16px;color:var(--color-accent);font-size:13px;">加载失败</div>';});
+  },
+  /** 上传交付物（multipart：file + deliverable_type + status）*/
+  uploadDeliverable: function() {
+    var pid = this._editingProjectId;
+    if (!pid){AuditWorkbench.toast('请先选择项目','warning');return;}
+    var fileEl = document.getElementById('f-deliv-file');
+    var file = fileEl && fileEl.files[0];
+    if (!file){AuditWorkbench.toast('请选择文件','warning');return;}
+    var form = new FormData();
+    form.append('file', file);
+    form.append('deliverable_type', document.getElementById('f-deliv-type').value);
+    form.append('status', document.getElementById('f-deliv-status').value);
+    AuditWorkbench.toast('正在上传…','info');
+    var self = this;
+    AuditAPI.projects.uploadDeliverable(pid, form).then(function(r){
+      if (r && r.success){AuditWorkbench.toast('上传成功','success');fileEl.value='';self.refreshDeliverables();}
+      else {AuditWorkbench.toast((r&&r.error)?r.error:'上传失败','error');}
+    }).catch(function(){AuditWorkbench.toast('网络错误','error');});
   },
   aiParse: function() {
     document.getElementById('f-objective').value = document.getElementById('f-objective').value || '通过对被审计单位预算执行及采购活动的审计，揭示预算管理、采购程序和资金使用中存在的问题，提出改进建议，促进被审计单位规范管理、提高资金使用效益。';
@@ -1119,6 +1321,7 @@ var Proj = {
       if (active === 1) this.saveBasic();
       else if (active === 2) this.saveTargetScope();
       else if (active === 3) this.saveItems();
+      else if (active === 5) this.saveReportMeta();
       else AuditWorkbench.toast('督办提醒无需手动保存','info');
     } catch (e) {
       this._setSaveStatus('✗ 保存失败（前端异常）');
@@ -1242,9 +1445,9 @@ var Proj = {
     projects.forEach(function(p) { self._projectMap[p.id] = p; });
 
     var html = projects.map(function(p) {
-      var statusColor = p.status === 'completed' ? 'var(--color-success)' :
+      var statusColor = p.report_stage === 'filed' ? 'var(--color-success)' :
                         p.status === 'active' ? 'var(--color-warning)' : 'var(--color-text-muted)';
-      var statusText = p.status === 'completed' ? '已完成' :
+      var statusText = p.report_stage === 'filed' ? '已归档' :
                        p.status === 'active' ? '进行中' : '草稿';
       var date = (p.create_time || '').substring(5, 10);
       self._projectMap[p.id] = p;
