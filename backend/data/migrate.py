@@ -672,6 +672,74 @@ def migrate_phase8_contract_tables():
             print(f"[migrate] = {at}.{col} 已存在，跳过")
 
 
+def migrate_audit_projects_report_columns():
+    """报告段 — audit_projects 增加 5 列（报告台账摘要 + 报告状态机列）
+
+    补全 active 之后的"实施→报告→归档"后半段。report_stage 为报告状态机独立列
+    （不共用 status——status='archived' 已被软删除占用，见 audit_routes.py 删除路由）；
+    文书属性（文号/标题/出具日/版本）不入主表，归 audit_deliverables。
+    幂等：每列先查 information_schema，已存在则跳过。
+    """
+    table = "audit_projects"
+    columns = [
+        ("report_stage", "VARCHAR(16) DEFAULT NULL COMMENT '报告段状态机 NULL/drafting/reviewing/issued/filed'"),
+        ("review_deadline", "DATE DEFAULT NULL COMMENT '征求意见截止日（准则：收到报告10日内）'"),
+        ("archive_no", "VARCHAR(64) DEFAULT NULL COMMENT '档案号'"),
+        ("archive_date", "DATE DEFAULT NULL COMMENT '归档日期'"),
+        ("report_stage_changed_at", "DATETIME DEFAULT NULL COMMENT 'report_stage 最近变更时间'"),
+    ]
+    for col, ddl in columns:
+        if not _column_exists(table, col):
+            execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+            print(f"[migrate] + {table}.{col}")
+        else:
+            print(f"[migrate] = {table}.{col} 已存在，跳过")
+
+
+def migrate_audit_deliverables():
+    """报告段 — 审计交付物表（报告/决定书等文书正文 + 版本）
+
+    文书属性（deliverable_no 文号 / title / issue_date 出具日 / version 版本）归此表，
+    不入 audit_projects 主表（方向B：文书属性随文书走，主表只留项目级字段）。
+    正文存 MinIO，本表存 minio_path 指针。CREATE TABLE 幂等：_table_exists 预检。
+    """
+    table = "audit_deliverables"
+    if _table_exists(table):
+        print(f"[migrate] = 表 {table} 已存在，跳过")
+        return
+    execute(f"""CREATE TABLE {DATABASE}.{table} (
+  id               INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  project_id       VARCHAR(32) NOT NULL                COMMENT '关联项目ID',
+  deliverable_type VARCHAR(32) NOT NULL                COMMENT 'report/decision/review_feedback/rectification_report',
+  version          INT DEFAULT 1                       COMMENT '版本号（征求意见稿=0，正式稿=1…）',
+  deliverable_no   VARCHAR(64) DEFAULT NULL            COMMENT '文书文号（审报/审决/审通…）',
+  title            VARCHAR(500)                        COMMENT '文书标题',
+  issue_date       DATE DEFAULT NULL                   COMMENT '出具日期',
+  minio_path       VARCHAR(1000) NOT NULL              COMMENT '正文存 MinIO 的对象路径',
+  status           VARCHAR(20) DEFAULT 'draft'         COMMENT 'draft/submitted/adopted',
+  created_by       VARCHAR(64)                         COMMENT '创建人',
+  created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_project_type (project_id, deliverable_type)
+) COMMENT '审计交付物（报告/决定书等文书版本）'""", database=DATABASE)
+    print(f"[migrate] + 表 {table}")
+
+
+def migrate_audit_deliverables_columns():
+    """报告段 — audit_deliverables 增加 minio_bucket 列（#3 一致性）
+
+    交付物行冗余存所在 bucket（与 audit_document_traces.minio_bucket 一致），
+    下载时免 join audit_projects。幂等：_column_exists 预检。
+    """
+    table = "audit_deliverables"
+    col, ddl = "minio_bucket", "VARCHAR(80) DEFAULT NULL COMMENT '所在 bucket（audit-project-{pid}）'"
+    if not _column_exists(table, col):
+        execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {col} {ddl}", database=DATABASE)
+        print(f"[migrate] + {table}.{col}")
+    else:
+        print(f"[migrate] = {table}.{col} 已存在，跳过")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -689,6 +757,9 @@ def main():
         migrate_phase5_data_tables()
         migrate_engine_rules()
         migrate_phase8_contract_tables()
+        migrate_audit_projects_report_columns()
+        migrate_audit_deliverables()
+        migrate_audit_deliverables_columns()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise

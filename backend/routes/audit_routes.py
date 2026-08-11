@@ -71,6 +71,7 @@ def _stage_enrich(dto: dict) -> dict:
 
 from services.db import query, query_one, execute, insert
 from services import project_lifecycle as plc
+from services import report_lifecycle as rlc
 from services.knowledge_service import (
     search_laws, count_laws, get_law_detail,
     list_potency_levels, list_timeliness_options,
@@ -870,6 +871,269 @@ def register_audit_routes(app):
             "task_id": task_id,
             "ocr_status": "pending",
             "message": "文件已上传，OCR+提取正在后台处理",
+        })
+
+    # ═══════════════════════════════════════════════════════════
+    #  报告管理（报告段状态机 report_stage + 交付物 audit_deliverables）
+    #  报告段状态走独立列 report_stage，不共用 status（status='archived' 是软删除）。
+    # ═══════════════════════════════════════════════════════════
+
+    @app.route("/api/audit/projects/<project_id>/report-transition", methods=["POST"])
+    def audit_project_report_transition(project_id):
+        """POST /api/audit/projects/<id>/report-transition — 推进报告段状态机
+
+        body: {"to": "drafting", "expected_update_time"?: "..."}
+        校验顺序：① 目标阶段合法 ② 项目存在 ③ can_transition（防跨级/回退）
+                  ④ check_prerequisites（drafting 要 active+workspace；reviewing 要 report 交付物；
+                     issued 要 adopted report；filed 要 archive_no）⑤ 乐观锁 token。
+        成功：UPDATE report_stage + report_stage_changed_at + bump update_time（与三存端点一致）。
+        """
+        data = request.get_json() or {}
+        target = data.get("to")
+        if target not in rlc.REPORT_STAGES:
+            return jsonify({
+                "success": False, "error": "非法目标阶段: {}".format(target),
+                "report_stages": rlc.REPORT_STAGES,
+            }), 400
+
+        row = query_one(
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        cur = row.get("report_stage")  # None = 未启动报告段
+
+        # ③ 合法转换（TRANSITIONS 白名单，防 drafting→filed 跨级）
+        if not rlc.can_transition(cur, target):
+            return jsonify({
+                "success": False,
+                "error": "不允许从 {} 推进到 {}".format(cur, target),
+                "report_stage": cur,
+                "allowed_next": rlc.TRANSITIONS.get(cur, []),
+            }), 409
+
+        # ④ 前置条件（reviewing/issued 需查交付物；drafting/filed 只看项目行）
+        delivs = []
+        if target in ("reviewing", "issued"):
+            delivs = query(
+                "SELECT deliverable_type, status FROM audit_deliverables "
+                "WHERE project_id = %s",
+                (project_id,), database="tt",
+            )
+        ok, missing = rlc.check_prerequisites(row, target, delivs)
+        if not ok:
+            return jsonify({
+                "success": False,
+                "error": "前置条件未满足",
+                "report_stage": cur,
+                "missing": missing,
+            }), 409
+
+        # ⑤ 乐观锁（可选 expected_update_time，复用 items-save 机制）
+        expected = data.get("expected_update_time")
+        if expected:
+            cur_ut = row.get("update_time")
+            cur_str = cur_ut.isoformat() if hasattr(cur_ut, "isoformat") else str(cur_ut or "")
+            if cur_str and expected != cur_str:
+                return jsonify({
+                    "success": False,
+                    "error": "项目已被他人修改，请刷新后重试",
+                    "current_update_time": cur_str,
+                }), 409
+
+        execute(
+            "UPDATE audit_projects SET report_stage = %s, "
+            "report_stage_changed_at = NOW(), update_time = NOW() "
+            "WHERE id = %s AND deleted = 0",
+            (target, project_id), database="tt",
+        )
+        ut_row = query_one(
+            "SELECT update_time, report_stage FROM audit_projects WHERE id = %s",
+            (project_id,), database="tt",
+        )
+        ut_val = ut_row["update_time"] if ut_row else None
+        ut_str = ut_val.isoformat() if hasattr(ut_val, "isoformat") else (str(ut_val) if ut_val else "")
+        return jsonify({
+            "success": True,
+            "report_stage": target,
+            "update_time": ut_str,
+            "report_allowed_actions": rlc.allowed_actions(target),
+        })
+
+    @app.route("/api/audit/projects/<project_id>/report-meta", methods=["PUT"])
+    def audit_project_report_meta(project_id):
+        """PUT /api/audit/projects/<id>/report-meta — 更新报告台账字段（项目级）
+
+        白名单：review_deadline / archive_no / archive_date（报告段项目级字段；
+        文书属性归 audit_deliverables，不在此）。空串视作清空（NULL）。
+        带乐观锁 expected_update_time（复用 items-save 机制）。bump update_time。
+        解决"issued→filed 需 archive_no 但无端点可填"的缺口。
+        """
+        data = request.get_json() or {}
+        allowed = ("review_deadline", "archive_no", "archive_date")
+        updates = {}
+        for k in allowed:
+            if k in data:
+                v = data[k]
+                if isinstance(v, str):
+                    v = v.strip() or None
+                updates[k] = v
+        if not updates:
+            return jsonify({
+                "success": False,
+                "error": "没有可更新字段（允许: review_deadline/archive_no/archive_date）",
+            }), 400
+
+        row = query_one(
+            "SELECT * FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not row:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        # 乐观锁（可选 expected_update_time）
+        expected = data.get("expected_update_time")
+        if expected:
+            cur_ut = row.get("update_time")
+            cur_str = cur_ut.isoformat() if hasattr(cur_ut, "isoformat") else str(cur_ut or "")
+            if cur_str and expected != cur_str:
+                return jsonify({
+                    "success": False,
+                    "error": "项目已被他人修改，请刷新后重试",
+                    "current_update_time": cur_str,
+                }), 409
+
+        set_clauses = ", ".join("{} = %s".format(k) for k in updates)
+        params = list(updates.values()) + [project_id]
+        try:
+            execute(
+                "UPDATE audit_projects SET {}, update_time = NOW() "
+                "WHERE id = %s AND deleted = 0".format(set_clauses),
+                params, database="tt",
+            )
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": "更新失败（检查日期格式 YYYY-MM-DD）: {}".format(e),
+            }), 400
+
+        row2 = query_one(
+            "SELECT review_deadline, archive_no, archive_date, update_time "
+            "FROM audit_projects WHERE id = %s",
+            (project_id,), database="tt",
+        )
+        dto = _clean_row(row2) if row2 else {}
+        return jsonify({
+            "success": True,
+            "update_time": dto.get("update_time"),
+            "report_meta": {k: dto.get(k) for k in ("review_deadline", "archive_no", "archive_date")},
+        })
+
+    @app.route("/api/audit/projects/<project_id>/deliverables", methods=["GET"])
+    def audit_deliverables_list(project_id):
+        """GET /api/audit/projects/<id>/deliverables — 交付物列表（带版本）
+
+        query: type（可选，过滤 deliverable_type，如 report/decision）。
+        """
+        dtype = (request.args.get("type") or "").strip() or None
+        if dtype:
+            rows = query(
+                "SELECT * FROM audit_deliverables WHERE project_id = %s "
+                "AND deliverable_type = %s ORDER BY version DESC, id DESC",
+                (project_id, dtype), database="tt",
+            )
+        else:
+            rows = query(
+                "SELECT * FROM audit_deliverables WHERE project_id = %s "
+                "ORDER BY deliverable_type, version DESC, id DESC",
+                (project_id,), database="tt",
+            )
+        return jsonify({"success": True, "deliverables": [_clean_row(r) for r in rows]})
+
+    @app.route("/api/audit/projects/<project_id>/deliverables", methods=["POST"])
+    def audit_deliverable_create(project_id):
+        """POST /api/audit/projects/<id>/deliverables — 上传交付物（multipart）
+
+        form: deliverable_type（必填，report/decision/review_feedback/rectification_report）
+              version?/deliverable_no?/title?/issue_date?/status?
+        file: 正文文件（必填）。存项目 bucket（audit-project-{pid}），object_key =
+              build_file_prefix(...) + deliverables/{type}/{file_id}.{filename}。
+        跳过 manifest/OCR/trace（那些是被审计资料专属，交付物不需要）。
+        """
+        proj = query_one(
+            "SELECT name, audit_period, create_time, minio_bucket "
+            "FROM audit_projects WHERE id = %s AND deleted = 0",
+            (project_id,), database="tt",
+        )
+        if not proj:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        dtype = (request.form.get("deliverable_type") or "").strip()
+        if dtype not in ("report", "decision", "review_feedback", "rectification_report"):
+            return jsonify({"success": False, "error": "deliverable_type 非法"}), 400
+        if "file" not in request.files:
+            return jsonify({"success": False, "error": "请选择文件"}), 400
+
+        bucket = proj.get("minio_bucket") or "audit-project-{}".format(project_id)
+        from services.minio_client import upload_file, get_client
+        try:
+            if not get_client().bucket_exists(bucket):
+                return jsonify({"success": False, "error": "资料空间未就绪，请先 finalize"}), 409
+        except Exception as e:
+            return jsonify({"success": False, "error": "存储检查失败: {}".format(e)}), 500
+
+        f = request.files["file"]
+        filename = f.filename
+        file_bytes = f.read()
+        file_id = str(uuid.uuid4()).replace("-", "")[:12]
+
+        from services.workspace_service import (
+            derive_audit_year, compute_safe_name, build_file_prefix,
+        )
+        audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
+        safe_name = compute_safe_name(proj.get("name") or "")
+        leaf = "{}.{}".format(file_id, filename)
+        object_key = "{}deliverables/{}/{}".format(
+            build_file_prefix(audit_year, project_id, safe_name), dtype, leaf)
+
+        try:
+            upload_file(file_bytes, object_key,
+                        content_type=f.content_type or "application/octet-stream",
+                        bucket=bucket)
+        except Exception as e:
+            return jsonify({"success": False, "error": "文件存储失败: {}".format(e)}), 500
+
+        # version：前端显式传则用，否则同 type 内 MAX(version)+1
+        # （并发上传同 type 罕见，接受读-写间隙；如需强一致可加 project+type+version 唯一索引）
+        if (request.form.get("version") or "").isdigit():
+            version = int(request.form.get("version"))
+        else:
+            maxv = query_one(
+                "SELECT MAX(version) AS m FROM audit_deliverables "
+                "WHERE project_id = %s AND deliverable_type = %s",
+                (project_id, dtype), database="tt")
+            version = (maxv["m"] or 0) + 1 if maxv else 1
+        deliverable_no = (request.form.get("deliverable_no") or "").strip() or None
+        title = (request.form.get("title") or "").strip() or None
+        issue_date = (request.form.get("issue_date") or "").strip() or None
+        dstatus = (request.form.get("status") or "draft").strip()
+
+        deliv_id = insert(
+            "INSERT INTO audit_deliverables "
+            "(project_id, deliverable_type, version, deliverable_no, title, issue_date, "
+            "minio_path, minio_bucket, status, created_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (project_id, dtype, version, deliverable_no, title, issue_date,
+             object_key, bucket, dstatus, "system"),
+            database="tt",
+        )
+        return jsonify({
+            "success": True,
+            "deliverable_id": deliv_id,
+            "minio_bucket": bucket,
+            "minio_path": object_key,
+            "message": "交付物已上传",
         })
 
     @app.route("/api/audit/projects/<project_id>/files", methods=["GET"])
@@ -1847,6 +2111,9 @@ def register_audit_routes(app):
             "audit_period": pc.get("audit_period", ""),
             "target_level": pc.get("target_level", ""),
             "target_unit": pc.get("audited_unit", ""),
+            # P9-立项匹配: objective/scope 已由 ContextBuilder 读出，此处接通（此前被丢弃，导致 ViolationMatcher 看不到立项详情）
+            "objective": pc.get("objective", ""),
+            "scope": pc.get("scope", ""),
         }
 
         # 启动 LangGraph 工作流（Step① + Step②，在 Step③ 断点暂停）
