@@ -664,9 +664,21 @@ var FileManager = {
     var period = prompt('审计期间（如 2026年度，可留空）：') || '';
     var self = this;
     AuditAPI.projects.create({name: name, audit_period: period}).then(function(resp) {
-      AuditWorkbench.toast(resp.success ? '已创建项目：' + name : '创建失败', resp.success ? 'success' : 'error');
-      if (resp.success) self.refresh();
-    });
+      if (!resp || !resp.success) {
+        AuditWorkbench.toast('创建失败：' + ((resp && resp.error) || '未知'), 'error');
+        return;
+      }
+      // 新建项目必须走完立项四阶段（立项→范围→事项→激活资料空间）才能上传。
+      // 此处建的是空壳，直接留在资料工坊会让用户撞上"请先完成立项四阶段"的墙。
+      // 改为：建壳后带 id 跳转立项页，自动进入该项目编辑态引导填信息。
+      // 用 sessionStorage 一次性信号（跳完即焚），避免长期劫持正常进立项页的列表视图。
+      var pid = (resp.project && resp.project.id) || resp.id || '';
+      if (pid) {
+        try { sessionStorage.setItem('aw_autoedit_project', pid); } catch(e) {}
+      }
+      AuditWorkbench.toast('已创建项目：' + name + '，前往立项页填写信息…', 'success');
+      setTimeout(function() { window.location.href = 'projects.html'; }, 600);
+    }).catch(function() { AuditWorkbench.toast('网络错误，创建失败', 'error'); });
   },
 
   filter: function(q) {

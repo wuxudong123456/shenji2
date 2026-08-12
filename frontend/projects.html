@@ -1676,7 +1676,23 @@ var PhaseBoard = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', function() { Proj.init(); });
+document.addEventListener('DOMContentLoaded', function() {
+  Proj.init();
+  // 资料工坊「新建项目」建壳后跳转过来：检测一次性信号，自动进入该项目编辑态
+  // 引导走完立项四阶段（而不是停在列表页让用户迷茫）。sessionStorage 跳完即焚，
+  // 不影响用户从侧边栏正常点进立项页时的列表视图。
+  try {
+    var autoPid = sessionStorage.getItem('aw_autoedit_project');
+    if (autoPid) {
+      sessionStorage.removeItem('aw_autoedit_project');
+      // init() 异步拉列表，稍延后等 DOM 就绪再进入编辑态
+      setTimeout(function() {
+        Proj._currentProjectId = autoPid;
+        Proj.editProject();
+      }, 400);
+    }
+  } catch(e) {}
+});
 </script>
 </body>
 </html>
