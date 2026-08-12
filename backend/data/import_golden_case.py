@@ -113,9 +113,16 @@ def _insert_contracts(rows, dry_run):
 
 
 def _insert_violation(dry_run):
-    """插 RA-001 违规模型（幂等：先按 import_batch + expression_text 删）"""
+    """插 RA-001 违规模型（幂等：先按 import_batch + expression_text 删）
+
+    固定 id=1：现有违规 id 全在 8756+，1-100 空闲且 RA-001 无关联表引用，固定 id 安全。
+    注意：违规搜索的 ORDER BY（knowledge_service.py:217）只有两个 CASE WHEN title LIKE，
+    无 id tiebreaker，故 id 大小并不决定排序先后——RA-001 的可见性靠 (a) 进 _initData 的
+    per_page=100 窗口（实测排第 24 位，稳进）+ (b) 前端 rank() 按关键词密度重排取 Top 8
+    （标题/分类含"政府采购/采购"密度高，必进 Top 8）。固定 id=1 只为好记，不为排序。
+    """
     if dry_run:
-        print(f"  [预览] 将插入违规模型 RA-001 (expression={VIOLATION_EXPR!r})")
+        print(f"  [预览] 将插入违规模型 RA-001 (id=1, expression={VIOLATION_EXPR!r})")
         return
     execute(
         f"DELETE FROM audit_violations WHERE import_batch = %s AND expression_text = %s",
@@ -123,10 +130,10 @@ def _insert_violation(dry_run):
     )
     execute(
         "INSERT INTO audit_violations "
-        "(violation_code, violation_title, category_path, severity, expression_text, "
+        "(id, violation_code, violation_title, category_path, severity, expression_text, "
         "description, source_file, author, import_batch, is_reviewed, review_status, "
         "creator, create_time, deleted) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,'pending','system',NOW(),0)",
+        "VALUES (1,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,'pending','system',NOW(),0)",
         ("RA-001", "应实行未实行政府采购（直接采购且金额大于零）",
          "政府采购/采购方式合规", "medium", VIOLATION_EXPR,
          "对应案例包 RA-001：合同数据.采购方式='直接采购' AND 合同数据.金额>0。"
@@ -134,15 +141,8 @@ def _insert_violation(dry_run):
          "golden_dataset", "案例包", IMPORT_BATCH),
         database="tt",
     )
-    # 取回自增 id 供验证用
-    row = query(
-        "SELECT id FROM audit_violations WHERE import_batch=%s AND expression_text=%s "
-        "ORDER BY id DESC LIMIT 1",
-        (IMPORT_BATCH, VIOLATION_EXPR), database="tt",
-    )
-    vid = row[0]["id"] if row else "?"
-    print(f"  违规模型已插入: RA-001 (id={vid}, expression={VIOLATION_EXPR!r})")
-    return vid
+    print(f"  违规模型已插入: RA-001 (id=1, expression={VIOLATION_EXPR!r})")
+    return 1
 
 
 def main():
