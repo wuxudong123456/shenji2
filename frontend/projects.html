@@ -892,6 +892,7 @@ var Proj = {
     this._activeTab = n;
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(t,i){t.classList.toggle('active',i+1===n);});
     for(var i=1;i<=5;i++){var el=document.getElementById('tab-'+i);if(el)el.style.display=i===n?'block':'none';}
+    if(n===3) Proj._syncAndRenderFinalize();  // 进审计事项Tab：向后端确认真实阶段后渲染第四步入口
     if(n===4) PhaseBoard.calcAll();
     if(n===5) Proj.renderReportStage();
   },
@@ -1437,6 +1438,28 @@ var Proj = {
       }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+  },
+
+  /** 进入审计事项Tab时：向后端拉取项目真实状态（setup_stage/items数/status），
+   *  刷新内存快照后再渲染第四步入口。根治"内存stage过期导致按钮不出现"——
+   *  无论从哪条路径进Tab、内存对象多旧，都以后端真相为准。失败则降级用内存值。*/
+  _syncAndRenderFinalize: function() {
+    var self = this;
+    var pid = this._editingProjectId;
+    if (!pid) { this._renderFinalizeBtn(); return; }  // 新建态无id，直接用内存渲染
+    AuditAPI.projects.get(pid).then(function(resp) {
+      if (resp && resp.success && resp.project) {
+        // 保留乐观锁token，只更新状态相关字段
+        var fresh = resp.project;
+        if (!self._editingProject) self._editingProject = {};
+        self._editingProject.setup_stage = fresh.setup_stage || self._editingProject.setup_stage;
+        self._editingProject.status = fresh.status || self._editingProject.status;
+        self._editingProject.update_time = fresh.update_time || self._editingProject.update_time;
+        // 同步事项数（用于按钮"事项≥1"判定）
+        if (fresh.audit_items) { self._items = fresh.audit_items.slice(); self._renderItems(fresh.audit_items); }
+      }
+      self._renderFinalizeBtn();
+    }).catch(function() { self._renderFinalizeBtn(); });  // 后端不可用降级
   },
 
   /** 渲染「创建资料空间并激活项目」入口（第四阶段 finalize）。
