@@ -13,11 +13,17 @@ def detect_target_table(expression: str, project_id: str) -> str:
     策略: 字段签名匹配 → 回退查有数据的表 → 最终回退 data_contracts
     """
     TABLE_SIGNATURES = {
-        "data_contracts": ["contract_no", "party_a", "party_b", "procurement_method", "sign_date"],
+        "data_contracts": ["contract_no", "party_a", "party_b", "procurement_method", "sign_date", "amount"],
         "data_finance": ["account_no", "debit_amount", "credit_amount", "voucher_no", "bank_name"],
         "data_legal_docs": ["case_no", "issuing_body", "legal_basis", "verdict"],
         "data_registers": ["register_type", "item_name", "quantity", "responsible_person"],
         "data_credentials": ["cert_type", "cert_no", "holder", "expire_date"],
+        # 以下 3 表原缺失（写侧 task_worker:813 八表齐全，扫侧只列 5 表）
+        # → 扫描器永远路由不到有数据的 data_general/data_procurements，total=0 误报"数据不足"
+        # 字段名逐字照搬 schema.sql 各表真实列名
+        "data_procurements": ["procurement_method", "subject_name", "supplier", "budget_amount", "contract_amount", "bid_date", "sign_date"],
+        "data_general": ["category", "title", "summary", "issuing_body", "doc_date"],
+        "data_interviews": ["interviewee", "interview_date", "location", "transcript"],
     }
 
     field_pattern = re.compile(r'([a-zA-Z_一-鿿][a-zA-Z0-9_一-鿿]*)')
