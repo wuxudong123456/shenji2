@@ -509,6 +509,8 @@
         </div>
       </div>
     </div>
+    <!-- 第四阶段入口：创建资料空间并激活项目（仅在 setup_stage=items 且事项≥1 且未激活时显示）-->
+    <div id="finalize-zone"></div>
   </div>
 
   <!-- Tab 5：报告段（report_stage 状态机：drafting→reviewing→issued→filed）-->
@@ -594,7 +596,9 @@ var Proj = {
     this._gatedTabs = 4;
     this._editingProjectId = null;
     this._editingUpdateTime = null;  // T8 乐观锁 token（加载/每次保存后刷新）
+    this._editingProject = null;  // 新建项目：清空编辑态项目对象
     this._setSaveStatus('');
+    this._renderFinalizeBtn();  // 清空第四阶段入口（新建项目不显示）
     document.querySelectorAll('#setup-tabs .kw-tab').forEach(function(tab){ tab.style.opacity=''; tab.style.cursor=''; });
   },
   cancel: function() {
@@ -669,6 +673,7 @@ var Proj = {
           var items = (p.audit_items && p.audit_items.length) ? p.audit_items : [];
           Proj._items = items.slice();
           Proj._renderItems(items);
+          Proj._renderFinalizeBtn();  // 第四阶段入口（按 setup_stage/事项数/状态显隐）
         }, 300);
       }, 200);
       AuditWorkbench.toast('项目信息已加载，修改后点保存','info');
@@ -1410,6 +1415,7 @@ var Proj = {
         self.init();
         self._setSaveStatus('✓ 审计事项已保存');
         AuditWorkbench.toast('✓ 审计事项已保存，可返回列表或继续调整','success');
+        self._renderFinalizeBtn();  // 事项数变化后刷新第四阶段入口
       } else if (r && r.current_update_time) {
         // T8 乐观锁冲突：他人已先保存。拉取最新事项 + 刷新 token，提示用户核对后重存
         AuditWorkbench.toast('⚠️ ' + (r.error || '项目已被他人修改，请核对最新事项后重新保存'), 'warning');
@@ -1424,6 +1430,65 @@ var Proj = {
       }
       else { AuditWorkbench.toast('保存失败：' + ((r && r.error) || '未知错误'), 'error'); }
     }).catch(function(){ AuditWorkbench.toast('网络错误','error'); });
+  },
+
+  /** 渲染「创建资料空间并激活项目」入口（第四阶段 finalize）。
+   *  仅当 setup_stage='items' 且事项≥1 且 status≠active 时显示按钮；
+   *  已激活则显示已激活状态条；否则（阶段未到/无事项）清空。 */
+  _renderFinalizeBtn: function() {
+    var zone = document.getElementById('finalize-zone');
+    if (!zone) return;
+    var p = this._editingProject || {};
+    var stage = p.setup_stage || 'basic';
+    var itemCnt = (this._items && this._items.length) || 0;
+    // 非编辑态或阶段未到 items，不显示
+    if (!this._editingProjectId || ['basic','target_scope'].indexOf(stage) >= 0) { zone.innerHTML = ''; return; }
+    if (p.status === 'active' && stage === 'workspace') {
+      zone.innerHTML = '<div class="alert alert-success" style="margin-top:var(--space-md);font-size:14px;"><i class="bi bi-check-circle-fill"></i> 项目已激活，资料空间已就绪。可前往<strong>资料工坊</strong>上传文件。</div>';
+      return;
+    }
+    if (stage === 'workspace') {
+      zone.innerHTML = '<div class="alert alert-info" style="margin-top:var(--space-md);font-size:14px;"><i class="bi bi-info-circle"></i> 资料空间已创建。</div>';
+      return;
+    }
+    // stage === 'items'
+    if (itemCnt < 1) {
+      zone.innerHTML = '<div class="alert" style="margin-top:var(--space-md);font-size:13px;color:var(--color-text-muted);background:var(--color-bg);"><i class="bi bi-arrow-up-short"></i> 请先添加并保存至少 1 个审计事项，再创建资料空间。</div>';
+      return;
+    }
+    zone.innerHTML =
+      '<div class="card" style="margin-top:var(--space-md);border:1px solid var(--color-primary);background:rgba(26,58,92,0.02);">' +
+        '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;">' +
+          '<div style="flex:1;min-width:240px;">' +
+            '<div style="font-weight:600;font-size:15px;color:var(--color-primary);"><i class="bi bi-rocket-takeoff"></i> 第四步：创建资料空间并激活项目</div>' +
+            '<div style="font-size:13px;color:var(--color-text-muted);margin-top:4px;">前三阶段已完成。点击后将创建项目资料空间（MinIO 存储桶）并激活项目，之后即可在<strong>资料工坊</strong>上传审计资料。此操作幂等，可安全重复点击。</div>' +
+          '</div>' +
+          '<button class="btn btn-accent btn-lg" onclick="Proj.doFinalize()"><i class="bi bi-check2-circle"></i> 创建资料空间并激活</button>' +
+        '</div>' +
+      '</div>';
+  },
+
+  /** 执行 finalize：调 POST /workspace/finalize，成功后刷新项目状态与 Tab 准入。 */
+  doFinalize: function() {
+    var pid = this._editingProjectId;
+    if (!pid) { AuditWorkbench.toast('未选择项目','warning'); return; }
+    var self = this;
+    AuditWorkbench.toast('正在创建资料空间…','info');
+    AuditAPI.projects.finalize(pid).then(function(r){
+      if (r && r.success) {
+        AuditWorkbench.toast('✓ 资料空间已创建，项目已激活。可前往资料工坊上传文件','success');
+        // 刷新本地项目状态：setup_stage→workspace, status→active, 刷新乐观锁 token
+        var p = (r.project) || self._editingProject || {};
+        p.setup_stage = 'workspace'; p.status = 'active';
+        if (r.project && r.project.update_time) self._editingUpdateTime = r.project.update_time;
+        self._editingProject = p;
+        self._applyTabGating('workspace', 'active');  // 解锁后续 Tab（含报告段）
+        self._renderFinalizeBtn();  // 按钮换成"已激活"状态条
+        self.init();  // 刷新项目卡片列表（状态从草稿→进行中）
+      } else {
+        AuditWorkbench.toast('创建失败：' + ((r && r.error) || '前置阶段未完成'), 'error');
+      }
+    }).catch(function(){ AuditWorkbench.toast('网络错误，创建失败','error'); });
   },
   // ── P3-1: 从 API 加载真实项目列表 ──
   _projectMap: {},
