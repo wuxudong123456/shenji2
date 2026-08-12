@@ -773,6 +773,7 @@ def register_audit_routes(app):
             build_file_prefix, build_manifest_path,
             load_manifest, save_manifest, init_first_manifest,
             append_file_to_manifest, build_file_entry,
+            update_manifest_atomic,
         )
         audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
         category, subcategory = classify_file(filename, f.content_type)
@@ -825,19 +826,24 @@ def register_audit_routes(app):
         )
 
         # P2-6 §6.1 manifest 增量追加（upload 为唯一合法变更点之一，§7；失败不阻断上传）
+        # 并发保护：多文件并发上传时 load→append→save 是读-改-写，后写覆盖先写会丢条目
+        # （lost update）。改用 per-project 写锁的原子更新。
         try:
             mpath = build_manifest_path(audit_year, project_id, safe_name)
-            m = load_manifest(bucket, mpath)
-            if m is None:
-                # §7 兜底：finalize 应已建首版，缺失则按空重建并写回
-                m = init_first_manifest(project_id, proj.get("name") or "", audit_year, bucket)
-            append_file_to_manifest(m, build_file_entry(
+            _entry = build_file_entry(
                 trace_id=trace_id, file_name=filename, object_key=minio_path,
                 category=category, subcategory=subcategory,
                 size=len(file_bytes), md5=file_md5,
                 content_type=f.content_type or "application/octet-stream",
-            ))
-            save_manifest(bucket, mpath, m)
+            )
+
+            def _append(m):
+                if m is None:
+                    m = init_first_manifest(project_id, proj.get("name") or "", audit_year, bucket)
+                append_file_to_manifest(m, _entry)
+                return m
+
+            update_manifest_atomic(project_id, bucket, mpath, _append)
         except Exception as e:
             print("[upload] manifest 增量写入失败（不阻断上传）: %s" % e)
 
@@ -1228,6 +1234,7 @@ def register_audit_routes(app):
             derive_audit_year, compute_safe_name, build_manifest_path,
             load_manifest, init_first_manifest, save_manifest,
             append_file_to_manifest, build_file_entry,
+            update_manifest_atomic,
         )
         cats = ["text", "image", "audio", "video", "other"]
         out = []
@@ -1278,25 +1285,36 @@ def register_audit_routes(app):
                 if traces:
                     print("[tree] WARN 项目 %s manifest 缺失，回退 trace 对账重建" % pid)
                     try:
-                        m = init_first_manifest(pid, p.get("name") or "", audit_year, bucket)
-                        for t in traces:
-                            cat = t.get("file_category") or "other"
-                            counts[cat] = counts.get(cat, 0) + 1
-                            files_out.append({
-                                "trace_id": t["id"],
-                                "file_name": t.get("file_name"),
-                                "category": cat,
-                                "subcategory": t.get("file_subcategory"),
-                                "size": t.get("file_size"),
-                                "uploaded_at": str(t["created_at"]) if t.get("created_at") else None,
-                            })
-                            append_file_to_manifest(m, build_file_entry(
-                                trace_id=t["id"], file_name=t.get("file_name") or "",
-                                object_key=t.get("minio_path") or "", category=cat,
-                                subcategory=t.get("file_subcategory"),
-                                size=t.get("file_size"), legacy_raw=True,
-                            ))
-                        save_manifest(bucket, mpath, m)
+                        _traces = traces
+
+                        def _rebuild(m):
+                            if m is None:
+                                m = init_first_manifest(pid, p.get("name") or "", audit_year, bucket)
+                            exist_ids = {f.get("trace_id") for f in m.get("files", [])}
+                            for t in _traces:
+                                if t["id"] in exist_ids:
+                                    continue  # 已存在不重复追加
+                                cat = t.get("file_category") or "other"
+                                counts[cat] = counts.get(cat, 0) + 1
+                                files_out.append({
+                                    "trace_id": t["id"],
+                                    "file_name": t.get("file_name"),
+                                    "category": cat,
+                                    "subcategory": t.get("file_subcategory"),
+                                    "size": t.get("file_size"),
+                                    "uploaded_at": str(t["created_at"]) if t.get("created_at") else None,
+                                })
+                                append_file_to_manifest(m, build_file_entry(
+                                    trace_id=t["id"], file_name=t.get("file_name") or "",
+                                    object_key=t.get("minio_path") or "", category=cat,
+                                    subcategory=t.get("file_subcategory"),
+                                    size=t.get("file_size"), legacy_raw=True,
+                                ))
+                            return m
+
+                        update_manifest_atomic(pid, bucket, mpath, _rebuild,
+                                               fallback_manifest=init_first_manifest(
+                                                   pid, p.get("name") or "", audit_year, bucket))
                     except Exception as e:
                         # 重建写 MinIO 失败（如 bucket 名非法）：不炸全树，告警并以已装配文件列表返回
                         print("[tree] WARN 项目 %s manifest 重建失败，跳过 MinIO 写: %s" % (pid, e))
@@ -2480,7 +2498,7 @@ def register_audit_routes(app):
             bucket = proj.get("minio_bucket") or "audit-project-{}".format(project_id)
             from services.workspace_service import (
                 parse_pid_from_key, derive_audit_year, compute_safe_name,
-                build_manifest_path, load_manifest, save_manifest, mark_file_deleted,
+                build_manifest_path, mark_file_deleted, update_manifest_atomic,
             )
             # P2-10 跨项目校验
             if parse_pid_from_key(object_key) != project_id:
@@ -2496,14 +2514,18 @@ def register_audit_routes(app):
                 execute("UPDATE audit_document_traces SET deleted_at = NOW() WHERE id = %s",
                         (trace["id"],), database="tt")
                 trace_id = trace["id"]
-            # 软删 manifest（增量更新）
+            # 软删 manifest（增量更新，并发写保护）
             audit_year, _ = derive_audit_year(proj.get("audit_period"), proj.get("create_time"))
             mpath = build_manifest_path(audit_year, project_id, compute_safe_name(proj.get("name") or ""))
-            m = load_manifest(bucket, mpath)
-            marked = False
-            if m:
-                marked = mark_file_deleted(m, object_key=object_key)
-                save_manifest(bucket, mpath, m)
+            _marked = {"v": False}
+
+            def _del(m):
+                if m:
+                    _marked["v"] = mark_file_deleted(m, object_key=object_key)
+                return m
+
+            update_manifest_atomic(project_id, bucket, mpath, _del)
+            marked = _marked["v"]
             return jsonify({
                 "success": True, "soft_deleted": True, "trace_id": trace_id,
                 "manifest_marked": marked,

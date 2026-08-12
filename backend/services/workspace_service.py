@@ -7,11 +7,30 @@
 """
 import json
 import re
+import threading
 from datetime import datetime
 
 
 # 4 位年份（19xx / 20xx）
 _YEAR_RE = re.compile(r'(?:19|20)\d{2}')
+
+
+# ── manifest 并发写保护（per-project）─────────────────────────────
+# 问题：upload 的 load→append→save 是读-改-写，多文件并发上传时后写覆盖先写，
+#   导致 manifest 丢条目（lost update）。按 project_id 加进程内可重入锁串行化写。
+#   Flask 单进程多线程下足够；多进程部署需替换为分布式锁（当前无需）。
+_manifest_locks = {}
+_manifest_locks_guard = threading.Lock()
+
+
+def _get_manifest_lock(project_id):
+    """获取（惰性创建）某项目的 manifest 写锁（可重入，同线程可重复 acquire）。"""
+    with _manifest_locks_guard:
+        lk = _manifest_locks.get(project_id)
+        if lk is None:
+            lk = threading.RLock()
+            _manifest_locks[project_id] = lk
+        return lk
 
 
 def derive_audit_year(audit_period, created_at):
@@ -138,6 +157,35 @@ def save_manifest(bucket, manifest_path, manifest):
     from services.minio_client import upload_file
     data = json.dumps(manifest, ensure_ascii=False, indent=2).encode('utf-8')
     upload_file(data, manifest_path, content_type='application/json', bucket=bucket)
+
+
+def update_manifest_atomic(project_id, bucket, manifest_path, mutate_fn, fallback_manifest=None):
+    """在 per-project 写锁内执行 load → mutate → save，防并发读-改-写丢条目。
+
+    Args:
+        project_id: 项目ID（锁分桶键）
+        bucket / manifest_path: manifest 位置
+        mutate_fn: 接收当前 manifest dict，原地修改后返回（或返回新 manifest）
+        fallback_manifest: manifest 读不到（None）时的兜底首版（不传则用 init_first_manifest 重建）
+
+    Returns:
+        写回后的 manifest dict。
+    """
+    lk = _get_manifest_lock(project_id)
+    with lk:
+        m = load_manifest(bucket, manifest_path)
+        if m is None:
+            m = fallback_manifest
+        if m is None:
+            # §7 兜底：finalize 应已建首版，缺失则按空重建
+            m = {"manifest_version": MANIFEST_VERSION, "project_id": project_id,
+                 "files": [], "updated_at": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}
+        ret = mutate_fn(m)
+        if ret is not None:
+            m = ret
+        m["updated_at"] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        save_manifest(bucket, manifest_path, m)
+        return m
 
 
 def init_first_manifest(project_id, project_name, audit_year, bucket):
