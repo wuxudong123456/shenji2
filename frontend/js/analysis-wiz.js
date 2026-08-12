@@ -1507,11 +1507,11 @@ var AW = {
       }
       tbody.innerHTML = files.map(function(f){
         var name = f.file_name || f.name || '未命名';
+        var fid = f.trace_id || f.id || '';  // 后端 files.list 返回 trace_id（trace 表主键），非 id
         var status = f.ocr_done ? '<span class="badge badge-success">已解析</span>' : '<span class="badge badge-warning">待解析</span>';
-        var safeName = name.replace(/'/g,'');
         return '<tr><td><strong>'+name+'</strong></td><td><select class="form-select form-select-sm" style="width:160px;font-size:12px;" onchange="AW.reExtract(this)"><option>采购合同及补充协议</option><option>银行付款凭证及流水</option><option>供应商工商登记信息</option></select></td><td>'+status+'</td>'+
           '<td><div style="display:flex;gap:4px;flex-wrap:wrap;">'+
-          '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\''+f.id+'\')" title="查看结构化数据"><i class="bi bi-table"></i> 查看数据</button>'+
+          '<button class="btn btn-xs btn-outline" onclick="AW.viewStructuredData(\''+fid+'\')" title="查看结构化数据"'+(fid?'':' disabled style=\"opacity:0.5;cursor:not-allowed;\"')+'><i class="bi bi-table"></i> 查看数据</button>'+
           '<button class="btn btn-xs btn-outline" onclick="var sel=this.closest(\'tr\').querySelector(\'select\');AW.reExtract(sel)" title="重新提取"><i class="bi bi-arrow-repeat"></i> 重提取</button></div></td></tr>';
       }).join('');
     }).catch(function() {
@@ -1639,7 +1639,7 @@ var AW = {
         html += '<div class="alert alert-warning" style="font-size:13px;">该文件尚未解析（无 OCR 内容）</div>';
       }
       bodyEl.innerHTML = html;
-    }).catch(function(){ bodyEl.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">网络错误，后端 trace 接口不可用</div>'; });
+    }).catch(function(e){ bodyEl.innerHTML = '<div class="alert alert-danger" style="font-size:13px;">加载失败：'+(e&&e.message?e.message:'后端 /documents/trace 请求失败，请确认后端服务运行中')+'</div>'; });
   },
 
   /** 更改分类后重新提取元数据 */
