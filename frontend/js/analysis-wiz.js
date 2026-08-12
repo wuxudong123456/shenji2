@@ -684,6 +684,10 @@ var AW = {
       // 第五步动态渲染（读 _scanResult + 内存数据，替代静态 #s5 mock）
       this.renderS5();
       if(R) R.style.display = 'block';
+    } else if(n===6) {
+      // 第六步动态渲染（读 _suspicionData，替代静态 #s6 mock）
+      this.renderS6();
+      if(R) R.style.display = 'block';
     } else if(n>=5) {
       var p = document.getElementById('s'+n);
       if(p && R) {
@@ -1883,19 +1887,12 @@ var AW = {
         });
       });
     } else {
-      // 降级: 从 mock violationDB 构建
-      self.selectedViolations.forEach(function(id) {
-        var v = self.violationDB.find(function(x) { return x.id === id; });
-        if (!v) return;
-        findings.push({
-          id: v.id, name: v.name, risk: v.risk, match: v.match,
-          symptom: v.symptom || '', regulations: v.regulations || [], materials: v.materials || [], amount: ''
-        });
-      });
+      // 降级：无 AI 疑点数据（API 未调用/失败）。不再用 mock violationDB 凑假疑点——
+      // 没有扫描命中就没有疑点，诚实留空，引导用户先去第五步执行扫描并生成疑点。
     }
 
     var highCount = findings.filter(function(f) { return f.risk === '高'; }).length;
-    var scanResult = self._scanResult || {total: 5, hits: findings.length > 0 ? Math.min(2, findings.length) : 0};
+    var scanResult = self._scanResult || {total: 0, hits: 0};  // 不再写死 total:5 假数据
     var hitRate = scanResult.total > 0 ? Math.round((scanResult.hits || 0) / scanResult.total * 100) : 0;
 
     var html = '<div class="card"><div class="card-header"><h3>第六步：疑点报告</h3>' +
@@ -1913,9 +1910,12 @@ var AW = {
       '<div style="font-size:11px;color:var(--color-text-muted);">命中率</div></div></div>';
 
     if (findings.length === 0) {
+      var emptyHint = useApi
+        ? '本次扫描未发现疑点（违规模型表达式未命中数据，或所选违规与项目数据字段不匹配）。可返回第五步调整违规或上传更多资料后重新扫描。'
+        : '尚未生成疑点报告。请先在左侧对话框输入「疑点」生成，或返回第五步执行违规扫描后再生成疑点。';
       html += '<div style="text-align:center;padding:30px;color:var(--color-text-muted);">' +
         '<i class="bi bi-check-circle" style="font-size:36px;opacity:0.3;"></i>' +
-        '<p style="margin-top:8px;">未发现疑点。请返回第2步勾选违规模型。</p></div>';
+        '<p style="margin-top:8px;">' + emptyHint + '</p></div>';
     } else {
       findings.forEach(function(f, i) {
         var riskBadge = f.risk === '高' ? 'badge-accent' : f.risk === '中' ? 'badge-warning' : 'badge-muted';
