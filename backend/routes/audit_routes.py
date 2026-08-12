@@ -77,7 +77,7 @@ from services.knowledge_service import (
     search_laws, count_laws, get_law_detail,
     list_potency_levels, list_timeliness_options,
     search_violations, count_violations, get_violation_detail,
-    list_violation_categories,
+    get_laws_for_violations, list_violation_categories,
     get_audititem_children, get_audititem_tree, search_audititems,
 )
 from services.regulation_graph import get_regulation_graph, get_law_clauses
@@ -1619,6 +1619,16 @@ def register_audit_routes(app):
             "per_page": per_page,
             "categories": categories,
         })
+
+    @app.route("/api/audit/knowledge/violations/laws", methods=["GET"])
+    def audit_knowledge_violation_laws():
+        """GET /api/audit/knowledge/violations/laws?violation_ids=1,2,3
+        按多个违规 id 批量查关联法规（去重，按被引违规数降序）。
+        供 AW 第三步「审计依据」按所选违规带出对应法规——替代旧的全库前 N 条无匹配兜底。"""
+        raw = request.args.get("violation_ids", "")
+        ids = [s.strip() for s in raw.split(",") if s.strip().isdigit()]
+        laws = get_laws_for_violations(ids)
+        return jsonify({"success": True, "laws": laws, "total": len(laws)})
 
     @app.route("/api/audit/knowledge/violations/<int:violation_id>", methods=["GET"])
     def audit_knowledge_violation_detail(violation_id):

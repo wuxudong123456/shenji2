@@ -171,7 +171,7 @@ def list_timeliness_options() -> list[str]:
 
 _VIOLATION_LIST_COLS = (
     "id, violation_code, violation_title, audititem_id, category_path, "
-    "severity, expression_text, description, source_file, is_reviewed, review_status, create_time"
+    "severity, expression_text, description, source_file, is_reviewed, review_status, create_time, required_data"
 )
 
 
@@ -291,6 +291,68 @@ def get_violation_detail(violation_id: int) -> dict | None:
         if isinstance(v, bytes):
             d[k] = bool(v and v != b"\x00")
     return d
+
+
+def get_laws_for_violations(violation_ids: list) -> list[dict]:
+    """按多个违规 id 批量查关联法规（去重，按被引违规数降序）
+
+    跨库 JOIN audit_law.sys_core_law_allaudit 取法规库详情（标题/文号/制定主体/时效），
+    Python 层按 law_id 聚合——同一法规被多个所选违规引用时合并 clause_ref 与 violation_id，
+    并按"被多少个所选违规引用"降序（越多越相关）。
+
+    供 AW 第三步「审计依据」按所选违规类型带出对应法规，替代旧的全库前 N 条无匹配兜底。
+
+    Args:
+        violation_ids: 违规 id 列表（int/str 混入均可，自动过滤非正整数）
+
+    Returns:
+        [{law_id, title, issue_unit, issue_no, potency_level, timeliness,
+          region_type, clause_refs:[str], violation_ids:[int], violation_count:int}]
+    """
+    ids = []
+    for x in violation_ids or []:
+        s = str(x).strip()
+        if s.isdigit() and int(s) > 0:
+            ids.append(int(s))
+    if not ids:
+        return []
+    placeholders = ",".join(["%s"] * len(ids))
+    rows = query(
+        f"SELECT vl.violation_id, vl.law_id, vl.clause_ref, "
+        f"l.title, l.issue_unit, l.issue_no, l.potency_level, l.timeliness, l.region_type "
+        f"FROM tt.audit_violation_law_refs vl "
+        f"LEFT JOIN audit_law.sys_core_law_allaudit l "
+        f"ON vl.law_id COLLATE utf8mb4_0900_ai_ci = l.id "
+        f"WHERE vl.violation_id IN ({placeholders})",
+        tuple(ids), database="tt",
+    )
+    by_law: dict = {}
+    for r in rows:
+        lid = r.get("law_id")
+        if not lid:
+            continue
+        if lid not in by_law:
+            by_law[lid] = {
+                "law_id": lid,
+                "title": r.get("title") or "",
+                "issue_unit": r.get("issue_unit") or "",
+                "issue_no": r.get("issue_no") or "",
+                "potency_level": r.get("potency_level") or "",
+                "timeliness": r.get("timeliness") or "",
+                "region_type": r.get("region_type"),
+                "clause_refs": [],
+                "violation_ids": [],
+            }
+        ent = by_law[lid]
+        cr = (r.get("clause_ref") or "").strip()
+        if cr and cr not in ent["clause_refs"]:
+            ent["clause_refs"].append(cr)
+        vid = r["violation_id"]
+        if vid not in ent["violation_ids"]:
+            ent["violation_ids"].append(vid)
+    for ent in by_law.values():
+        ent["violation_count"] = len(ent["violation_ids"])
+    return sorted(by_law.values(), key=lambda x: (-x["violation_count"], x["title"]))
 
 
 # ────────────────────────────────────────────────────────────

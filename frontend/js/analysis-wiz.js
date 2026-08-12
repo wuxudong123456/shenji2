@@ -55,17 +55,44 @@ var AW = {
         var buildUrl = function(q){ return '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
         // 按关键词命中数计算真实匹配度并排序，只取 Top 8
         var rank = function(list){
-          return (list||[]).map(function(v){
+          // 纯命中累加 raw 分（无基础分、无硬封顶），再对全队列按 maxRaw 归一化——
+          // 旧版 base35+封顶99 会让"撞够关键词的 Top 候选"齐刷刷钉在 99 丧失区分度；
+          // 归一化后只有关键词重叠最多的一条到 97，其余按比例下滑，产生真实梯度
+          var scored = (list||[]).map(function(v){
             var title = v.violation_title || '';
+            var desc  = v.description || '';
+            var cat   = v.category_path || '';   // 后端已返回的审计事项分类路径（最强领域信号）
+            var raw = 0;
+            kws.forEach(function(k){
+              if(k.length<2) return;
+              var wLong = k.length>=3;
+              if(title.indexOf(k)>=0)      raw += wLong ? 3.0 : 1.5;   // 标题命中（最强）
+              else if(cat.indexOf(k)>=0)   raw += wLong ? 2.0 : 1.0;   // 分类命中（结构化领域）
+              else if(desc.indexOf(k)>=0)  raw += wLong ? 0.8 : 0.4;   // 描述命中（弱）
+            });
+            return {v:v, raw:raw};
+          });
+          var maxRaw = 0;
+          scored.forEach(function(s){ if(s.raw > maxRaw) maxRaw = s.raw; });
+          return scored.map(function(s){
+            // 归一化到 30~97：raw=0 保底 30（已检索条目不至于显示成空匹配），maxRaw 映射 97，中间线性
+            var score = maxRaw>0 ? Math.round(30 + (s.raw/maxRaw)*67) : 30;
+            var v = s.v;
             var desc = v.description || '';
-            var text = title + ' ' + desc;
-            var hits = 0, titleHit = false;
-            kws.forEach(function(k){ if(k.length<2) return; if(text.indexOf(k)>=0){ hits++; if(title.indexOf(k)>=0) titleHit=true; } });
-            var score = Math.min(99, 52 + hits*12 + (titleHit?12:0));
             return {
-              id: '', name: title,
+              id: String(v.id || ''), name: v.violation_title || '',
               risk: v.severity === 'high' ? '高' : (v.severity === 'low' ? '低' : '中'),
-              match: score, symptom: desc, materials: [],
+              match: score, symptom: desc,
+              materials: (function(){
+                // required_data 来自 list 端点（audit_violations 列，{items:[{name,material_type,fields}]}）。
+                // 按面板 refreshS2Detail 既定的"资料名称（关键字段1、关键字段2）"字符串约定拼接——
+                // 该约定用中文括号 split 出名称与字段，故无需改面板渲染逻辑。
+                var rd = v.required_data;
+                if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = null; } }
+                return ((rd && rd.items) || []).map(function(it){
+                  return it.name + '（' + ((it.fields||[]).join('、')) + '）';
+                });
+              })(),
               regulations: [{law: v.expression_text || '', type: '主依据', note: desc}]
             };
           }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
@@ -78,7 +105,8 @@ var AW = {
           }
           return ranked;
         }).then(function(ranked){
-          ranked.forEach(function(v,i){ v.id = 'v'+(i+1); });
+          // 保留后端真实违规 id（数据库主键），供第三步按所选违规回查关联法规/资料。
+          // 旧逻辑把 id 覆盖成 'v1'..'v8' 假 id → 无法回查数据库，已弃用。
           self.violationDB = ranked.length ? ranked : [];
         }).catch(function(){ self.violationDB = []; });
       })(),
@@ -93,30 +121,36 @@ var AW = {
     return [];  // 3.5: 失败返回空（不再塞假违规），由调用方显示空状态
   },
 
-  /** 从项目背景提取业务关键词（用于违规类型相关性过滤与排序）*/
+  /** 从项目背景提取业务关键词（用于违规类型相关性过滤与排序）
+   *  数据源扩展：title/objective/scope/compressedPrompt/auditItem/focus/domain
+   *  +【标签】提取 + 中文 2-3 字 n-gram 分词（切出"科技/专项/资金"等可命中子串，
+   *    不再把"度科技专项资金"整串当关键词导致 indexOf 命中不了） */
   _projectKeywords: function() {
     var pm = this.mem.project || {};
     try { if(!pm.title) pm = AuditWorkbench.getProjectMemory(); } catch(e){}
     var kws = [];
-    var raw = [pm.title, pm.domain, pm.items, pm.concerns].join(' ');
-    // 关注环节里的【标签】是最干净的业务类别，如【招标投标】【采购方式】
-    var brackets = raw.match(/【([^】]+)】/g) || [];
-    brackets.forEach(function(b){ kws.push(b.replace(/[【】]/g,'')); });
-    // concerns 各行首词
-    if(pm.concerns){
-      pm.concerns.split(/[\n,，、]/).forEach(function(line){
-        var t = line.replace(/^【[^】]*】/,'').trim();
-        if(t.length>=2) kws.push(t.substring(0,4));
+    var flds = [pm.title, pm.objective, pm.scope, pm.compressedPrompt, pm.auditItem, pm.focus, pm.domain];
+    var allText = flds.map(function(x){ return (x==null) ? '' : String(x); }).join(' ');
+    // 1. 关注环节/目标里的【标签】是最干净的业务类别，如【招标投标】【采购方式】
+    (allText.match(/【([^】]+)】/g) || []).forEach(function(b){ kws.push(b.replace(/[【】]/g,'')); });
+    // 2. 对各字段清洗后做 2-3 字 n-gram 滑窗（产生"科技/专项/资金/科技专项/专项资金"等子串）
+    [pm.title, pm.objective, pm.scope, pm.auditItem, pm.focus].forEach(function(f){
+      if(!f || typeof f !== 'string') return;
+      var s = f.replace(/\d+/g,'').replace(/[A-Za-z\-\/\\()（）.,，。;；:：、]+/g,' ').trim();
+      if(s.length>=2 && s.length<=8) kws.push(s);                 // 清洗后较短整串
+      s.split(/\s+/).forEach(function(p){
+        for(var i=0;i<p.length;i++){
+          if(i+2<=p.length) kws.push(p.substring(i,i+2));
+          if(i+3<=p.length) kws.push(p.substring(i,i+3));
+        }
       });
-    }
-    // 标题里的业务名词（去年份/通用词）
-    if(pm.title){
-      var t = pm.title.replace(/\d+/g,'').replace(/审计|项目|方案|工作|局|年/g,'').trim();
-      if(t.length>=2) kws.push(t);
-    }
-    if(pm.domain) kws.push(pm.domain);
-    // 去重、过滤过短/通用词
-    var generic = {'审计':1,'项目':1,'工作':1,'方案':1,'管理':1,'分析':1};
+    });
+    if(pm.domain && pm.domain.length>=2) kws.push(pm.domain);
+    // 3. 去重 + 过滤通用噪声词（保留业务名词 专项/资金/科技/采购 等）
+    var generic = {'审计':1,'项目':1,'工作':1,'方案':1,'管理':1,'分析':1,'年度':1,'度的':1,
+      '中心':1,'集团':1,'有限':1,'公司':1,'情况':1,'问题':1,'相关':1,'进行':1,'开展':1,'实施':1,
+      '单位':1,'部门':1,'本级':1,'人民':1,'政府':1,'局的':1,'办公':1,'室的':1,
+      '的':1,'和':1,'与':1,'及':1,'等':1,'对':1,'在':1};
     var seen = {}, out = [];
     kws.forEach(function(k){
       k = (k||'').trim();
@@ -126,14 +160,28 @@ var AW = {
     return out.length ? out : ['采购','招标'];
   },
 
-  /** 选一个覆盖面最好的关键词作为后端 q（后端 LIKE 单串匹配）*/
+  /** 选一个覆盖面最好的关键词作为后端 q（后端 LIKE 单串匹配）
+   *  优先挑命中分领域业务词表且最长（最具体）的子串，如"科技专项""专项资金" */
   _primaryViolationQuery: function(kws) {
-    var pref = ['采购','招标','投标','合同','资金','预算','资产','发票','收费','补贴','社保','扶贫','专项','采购'];
+    var pref = ['采购','招标','投标','合同','资金','预算','拨付','补贴','转移','经费',
+      '科技','研发','课题','专利','成果','资产','处置','发票','收费','社保','扶贫','专项'];
+    var hasPref = function(k){
+      for(var i=0;i<pref.length;i++){ if(k.indexOf(pref[i])>=0 || pref[i].indexOf(k)>=0) return true; }
+      return false;
+    };
+    // 1. 优先：3-4 字且命中业务词的最具体子串（indexOf，让"科技专项资金"命中"科技/资金"）
+    var best = '';
+    kws.forEach(function(k){
+      if(k.length>=3 && k.length<=4 && hasPref(k) && k.length>best.length) best = k;
+    });
+    if(best) return best;
+    // 2. 次选：任一命中业务词表的 pref
     for(var i=0;i<pref.length;i++){
       for(var j=0;j<kws.length;j++){
-        if(kws[j].indexOf(pref[i])===0) return pref[i];
+        if(kws[j].indexOf(pref[i])>=0) return pref[i];
       }
     }
+    // 3. 兜底：首个关键词前 2 字
     return kws.length ? kws[0].substring(0,2) : '';
   },
 
@@ -357,6 +405,7 @@ var AW = {
     var right = document.getElementById('right-panel');
     var progress = {
       step: this.step,
+      projectId: proj.id || proj.project_id || '',  // P9-串项目防护: 恢复时校验归属
       projectTitle: proj.title || (document.getElementById('s1-title')?.value) || '',
       projectDomain: proj.domain || (document.getElementById('s1-domain')?.value) || '',
       selectedViolations: this.selectedViolations,
@@ -384,21 +433,30 @@ var AW = {
       this.selectedViolations = prog.selectedViolations || [];
       this.s1Cache = prog.s1Cache || {};
       // P3.2: 回填 task_id + 分析数据（刷新恢复）
-      this._taskId = prog.taskId || '';
-      this._matches = prog.matches || [];
-      this._primaryLaws = prog.primaryLaws || [];
-      this._scanResult = prog.scanResult || null;
-      this._suspicionData = prog.suspicionData || null;
+      // P9-串项目防护: 仅当进度属于当前项目才复用其分析数据；否则丢弃，避免他项目违规泄入
+      var curPid = '';
+      try { curPid = (AuditWorkbench.getProjectMemory().project_id || '').trim(); } catch(e) {}
+      var savedPid = (prog.projectId || '').trim();
+      var sameProject = !(savedPid && curPid) || (savedPid === curPid);
+      this._taskId = sameProject ? (prog.taskId || '') : '';
+      this._matches = sameProject ? (prog.matches || []) : [];
+      this._primaryLaws = sameProject ? (prog.primaryLaws || []) : [];
+      this._scanResult = sameProject ? (prog.scanResult || null) : null;
+      this._suspicionData = sameProject ? (prog.suspicionData || null) : null;
       // Load project memory
       var pm = AuditWorkbench.getProjectMemory();
       if(pm && pm.title) this.mem.project = pm;
       // Show the saved step
       this.showStep(prog.step);
       this.updateStepBar(prog.step);
-      // Restore right panel
-      if(prog.rightPanelHTML) {
+      // Restore right panel（串项目时不复用他项目旧渲染）
+      if(sameProject && prog.rightPanelHTML) {
         var rp = document.getElementById('right-panel');
         if(rp) rp.innerHTML = prog.rightPanelHTML;
+      } else if(!sameProject) {
+        this.say('ai','上次进度属于另一个项目，已按当前项目重新加载。');
+        if(prog.step===2) this.renderS2();   // 第2步用空 _matches 回退 _initData 重新匹配
+        else this.goBack(1);                  // 其它步数据已清，退回第1步最稳
       } else {
         this.goBack(prog.step);
       }
@@ -530,7 +588,7 @@ var AW = {
     var pm = this.mem.project || {};
 
     // Phase 7: 调用真实 IntentAnalyzer Agent
-    self._api('POST', '/analysis', {project_id: pm.id || '', intent: msg || pm.title || pm.objective || ''}).then(function(data){
+    self._api('POST', '/analysis', {project_id: pm.project_id || pm.id || '', focus_item_id: pm.itemId || undefined, intent: msg || pm.title || pm.objective || ''}).then(function(data){
       // P1.8: 保存 task_id + 真实推荐（供 renderS2/renderS3 消费）
       self._taskId = (data && data.task_id) || '';
       self._matches = (data && data.matches) || [];
@@ -745,6 +803,10 @@ var AW = {
   /** 当前选中的违规模型 */
   selectedViolations: [],
 
+  /** 第三步「审计依据」关联法规：null=未加载，[]=已加载但无关联，非空=audit_violation_law_refs 命中 */
+  _violationLaws: null,
+  _violationLawsLoading: false,
+
   renderS2: function() {
     var self = this;
     // P1.8: 优先用 ViolationMatcher 真推荐（self._matches），fallback 到 _initData 本地检索
@@ -762,52 +824,7 @@ var AW = {
   _renderS2Content: function() {
     var self = this;
 
-    // Three-section audit method cards — titles always visible, details collapsible
-    var methodsHTML = '<div style="margin-bottom:16px;">'+
-      '<div style="font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:8px;">审计方法概览</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
-
-    // Card 1: 已执行的审计方法
-    methodsHTML += '<details class="method-card" open style="border:1px solid var(--color-border);border-radius:8px;border-top:3px solid var(--color-primary);background:#fff;">'+
-      '<summary style="cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;color:var(--color-primary);list-style:none;display:flex;align-items:center;gap:6px;">'+
-      '<i class="bi bi-check2-circle"></i> 已执行审计方法 <span style="font-size:11px;color:var(--color-text-muted);font-weight:400;">· 3项（可拖拽到下方列表）</span>'+
-      '<i class="bi bi-chevron-down" style="margin-left:auto;font-size:10px;transition:transform 0.2s;"></i></summary>'+
-      '<div style="font-size:12px;line-height:2;padding:0 14px 12px;">'+
-      '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="预算执行分析" data-risk="中" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(26,58,92,0.06)\'" onmouseout="this.style.background=\'\'">📊 预算执行分析 <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮ 拖拽</span></div>'+
-      '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="采购程序合规检查" data-risk="高" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(26,58,92,0.06)\'" onmouseout="this.style.background=\'\'">📋 采购程序合规检查 <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮ 拖拽</span></div>'+
-      '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="资金流向追踪" data-risk="高" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(26,58,92,0.06)\'" onmouseout="this.style.background=\'\'">💰 资金流向追踪 <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮ 拖拽</span></div></div></details>';
-
-    // Card 2: 发现疑点的方法
-    methodsHTML += '<details class="method-card" open style="border:1px solid var(--color-border);border-radius:8px;border-top:3px solid var(--color-accent);background:#fff;">'+
-      '<summary style="cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;color:var(--color-accent);list-style:none;display:flex;align-items:center;gap:6px;">'+
-      '<i class="bi bi-exclamation-triangle"></i> 发现疑点的方法 <span style="font-size:11px;color:var(--color-text-muted);font-weight:400;">· 2个（可拖拽）</span>'+
-      '<i class="bi bi-chevron-down" style="margin-left:auto;font-size:10px;transition:transform 0.2s;"></i></summary>'+
-      '<div style="font-size:12px;line-height:2;padding:0 14px 12px;">'+
-      '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="招标方式核查" data-risk="高" data-symptom="采购方式均为非公开招标，未按规定履行公开招标程序，应招标未招标问题突出" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(196,30,58,0.06)\'" onmouseout="this.style.background=\'\'">⚠️ 招标方式核查 → 2条疑点 <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮</span></div>'+
-      '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="供应商关联分析" data-risk="中" data-symptom="多家供应商存在人员关联或股权关联，疑似围标串标" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(196,30,58,0.06)\'" onmouseout="this.style.background=\'\'">⚠️ 供应商关联分析 → 1条疑点 <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮</span></div></div></details>';
-
-    // Card 3: 推荐补充方法 — 动态生成，可换一批
-    if(!this.recommendPool) this._initRecommendPool();
-    var recs = this._pickRecommendations();
-    methodsHTML += '<details class="method-card" open style="border:1px solid var(--color-border);border-radius:8px;border-top:3px solid var(--color-warning);background:#fff;">'+
-      '<summary style="cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;color:var(--color-warning);list-style:none;display:flex;align-items:center;gap:6px;">'+
-      '<i class="bi bi-lightbulb"></i> 推荐补充方法 <span style="font-size:11px;color:var(--color-text-muted);font-weight:400;">· '+recs.length+'项（可拖拽）</span>'+
-      '<i class="bi bi-chevron-down" style="margin-left:auto;font-size:10px;transition:transform 0.2s;"></i></summary>'+
-      '<div style="font-size:12px;line-height:2;padding:0 14px 12px;" id="s2-recommend-list">';
-    var icons = ['💡','🔍','📌','🎯','📊','🔎'];
-    recs.forEach(function(r,i){
-      methodsHTML += '<div class="drag-method" draggable="true" ondragstart="AW.handleDragStart(event)" ondragend="AW.handleDragEnd(event)" data-method="'+r.name+'" data-risk="'+r.risk+'" data-symptom="'+r.symptom.replace(/"/g,'&quot;')+'" style="cursor:grab;padding:4px 8px;margin:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(184,94,26,0.06)\'" onmouseout="this.style.background=\'\'">'+(icons[i]||'💡')+' '+r.name+' <span style="font-size:10px;color:var(--color-text-muted);">⋮⋮</span></div>';
-    });
-    methodsHTML += '</div>'+
-      '<div style="display:flex;gap:6px;margin:0 14px 10px;">'+
-      '<button class="btn btn-sm btn-outline" style="font-size:11px;flex:1;" onclick="event.preventDefault();AW.refreshRecommendations()">'+
-      '<i class="bi bi-arrow-repeat"></i> 换一批</button>'+
-      '<button class="btn btn-sm btn-outline" style="font-size:11px;" onclick="event.preventDefault();AW.recommendMoreMethods()">'+
-      '<i class="bi bi-plus-lg"></i> 补充常用方法</button></div></details>';
-
-    methodsHTML += '</div></div>';
-
-    // Violation table
+    // Violation table — 违规类型由 _initData（后端违规模型库+项目关键词）或 _matches（ViolationMatcher）填充
     var rows = '';
     this.violationDB.forEach(function(v){
       var checked = self.selectedViolations.indexOf(v.id)>=0 ? 'checked' : '';
@@ -821,178 +838,13 @@ var AW = {
 
     document.getElementById('right-panel').innerHTML =
       '<div class="card"><div class="card-header"><h3>第二步：方法推荐</h3><span style="font-size:12px;color:var(--color-text-muted);">基于项目上下文智能匹配</span></div>'+
-      methodsHTML +
       '<div class="alert alert-info" style="font-size:14px;"><i class="bi bi-info-circle"></i> 勾选要核查的违规类型，自动展示对应的审计资料清单和法规依据。左侧可补充新的违规情况。</div>'+
-      '<div id="s2-drop-zone" style="border:2px dashed transparent;border-radius:8px;transition:all 0.2s;padding:4px;" '+
-      'ondragover="AW.handleDragOver(event)" ondragleave="AW.handleDragLeave(event)" ondrop="AW.handleDrop(event)">'+
-      '<div style="font-size:11px;color:var(--color-text-muted);text-align:center;margin-bottom:4px;" id="s2-drop-hint">'+
-      '📥 从上方卡片拖拽方法到此处添加到列表</div>'+
-      '<div class="table-wrap"><table class="table"><thead><tr><th style="width:30px;">✓</th><th style="min-width:180px;">违规类型</th><th>常见问题表现</th><th style="width:60px;">风险</th><th style="width:50px;">匹配度</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="table-wrap"><table class="table"><thead><tr><th style="width:30px;">✓</th><th style="min-width:180px;">违规类型</th><th>常见问题表现</th><th style="width:60px;">风险</th><th style="width:50px;">匹配度</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
       '<div id="s2-detail"></div>'+
       '<div id="s2-summary" style="margin-top:12px;"></div>'+
       '<button class="btn btn-accent btn-lg w-100" style="margin-top:10px;" onclick="AW.confirmS2()">确认审计任务，进入依据确认</button></div>';
     this.refreshS2Detail();
     this.refreshS2Summary();
-  },
-
-  /** Drag-and-drop: add method from cards to violation list */
-  dragMethod: null,
-  handleDragStart: function(e) {
-    this.dragMethod = {
-      name: e.target.getAttribute('data-method'),
-      risk: e.target.getAttribute('data-risk') || '中',
-      symptom: e.target.getAttribute('data-symptom') || ''
-    };
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('text/plain', this.dragMethod.name);
-    e.target.style.opacity = '0.5';
-  },
-  handleDragEnd: function(e) {
-    e.target.style.opacity = '1';
-  },
-  handleDragOver: function(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    var zone = document.getElementById('s2-drop-zone');
-    if(zone) zone.style.background = 'rgba(26,58,92,0.06)';
-  },
-  handleDragLeave: function(e) {
-    var zone = document.getElementById('s2-drop-zone');
-    if(zone) zone.style.background = '';
-  },
-  handleDrop: function(e) {
-    e.preventDefault();
-    var zone = document.getElementById('s2-drop-zone');
-    if(zone) zone.style.background = '';
-    if(!this.dragMethod) return;
-    var dm = this.dragMethod;
-    // Check limit
-    if(this.violationDB.length >= 10) {
-      this.say('ai','⚠️ 推荐执行列表已有 '+this.violationDB.length+' 个方法。建议聚焦核心风险，控制在10个以内以保证分析质量。<br><br>可取消勾选不再需要的方法后再添加。');
-      AuditWorkbench.toast('已达上限：推荐列表已有'+this.violationDB.length+'个方法','warning');
-      this.dragMethod = null;
-      return;
-    }
-    // Add to violationDB if not exists
-    var exists = this.violationDB.find(function(v){return v.name === dm.name;});
-    if(!exists) {
-      var newId = 'v' + (this.violationDB.length + 1);
-      this.violationDB.push({
-        id: newId, name: dm.name, risk: dm.risk, match: 60,
-        symptom: dm.symptom || '用户从审计方法卡片拖入',
-        materials: ['相关审计资料（待补充）'],
-        regulations: [{law: '待关联法规', type: '参考', note: '请补充具体法规条款'}]
-      });
-      this.selectedViolations.push(newId);
-      this.renderS2();
-      this.say('ai','✅ 已将「'+dm.name+'」添加到推荐执行列表并选中（当前共'+this.violationDB.length+'个）。可在下方查看对应的资料和法规。');
-      if(this.violationDB.length >= 8) {
-        setTimeout(function(){
-          AW.say('ai','💡 提示：列表已有 '+AW.violationDB.length+' 个方法，建议聚焦最核心的风险领域。超出10个后将限制添加。');
-        },500);
-      }
-    } else {
-      if(this.selectedViolations.indexOf(exists.id) < 0) {
-        this.selectedViolations.push(exists.id);
-        this.renderS2();
-      }
-      this.say('ai','「'+dm.name+'」已在推荐列表中，已为您选中。');
-    }
-    this.dragMethod = null;
-  },
-
-  /** 推荐方法池 — 根据项目上下文智能筛选 */
-  recommendPool: null,
-  _lastRecPick: 0,
-
-  _initRecommendPool: function() {
-    this.recommendPool = [
-      {name:'合同履约验收审查',risk:'中',tags:'采购,合同,验收',symptom:'合同履行完毕后未组织正式验收，验收报告内容缺失关键验收指标'},
-      {name:'资产入账完整性核查',risk:'低',tags:'资产,入账,采购',symptom:'设备已交付但未及时登记固定资产台账，入账延迟超过3个月'},
-      {name:'采购绩效评价分析',risk:'低',tags:'采购,绩效,评价',symptom:'未对采购项目开展绩效评价，无法评估采购效率和效果'},
-      {name:'供应商资质复核',risk:'中',tags:'供应商,资质,关联',symptom:'供应商营业执照经营范围与中标内容不符，或资质证书过期'},
-      {name:'合同变更合规审查',risk:'中',tags:'合同,变更,审批',symptom:'合同签订后发生重大变更未履行审批程序，变更金额超原合同30%'},
-      {name:'付款进度异常核查',risk:'高',tags:'付款,进度,资金',symptom:'未达到付款节点即提前支付，或付款比例与合同约定不一致'},
-      {name:'采购预算执行偏差',risk:'中',tags:'预算,采购,执行',symptom:'实际采购金额与批复预算偏差超20%，未见预算调整审批'},
-      {name:'中标价格合理性分析',risk:'中',tags:'中标,价格,市场',symptom:'中标价格与预算价或市场价偏离超15%，缺乏合理解释'},
-      {name:'保证金收取退还合规',risk:'低',tags:'保证金,退还,合规',symptom:'保证金未按法定时限退还，或收取比例超规定标准'},
-      {name:'采购文件保存完整性',risk:'低',tags:'档案,保存,采购',symptom:'采购档案未按规定保存15年，关键文件缺失'},
-      {name:'利益冲突回避审查',risk:'高',tags:'利益冲突,回避,关联',symptom:'评审专家或采购人员与被采购方存在利益关系未回避'},
-      {name:'合同条款执行跟踪',risk:'中',tags:'合同,跟踪,执行',symptom:'合同签订后未建立履约跟踪机制，服务类合同缺少阶段性评估'},
-    ];
-  },
-
-  /** 根据项目上下文挑选3个推荐方法 */
-  _pickRecommendations: function() {
-    if(!this.recommendPool) this._initRecommendPool();
-    var pool = this.recommendPool;
-    // Read project context
-    var proj = this.mem.project || {};
-    var ctx = (proj.title||'') + (proj.domain||'') + (proj.concerns||'');
-    // Score each item by tag match against context
-    var scored = pool.map(function(r){
-      var score = 0;
-      r.tags.split(',').forEach(function(t){
-        if(ctx.indexOf(t.trim())>=0) score += 10;
-      });
-      return {item:r, score:score};
-    });
-    scored.sort(function(a,b){return b.score - a.score;});
-    // Pick 3 with rotation — skip already shown if possible
-    var start = (this._lastRecPick + 3) % pool.length;
-    var picked = [];
-    var usedNames = {};
-    this.violationDB.forEach(function(v){usedNames[v.name]=true;});
-    // First: try high-scoring items not already in violation list
-    for(var i=0;i<scored.length && picked.length<3;i++){
-      if(!usedNames[scored[i].item.name]) picked.push(scored[i].item);
-    }
-    // Fill from scored if needed
-    if(picked.length<3){
-      for(var i=0;i<scored.length && picked.length<3;i++){
-        if(picked.indexOf(scored[i].item)<0) picked.push(scored[i].item);
-      }
-    }
-    this._lastRecPick = start;
-    return picked.slice(0,3);
-  },
-
-  /** 换一批推荐 */
-  refreshRecommendations: function() {
-    this._lastRecPick = (this._lastRecPick + 5) % (this.recommendPool||[]).length;
-    this.renderS2();
-    var recs = this._pickRecommendations();
-    this.say('ai','🔄 已根据项目上下文换了一批推荐方法：<br>· '+recs.map(function(r){return r.name;}).join('<br>· '));
-  },
-
-  /** 补充常用审计方法（基于关键词匹配的静态池，非 LLM）*/
-  recommendMoreMethods: function() {
-    if(this.violationDB.length >= 10) {
-      AuditWorkbench.toast('已达上限：推荐列表已有'+this.violationDB.length+'个方法','warning');
-      this.say('ai','⚠️ 列表已有 '+this.violationDB.length+' 个方法，已达上限。请先取消不需要的方法再添加。');
-      return;
-    }
-    // 4.1-A: 复用 _pickRecommendations（基于项目关键词匹配），过滤已加的，转 violation 格式后补充
-    if(!this.recommendPool) this._initRecommendPool();
-    var self = this;
-    var existingNames = {};
-    this.violationDB.forEach(function(v){ existingNames[v.name] = true; });
-    var picks = this._pickRecommendations().filter(function(r){ return !existingNames[r.name]; }).slice(0,3);
-    var added = [];
-    picks.forEach(function(r){
-      self.violationDB.push({
-        id: 'v' + (self.violationDB.length + 1),
-        name: r.name, risk: r.risk, match: 50,
-        symptom: r.symptom, materials: [], regulations: []
-      });
-      added.push(r.name);
-    });
-    if(added.length > 0) {
-      this.renderS2();
-      this.say('ai','已补充 '+added.length+' 个常用审计方法（基于项目关键词匹配）：<br>· '+added.join('<br>· ')+'<br><br>已在表格中添加，可勾选纳入审计任务。');
-    } else {
-      this.say('ai','当前推荐列表已覆盖该项目的主要风险领域。如需特定方向的审计方法，请在聊天中描述。');
-    }
   },
 
   /** 切换违规模型选中状态 */
@@ -1290,25 +1142,51 @@ var AW = {
     this.renderS2();
     AuditWorkbench.toast('已添加'+added+'个违规模型到方法推荐表','success');
   },
+  /** 按所选违规 id 批量查关联法规（audit_violation_law_refs → 法规库详情）。
+   *  只传真实数字 id（过滤掉 mock 残留 'v1' 等）；结果按"被多少个所选违规引用"降序。 */
+  loadViolationLaws: function() {
+    var self = this;
+    if(self._violationLawsLoading) return Promise.resolve(self._violationLaws || []);
+    var ids = (self.selectedViolations || []).filter(function(id){ return /^\d+$/.test(String(id)); });
+    if(!ids.length){ self._violationLaws = []; return Promise.resolve([]); }
+    self._violationLawsLoading = true;
+    return self._api('GET', '/knowledge/violations/laws?violation_ids=' + encodeURIComponent(ids.join(',')))
+      .then(function(d){ self._violationLaws = (d && d.laws) || []; return self._violationLaws; })
+      .catch(function(){ self._violationLaws = []; return []; })
+      .then(function(r){ self._violationLawsLoading = false; return r; });
+  },
+
   confirmS2: function() {
     if(this.selectedViolations.length===0) return AuditWorkbench.toast('请至少选择一个违规类型','warning');
-    this.step=3; this.showStep(3); this.updateStepBar(3); this.renderS3();
-    this.say('ai','已确认审计任务：'+this.selectedViolations.length+'个违规类型。进入第三步：审计依据。');
+    this.step=3; this.showStep(3); this.updateStepBar(3);
+    var self = this;
+    this.renderS3();   // 先渲染（loading 态），关联法规回来后刷新
+    this.say('ai','<span class="pulse">●</span> 正在按所选违规类型匹配关联法规...');
+    this.loadViolationLaws().then(function(){
+      self.renderS3();
+      var n = (self._violationLaws||[]).length;
+      self.say('ai','已确认审计任务：'+self.selectedViolations.length+'个违规类型，进入第三步「审计依据」。'+
+        (n ? '已按所选违规从法规库匹配 <strong>'+n+'</strong> 部关联法规。' : '（所选违规在库中暂无关联法规，可在下方手动补充。）'));
+    });
   },
 
   renderS3: function() {
-    // 业务分类维度（可扩展，多分类不混乱）
-    var categories = (this._primaryLaws && this._primaryLaws.length > 0) ? [{name:'AI推荐法规',icon:'bi-shield-check',regs:this._primaryLaws.map(function(l){return {law:l.law||'',docNo:'',clause:l.clause||'',summary:'',timeliness:'现行有效',scope:'',type:l.type||'主依据',rec:true};})}] : (function(){
-      // §3.3: _primaryLaws 缺失（Step1-3 未跑/LLM失败）时，从已加载法规库取相关条目；
-      // 法规库也为空则给空态，不伪造「招标投标法」等具体条款。
-      var pool = (window.AW && window.AW._regulations) || [];
-      if(!pool.length){
-        return [{name:'待确认法规',icon:'bi-hourglass-split',regs:[]}];
-      }
-      return [{name:'相关法规',icon:'bi-shield-check',regs:pool.slice(0,12).map(function(r){
-        return {law:r.title||r.law||'',docNo:r.doc_no||'',clause:r.clause||'',summary:r.summary||r.expression_text||'',timeliness:'现行有效',scope:r.scope||'',type:'参考',rec:false};
+    var self = this;
+    // 三级优先级：① AI 推荐（POST /analysis 的 RegulationAdvisor）② 按所选违规匹配（audit_violation_law_refs）
+    // ③ 空态。已弃用"全库前 12 条"兜底——它与所选违规无关、属误导（森林防火/供销社杂烩即此）。
+    var categories;
+    if(this._primaryLaws && this._primaryLaws.length > 0){
+      categories = [{name:'AI推荐法规',icon:'bi-shield-check',regs:this._primaryLaws.map(function(l){
+        return {law:l.law||'',docNo:'',clause:l.clause||'',summary:'',timeliness:'现行有效',scope:'',type:l.type||'主依据',rec:true,issuer:''};
       })}];
-    })();
+    } else if(this._violationLaws && this._violationLaws.length > 0){
+      categories = [{name:'匹配法规（按所选违规）',icon:'bi-link-45deg',regs:this._violationLaws.map(function(l){
+        return {law:l.title||'',docNo:l.issue_no||'',clause:(l.clause_refs||[]).join('；'),summary:l.issue_unit?('制定：'+l.issue_unit):'',timeliness:l.timeliness||'现行有效',scope:'',type:l.potency_level||'依据',rec:false,issuer:l.issue_unit||''};
+      })}];
+    } else {
+      var loading = (this._violationLaws===null) && (this.selectedViolations||[]).some(function(id){return /^\d+$/.test(String(id));});
+      categories = [{name:loading?'正在匹配法规…':'待确认法规',icon:'bi-hourglass-split',regs:[]}];
+    }
 
     var html = '<div class="card"><div class="card-header"><h3>第三步：审计依据</h3><span class="badge badge-muted">市级·采购审计</span></div>'+
       '<div class="alert alert-info" style="font-size:14px;margin-bottom:12px;"><i class="bi bi-info-circle"></i> '+
@@ -1331,7 +1209,7 @@ var AW = {
         '<div class="table-wrap"><table class="table" style="font-size:14px;"><thead><tr><th style="width:28px;">✓</th><th style="min-width:260px;">法规名称</th><th style="min-width:220px;">法规条款</th><th style="width:80px;">效力范围</th><th style="width:80px;">法规类型</th><th style="width:40px;">溯源</th></tr></thead><tbody>';
       c.regs.forEach(function(r){
         var tb = r.type==='主依据'?'badge-accent':r.type==='追责依据'?'badge-warning':r.type==='地方补充'||r.type==='特别适用'?'badge-success':'badge-muted';
-        var issuer = r.law.indexOf('湖南')>=0?'湖南省政府':r.law.indexOf('某市')>=0?'被审计单位':(r.law.indexOf('国务院')>=0||r.law.indexOf('实施条例')>=0?'国务院':'全国人大常委会');
+        var issuer = r.issuer || (r.law.indexOf('湖南')>=0?'湖南省政府':r.law.indexOf('某市')>=0?'被审计单位':(r.law.indexOf('国务院')>=0||r.law.indexOf('实施条例')>=0?'国务院':'—'));
 
         html += '<tr style="'+(r.rec?'background:rgba(45,125,70,0.03);':'')+'">'+
           '<td><input type="checkbox" class="rec-check s3-reg" '+(r.rec?'checked':'')+' onchange="AW.updateS3Selection()" style="width:14px;height:14px;accent-color:var(--color-primary);"></td>'+
