@@ -1428,7 +1428,8 @@ var AW = {
     var self = this;
     var box = document.getElementById('s3-threshold-result');
     if(!box) return;
-    self._api('POST', '/threshold/check', {project_id: '', table: 'data_contracts'}).then(function(d){
+    var pid = (self.mem.project && self.mem.project.id) || '';
+    self._api('POST', '/threshold/check', {project_id: pid, table: 'data_contracts'}).then(function(d){
       var results = d.results || [];
       var s = d.summary || {};
       var rows = results.map(function(r){
@@ -1445,7 +1446,7 @@ var AW = {
         '<span class="badge '+sumBadge+'" style="font-size:11px;margin-left:4px;">'+(s.violated||0)+'违规 / '+(s.compliant||0)+'合规</span></div>'+
         '<div class="table-wrap"><table class="table" style="font-size:13px;margin:0;"><thead><tr style="background:var(--color-bg);"><th>规则</th><th>阈值 / 法规</th><th style="width:110px;">扫描结果</th></tr></thead><tbody>'+
         rows+'</tbody></table></div>'+
-        '<div style="padding:8px 16px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 基于已上传数据的实时扫描结果（全局，跨所有项目）。</div></div>';
+        '<div style="padding:8px 16px;font-size:12px;color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> 通用示例规则（共6条，可在 data/threshold_rules.yaml 增删）对本项目数据的实时扫描。</div></div>';
     }).catch(function(){
       box.innerHTML = '<div class="alert alert-warning" style="font-size:13px;">阈值扫描暂不可用（后端 /api/audit/threshold/check 未响应）</div>';
     });
