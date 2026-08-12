@@ -445,6 +445,7 @@ var AW = {
       this._suspicionData = sameProject ? (prog.suspicionData || null) : null;
       // Load project memory
       var pm = AuditWorkbench.getProjectMemory();
+      if(pm && pm.project_id && !pm.id) pm.id = pm.project_id;  // 键名归一：aw_project_memory 存 project_id，补 .id 供 .id 读法消费（Step④/⑤/阈值/上传）
       if(pm && pm.title) this.mem.project = pm;
       // Show the saved step
       this.showStep(prog.step);
@@ -495,6 +496,7 @@ var AW = {
     var ctx = '';
     try {
       var pm = AuditWorkbench.getProjectMemory();
+      if(pm && pm.project_id && !pm.id) pm.id = pm.project_id;  // 键名归一（同 resumeProgress）
       if(pm.title) {
         this.mem.project = pm;
         // 延迟填充：等右侧面板渲染完成
@@ -1486,7 +1488,9 @@ var AW = {
   /** 2.3: 从 files.list 加载真实文件，渲染 Step④ 批量表 */
   _loadS4Files: function() {
     var self = this;
-    var pid = (this.mem.project && this.mem.project.id) || '';
+    var mp = this.mem.project || {};
+    if(!mp.id && mp.project_id) mp.id = mp.project_id;  // 键名归一兜底
+    var pid = mp.id || mp.project_id || '';
     var tbody = document.getElementById('s4-bulk-tbody');
     var countEl = document.getElementById('s4-collected-count');
     if (!tbody) return;
