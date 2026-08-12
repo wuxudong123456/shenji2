@@ -1412,6 +1412,13 @@ var Proj = {
     AuditAPI.projects.saveItems(this._editingProjectId, items, this._editingUpdateTime).then(function(r){
       if (r && r.success) {
         self._editingUpdateTime = r.update_time || self._editingUpdateTime;  // T8: 刷新乐观锁 token
+        // 后端 saveItems 已把 setup_stage 推进到 'items'（items 非空时）。
+        // 同步前端内存对象，否则 _renderFinalizeBtn 仍按旧 stage(=target_scope) 清空按钮，
+        // 导致"保存成功但第四阶段入口不出现"。
+        if (self._editingProject) {
+          self._editingProject.setup_stage = 'items';
+          self._editingProject.status = self._editingProject.status || 'draft';
+        }
         self.init();
         self._setSaveStatus('✓ 审计事项已保存');
         AuditWorkbench.toast('✓ 审计事项已保存，可返回列表或继续调整','success');
