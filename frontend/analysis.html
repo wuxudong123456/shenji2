@@ -48,67 +48,7 @@
 
 </div>
 
-<!-- 隐藏的旧面板 S5-S7 -->
-<div class="step-panel" id="s5"><div class="card"><div class="card-header"><h3>第五步：审核比对</h3><span class="badge badge-warning">确认后执行</span></div>
-
-    <!-- 三清单摘要 -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
-      <details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-folder"></i> 审计资料清单（3份 · 可溯源）</summary>
-        <div style="font-size:12px;padding:4px 0;">
-          <div>📄 <a href="doc-viewer.html?file=采购合同汇总.pdf" target="_blank">采购合同汇总.pdf</a> · 5条 · <a class="trace-link" href="#">📍</a></div>
-          <div>📄 <a href="doc-viewer.html?file=银行流水2026Q1.csv" target="_blank">银行流水2026Q1.csv</a> · 126条 · <a class="trace-link" href="#">📍</a></div>
-          <div>📄 <a href="doc-viewer.html?file=供应商信息.pdf" target="_blank">供应商工商信息.pdf</a> · 4条 · <a class="trace-link" href="#">📍</a></div>
-        </div>
-      </details>
-      <details><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-journal-text"></i> 法律法规清单（6部 · 可溯源）</summary>
-        <div style="font-size:12px;padding:4px 0;">
-          <div>⚖️ 《招标投标法》第4条 · 主依据 · <a class="trace-link" href="#">📍MCP</a></div>
-          <div>⚖️ 《招标投标法》第49条 · 追责依据 · <a class="trace-link" href="#">📍MCP</a></div>
-          <div>⚖️ 《必须招标的工程项目规定》第5条 · 量化依据 · <a class="trace-link" href="#">📍MCP</a></div>
-          <div>⚖️ 《政府采购法》第28条 · 关联依据 · <a class="trace-link" href="#">📍MCP</a></div>
-          <div>⚖️ 《湖南省管理办法》第5条 · 地方补充 · <a class="trace-link" href="#">📍MCP</a></div>
-          <div>⚖️ 《市教育局采购管理办法》全文 · 特别适用 · <a class="trace-link" href="#">📍MCP</a></div>
-        </div>
-      </details>
-      <details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-exclamation-triangle"></i> 违规行为清单（3个 · 可溯源）</summary>
-        <div style="font-size:12px;padding:4px 0;">
-          <div>⚠️ 化整为零规避公开招标 · 高风险 · <a class="trace-link" href="#">📍语料库</a></div>
-          <div>⚠️ 违规采用询价方式采购 · 高风险 · <a class="trace-link" href="#">📍语料库</a></div>
-          <div>⚠️ 未按规定发布采购公告 · 中风险 · <a class="trace-link" href="#">📍语料库</a></div>
-        </div>
-      </details>
-    </div>
-
-    <div class="alert alert-info" style="font-size:13px;margin-bottom:12px;"><i class="bi bi-info-circle"></i> 比对逻辑已发送到左侧AI对话框。右侧为数据筛选漏斗和逐记录比对结果。上方清单均可点击溯源查看详情。</div>
-
-    <div style="margin-bottom:14px;">
-      <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:8px;">数据筛选漏斗</div>
-      <div style="max-width:500px;">
-        <div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:4px;">
-          <strong>📊 采购合同数据表</strong> · 5条记录 · ¥4,850,000</div>
-        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
-        <div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:8px 14px;margin-bottom:4px;">
-          ① 采购方式 ≠ 公开招标 → <strong style="color:var(--color-accent);">5条命中</strong></div>
-        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
-        <div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:8px 14px;margin-bottom:4px;">
-          ② 金额 ≥ ¥200万 → <strong style="color:var(--color-accent);">3条命中</strong></div>
-        <div style="text-align:center;color:var(--color-text-muted);padding:2px 0;">↓</div>
-        <div style="background:rgba(196,30,58,0.06);border:2px solid var(--color-accent);border-radius:8px;padding:10px 14px;text-align:center;">
-          <div style="font-size:24px;font-weight:700;color:var(--color-accent);">3 条违规</div><div style="font-size:12px;color:var(--color-text-muted);">¥2,300,000</div></div>
-      </div>
-    </div>
-
-    <div class="table-wrap"><table class="table" style="font-size:13px;"><thead><tr><th>合同号</th><th>金额</th><th>方式</th><th>供应商</th><th>日期</th><th>①≠公开</th><th>②≥200万</th><th>结果</th></tr></thead><tbody>
-      <tr><td>HT-001</td><td>¥990,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-05</td><td>✗</td><td>✗</td><td><span class="badge badge-success">合规</span></td></tr>
-      <tr class="row-danger"><td>HT-003</td><td>¥1,200,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-12</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
-      <tr class="row-danger"><td>HT-004</td><td>¥700,000</td><td style="color:var(--color-accent);">询价</td><td>XX科技</td><td>03-15</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
-      <tr class="row-danger"><td>HT-005</td><td>¥400,000</td><td style="color:var(--color-accent);">询价</td><td>ZZ贸易</td><td>04-01</td><td>✗</td><td>✓</td><td><span class="badge badge-accent">违规</span></td></tr>
-    </tbody></table></div>
-    <div class="alert alert-info" style="font-size:13px;margin-top:8px;"><i class="bi bi-robot"></i> 3条违规中2条供应商相同(XX科技)，建议核查围标嫌疑。</div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="btn btn-accent btn-lg" onclick="AW.step=6;AW.showStep(6);AW.updateStepBar(6);AW.say('ai','已确认比对结果，进入疑点核实。');"><i class="bi bi-check-lg"></i> 确认比对，进入疑点核实</button>
-      <button class="btn btn-outline" onclick="AW.goBack(4)">返回修改资料</button>
-    </div></div></div>
+<!-- 隐藏的旧面板 S5 已改为动态渲染（renderS5），S6/S7 仍在此 -->
 <div class="step-panel" id="s6"><div class="card"><div class="card-header"><h3>第六步：疑点核实</h3><span class="badge badge-accent" id="s6-total">3条疑点</span></div>
     <div class="alert alert-warning" style="font-size:13px;margin-bottom:14px;">
       <i class="bi bi-exclamation-triangle"></i> <strong>核实提示：</strong>每条疑点均需逐条核实确认。建议向被审计单位补充索取相关文件后再做最终定性。点击疑点行展开溯源流程图，核实后点击「确认」。

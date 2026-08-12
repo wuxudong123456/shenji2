@@ -680,23 +680,141 @@ var AW = {
       // 第七步用动态渲染（卡片真实可预览），避免静态死壳/假预览
       this.renderS7();
       if(R) R.style.display = 'block';
+    } else if(n===5) {
+      // 第五步动态渲染（读 _scanResult + 内存数据，替代静态 #s5 mock）
+      this.renderS5();
+      if(R) R.style.display = 'block';
     } else if(n>=5) {
       var p = document.getElementById('s'+n);
       if(p && R) {
         R.innerHTML = '<div class="card">'+p.innerHTML+'</div>';
         R.style.display = 'block';
-        // 给静态面板里的死链溯源图标接上真实点击
-        if(n===5) this._wireS5TraceLinks(R);
       }
     } else if(n>=1 && n<=4) {
       if(R) R.style.display = 'block';
     }
   },
 
-  /** 第五步渲染（聊天流调用，避免未定义抛错；复用静态面板并接线）*/
+  /** 第五步渲染：动态读 _scanResult + 内存法规/违规/文件，替换 analysis.html 静态 mock。
+   *  注意：不调 showStep(5)（showStep n===5 分支会回调 renderS5，递归）。step 切换/步骤条由调用方负责。*/
   renderS5: function() {
-    this.showStep(5);
-    this.updateStepBar(5);
+    var R = document.getElementById('right-panel');
+    if(!R) return;
+    R.innerHTML = this._buildS5Html();
+    R.style.display = 'block';
+    this._wireS5TraceLinks(R);   // 给 .trace-link 接真实点击（复用现有，作用于动态生成的元素）
+    this._loadS5FileList();       // 异步填「审计资料清单」（文件列表来自 files.list）
+  },
+
+  /** 构建 Step⑤ 面板 HTML：三清单摘要 + 扫描结果 + 底部按钮 */
+  _buildS5Html: function() {
+    var self = this;
+    // —— 三清单：法规清单（三级优先级，同 renderS3:1180）——
+    var laws = (this._primaryLaws && this._primaryLaws.length) ? this._primaryLaws
+             : (this._violationLaws || []);
+    var lawHtml = '';
+    if(laws && laws.length) {
+      lawHtml = laws.slice(0,8).map(function(L){
+        var nm = L.law || L.title || '法规';
+        var cl = L.clause || (L.clause_refs ? (L.clause_refs.join('、')) : '');
+        var tp = L.type || (L.potency_level || '');
+        return '<div>⚖️ '+self._esc(nm)+(cl?(' · '+self._esc(cl)):'')+(tp?(' · '+self._esc(tp)):'')+' · <a class="trace-link" href="#">📍</a></div>';
+      }).join('');
+    } else {
+      lawHtml = '<div style="color:var(--color-text-muted);">待确认法规（在第三步选择）</div>';
+    }
+    // —— 三清单：违规行为清单（selectedViolations → 回查 violationDB）——
+    var vHtml = '';
+    if(this.selectedViolations && this.selectedViolations.length) {
+      vHtml = this.selectedViolations.map(function(vid){
+        var v = self.violationDB.find(function(x){return x.id===vid;}) || {};
+        var nm = v.violation_title || v.title || v.name || ('违规#'+vid);
+        var sev = v.severity==='high'?'高风险':(v.severity==='low'?'低风险':'中风险');
+        var sevBadge = v.severity==='high'?'badge-accent':(v.severity==='low'?'badge-muted':'badge-warning');
+        return '<div>⚠️ '+self._esc(nm)+' · <span class="badge '+sevBadge+'">'+sev+'</span> · <a class="trace-link" href="#">📍语料库</a></div>';
+      }).join('');
+    } else {
+      vHtml = '<div style="color:var(--color-text-muted);">未选择违规（在第二步选择）</div>';
+    }
+
+    // —— 扫描结果块（核心：遍历 _scanResult.results，每违规一块）——
+    var scan = this._scanResult;
+    var scanHtml = '';
+    if(!scan || !scan.results || scan.results.length === 0) {
+      scanHtml = '<div class="alert alert-info" style="font-size:13px;"><i class="bi bi-info-circle"></i> 尚未执行扫描。在左侧对话框输入 <strong>「比对」</strong> 执行违规表达式扫描后查看结果。</div>';
+    } else {
+      var blocks = scan.results.map(function(r){
+        var vn = r.violation_name || ('违规#'+(r.violation_id||''));
+        if(r.executable === false) {
+          var why = r.reason || r.error || (r.needs_review ? '聚合表达式待人工审核' : '未知原因');
+          return '<div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
+            '⚠️ <strong>'+self._esc(vn)+'</strong>：不可执行 —— <span style="color:var(--color-text-muted);">'+self._esc(why)+'</span></div>';
+        }
+        if(!r.total) {
+          return '<div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
+            '◔ <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+'）：<span style="color:var(--color-text-muted);">数据不足（该表无数据）</span></div>';
+        }
+        if(!r.hits) {
+          return '<div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
+            '✅ <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' 条）：未发现命中</div>';
+        }
+        // 有命中：明细表（表头取前若干行 fields 键并集，显示前 20 条）
+        var rows = r.rows || [];
+        var showRows = rows.slice(0,20);
+        var keySet = []; var keySeen = {};
+        showRows.forEach(function(rr){ var f=rr.fields||{}; for(var k in f){ if(!keySeen[k]){keySeen[k]=1; keySet.push(k);} } });
+        var thead = keySet.map(function(k){return '<th>'+self._esc(k)+'</th>';}).join('');
+        var tbody = showRows.map(function(rr){
+          var f = rr.fields||{};
+          return '<tr class="row-danger">'+keySet.map(function(k){return '<td>'+(f[k]!=null?self._esc(String(f[k])):'')+'</td>';}).join('')+'</tr>';
+        }).join('');
+        var more = r.hits > showRows.length ? '<div style="font-size:12px;color:var(--color-text-muted);margin-top:4px;">显示前 '+showRows.length+' 条命中（共 '+r.hits+' 条）</div>' : '';
+        return '<div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
+          '🔴 <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' · 命中 '+r.hits+'）'+
+          '<div class="table-wrap" style="margin-top:8px;"><table class="table" style="font-size:12px;"><thead><tr>'+thead+'</tr></thead><tbody>'+tbody+'</tbody></table></div>'+
+          more+'</div>';
+      }).join('');
+      scanHtml = '<div style="margin-bottom:6px;font-size:13px;">共扫描 <strong>'+(scan.total||0)+'</strong> 条 · 命中 <strong style="color:var(--color-accent);">'+(scan.hits||0)+'</strong> 条</div>'+blocks;
+    }
+
+    return '<div class="card"><div class="card-header"><h3>第五步：审核比对</h3><span class="badge badge-warning">确认后执行</span></div>'+
+      // ① 三清单摘要
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">'+
+        '<details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-folder"></i> 审计资料清单</summary>'+
+          '<div id="s5-file-list" style="font-size:12px;padding:4px 0;"><span class="pulse">●</span> 加载中…</div></details>'+
+        '<details><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-journal-text"></i> 法律法规清单（'+(laws?laws.length:0)+'部 · 可溯源）</summary>'+
+          '<div style="font-size:12px;padding:4px 0;">'+lawHtml+'</div></details>'+
+        '<details open><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;"><i class="bi bi-exclamation-triangle"></i> 违规行为清单（'+(this.selectedViolations||[]).length+'个 · 可溯源）</summary>'+
+          '<div style="font-size:12px;padding:4px 0;">'+vHtml+'</div></details>'+
+      '</div>'+
+      '<div class="alert alert-info" style="font-size:13px;margin-bottom:12px;"><i class="bi bi-info-circle"></i> 下方为违规表达式对本项目数据的真实扫描结果。上方清单均可点击溯源查看详情。</div>'+
+      // ② 扫描结果
+      '<div style="margin-bottom:14px;"><div style="font-size:12px;color:var(--color-text-muted);margin-bottom:8px;">违规扫描结果</div>'+scanHtml+'</div>'+
+      // ③ 底部按钮
+      '<div style="display:flex;gap:8px;margin-top:12px;">'+
+        '<button class="btn btn-accent btn-lg" onclick="AW.step=6;AW.showStep(6);AW.updateStepBar(6);AW.say(\'ai\',\'已确认比对结果，进入疑点核实。\')"><i class="bi bi-check-lg"></i> 确认比对，进入疑点核实</button>'+
+        '<button class="btn btn-outline" onclick="AW.goBack(4)">返回修改资料</button>'+
+      '</div></div>';
+  },
+
+  /** 异步加载项目文件列表填入「审计资料清单」（复用 Step④ files.list 模式）*/
+  _loadS5FileList: function() {
+    var self = this;
+    var el = document.getElementById('s5-file-list');
+    if(!el) return;
+    var mp = this.mem.project || {};
+    if(!mp.id && mp.project_id) mp.id = mp.project_id;  // 键名归一兜底（同 Step④）
+    var pid = mp.id || mp.project_id || '';
+    if(!pid) { el.innerHTML = '<div style="color:var(--color-text-muted);">暂无项目</div>'; return; }
+    AuditAPI.files.list(pid).then(function(resp){
+      var files = (resp && resp.files) || [];
+      if(!files.length) { el.innerHTML = '<div style="color:var(--color-text-muted);">项目暂无文件</div>'; return; }
+      el.innerHTML = files.map(function(f){
+        var fn = f.file_name || f.name || '未命名';
+        var st = f.ocr_done ? '已解析' : '待解析';
+        return '<div>📄 <a href="doc-viewer.html?file='+encodeURIComponent(fn)+'" target="_blank">'+self._esc(fn)+'</a> · '+st+' · <a class="trace-link" href="#">📍</a></div>';
+      }).join('');
+    }).catch(function(){ el.innerHTML = '<div style="color:var(--color-text-muted);">文件列表加载失败</div>'; });
   },
 
   /** 打开审计资料原始文件 */
