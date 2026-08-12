@@ -316,7 +316,7 @@ var AW = {
       self._api('POST', '/suspicion/generate', {
         task_id: self._taskId || '',
         analysis_results: (scanData.results && scanData.results.length > 0) ? scanData.results.map(function(r){
-          return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total: r.total||0, rows: (r.rows||[]).slice(0,20)}};
+          return {violation_model: r.violation_name || '违规分析', scan_summary: {hits: r.hits||0, total_records: r.total||0, sample_findings: (r.rows||[]).slice(0,20)}};
         }) : [{violation_model: '违规分析', scan_summary: scanData}],
         overall_assessment: scanData.hits > 0 ? ('发现'+scanData.hits+'条疑点记录') : '未发现明显异常',
         project_id: (self.mem.project||{}).id || ''
