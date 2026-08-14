@@ -45,10 +45,11 @@ var AW = {
   },
 
   /** 检索违规库候选（多关键词搜 + rank 归一化），返回 ranked[]，无副作用。
-   *  供 _initData（非事项推荐）与 renderS2（事项候选池）复用——由原 _initData IIFE 抽出。 */
-  _searchCandidates: function() {
+   *  供 _initData（非事项推荐）与 renderS2（事项候选池/事项空绑定推荐）复用——由原 _initData IIFE 抽出。
+   *  kwsOverride：事项模式传入「事项标题」提取的关键词，让检索语义跟着事项走（缺省用项目背景词）。 */
+  _searchCandidates: function(kwsOverride) {
     var self = this;
-    var kws = self._projectKeywords();
+    var kws = (kwsOverride && kwsOverride.length) ? kwsOverride : self._projectKeywords();
     var buildUrl = function(q){ return '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
     // 按关键词命中数计算真实匹配度并排序，只取 Top 8
     var rank = function(list){
@@ -79,6 +80,7 @@ var AW = {
           materials: (function(){
             var rd = v.required_data;
             if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = null; } }
+            if(Array.isArray(rd)) return rd.filter(function(x){ return typeof x === 'string' && x; });   // 平铺数组格式（GP-*/RA-* 批次）
             return ((rd && rd.items) || []).map(function(it){
               return it.name + '（' + ((it.fields||[]).join('、')) + '）';
             });
@@ -433,6 +435,7 @@ var AW = {
     var progress = {
       step: this.step,
       projectId: proj.id || proj.project_id || '',  // P9-串项目防护: 恢复时校验归属
+      itemId: proj.itemId || proj.item_id || proj.focus_item_id || '',  // P9b-串事项防护: 恢复时校验同一审计事项
       projectTitle: proj.title || (document.getElementById('s1-title')?.value) || '',
       projectDomain: proj.domain || (document.getElementById('s1-domain')?.value) || '',
       selectedViolations: this.selectedViolations,
@@ -457,34 +460,43 @@ var AW = {
     try {
       var prog = JSON.parse(saved);
       this.step = prog.step;
-      this.selectedViolations = prog.selectedViolations || [];
       this.s1Cache = prog.s1Cache || {};
-      // P3.2: 回填 task_id + 分析数据（刷新恢复）
-      // P9-串项目防护: 仅当进度属于当前项目才复用其分析数据；否则丢弃，避免他项目违规泄入
-      var curPid = '';
-      try { curPid = (AuditWorkbench.getProjectMemory().project_id || '').trim(); } catch(e) {}
-      var savedPid = (prog.projectId || '').trim();
-      var sameProject = !(savedPid && curPid) || (savedPid === curPid);
-      this._taskId = sameProject ? (prog.taskId || '') : '';
-      this._matches = sameProject ? (prog.matches || []) : [];
-      this._primaryLaws = sameProject ? (prog.primaryLaws || []) : [];
-      this._scanResult = sameProject ? (prog.scanResult || null) : null;
-      this._suspicionData = sameProject ? (prog.suspicionData || null) : null;
-      // Load project memory
+      // Load project memory（上移：下方 curPid/curItemId 依赖 pm）
       var pm = AuditWorkbench.getProjectMemory();
       if(pm && pm.project_id && !pm.id) pm.id = pm.project_id;  // 键名归一：aw_project_memory 存 project_id，补 .id 供 .id 读法消费（Step④/⑤/阈值/上传）
       if(pm && pm.title) this.mem.project = pm;
+      // P9-串项目/串事项防护: 进度必须属于「同一项目 + 同一审计事项」才复用分析数据。
+      // 同项目但换了事项（如 187→186、或推荐模式残留→事项模式）也要丢弃旧 Step②③，
+      // 否则会把上一个事项/旧推荐选中的违规与法规带入新上下文（图1/图2 的根因）。
+      var curPid = (pm && (pm.project_id || pm.id) || '').toString().trim();
+      var curItemId = (pm && (pm.itemId || pm.item_id || pm.focus_item_id) || '').toString().trim();
+      var savedPid = (prog.projectId || '').trim();
+      var savedItemId = (prog.itemId || '').toString().trim();
+      var sameProject = !(savedPid && curPid) || (savedPid === curPid);
+      // 事项比对更严：一方有事项一方无（如旧进度未存 itemId，或推荐↔事项切换）= 不同上下文，强制重渲
+      var sameItem = (!curItemId && !savedItemId) || (curItemId === savedItemId);
+      var sameCtx = sameProject && sameItem;
+      this.selectedViolations = sameCtx ? (prog.selectedViolations || []) : [];
+      this._taskId = sameCtx ? (prog.taskId || '') : '';
+      this._matches = sameCtx ? (prog.matches || []) : [];
+      this._primaryLaws = sameCtx ? (prog.primaryLaws || []) : [];
+      this._scanResult = sameCtx ? (prog.scanResult || null) : null;
+      this._suspicionData = sameCtx ? (prog.suspicionData || null) : null;
       // Show the saved step
       this.showStep(prog.step);
       this.updateStepBar(prog.step);
-      // Restore right panel（串项目时不复用他项目旧渲染）
-      if(sameProject && prog.rightPanelHTML) {
+      // Restore right panel（仅「同项目+同事项」才复用旧渲染）
+      if(sameCtx && prog.rightPanelHTML) {
         var rp = document.getElementById('right-panel');
         if(rp) rp.innerHTML = prog.rightPanelHTML;
       } else if(!sameProject) {
         this.say('ai','上次进度属于另一个项目，已按当前项目重新加载。');
-        if(prog.step===2) this.renderS2();   // 第2步用空 _matches 回退 _initData 重新匹配
-        else this.goBack(1);                  // 其它步数据已清，退回第1步最稳
+        this.goBack(1);
+      } else if(!sameItem) {
+        // 同项目但换了审计事项（含旧推荐模式残留→本次事项模式）：Step②③ 属上一个上下文，按当前事项重渲
+        this.say('ai','检测到当前审计事项与上次不同，已按当前事项重新加载方法推荐与法规。');
+        if(prog.step===2) this.renderS2();   // 事项模式：itemRules(pid,itemId) → 已绑 GP-* 规则 + required_data 资料
+        else this.goBack(2);                  // 其它步依赖 Step② 的选择，退回第2步重选最稳
       } else {
         this.goBack(prog.step);
       }
@@ -995,7 +1007,8 @@ var AW = {
     if(pid && itemId) {
       AuditAPI.projects.itemRules(pid, itemId).then(function(resp) {
         var bound = (resp && resp.violations) || [];
-        if(!bound.length) throw new Error('当前事项尚未绑定可信规则');
+        if(!bound.length) { self._renderS2FromItemTitle(); return; }   // 方案②：空绑定不再静默降级，按事项标题检索+明示
+        self._itemUnbound = false;
         var boundRows = bound.map(function(v) {
           var rd = v.required_data;
           if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = []; } }
@@ -1013,10 +1026,37 @@ var AW = {
         self.selectedViolations = boundRows.filter(function(v){ return v.isPrimary; }).map(function(v){ return v.id; });
         // B: 事项候选池——已绑规则(选中置顶) + 违规库检索的相关候选(未选/去重/可增选)
         self._mergeCandidatesInto(boundRows);
-      }).catch(function() { self._renderS2FromRecommendation(); });
+      }).catch(function() { self._itemUnbound = false; self._renderS2FromRecommendation(); });
       return;
     }
+    self._itemUnbound = false;
     self._renderS2FromRecommendation();
+  },
+
+  /** 方案②：事项未绑定可信规则时的推荐——按「当前事项标题」检索违规库（不再静默降级到项目级推荐）。
+   *  检索词来自事项标题而非项目背景，语义与事项对齐；_itemUnbound 置位让 Step② 顶部出明示横幅。 */
+  _renderS2FromItemTitle: function() {
+    var self = this;
+    self._itemUnbound = true;
+    var pm = self.mem.project || {};
+    var title = pm.auditItem || pm.itemTitle || '';
+    // 从事项标题提取 2-3 字关键词（清洗思路同 _projectKeywords，但只用事项标题，保证检索跟着事项走）
+    var kws = [];
+    var s = String(title || '').replace(/\d+/g, '').replace(/[A-Za-z\-\/\\()（）.,，。;；:：、]+/g, ' ').trim();
+    if(s.length >= 2 && s.length <= 8) kws.push(s);
+    s.split(/\s+/).forEach(function(p){
+      for(var i = 0; i < p.length; i++){
+        if(i+2 <= p.length) kws.push(p.substring(i, i+2));
+        if(i+3 <= p.length) kws.push(p.substring(i, i+3));
+      }
+    });
+    var seen = {}, clean = [];
+    kws.forEach(function(k){ if(!seen[k]){ seen[k] = 1; clean.push(k); } });
+    self._searchCandidates(clean).then(function(ranked){
+      self.violationDB = ranked;
+      self._applyPreflightThenRender();
+      self.say('ai', '当前事项「'+(title||'')+'」尚未绑定可信规则，已按事项语义从违规库检索到 '+ranked.length+' 条推荐（自带法规与审计资料），请人工确认。');
+    }).catch(function(){ self._itemUnbound = false; self._renderS2FromRecommendation(); });
   },
 
   /** 事项候选池：已绑规则置顶(选中)，违规库检索的相关候选追加(未选/去重/最多5/可增选)。
@@ -1119,8 +1159,9 @@ var AW = {
     });
 
     document.getElementById('right-panel').innerHTML =
-      '<div class="card"><div class="card-header"><h3>第二步：方法推荐</h3><span style="font-size:12px;color:var(--color-text-muted);">基于项目上下文智能匹配</span></div>'+
+      '<div class="card"><div class="card-header"><h3>第二步：方法推荐</h3><span style="font-size:12px;color:var(--color-text-muted);">'+(self._itemUnbound ? '按当前审计事项语义检索' : '基于项目上下文智能匹配')+'</span></div>'+
       '<div class="alert alert-info" style="font-size:14px;"><i class="bi bi-info-circle"></i> 勾选要核查的违规类型，自动展示对应的审计资料清单和法规依据。左侧可补充新的违规情况。</div>'+
+      (self._itemUnbound ? '<div class="alert alert-warning" style="font-size:14px;"><i class="bi bi-exclamation-triangle"></i> 当前审计事项尚未绑定可信规则——以下为按「'+self._esc(((self.mem.project||{}).auditItem)||'')+'」从违规库语义检索的推荐（含法规与审计资料），请人工确认后使用。</div>' : '')+
       '<div class="table-wrap"><table class="table"><thead><tr><th style="width:30px;">✓</th><th style="min-width:180px;">违规类型</th><th>常见问题表现</th><th style="width:60px;">风险</th><th style="width:50px;">匹配度</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
       '<div id="s2-detail"></div>'+
       '<div id="s2-summary" style="margin-top:12px;"></div>'+
