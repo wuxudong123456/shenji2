@@ -44,81 +44,70 @@ var AW = {
     return fetch(self._apiBase + path, opts).then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.blob(); });
   },
 
+  /** 检索违规库候选（多关键词搜 + rank 归一化），返回 ranked[]，无副作用。
+   *  供 _initData（非事项推荐）与 renderS2（事项候选池）复用——由原 _initData IIFE 抽出。 */
+  _searchCandidates: function() {
+    var self = this;
+    var kws = self._projectKeywords();
+    var buildUrl = function(q){ return '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
+    // 按关键词命中数计算真实匹配度并排序，只取 Top 8
+    var rank = function(list){
+      var scored = (list||[]).map(function(v){
+        var title = v.violation_title || '';
+        var desc  = v.description || '';
+        var cat   = v.category_path || '';   // 后端已返回的审计事项分类路径（最强领域信号）
+        var raw = 0;
+        kws.forEach(function(k){
+          if(k.length<2) return;
+          var wLong = k.length>=3;
+          if(title.indexOf(k)>=0)      raw += wLong ? 3.0 : 1.5;   // 标题命中（最强）
+          else if(cat.indexOf(k)>=0)   raw += wLong ? 2.0 : 1.0;   // 分类命中（结构化领域）
+          else if(desc.indexOf(k)>=0)  raw += wLong ? 0.8 : 0.4;   // 描述命中（弱）
+        });
+        return {v:v, raw:raw};
+      });
+      var maxRaw = 0;
+      scored.forEach(function(s){ if(s.raw > maxRaw) maxRaw = s.raw; });
+      return scored.map(function(s){
+        var score = maxRaw>0 ? Math.round(30 + (s.raw/maxRaw)*67) : 30;   // 归一化 30~97
+        var v = s.v;
+        var desc = v.description || '';
+        return {
+          id: String(v.id || ''), name: v.violation_title || '',
+          risk: v.severity === 'high' ? '高' : (v.severity === 'low' ? '低' : '中'),
+          match: score, symptom: desc,
+          materials: (function(){
+            var rd = v.required_data;
+            if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = null; } }
+            return ((rd && rd.items) || []).map(function(it){
+              return it.name + '（' + ((it.fields||[]).join('、')) + '）';
+            });
+          })(),
+          regulations: [{law: v.expression_text || '', type: '主依据', note: desc}]
+        };
+      }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
+    };
+    var queries = self._violationQueries(kws);
+    var merged = {};
+    return Promise.all(queries.map(function(q){ return self._api('GET', buildUrl(q)); })).then(function(resps){
+      resps.forEach(function(d){ (d.violations || []).forEach(function(v){ merged[v.id] = v; }); });
+      var ranked = rank(Object.keys(merged).map(function(k){ return merged[k]; }));
+      if(ranked.length < 5){   // 命中过少则放宽（空 q 全库）补一次
+        return self._api('GET', buildUrl('')).then(function(d2){
+          (d2.violations || []).forEach(function(v){ merged[v.id] = v; });
+          return rank(Object.keys(merged).map(function(k){ return merged[k]; }));
+        });
+      }
+      return ranked;
+    }).catch(function(){ return []; });
+  },
+
   _initData: function() {
     if (this._dataLoaded) return Promise.resolve();
     var self = this;
     return Promise.all([
-      (function(){
-        // 按项目上下文提取关键词，避免出现与项目无关的违规类型（如采购项目混入农药类）
-        var kws = self._projectKeywords();
-        var primaryQ = self._primaryViolationQuery(kws);
-        var buildUrl = function(q){ return '/knowledge/violations?per_page=100' + (q ? ('&q=' + encodeURIComponent(q)) : ''); };
-        // 按关键词命中数计算真实匹配度并排序，只取 Top 8
-        var rank = function(list){
-          // 纯命中累加 raw 分（无基础分、无硬封顶），再对全队列按 maxRaw 归一化——
-          // 旧版 base35+封顶99 会让"撞够关键词的 Top 候选"齐刷刷钉在 99 丧失区分度；
-          // 归一化后只有关键词重叠最多的一条到 97，其余按比例下滑，产生真实梯度
-          var scored = (list||[]).map(function(v){
-            var title = v.violation_title || '';
-            var desc  = v.description || '';
-            var cat   = v.category_path || '';   // 后端已返回的审计事项分类路径（最强领域信号）
-            var raw = 0;
-            kws.forEach(function(k){
-              if(k.length<2) return;
-              var wLong = k.length>=3;
-              if(title.indexOf(k)>=0)      raw += wLong ? 3.0 : 1.5;   // 标题命中（最强）
-              else if(cat.indexOf(k)>=0)   raw += wLong ? 2.0 : 1.0;   // 分类命中（结构化领域）
-              else if(desc.indexOf(k)>=0)  raw += wLong ? 0.8 : 0.4;   // 描述命中（弱）
-            });
-            return {v:v, raw:raw};
-          });
-          var maxRaw = 0;
-          scored.forEach(function(s){ if(s.raw > maxRaw) maxRaw = s.raw; });
-          return scored.map(function(s){
-            // 归一化到 30~97：raw=0 保底 30（已检索条目不至于显示成空匹配），maxRaw 映射 97，中间线性
-            var score = maxRaw>0 ? Math.round(30 + (s.raw/maxRaw)*67) : 30;
-            var v = s.v;
-            var desc = v.description || '';
-            return {
-              id: String(v.id || ''), name: v.violation_title || '',
-              risk: v.severity === 'high' ? '高' : (v.severity === 'low' ? '低' : '中'),
-              match: score, symptom: desc,
-              materials: (function(){
-                // required_data 来自 list 端点（audit_violations 列，{items:[{name,material_type,fields}]}）。
-                // 按面板 refreshS2Detail 既定的"资料名称（关键字段1、关键字段2）"字符串约定拼接——
-                // 该约定用中文括号 split 出名称与字段，故无需改面板渲染逻辑。
-                var rd = v.required_data;
-                if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = null; } }
-                return ((rd && rd.items) || []).map(function(it){
-                  return it.name + '（' + ((it.fields||[]).join('、')) + '）';
-                });
-              })(),
-              regulations: [{law: v.expression_text || '', type: '主依据', note: desc}]
-            };
-          }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
-        };
-        // Part3: top-3 业务关键词各搜一次，按 id 合并去重，扩大候选池
-        // （旧版只用 _primaryViolationQuery 单关键词——清清 scope 的"合同签订"会把候选带偏到
-        //   合同类规则，真正能命中的"询价/采购"规则 RA-002 进不了池）
-        var queries = self._violationQueries(kws);
-        var merged = {};
-        return Promise.all(queries.map(function(q){ return self._api('GET', buildUrl(q)); })).then(function(resps){
-          resps.forEach(function(d){ (d.violations || []).forEach(function(v){ merged[v.id] = v; }); });
-          var ranked = rank(Object.keys(merged).map(function(k){ return merged[k]; }));
-          // 命中过少则放宽（空 q 全库）补一次，保证有足够相关条目
-          if(ranked.length < 5){
-            return self._api('GET', buildUrl('')).then(function(d2){
-              (d2.violations || []).forEach(function(v){ merged[v.id] = v; });
-              return rank(Object.keys(merged).map(function(k){ return merged[k]; }));
-            });
-          }
-          return ranked;
-        }).then(function(ranked){
-          // 保留后端真实违规 id（数据库主键），供第三步按所选违规回查关联法规/资料。
-          // 旧逻辑把 id 覆盖成 'v1'..'v8' 假 id → 无法回查数据库，已弃用。
-          self.violationDB = ranked.length ? ranked : [];
-        }).catch(function(){ self.violationDB = []; });
-      })(),
+      // 违规候选检索抽到 _searchCandidates（id 保留数据库主键，供第三步回查法规/资料）
+      self._searchCandidates().then(function(ranked){ self.violationDB = ranked.length ? ranked : []; }),
 
       self._api('GET', '/knowledge/regulations?per_page=50').then(function(d){
         self._regulations = (d.regulations || []).slice(0, 20);
@@ -1007,7 +996,7 @@ var AW = {
       AuditAPI.projects.itemRules(pid, itemId).then(function(resp) {
         var bound = (resp && resp.violations) || [];
         if(!bound.length) throw new Error('当前事项尚未绑定可信规则');
-        self.violationDB = bound.map(function(v) {
+        var boundRows = bound.map(function(v) {
           var rd = v.required_data;
           if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = []; } }
           var materials = Array.isArray(rd) ? rd : (((rd||{}).items)||[]).map(function(it){ return it.name || ''; });
@@ -1021,12 +1010,31 @@ var AW = {
             resultGroupKey: v.result_group_key || '', isPrimary: !!v.is_primary
           };
         });
-        self.selectedViolations = self.violationDB.filter(function(v){ return v.isPrimary; }).map(function(v){ return v.id; });
-        self._applyPreflightThenRender();
+        self.selectedViolations = boundRows.filter(function(v){ return v.isPrimary; }).map(function(v){ return v.id; });
+        // B: 事项候选池——已绑规则(选中置顶) + 违规库检索的相关候选(未选/去重/可增选)
+        self._mergeCandidatesInto(boundRows);
       }).catch(function() { self._renderS2FromRecommendation(); });
       return;
     }
     self._renderS2FromRecommendation();
+  },
+
+  /** 事项候选池：已绑规则置顶(选中)，违规库检索的相关候选追加(未选/去重/最多5/可增选)。
+   *  先渲染已绑避免候选往返期间空白，候选回来再合并重渲。符合「人工选择」语义。 */
+  _mergeCandidatesInto: function(boundRows) {
+    var self = this;
+    self.violationDB = boundRows.slice();
+    self._applyPreflightThenRender();
+    self._searchCandidates().then(function(cands){
+      var boundIds = {};
+      boundRows.forEach(function(v){ boundIds[v.id] = true; });
+      var extra = cands.filter(function(v){ return !boundIds[v.id]; })
+                       .map(function(v){ v.isCandidate = true; return v; })
+                       .slice(0, 5);
+      if(!extra.length) return;
+      self.violationDB = boundRows.concat(extra);
+      self._applyPreflightThenRender();
+    }).catch(function(){ /* 候选加载失败不影响已绑规则 */ });
   },
 
   _renderS2FromRecommendation: function() {
@@ -1063,6 +1071,8 @@ var AW = {
       // 重排：可命中/needs_llm 在前（按 match 降序），不可命中在后（按 match 降序）
       var order = {hittable:0, needs_llm:1, unknown:2, missing_data:3, no_data:3, field_mismatch:3, syntax_error:3, unsupported:3, no_expr:3, error:3};
       (self.violationDB||[]).sort(function(a,b){
+        var ca = a.isCandidate ? 1 : 0, cb = b.isCandidate ? 1 : 0;
+        if(ca !== cb) return ca - cb;             // 已绑规则置顶，候选在后
         var oa = (order[a.verdict]===undefined?2:order[a.verdict]);
         var ob = (order[b.verdict]===undefined?2:order[b.verdict]);
         return (oa-ob) || ((b.match||0) - (a.match||0));
@@ -1102,7 +1112,7 @@ var AW = {
       var rowClick = vd.selectable ? 'onclick="AW.toggleViolation(\''+v.id+'\',this)"' : '';
       rows += '<tr style="cursor:'+(vd.selectable?'pointer':'not-allowed')+';'+rowStyle+(checked?'background:rgba(26,58,92,0.03);':'')+'" '+rowClick+'>'+
         '<td><input type="checkbox" class="rec-check" '+checked+' '+cbAttr+'data-id="'+v.id+'" onclick="event.stopPropagation();AW.toggleViolation(\''+v.id+'\',this.parentElement.parentElement)" style="width:16px;height:16px;"></td>'+
-        '<td style="font-size:15px;"><strong>'+v.name+'</strong>'+vd.badge+'</td>'+
+        '<td style="font-size:15px;"><strong>'+v.name+'</strong>'+vd.badge+(v.isCandidate?' <span style="font-size:11px;color:#1565c0;border:1px solid #1565c0;border-radius:4px;padding:0 5px;">候选</span>':'')+'</td>'+
         '<td style="font-size:13px;color:var(--color-text-muted);">'+(v.symptom||'—')+'</td>'+
         '<td><span class="badge badge-'+(v.risk==='高'?'accent':'warning')+'">'+v.risk+'风险</span></td>'+
         '<td>'+v.match+'%</td></tr>';
