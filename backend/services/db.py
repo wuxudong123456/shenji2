@@ -203,3 +203,33 @@ def health(database: str | None = None) -> bool:
         return row is not None and row.get('ok') == 1
     except Exception:
         return False
+
+
+# 表列名缓存（列结构极少变，首次查 information_schema 后复用）
+_column_cache: dict[str, list[str]] = {}
+
+
+def get_columns(table: str, database: str = "tt", use_cache: bool = True) -> list[str]:
+    """取一张表的全部列名（information_schema，模块级缓存）
+
+    供 execution_planner.precheck_expression 判断"违规表达式引用的字段在目标表存不存在"。
+    information_schema 返回大写 key（COLUMN_NAME），此处大小写不敏感取值并统一小写。
+    """
+    if use_cache and table in _column_cache:
+        return _column_cache[table]
+    try:
+        rows = query(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = %s AND table_name = %s ORDER BY ordinal_position",
+            (database, table), database=database,
+        )
+        cols = []
+        for r in rows:
+            name = r.get("column_name") or r.get("COLUMN_NAME") or ""
+            if name:
+                cols.append(str(name).lower())
+    except Exception:
+        cols = []  # 查询失败返空，precheck 据此跳过字段校验（不误杀）
+    if use_cache:
+        _column_cache[table] = cols
+    return cols

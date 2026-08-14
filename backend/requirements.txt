@@ -11,3 +11,4 @@ langgraph-checkpoint-sqlite
 langchain-core
 pydantic
 python-docx
+pypdf>=5.0

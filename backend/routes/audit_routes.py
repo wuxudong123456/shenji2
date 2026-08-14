@@ -637,6 +637,26 @@ def register_audit_routes(app):
         )
         return jsonify({"success": True, "audit_items": [_item_to_dto(r) for r in rows]})
 
+    @app.route("/api/audit/projects/<project_id>/items/<int:item_id>/violations", methods=["GET"])
+    def audit_project_item_violations(project_id, item_id):
+        """返回当前事项人工确认的可信规则绑定，不使用全库相似度替代。"""
+        item = query_one(
+            "SELECT id, title FROM audit_items WHERE id=%s AND project_id=%s",
+            (item_id, project_id), database="tt",
+        )
+        if not item:
+            return jsonify({"success": False, "error": "审计事项不存在"}), 404
+        from services.audit_item_rule_service import get_item_rules
+        rules = get_item_rules(project_id, item_id)
+        return jsonify({
+            "success": True,
+            "project_id": project_id,
+            "item_id": item_id,
+            "item_title": item.get("title") or "",
+            "violations": rules,
+            "count": len(rules),
+        })
+
     @app.route("/api/audit/projects/<project_id>/items", methods=["PUT"])
     def audit_project_items_save(project_id):
         """PUT /api/audit/projects/<id>/items — 全量替换项目的审计事项（落库）"""
@@ -1761,6 +1781,201 @@ def register_audit_routes(app):
         result = execute_expression(expression, table, project_id)
         return jsonify(result)
 
+    @app.route("/api/audit/violations/preflight", methods=["POST"])
+    def audit_violations_preflight():
+        """POST /api/audit/violations/preflight — 违规可命中性预检（Step② 推荐排序用）
+
+        对每条违规做 语法+字段+层级+数据存在性 判断，零行扫描（毫秒级），返回 verdict：
+          hittable(可命中) / syntax_error(语法错) / field_mismatch(本项目缺字段) /
+          needs_llm(聚合语义需LLM) / no_data(本项目无该表数据)
+        前端据此把"能命中的规则"置顶、"匹配度高却0命中"的标灰禁选。
+        """
+        data = request.get_json() or {}
+        project_id = (data.get("project_id") or "").strip()
+        vids = data.get("violation_ids") or []
+        if not project_id or not vids:
+            return jsonify({"success": False, "error": "缺少 project_id 或 violation_ids"}), 400
+
+        from services.audit_item_rule_service import get_violation_rule
+        from services.knowledge_service import get_violation_detail
+        from services.execution_planner import precheck_expression
+        from services.rule_engine_registry import precheck_violation_rule
+        results = []
+        for vid in vids:
+            try:
+                vid_int = int(vid)
+            except (TypeError, ValueError):
+                vid_int = vid
+            try:
+                configured_rule = get_violation_rule(vid_int)
+                if configured_rule:
+                    pc = precheck_violation_rule(configured_rule, project_id)
+                    results.append({
+                        "violation_id": str(vid),
+                        "violation_name": configured_rule.get("violation_title", ""),
+                        "rule_code": configured_rule.get("violation_code", ""),
+                        "result_group_key": configured_rule.get("result_group_key", ""),
+                        **pc,
+                    })
+                    continue
+                v = get_violation_detail(vid_int)
+                # 模仿 build_and_execute:88 优先取 normalized（幽灵列恒 None，自动回退 text）
+                expr = (v.get("expression_normalized") or v.get("expression_text") or "") if v else ""
+                pc = precheck_expression(expr, project_id)
+                results.append({
+                    "violation_id": str(vid),
+                    "violation_name": (v or {}).get("violation_title", ""),
+                    **pc,
+                })
+            except Exception as e:
+                results.append({"violation_id": str(vid), "violation_name": "",
+                                "verdict": "error", "table": "",
+                                "fields_missing": [], "detail": str(e)})
+        return jsonify({"success": True, "results": results})
+
+    @app.route("/api/audit/analysis/<task_id>/scan", methods=["POST"])
+    def audit_analysis_scan(task_id):
+        """POST /api/audit/analysis/<task_id>/scan — 确定性扫描 + 落库 Step⑤ 结果
+
+        与 graph 驱动的 /step/4 不同：本端点不依赖 LangGraph checkpoint（后者要求
+        SqliteSaver 快照有效，否则 404），直接用 execution_planner.build_and_execute
+        对指定 violation_ids 跑确定性表达式扫描（零 LLM），并把 analysis_results 持久化
+        到 audit_analysis_tasks.step_data（current_step→5），同步 agent_results.audit_analyzer。
+        供"事项级规则接线"场景（先查桥表取 violation_ids）或 API 驱动跑通七步时使用。
+        """
+        data = request.get_json() or {}
+        violation_ids = data.get("violation_ids", []) or []
+        selected_laws = data.get("selected_laws", []) or []
+        overall = data.get("overall_assessment", "")
+
+        # 取 project_id：优先 body，回退查任务行
+        project_id = data.get("project_id", "")
+        if not project_id:
+            t = query_one(
+                "SELECT project_id FROM audit_analysis_tasks WHERE task_code = %s",
+                (task_id,), database="tt",
+            )
+            if not t:
+                return jsonify({"success": False, "error": "任务不存在"}), 404
+            project_id = t["project_id"]
+
+        if not violation_ids:
+            return jsonify({"success": False, "error": "请提供 violation_ids"}), 400
+
+        from services.execution_planner import build_and_execute
+        from decimal import Decimal
+        from datetime import date, datetime
+
+        def _json_safe(obj):
+            """递归清洗扫描结果，使标准库 json.dumps 可序列化。
+
+            build_and_execute 返回的 rows.fields 含 Decimal（pymysql 金额列原始值）、
+            date/datetime，而 alc.advance_step 内部用标准库 json.dumps（非 flask 的
+            jsonify encoder）会抛 TypeError。此处统一转 float/str，不污染引擎代码。
+            """
+            if isinstance(obj, Decimal):
+                return float(obj)
+            if isinstance(obj, (date, datetime)):
+                return obj.isoformat()
+            if isinstance(obj, dict):
+                return {k: _json_safe(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_json_safe(v) for v in obj]
+            return obj
+
+        def _adapt_for_agent(results):
+            """把 build_and_execute 输出适配成 suspicion_generator 期望的字段名。
+
+            契约断层：Agent build_prompt 读 violation_model/scan_summary/sample_findings，
+            而引擎输出是 violation_id/violation_name/total/hits/rows。此处为每项补充
+            Agent 字段（保留原字段供前端 Step⑤ renderS5 读 violation_id/hits/rows）。
+            两套字段共存，互不影响。
+            """
+            for ar in results:
+                ar.setdefault("violation_model", ar.get("violation_name", "未命名"))
+                ar.setdefault("scan_summary", {
+                    "total_records": ar.get("total", 0),
+                    "hits": ar.get("hits", 0),
+                    "hit_rate": round(ar.get("hits", 0) / ar["total"], 2)
+                                if ar.get("total") else 0,
+                })
+                # rows → sample_findings（Agent 从 fields 取 doc_name/amount 等）
+                if "rows" in ar and "sample_findings" not in ar:
+                    ar["sample_findings"] = ar["rows"]
+                # 严重程度（供 prompt 的 severity_assessment）
+                if ar.get("hits", 0) > 0 and "severity_assessment" not in ar:
+                    ar["severity_assessment"] = "命中 %d 条" % ar["hits"]
+            return results
+
+        # 确定性扫描（零 LLM——红线：此处禁引入 Agent/call_llm）
+        analysis_results = _adapt_for_agent(
+            _json_safe(build_and_execute(violation_ids, project_id)))
+
+        # 把跨文档规则的 trace 证据落到 analysis_hit，供 Step6 疑点继承。
+        # 同一任务允许重新扫描：先清理上次结果，避免证据引用重复累积。
+        execute(
+            "DELETE FROM audit_source_refs WHERE project_id = %s "
+            "AND result_type = 'analysis_hit' AND result_id LIKE %s",
+            (project_id, f"{task_id}:%"), database="tt",
+        )
+        trace_chunk_cache = {}
+        for result_index, ar in enumerate(analysis_results):
+            if ar.get("hits", 0) <= 0:
+                continue
+            for evidence in ar.get("evidence_refs") or []:
+                trace_id = evidence.get("document_trace_id")
+                if trace_id not in trace_chunk_cache:
+                    chunk = query_one(
+                        "SELECT id FROM audit_document_chunks WHERE trace_id = %s "
+                        "ORDER BY id LIMIT 1",
+                        (trace_id,), database="tt",
+                    )
+                    trace_chunk_cache[trace_id] = (chunk or {}).get("id")
+                chunk_id = trace_chunk_cache[trace_id]
+                if not chunk_id:
+                    continue
+                evidence_service.add_ref(
+                    project_id=project_id,
+                    result_type="analysis_hit",
+                    result_id=f"{task_id}:{result_index}",
+                    source_type="document_chunk",
+                    source_id=chunk_id,
+                    document_id=trace_id,
+                    file_name=evidence.get("doc_name") or "",
+                    page_number=evidence.get("page_number"),
+                    quote=ar.get("violation_name") or "确定性规则命中",
+                )
+
+        # 落库 Step⑤（current_step=5 权威）+ 合并 selected_laws（Step⑦ evidence_complete
+        # 门禁的"法规存在"项要求 step_data.selected_laws 非空）
+        data_ready = alc.check_readiness(task_id, "data_ready")
+        patch = {
+            "analysis_results": analysis_results,
+            "overall_assessment": overall,
+            "selected_laws": selected_laws,
+        }
+        alc.advance_step(task_id, to_step=5, step_data_patch=patch,
+                         summary_content=overall,
+                         summary_structured={"analysis_results": analysis_results})
+        # agent_results.audit_analyzer 同步（GET 端点读此路径，对齐 /step/4 :2282-2287）
+        execute(
+            "UPDATE audit_analysis_tasks SET agent_results = JSON_MERGE_PATCH("
+            "COALESCE(agent_results,'{}'), %s) WHERE task_code = %s",
+            (json.dumps({"audit_analyzer": analysis_results}, ensure_ascii=False), task_id),
+            database="tt",
+        )
+
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "current_step": 5,
+            "status": "step5_done",
+            "analysis_results": analysis_results,
+            "overall_assessment": overall,
+            "readiness": {"data_ready": data_ready},
+            "next": "POST /api/audit/suspicion/generate 生成疑点（Step6）",
+        })
+
     @app.route("/api/audit/threshold/check", methods=["POST"])
     def audit_threshold_check():
         """POST /api/audit/threshold/check — 阈值规则批量扫描（③阈值对照）"""
@@ -1848,17 +2063,48 @@ def register_audit_routes(app):
             selected_laws = selected_laws or sd.get("selected_laws", [])
             primary_laws = primary_laws or sd.get("primary_laws", [])
 
-        agent = AgentRegistry().create_agent("suspicion_generator")
-        result = agent.run({
-            "analysis_results": analysis_results,
-            "overall_assessment": data.get("overall_assessment", ""),
-            "domain": data.get("domain", ""),
-            "audit_item": data.get("item", ""),
-            "project_id": project_id,
-            "primary_laws": primary_laws,
-            "selected_laws": selected_laws,
-        }, context={"task_id": task_id, "project_id": project_id, "step": 6,
-                    "node_name": "suspicion_endpoint"})
+        # 确定性跨文档命中无需再让 LLM重算或决定是否合并；按 finding_key 直接形成
+        # 可追溯疑点报告。LLM仅保留给旧表达式/语义分析结果的文字组织路径。
+        deterministic_results = [
+            row for row in analysis_results
+            if row.get("executor_type") == "procurement_cross_doc"
+            or row.get("judge_source") == "deterministic"
+        ]
+        if deterministic_results and len(deterministic_results) == len(analysis_results):
+            from agents.suspicion_generator import build_deterministic_suspicion_report
+            suspicion_report = build_deterministic_suspicion_report(deterministic_results)
+            # 仅从已绑定的真实法规关系补充依据，不由模型编造法规或条款。
+            for item in suspicion_report.get("items", []):
+                laws = get_laws_for_violations(item.get("violation_ids") or [])
+                item["legal_basis"] = [{
+                    "law_id": law.get("law_id"),
+                    "law_title": law.get("title"),
+                    "applicable_clauses": law.get("clause_refs") or [],
+                    "violation_nature": "待人工复核适用性",
+                } for law in laws]
+            result = {
+                "success": True,
+                "agent": "suspicion_generator",
+                "trace_id": "deterministic-" + uuid.uuid4().hex[:12],
+                "output": {
+                    "suspicion_report": suspicion_report,
+                    "export_formats": ["json", "word", "pdf"],
+                    "review_checklist": ["核对原始证据", "听取被审计单位说明", "复核法规适用性"],
+                },
+                "model": "deterministic",
+            }
+        else:
+            agent = AgentRegistry().create_agent("suspicion_generator")
+            result = agent.run({
+                "analysis_results": analysis_results,
+                "overall_assessment": data.get("overall_assessment", ""),
+                "domain": data.get("domain", ""),
+                "audit_item": data.get("item", ""),
+                "project_id": project_id,
+                "primary_laws": primary_laws,
+                "selected_laws": selected_laws,
+            }, context={"task_id": task_id, "project_id": project_id, "step": 6,
+                        "node_name": "suspicion_endpoint"})
 
         suspicion_report = result.get("output", {}).get("suspicion_report", {}) \
             if result.get("success") else {}

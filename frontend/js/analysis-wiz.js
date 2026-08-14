@@ -97,11 +97,20 @@ var AW = {
             };
           }).sort(function(a,b){ return b.match - a.match; }).slice(0, 8);
         };
-        return self._api('GET', buildUrl(primaryQ)).then(function(d){
-          var ranked = rank(d.violations || []);
-          // 命中过少则放宽关键词再取一次，保证有足够相关条目
-          if(ranked.length < 5 && primaryQ){
-            return self._api('GET', buildUrl('')).then(function(d2){ return rank(d2.violations || []); });
+        // Part3: top-3 业务关键词各搜一次，按 id 合并去重，扩大候选池
+        // （旧版只用 _primaryViolationQuery 单关键词——清清 scope 的"合同签订"会把候选带偏到
+        //   合同类规则，真正能命中的"询价/采购"规则 RA-002 进不了池）
+        var queries = self._violationQueries(kws);
+        var merged = {};
+        return Promise.all(queries.map(function(q){ return self._api('GET', buildUrl(q)); })).then(function(resps){
+          resps.forEach(function(d){ (d.violations || []).forEach(function(v){ merged[v.id] = v; }); });
+          var ranked = rank(Object.keys(merged).map(function(k){ return merged[k]; }));
+          // 命中过少则放宽（空 q 全库）补一次，保证有足够相关条目
+          if(ranked.length < 5){
+            return self._api('GET', buildUrl('')).then(function(d2){
+              (d2.violations || []).forEach(function(v){ merged[v.id] = v; });
+              return rank(Object.keys(merged).map(function(k){ return merged[k]; }));
+            });
           }
           return ranked;
         }).then(function(ranked){
@@ -183,6 +192,25 @@ var AW = {
     }
     // 3. 兜底：首个关键词前 2 字
     return kws.length ? kws[0].substring(0,2) : '';
+  },
+
+  /** Part3: 取命中业务词表、互不包含的前 3 个关键词，用于多路检索合并（扩大候选池）
+   *  互不包含：避免"采购"与"采购方式"重复占位（前者 LIKE 结果是后者超集，搜短词更广） */
+  _violationQueries: function(kws) {
+    var pref = ['采购','招标','投标','合同','资金','预算','拨付','补贴','转移','经费',
+      '科技','研发','课题','专利','成果','资产','处置','发票','收费','社保','扶贫','专项'];
+    var picked = [];
+    (kws||[]).forEach(function(k){
+      if(!k || k.length < 2 || picked.length >= 3) return;
+      var hit = false;
+      for(var i=0;i<pref.length;i++){ if(k.indexOf(pref[i])>=0 || pref[i].indexOf(k)>=0){ hit = true; break; } }
+      if(!hit) return;
+      var dup = picked.some(function(p){ return p.indexOf(k)>=0 || k.indexOf(p)>=0; });
+      if(dup) return;
+      picked.push(k);
+    });
+    if(picked.length === 0) picked = [this._primaryViolationQuery(kws)];   // 兜底
+    return picked;
   },
 
   /** 添加消息到聊天区 */
@@ -285,18 +313,28 @@ var AW = {
       var pid = (self.mem.project||{}).id || '';
       var vIds = self.selectedViolations.length > 0 ? self.selectedViolations.slice()
         : self.violationDB.map(function(v){return v.id;});
-      self._api('POST', '/expression/execute', {violation_ids: vIds, project_id: pid}).then(function(data){
+      // P1: 有 task_id 走 /analysis/{id}/scan（持久化命中 + 推进后端 current_step=5 + 落 selected_laws 供 Step⑦ 证据门禁）；
+      //     无 task_id（未走 parseIntent 入口）回退 /expression/execute，仅返回不落库，保持兼容。
+      var selectedLaws = (self._primaryLaws||[]).concat(self._violationLaws||[])
+        .map(function(L){ return {law_id: L.law_id||L.law||L.title||'', title: L.title||L.law||''}; })
+        .filter(function(L){ return L.law_id; });
+      var scanPath = self._taskId ? ('/analysis/' + self._taskId + '/scan') : '/expression/execute';
+      var scanBody = self._taskId
+        ? {violation_ids: vIds, selected_laws: selectedLaws, project_id: pid, overall_assessment: ''}
+        : {violation_ids: vIds, project_id: pid};
+      self._api('POST', scanPath, scanBody).then(function(data){
         if (data && data.success === false) {
           self._scanResult = {results:[], hits:0, total:0};
           self.renderS5();
           self.say('ai','❌ 违规表达式扫描失败：' + (data.error || '未知错误') + '。请稍后重试。');
           return;
         }
-        // P2.3: 存命中明细（每个违规的 rows），汇总计数
-        var results = (data && data.results) || [];
+        // P2.3: 存命中明细（每个违规的 rows），汇总计数。/scan 返 analysis_results，/expression/execute 返 results
+        var results = (data && (data.analysis_results || data.results)) || [];
         var totalHits = 0, totalScan = 0;
         results.forEach(function(r){ totalHits += (r.hits||0); totalScan += (r.total||0); });
         self._scanResult = {results: results, hits: totalHits, total: totalScan};
+        if(self._taskId) self.syncStepFromTask(self._taskId);  // P1: 后端权威 step 已推进到5，同步前端
         self.renderS5();
         var execCount = results.filter(function(r){return r.executable;}).length;
         var skipCount = results.length - execCount;
@@ -759,12 +797,40 @@ var AW = {
             '◔ <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+'）：<span style="color:var(--color-text-muted);">数据不足（该表无数据）</span></div>';
         }
         if(!r.hits) {
+          // 改动①:LLM 复核后仍0命中 → 文案区别于规则未命中(更诚实)
+          var noHitBadge = (r.judge_source === 'llm') ? '🤖 <span style="font-size:11px;color:var(--color-text-muted);">LLM判定</span>' : '✅';
+          var noHitText = (r.judge_source === 'llm') ? '规则未命中，AI 复核后仍未发现疑点' : '未发现命中';
           return '<div style="background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
-            '✅ <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' 条）：未发现命中</div>';
+            noHitBadge+' <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' 条）：'+noHitText+'</div>';
         }
         // 有命中：明细表（表头取前若干行 fields 键并集，显示前 20 条）
         var rows = r.rows || [];
         var showRows = rows.slice(0,20);
+        // 改动①:judge_source 区分规则命中(🔴 确定性)与 LLM 判定命中(🤖 非确定性,需核实)
+        var isLLM = (r.judge_source === 'llm');
+        var isDeterministic = (r.judge_source === 'deterministic' || r.executor_type === 'procurement_cross_doc');
+        var badge = isLLM ? '🤖 <span style="font-size:11px;color:var(--color-text-muted);">LLM判定</span>' :
+          (isDeterministic ? '🔴 <span style="font-size:11px;color:#2e7d32;">确定性跨文档检查</span>' : '🔴');
+        var llmNote = (isLLM && r.judge_note) ? '<div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">'+self._esc(r.judge_note)+'</div>' : '';
+        if(isDeterministic) {
+          var details = rows.map(function(rr){
+            var values = [];
+            if(rr.annual_budget != null) values.push('年度预算 '+Number(rr.annual_budget).toLocaleString()+' 元');
+            if(rr.batch_total != null) values.push('分批累计 '+Number(rr.batch_total).toLocaleString()+' 元');
+            if(rr.contract_amount != null) values.push('原合同 '+Number(rr.contract_amount).toLocaleString()+' 元');
+            if(rr.addition_amount != null) values.push('追加 '+Number(rr.addition_amount).toLocaleString()+' 元');
+            if(rr.addition_ratio != null) values.push('比例 '+(Number(rr.addition_ratio)*100).toFixed(2)+'%');
+            if(rr.invoice_no) values.push('发票 '+rr.invoice_no);
+            if(rr.sign_date && rr.delivery_date) values.push('签约 '+rr.sign_date+' / 送货 '+rr.delivery_date);
+            if(rr.acceptance_date && rr.performance_completion_date) values.push('验收 '+rr.acceptance_date+' / 履约完成 '+rr.performance_completion_date);
+            var ev = (rr.evidence||[]).map(function(e){ return '📄 '+self._esc(e.doc_name || ('trace#'+e.document_trace_id)); }).join('；');
+            return '<div style="padding:8px 0;border-top:1px dashed var(--color-border);"><div>'+self._esc(rr.summary||'规则命中')+'</div>'+
+              (values.length?'<div style="font-size:12px;color:var(--color-text-muted);">'+values.join(' · ')+'</div>':'')+
+              (ev?'<div style="font-size:12px;margin-top:3px;">'+ev+'</div>':'')+'</div>';
+          }).join('');
+          return '<div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
+            badge+' <strong>'+self._esc(vn)+'</strong>（跨文档检查 '+r.total+' 项 · 命中 '+r.hits+' 项）'+details+'</div>';
+        }
         var keySet = []; var keySeen = {};
         showRows.forEach(function(rr){ var f=rr.fields||{}; for(var k in f){ if(!keySeen[k]){keySeen[k]=1; keySet.push(k);} } });
         var thead = keySet.map(function(k){return '<th>'+self._esc(k)+'</th>';}).join('');
@@ -774,7 +840,8 @@ var AW = {
         }).join('');
         var more = r.hits > showRows.length ? '<div style="font-size:12px;color:var(--color-text-muted);margin-top:4px;">显示前 '+showRows.length+' 条命中（共 '+r.hits+' 条）</div>' : '';
         return '<div style="background:#fff;border:1px solid var(--color-accent);border-radius:8px;padding:10px 14px;margin-bottom:8px;">'+
-          '🔴 <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' · 命中 '+r.hits+'）'+
+          badge+' <strong>'+self._esc(vn)+'</strong>（'+self._esc(r.table||'')+' · 扫描 '+r.total+' · 命中 '+r.hits+'）'+
+          llmNote+
           '<div class="table-wrap" style="margin-top:8px;"><table class="table" style="font-size:12px;"><thead><tr>'+thead+'</tr></thead><tbody>'+tbody+'</tbody></table></div>'+
           more+'</div>';
       }).join('');
@@ -933,16 +1000,93 @@ var AW = {
 
   renderS2: function() {
     var self = this;
+    var pm = self.mem.project || {};
+    var pid = pm.id || pm.project_id || '';
+    var itemId = pm.itemId || pm.item_id || pm.focus_item_id || '';
+    if(pid && itemId) {
+      AuditAPI.projects.itemRules(pid, itemId).then(function(resp) {
+        var bound = (resp && resp.violations) || [];
+        if(!bound.length) throw new Error('当前事项尚未绑定可信规则');
+        self.violationDB = bound.map(function(v) {
+          var rd = v.required_data;
+          if(typeof rd === 'string'){ try{ rd = JSON.parse(rd); }catch(e){ rd = []; } }
+          var materials = Array.isArray(rd) ? rd : (((rd||{}).items)||[]).map(function(it){ return it.name || ''; });
+          return {
+            id: String(v.violation_id), name: v.violation_title || v.violation_code || '',
+            violation_title: v.violation_title || '',
+            risk: v.severity === 'low' ? '低' : (v.severity === 'medium' ? '中' : '高'),
+            severity: v.severity || 'high', match: 100,
+            symptom: v.description || v.match_reason || '', materials: materials,
+            executorType: v.executor_type || 'expression', ruleCode: v.violation_code || v.executor_key || '',
+            resultGroupKey: v.result_group_key || '', isPrimary: !!v.is_primary
+          };
+        });
+        self.selectedViolations = self.violationDB.filter(function(v){ return v.isPrimary; }).map(function(v){ return v.id; });
+        self._applyPreflightThenRender();
+      }).catch(function() { self._renderS2FromRecommendation(); });
+      return;
+    }
+    self._renderS2FromRecommendation();
+  },
+
+  _renderS2FromRecommendation: function() {
+    var self = this;
     // P1.8: 优先用 ViolationMatcher 真推荐（self._matches），fallback 到 _initData 本地检索
     if (self._matches && self._matches.length > 0) {
       self.violationDB = self._matches;
-      self._renderS2Content();
+      self._applyPreflightThenRender();
     } else {
       // Phase 7: 确保数据已加载
       this._initData().then(function() {
-        self._renderS2Content();
+        self._applyPreflightThenRender();
       });
     }
+  },
+
+  /** Part2.1: 加载可命中性预检 → 写回 verdict → 重排(可命中优先) → 渲染
+   *  先无标渲染一次（避免预检往返期间空白），预检回来再带标重渲染 */
+  _applyPreflightThenRender: function() {
+    var self = this;
+    self._renderS2Content();
+    var pid = ((self.mem && self.mem.project)||{}).id || '';
+    var ids = (self.violationDB||[]).map(function(v){ return v.id; }).filter(function(id){ return /^\d+$/.test(String(id)); });
+    if(!pid || !ids.length) return;
+    self._api('POST', '/violations/preflight', {project_id: pid, violation_ids: ids}).then(function(d){
+      if(!d || d.success === false) return;   // 降级：保持无标渲染
+      var map = {};
+      (d.results||[]).forEach(function(r){ map[String(r.violation_id)] = r; });
+      (self.violationDB||[]).forEach(function(v){
+        var r = map[String(v.id)];
+        if(r){ v.verdict = r.verdict; v.verdictDetail = r.detail||''; v.fieldsMissing = r.fields_missing||[]; }
+        else if(!v.verdict){ v.verdict = 'unknown'; }
+      });
+      // 重排：可命中/needs_llm 在前（按 match 降序），不可命中在后（按 match 降序）
+      var order = {hittable:0, needs_llm:1, unknown:2, missing_data:3, no_data:3, field_mismatch:3, syntax_error:3, unsupported:3, no_expr:3, error:3};
+      (self.violationDB||[]).sort(function(a,b){
+        var oa = (order[a.verdict]===undefined?2:order[a.verdict]);
+        var ob = (order[b.verdict]===undefined?2:order[b.verdict]);
+        return (oa-ob) || ((b.match||0) - (a.match||0));
+      });
+      self._renderS2Content();
+    }).catch(function(){ /* 降级：保持现状 */ });
+  },
+
+  /** Part2.2: 按 verdict 生成行内徽标 + 是否可勾选 */
+  _verdictBadge: function(v) {
+    var vd = v && v.verdict;
+    if(!vd || vd==='unknown') return {selectable:true, badge:''};   // 预检未返回/未知 → 不限制
+    if(vd==='hittable') return {selectable:true, badge:' <span style="font-size:11px;color:#2e7d32;font-weight:600;">✓可执行</span>'};
+    if(vd==='missing_data') return {selectable:false, badge:' <span style="font-size:11px;color:#b26a00;" title="'+(v.verdictDetail||'')+'">△缺资料</span>'};
+    if(vd==='unsupported') return {selectable:false, badge:' <span style="font-size:11px;color:#c62828;" title="'+(v.verdictDetail||'')+'">×不支持</span>'};
+    if(vd==='needs_llm') return {selectable:true, badge:' <span style="font-size:11px;color:#1565c0;" title="聚合/语义表达式，扫描时由LLM判断">ℹ️需LLM判断</span>'};
+    if(vd==='no_data') return {selectable:false, badge:' <span style="font-size:11px;color:#c62828;" title="'+(v.verdictDetail||'')+'">⚠️无该表数据</span>'};
+    if(vd==='field_mismatch') {
+      var miss = (v.fieldsMissing||[]).join('、');
+      return {selectable:false, badge:' <span style="font-size:11px;color:#c62828;" title="本项目数据缺字段：'+miss+'">⚠️缺字段：'+miss+'</span>'};
+    }
+    if(vd==='syntax_error') return {selectable:false, badge:' <span style="font-size:11px;color:#c62828;" title="'+(v.verdictDetail||'')+'">✗语法错</span>'};
+    if(vd==='no_expr') return {selectable:false, badge:' <span style="font-size:11px;color:#999;">—无表达式</span>'};
+    return {selectable:true, badge:''};
   },
 
   _renderS2Content: function() {
@@ -952,9 +1096,13 @@ var AW = {
     var rows = '';
     this.violationDB.forEach(function(v){
       var checked = self.selectedViolations.indexOf(v.id)>=0 ? 'checked' : '';
-      rows += '<tr class="'+(checked?'':'')+'" style="cursor:pointer;'+(checked?'background:rgba(26,58,92,0.03);':'')+'" onclick="AW.toggleViolation(\''+v.id+'\',this)">'+
-        '<td><input type="checkbox" class="rec-check" '+checked+' data-id="'+v.id+'" onclick="event.stopPropagation();AW.toggleViolation(\''+v.id+'\',this.parentElement.parentElement)" style="width:16px;height:16px;"></td>'+
-        '<td style="font-size:15px;"><strong>'+v.name+'</strong></td>'+
+      var vd = self._verdictBadge(v);
+      var rowStyle = vd.selectable ? '' : 'opacity:0.55;';
+      var cbAttr = vd.selectable ? '' : 'disabled ';
+      var rowClick = vd.selectable ? 'onclick="AW.toggleViolation(\''+v.id+'\',this)"' : '';
+      rows += '<tr style="cursor:'+(vd.selectable?'pointer':'not-allowed')+';'+rowStyle+(checked?'background:rgba(26,58,92,0.03);':'')+'" '+rowClick+'>'+
+        '<td><input type="checkbox" class="rec-check" '+checked+' '+cbAttr+'data-id="'+v.id+'" onclick="event.stopPropagation();AW.toggleViolation(\''+v.id+'\',this.parentElement.parentElement)" style="width:16px;height:16px;"></td>'+
+        '<td style="font-size:15px;"><strong>'+v.name+'</strong>'+vd.badge+'</td>'+
         '<td style="font-size:13px;color:var(--color-text-muted);">'+(v.symptom||'—')+'</td>'+
         '<td><span class="badge badge-'+(v.risk==='高'?'accent':'warning')+'">'+v.risk+'风险</span></td>'+
         '<td>'+v.match+'%</td></tr>';
@@ -973,6 +1121,13 @@ var AW = {
 
   /** 切换违规模型选中状态 */
   toggleViolation: function(id, row) {
+    // Part2.3: 不可命中的规则禁止勾选（双保险，防 disabled 被绕过）
+    var v = this.violationDB.find(function(x){return String(x.id)===String(id);});
+    var vd = v ? this._verdictBadge(v) : null;
+    if(vd && !vd.selectable){
+      AuditWorkbench.toast('该规则在当前项目数据上无法命中：'+(v.verdictDetail||''), 'warning');
+      return;
+    }
     var idx = this.selectedViolations.indexOf(id);
     if(idx>=0) { this.selectedViolations.splice(idx,1); if(row)row.style.background=''; }
     else { this.selectedViolations.push(id); if(row)row.style.background='rgba(26,58,92,0.03)'; }
@@ -980,7 +1135,8 @@ var AW = {
     if(cb) cb.checked = (idx<0);
     this.refreshS2Detail();
     this.refreshS2Summary();
-    this.say('ai','已'+(idx>=0?'取消':'选择')+'「'+this.violationDB.find(function(v){return v.id===id;}).name+'」'+(idx>=0?'':"。系统已更新对应的资料和法规清单。"));
+    var nm = (v||{}).name || id;
+    this.say('ai','已'+(idx>=0?'取消':'选择')+'「'+nm+'」'+(idx>=0?'':"。系统已更新对应的资料和法规清单。"));
   },
 
   /** 刷新详情：选中模型对应的资料+法规 */
@@ -1810,7 +1966,7 @@ var AW = {
     var statusEl = div.querySelector('div div');
     var progEl = div.querySelector('.progress');
 
-    AuditAPI.projects.upload(pid, file).then(function(resp){
+    AuditAPI.files.upload(pid, file).then(function(resp){
       if(!resp || !resp.success){ statusEl.textContent = kb+'KB · 上传失败：'+((resp&&resp.error)||''); progEl.innerHTML='<span class="badge badge-danger">失败</span>'; return; }
       var taskId = resp.task_id;
       AuditWorkbench.addTask(file.name,'ocr');

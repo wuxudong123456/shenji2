@@ -223,7 +223,7 @@ def _run_ocr_task(task_id: int, task_data: dict):
 
     # 补抽：从 OCR 文本 regex 捞 LLM 可能漏掉的关键审计字段（采购方式/金额/合同号/供应商/日期）
     from services.field_mapper import enrich_fields_from_text
-    fields = enrich_fields_from_text(fields, ocr_text)
+    fields = enrich_fields_from_text(fields, ocr_text, filename)
 
     category = _classify_for_table(ocr_text, filename)
     table_name = _map_category_to_table(category)
@@ -584,12 +584,17 @@ def _classify_for_table(ocr_text: str, filename: str) -> str:
     fname = (filename or "")
     KEYWORD_CATEGORY = [
         ("合同", "合同协议类"),
-        ("采购", "采购类"), ("招标", "采购类"), ("中标", "采购类"),
-        ("访谈", "访谈类"), ("谈话", "访谈类"),
+        ("付款", "财务凭证类"), ("回单", "财务凭证类"),
         ("发票", "财务票据类"), ("凭证", "财务凭证类"), ("账簿", "财务账簿类"),
         ("银行", "财务凭证类"), ("流水", "财务凭证类"),
-        ("判决", "法律文书类"), ("裁定", "法律文书类"), ("处罚", "法律文书类"),
+        ("送货", "登记台账类"), ("到货", "登记台账类"),
+        ("安装调试", "登记台账类"), ("验收", "登记台账类"),
         ("登记", "登记台账类"), ("台账", "登记台账类"), ("名册", "登记台账类"),
+        ("采购", "采购类"), ("招标", "采购类"), ("中标", "采购类"),
+        ("询价", "采购类"), ("报价函", "采购类"), ("资格审查", "采购类"),
+        ("评审", "采购类"), ("成交", "采购类"),
+        ("访谈", "访谈类"), ("谈话", "访谈类"),
+        ("判决", "法律文书类"), ("裁定", "法律文书类"), ("处罚", "法律文书类"),
         ("执照", "资质证照类"), ("资质", "资质证照类"), ("证书", "资质证照类"),
         ("许可证", "资质证照类"),
     ]
@@ -618,13 +623,82 @@ def _delete_trace_data_rows(trace_id: int):
     重抽先清掉该 trace 的旧 data 行（含跨表重分类时旧表残留），再插新行；
     首次上传各表无旧行，DELETE 为 noop。
     """
-    from services.db import execute
+    from services.db import execute, query
     from services.data_service import DATA_TABLES
     for tbl in DATA_TABLES:
+        old_rows = query(
+            f"SELECT id FROM {tbl} WHERE document_trace_id = %s",
+            (trace_id,), database="tt",
+        )
+        for old in old_rows:
+            row_id = old["id"]
+            execute(
+                "DELETE FROM audit_field_sources WHERE table_name=%s AND row_id=%s",
+                (tbl, row_id), database="tt",
+            )
+            execute(
+                "DELETE FROM audit_source_refs WHERE result_type='data_row' AND result_id=%s",
+                (str(row_id),), database="tt",
+            )
         execute(
             f"DELETE FROM {tbl} WHERE document_trace_id = %s",
             (trace_id,), database="tt",
         )
+
+
+def ingest_preextracted_document(project_id: str, trace_id: int, filename: str,
+                                 text: str, fields: dict | None = None,
+                                 parse_engine: str = "pypdf",
+                                 persist_trace: bool = True,
+                                 page_texts: list[str] | None = None) -> dict:
+    """把已可靠提取的文本接入标准分类、字段映射和证据链写入流程。
+
+    用于具有 PDF 文本层的案例资料离线重处理；不会绕过 data_* 映射，也不会
+    人工制造分析命中。规则仍从这些文档对应的数据行读取事实。
+    """
+    from services.field_mapper import enrich_fields_from_text, map_extracted_fields
+    from services.db import execute
+
+    enriched = enrich_fields_from_text(dict(fields or {}), text or "", filename)
+    category = _classify_for_table(text or "", filename)
+    table_name = _map_category_to_table(category)
+    row_dict, extra_fields = map_extracted_fields(table_name, enriched)
+
+    if persist_trace:
+        execute(
+            "UPDATE audit_document_traces SET ocr_content=%s, ocr_version=ocr_version+1, "
+            "parse_engine=%s, parse_status='done', parsed_at=NOW(), "
+            "extracted_fields=%s WHERE id=%s AND project_id=%s",
+            ((text or "")[:50000], parse_engine,
+             json.dumps({"mapped": row_dict, "extra": extra_fields}, ensure_ascii=False),
+             trace_id, project_id),
+            database="tt",
+        )
+
+    raw_chunks = [
+        {"chunk_id": f"page-{idx}", "type": "text", "page_nums": [idx],
+         "text": page_text, "section_path": filename}
+        for idx, page_text in enumerate(page_texts or [], 1) if page_text
+    ]
+    chunks_db = _persist_chunks(trace_id, project_id, raw_chunks, parse_engine) if persist_trace else []
+
+    row_id = _insert_into_data_table(
+        table_name, project_id, trace_id, filename, text or "",
+        row_dict, extra_fields, None, category,
+    )
+    if row_id:
+        _build_field_sources(
+            trace_id, project_id, table_name, row_id,
+            row_dict, extra_fields, chunks_db,
+        )
+    return {
+        "trace_id": trace_id,
+        "table": table_name,
+        "row_id": row_id,
+        "category": category,
+        "fields_mapped": len(row_dict),
+        "fields_extra": len(extra_fields),
+    }
 
 
 def _insert_into_data_table(table_name: str, project_id: str, trace_id: int,
@@ -721,7 +795,11 @@ def _run_extract_task(task_id: int, task_data: dict):
     fields_data = {f["name"]: f["value"] for f in extract_result.get("fields", [])}
     # 补抽：从 OCR 文本 regex 捞 LLM 漏掉的关键审计字段
     from services.field_mapper import enrich_fields_from_text
-    fields_data = enrich_fields_from_text(fields_data, trace.get("ocr_content", ""))
+    fields_data = enrich_fields_from_text(
+        fields_data,
+        trace.get("ocr_content", ""),
+        trace.get("file_name", ""),
+    )
     from services.field_mapper import map_extracted_fields
     row_dict, extra_fields = map_extracted_fields(table_name, fields_data)
 

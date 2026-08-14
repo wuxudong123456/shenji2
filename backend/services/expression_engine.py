@@ -139,6 +139,10 @@ def _eval_ast(ast: dict, row: dict) -> bool:
     if t == "ARITH_CMP":
         left_val = _eval_arith(ast["left"], row)
         right_val = _eval_arith(ast["right"], row)
+        # 任一侧字段缺失 → 不可比较，判不命中（SQL 三值逻辑；
+        # 防 NULL 预算被当 0 致 `合同金额 > 预算金额*1.0` 假阳性）
+        if left_val is _MISSING or right_val is _MISSING:
+            return False
         op = ast["op"]
         try:
             if op == "GT":
@@ -202,12 +206,26 @@ def _col_to_cn(col: str) -> str:
     return REVERSE.get(col, col)
 
 
-def _eval_arith(node: dict, row: dict) -> float:
-    """递归求算术表达式节点的值"""
+# 算术求值的"字段缺失"哨兵——区别于真实数值 0
+# 字段为 None/"" 时返回它，ARITH_CMP 见到即判不命中（SQL 三值逻辑），
+# 避免 `合同金额 > 预算金额*1.0` 在预算金额缺失时把 NULL 当 0，
+# 误判成"合同金额 > 0"恒真（假阳性）。与 _eval_ast 普通 GT/LT 节点
+# (L56-57 "字段为空→False") 行为对齐。
+_MISSING = object()
+
+
+def _eval_arith(node: dict, row: dict):
+    """递归求算术表达式节点的值
+
+    字段为空(None/"")时返回 _MISSING（而非 0）并沿 ARITH 链传播；
+    ARITH_CMP 收到 _MISSING 即判不命中。literal 解析失败仍返回 0（常量非数据）。
+    """
     t = node.get("type")
     if t == "ARITH":
         left = _eval_arith(node["left"], row)
         right = _eval_arith(node["right"], row)
+        if left is _MISSING or right is _MISSING:
+            return _MISSING  # NULL 传播：任一操作数缺失 → 结果不可定
         op = node["op"]
         if op == "+":
             return left + right
@@ -219,10 +237,12 @@ def _eval_arith(node: dict, row: dict) -> float:
             return left / right if right != 0 else 0
     if t == "field":
         val = _get_row_value(row, node["value"])
+        if val is None or val == "":
+            return _MISSING
         try:
-            return float(val) if val is not None else 0
+            return float(val)
         except (ValueError, TypeError):
-            return 0
+            return _MISSING
     if t == "literal":
         try:
             return float(node.get("value", 0))

@@ -108,6 +108,19 @@ def _build_report_template(ctx: dict) -> dict:
     # 仅取已确认（CONFIRMED）疑点进报告；无来源（待人工核实）的禁入文书（§3.3）
     confirmed = [s for s in suspicions
                  if s.get("verify_status") == "CONFIRMED" or s.get("status") == "confirmed"]
+    # 改动①:透传判定来源到文书——按 violation_id 确定性匹配（不依赖 LLM 重写疑点时的名称）
+    # analysis_results(build_and_execute 产物)带 judge_source；疑点记录带 violation_id。
+    # LLM 判定的疑点(judge_source='llm')在报告里标注脚注，供审计人员重点核实（法律责任）
+    judge_map = {}
+    for r in ctx.get("analysis_results", []):
+        vid = r.get("violation_id")
+        if vid is not None and r.get("judge_source"):
+            judge_map[str(vid)] = r["judge_source"]
+    if judge_map:
+        for s in confirmed:
+            vid = s.get("violation_id")
+            if vid is not None and str(vid) in judge_map:
+                s["judge_source"] = judge_map[str(vid)]
     total = len(confirmed)
     high = sum(1 for s in confirmed
                if (s.get("risk_level") or s.get("risk") or "") in ("高", "high"))

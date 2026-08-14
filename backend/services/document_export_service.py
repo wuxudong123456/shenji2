@@ -156,10 +156,19 @@ def _render_report(doc: dict) -> io.BytesIO:
     _add_section_heading(d, "三、主要疑点")
     sus = doc.get("suspicions") or []
     if sus:
+        llm_count = 0
         for i, s in enumerate(sus, 1):
             title = s.get("violation_title") or s.get("title") or s.get("name") or f"疑点{i}"
             desc = s.get("description") or ""
+            # 改动①:LLM 语义判定的疑点标注脚注（非确定性，需审计人员重点核实）
+            if s.get("judge_source") == "llm":
+                title = f"{title}（本条由AI语义推断，需重点核实）"
+                llm_count += 1
             d.add_paragraph(f"{i}. {title}" + (f"：{desc}" if desc else ""))
+        if llm_count:
+            d.add_paragraph(
+                f"注：上述 {llm_count} 条标注「AI语义推断」的疑点系规则引擎未确定性命中、"
+                f"由AI按语义复核判定，非确定结论，请审计人员结合原始凭证重点核实。")
     else:
         d.add_paragraph("—")
 

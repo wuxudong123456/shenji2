@@ -40,6 +40,8 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "合同编号": "contract_no", "合同号": "contract_no", "协议编号": "contract_no",
         # 采购方式
         "采购方式": "procurement_method", "招标方式": "procurement_method",
+        # 批次（GP-PLAN-001 聚合三批合同）
+        "批次编号": "batch_no", "批次": "batch_no",
     },
     "data_finance": {
         "账户名称": "account_name", "户名": "account_name", "开户名称": "account_name",
@@ -50,6 +52,17 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "凭证日期": "voucher_date", "记账日期": "voucher_date", "制单日期": "voucher_date",
         "银行名称": "bank_name", "开户行": "bank_name", "开户银行": "bank_name",
         "币种": "currency",
+        # 发票本身（GP-FINANCE-001：发票号被多凭证引用）
+        "发票号": "invoice_no", "发票号码": "invoice_no", "票据编号": "invoice_no",
+        # 发票金额：OntoSKU 的"发票金额"常=未提供，真值落在 金额合计/金额/涉及金额(信封键，最稳)。
+        # 用精确别名兜住 金额，避免它被模糊匹配到 借方金额→debit_amount。
+        "发票金额": "invoice_amount", "价税合计": "invoice_amount", "金额合计": "invoice_amount",
+        "金额": "invoice_amount", "涉及金额": "invoice_amount",
+        # 凭证引用的原始发票号（跨文档匹配键）
+        "关联原始凭证编号": "ref_invoice_no", "原始凭证编号": "ref_invoice_no",
+        "附件发票号": "ref_invoice_no", "引用发票号码": "ref_invoice_no",
+        # 批次（跨文档连接键）
+        "批次编号": "batch_no", "批次": "batch_no",
     },
     "data_legal_docs": {
         "案件编号": "case_no", "案号": "case_no", "文书编号": "case_no",
@@ -68,6 +81,15 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         "单位": "unit", "计量单位": "unit",
         "责任人": "responsible_person", "经办人": "responsible_person", "负责人": "responsible_person",
         "登记日期": "register_date", "台账日期": "register_date", "记录日期": "register_date",
+        # 履约单据各自的关键日期（每份单据一行，register_type 区分）
+        "送货日期": "register_date", "交付日期": "register_date", "到货日期": "register_date",
+        "安装日期": "register_date", "调试日期": "register_date",
+        "验收日期": "register_date", "验收时间": "register_date",
+        "资产登记日期": "register_date",
+        # 文档角色（enrich 设的 delivery/installation/acceptance…）→ 区分履约行类型
+        "文档角色": "register_type",
+        # 批次（GP-ACCEPT/CONTRACT 跨文档按批次连接）
+        "批次编号": "batch_no", "批次": "batch_no",
     },
     "data_credentials": {
         "证照类型": "cert_type", "资质类型": "cert_type", "证书类型": "cert_type", "执照类型": "cert_type",
@@ -94,9 +116,16 @@ FIELD_ALIAS_MAP: dict[str, dict[str, str]] = {
         # 供应商
         "供应商": "supplier", "供应商名称": "supplier", "中标人": "supplier",
         "中标单位": "supplier", "中标供应商": "supplier",
+        # 供应商联系方式（GP-SUPPLIER-001：不同供应商共用电话/邮箱）
+        "联系电话": "supplier_phone", "电话": "supplier_phone", "联系方式": "supplier_phone",
+        "手机": "supplier_phone",
+        "电子邮箱": "supplier_email", "邮箱": "supplier_email", "email": "supplier_email",
+        # 批次
+        "批次编号": "batch_no", "批次": "batch_no",
         # 预算金额
         "预算金额": "budget_amount", "采购预算": "budget_amount", "预算价": "budget_amount",
         "控制价": "budget_amount", "最高限价": "budget_amount",
+        "预算控制数": "budget_amount", "预算指标": "budget_amount",
         # 合同/中标金额（含 OntoSKU 信封键「涉及金额」= 文档所述交易额）
         "合同金额": "contract_amount", "中标金额": "contract_amount", "成交金额": "contract_amount",
         "合同价": "contract_amount", "采购金额": "contract_amount",
@@ -210,7 +239,7 @@ def _cast_value(col: str, value: Any, table: str) -> Any:
 
     # 数值列
     NUMERIC_COLS = {"amount", "debit_amount", "credit_amount", "quantity",
-                    "budget_amount", "contract_amount"}
+                    "budget_amount", "contract_amount", "invoice_amount"}
     if col in NUMERIC_COLS:
         try:
             s = str(value)
@@ -289,22 +318,36 @@ def get_all_aliases(table: str) -> dict[str, str]:
     return FIELD_ALIAS_MAP.get(table, {}).copy()
 
 
-def enrich_fields_from_text(fields: dict, markdown: str) -> dict:
+def enrich_fields_from_text(fields: dict, markdown: str, filename: str = "") -> dict:
     """从 OCR 文本里 regex 补抽 LLM 可能漏掉的关键审计字段。
 
     只填充缺失/空/未提供 的字段——绝不覆盖已有真值。
     适用于"采购方式 公开招标"这种键值对格式（OCR 常见）。
     """
-    if not markdown:
+    if not markdown and not filename:
         return fields
     # 关键审计字段 → 正则（匹配 "字段名: 值" / "字段名  值" 等格式）
     _PATTERNS = {
         "采购方式": r"采购方式[\s:：]+(\S+)",
-        "合同金额": r"(?:合同金额|合同总价|合同总额)[\s:：]+([0-9,，.]+\s*[万元元亿吨]*)",
-        "合同编号": r"(?:合同编号|合同号)[\s:：]+([A-Za-z0-9\-]+)",
-        "供应商": r"(?:供应商|乙方|中标人|中标单位)[\s:：]+(\S+)",
+        "合同金额": r"(?:合同(?:含税)?总价|合同金额|合同总额)(?:为)?[\s:：]*(?:人民币)?\s*([0-9,，.]+\s*[万元元亿吨]*)",
+        "合同编号": r"(?:合同编号|合同号)[\s:：|]+([A-Za-z0-9\-]+)",
+        "供应商": r"(?:供应商|乙方|中标人|中标单位|报价人)[\s:：]+([^；;。\n（(]+)",
         "采购人": r"(?:采购人|甲方|采购单位)[\s:：]+(\S+)",
         "签订日期": r"(?:签订日期|签署日期|签约日期)[\s:：]+([0-9\-/年月日]+)",
+        "联系电话": r"联系电话[\s:：|]+([^；;\s|]+)",
+        "电子邮箱": r"电子邮箱[\s:：|]+([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+)",
+        "付款申请编号": r"付款申请编号[\s:：|]+([A-Za-z0-9\-]+)",
+        "凭证号": r"(?:凭证号|凭证编号|记账凭证号)[\s:：|]+([A-Za-z0-9\-]+)",
+        "发票号码": r"发票号码[\s:：|]+([A-Za-z0-9\-]+)",
+        "申请金额": r"申请金额[\s:：|]+([0-9,，.]+)",
+        "预算控制数": r"(?:预算控制数|预算指标)(?:为)?[\s:：]*(?:人民币)?\s*([0-9,，.]+\s*[万元元]*)",
+        "借方金额": r"借方金额[\s:：|]+([0-9,，.]+)",
+        "贷方金额": r"贷方金额[\s:：|]+([0-9,，.]+)",
+        "交易金额": r"交易金额[\s:：|]+([0-9,，.]+)",
+        "送货单号": r"送货单号[\s:：|]+([A-Za-z0-9\-]+)",
+        "安装记录编号": r"安装记录编号[\s:：|]+([A-Za-z0-9\-]+)",
+        "验收编号": r"验收编号[\s:：|]+([A-Za-z0-9\-]+)",
+        "报价编号": r"报价编号[\s:：|]+([A-Za-z0-9\-]+)",
     }
     for cn_name, pattern in _PATTERNS.items():
         existing = fields.get(cn_name)
@@ -313,4 +356,46 @@ def enrich_fields_from_text(fields: dict, markdown: str) -> dict:
         m = re.search(pattern, markdown, re.MULTILINE)
         if m:
             fields[cn_name] = m.group(1).strip()
+
+    # 文件名是该案例最稳定的文档角色、批次和业务日期来源；仅补空值。
+    fname = filename or ""
+    role_specs = (
+        (("设备采购合同", "采购合同"), "contract", "签订日期"),
+        (("送货清单",), "delivery", "送货日期"),
+        (("安装调试记录",), "installation", "安装日期"),
+        (("验收报告",), "acceptance", "验收日期"),
+        (("报价函",), "supplier_response", None),
+        (("资格审查",), "supplier_qualification", None),
+        (("评审记录", "成交意见"), "evaluation", None),
+        (("成交通知",), "award_notice", None),
+        (("付款申请",), "payment_application", "付款日期"),
+        (("银行电子回单", "银行回单"), "bank_receipt", "付款日期"),
+        (("记账凭证",), "accounting_voucher", "凭证日期"),
+        (("增值税发票",), "invoice", "发票日期"),
+        (("采购计划",), "annual_plan", "文档日期"),
+        (("采购需求申请",), "procurement_request", "文档日期"),
+        (("采购审批表",), "procurement_approval", "文档日期"),
+    )
+    for keywords, role, date_field in role_specs:
+        if any(keyword in fname for keyword in keywords):
+            fields.setdefault("文档角色", role)
+            date_match = re.search(r"(20\d{2}-\d{2}-\d{2})", fname)
+            if date_field and date_match:
+                fields.setdefault(date_field, date_match.group(1))
+            break
+
+    batch_match = re.search(r"(?:^|[_-])(B0[1-9])(?:[_-]|(?=[^A-Za-z0-9]))", fname, re.IGNORECASE)
+    if batch_match:
+        fields.setdefault("批次编号", batch_match.group(1).upper())
+    elif not fields.get("批次编号"):
+        # 文件名用「第N批」(审批表/需求申请) 时映射到 B0N 批次键
+        cn_batch = re.search(r"第([一二三四五])批", fname)
+        if cn_batch:
+            fields["批次编号"] = "B0" + {"一": "1", "二": "2", "三": "3", "四": "4", "五": "5"}[cn_batch.group(1)]
+    supplier_match = re.search(r"(?:^|[_-])(S0[1-9])(?:[_-]|(?=[^A-Za-z0-9]))", fname, re.IGNORECASE)
+    if supplier_match:
+        fields.setdefault("供应商编号", supplier_match.group(1).upper())
+    date_match = re.search(r"(20\d{2}-\d{2}-\d{2})", fname)
+    if date_match:
+        fields.setdefault("文档日期", date_match.group(1))
     return fields

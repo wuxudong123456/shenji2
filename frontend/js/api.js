@@ -88,6 +88,10 @@ var AuditAPI = {
       return fetch(AuditAPI.base + '/api/audit/projects/' + id + '/deliverables', {
         method: 'POST', body: formData
       }).then(function(r) { return r.json(); });
+    },
+    itemRules: function(projectId, itemId) {
+      return fetch(AuditAPI.base + '/api/audit/projects/' + projectId + '/items/' + itemId + '/violations')
+        .then(function(r) { return r.json(); });
     }
   },
 

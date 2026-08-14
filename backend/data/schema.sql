@@ -382,6 +382,42 @@ CREATE TABLE tt.data_interviews (
 ) COMMENT '访谈数据表（决策8确认，占位）';
 
 -- ---------------------------------------------------------------------------
+-- 12d. audit_engine_rules — 违规规则执行器配置
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_engine_rules (
+    id                INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    violation_id      INT NOT NULL COMMENT '关联 audit_violations.id',
+    target_table      VARCHAR(100) COMMENT '目标 data_* 表',
+    expression        TEXT COMMENT '行级表达式；跨文档规则可为空',
+    field_mapping     JSON COMMENT '模型字段到表字段映射',
+    threshold         JSON COMMENT '阈值配置',
+    executor_type     VARCHAR(40) NOT NULL DEFAULT 'expression' COMMENT 'expression/procurement_cross_doc',
+    executor_key      VARCHAR(100) COMMENT '注册表中的规则编码',
+    rule_version      VARCHAR(30) NOT NULL DEFAULT '1.0' COMMENT '规则版本',
+    result_group_key  VARCHAR(100) COMMENT '跨事项疑点去重键',
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_violation (violation_id),
+    INDEX idx_executor_key (executor_type, executor_key)
+) COMMENT '违规模型到规则执行器映射';
+
+-- ---------------------------------------------------------------------------
+-- 12e. audit_item_violation_refs — 项目事项与可信规则绑定
+-- ---------------------------------------------------------------------------
+CREATE TABLE tt.audit_item_violation_refs (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    item_id       INT NOT NULL COMMENT '关联 audit_items.id',
+    violation_id  INT NOT NULL COMMENT '关联 audit_violations.id',
+    project_id    VARCHAR(32) COMMENT '项目级绑定范围',
+    is_primary    TINYINT DEFAULT 0 COMMENT '是否主规则',
+    match_reason  VARCHAR(500) COMMENT '绑定依据',
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_item_violation (item_id, violation_id),
+    INDEX idx_item (item_id),
+    INDEX idx_project (project_id),
+    INDEX idx_violation (violation_id)
+) COMMENT '审计事项与违规模型桥表';
+
+-- ---------------------------------------------------------------------------
 -- 13. project_suspicions — 疑点报告
 -- ---------------------------------------------------------------------------
 CREATE TABLE tt.project_suspicions (

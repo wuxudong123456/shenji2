@@ -13,6 +13,98 @@
 from agents.base import BaseAgent, AgentDefinition
 
 
+def build_deterministic_suspicion_report(analysis_results: list[dict]) -> dict:
+    """把确定性命中按 finding_key 合并为可追溯疑点，不调用 LLM。"""
+    groups = {}
+    for result in analysis_results or []:
+        if not result.get("executable") or result.get("hits", 0) <= 0:
+            continue
+        key = result.get("finding_key") or result.get("result_group_key")
+        if not key:
+            continue
+        group = groups.setdefault(key, {
+            "finding_key": key,
+            "violation_ids": [],
+            "violation_models": [],
+            "rows": [],
+            "evidence_refs": [],
+        })
+        violation_id = result.get("violation_id")
+        if violation_id is not None and violation_id not in group["violation_ids"]:
+            group["violation_ids"].append(violation_id)
+        model = result.get("violation_name") or result.get("rule_code") or ""
+        if model and model not in group["violation_models"]:
+            group["violation_models"].append(model)
+        group["rows"].extend(result.get("rows") or [])
+        seen = {e.get("document_trace_id") for e in group["evidence_refs"]}
+        for evidence in result.get("evidence_refs") or []:
+            if evidence.get("document_trace_id") not in seen:
+                group["evidence_refs"].append(evidence)
+                seen.add(evidence.get("document_trace_id"))
+
+    items = []
+    for idx, key in enumerate(sorted(groups), 1):
+        group = groups[key]
+        first = group["rows"][0] if group["rows"] else {}
+        title, amount = _deterministic_title_amount(key, first)
+        description = first.get("summary") or title
+        if first.get("invoice_no"):
+            description += f"；发票号码：{first['invoice_no']}"
+        if first.get("addition_ratio") is not None:
+            description += f"；计算比例：{float(first['addition_ratio']) * 100:.2f}%"
+        items.append({
+            "suspicion_id": f"SP-{idx:04d}",
+            "finding_key": key,
+            "title": title,
+            "risk_level": "medium" if key in ("F05_ACCEPT_BEFORE_PERFORMANCE", "F06_SHARED_CONTACT") else "high",
+            "violation_ids": group["violation_ids"],
+            "violation_model": "；".join(group["violation_models"]),
+            "description": description,
+            "involved_amount": amount,
+            "involved_period": "2025年",
+            "data_source": {"table": "cross_document", "record_id": first.get("hit_key", ""),
+                            "trace_anchor": "；".join(e.get("position_anchor") or "" for e in group["evidence_refs"])},
+            "legal_basis": [],
+            "evidence_chain": [
+                f"{e.get('doc_name') or '原始文档'} → PDF文本层 → 结构化字段 → 确定性规则命中"
+                for e in group["evidence_refs"]
+            ],
+            "evidence_refs": group["evidence_refs"],
+            "suggested_actions": ["调取原始资料并向被审计单位核实后再作审计定性"],
+        })
+    high = sum(1 for item in items if item["risk_level"] == "high")
+    medium = sum(1 for item in items if item["risk_level"] == "medium")
+    return {
+        "report_title": "政府采购项目确定性扫描疑点报告",
+        "generated_at": "",
+        "summary": f"确定性规则形成{len(items)}条待核实疑点，最终定性需履行审计复核程序。",
+        "total_suspicions": len(items),
+        "high_risk_count": high,
+        "medium_risk_count": medium,
+        "low_risk_count": len(items) - high - medium,
+        "items": items,
+    }
+
+
+def _deterministic_title_amount(key: str, row: dict) -> tuple[str, str]:
+    titles = {
+        "F01_SPLIT_TENDER": "拆分采购规避公开招标疑点",
+        "F02_SIGN_AFTER_DELIVERY": "合同倒签疑点",
+        "F03_ADDITION_OVER_10_PERCENT": "超比例追加采购疑点",
+        "F04_DUPLICATE_INVOICE": "发票重复入账疑点",
+        "F05_ACCEPT_BEFORE_PERFORMANCE": "验收时间异常疑点",
+        "F06_SHARED_CONTACT": "供应商关联疑点",
+    }
+    amount = ""
+    if key == "F01_SPLIT_TENDER" and row.get("batch_total") is not None:
+        amount = f"{float(row['batch_total']):,.2f}元"
+    elif key == "F03_ADDITION_OVER_10_PERCENT" and row.get("addition_amount") is not None:
+        amount = f"{float(row['addition_amount']):,.2f}元"
+    elif key == "F04_DUPLICATE_INVOICE" and row.get("amount_total") is not None:
+        amount = f"{float(row['amount_total']):,.2f}元"
+    return titles.get(key, "审计疑点"), amount
+
+
 class SuspicionGeneratorAgent(BaseAgent):
     """疑点生成专家 — 知识优先 + 显式工具调用"""
 

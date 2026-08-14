@@ -541,8 +541,13 @@ def migrate_engine_rules():
   expression    TEXT                        COMMENT '分析规则伪SQL（缺省引用 violation.expression_text）',
   field_mapping JSON                        COMMENT '模型字段→表字段映射（复用 field_mapper）',
   threshold     JSON                        COMMENT '阈值配置',
+  executor_type VARCHAR(40) NOT NULL DEFAULT 'expression' COMMENT 'expression/procurement_cross_doc',
+  executor_key  VARCHAR(100)                COMMENT '注册表中的规则编码',
+  rule_version  VARCHAR(30) NOT NULL DEFAULT '1.0' COMMENT '规则版本',
+  result_group_key VARCHAR(100)             COMMENT '跨事项疑点去重键',
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_violation (violation_id)
+  INDEX idx_violation (violation_id),
+  INDEX idx_executor_key (executor_type, executor_key)
 ) COMMENT '违规模型→分析规则映射（引擎执行）'""",
         ),
         (
@@ -740,6 +745,112 @@ def migrate_audit_deliverables_columns():
         print(f"[migrate] = {table}.{col} 已存在，跳过")
 
 
+def migrate_audit_item_violation_refs():
+    """事项↔规则桥表 — audit_item_violation_refs（事项级规则接线）
+
+    audit_items（描述性审计事项）与 audit_violations（可执行表达式规则）此前结构性无关联：
+    audit_violations.audititem_id 指向外部 audit_law.sys_audititem_SLFF 分类树（非本库
+    audit_items），audit_item_methods 只有 violation_id 无 item_id，全库无任何 SQL 同时
+    JOIN 这两张表。本桥表建立"一条审计事项可挂载哪些可执行违规规则"的一等关联，让
+    Step⑤ 能按事项取规则扫描。桥表只作"可信配置源/种子"，不改动 Step⑤ 确定性引擎（扫描
+    仍吃 violation_ids）。不设外键（与 audit_engine_rules/audit_item_methods 一致），
+    UNIQUE(item_id, violation_id) 防重复灌。幂等：_table_exists 预检。
+    """
+    tables = [
+        (
+            "audit_item_violation_refs",
+            f"""CREATE TABLE {DATABASE}.audit_item_violation_refs (
+  id            INT           AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  item_id       INT           NOT NULL                COMMENT '关联 audit_items.id',
+  violation_id  INT           NOT NULL                COMMENT '关联 audit_violations.id',
+  project_id    VARCHAR(32)                           COMMENT '冗余项目ID，便于按项目查映射',
+  is_primary    TINYINT       DEFAULT 0               COMMENT '是否主规则(1=主,0=辅)',
+  match_reason  VARCHAR(500)                          COMMENT '挂载依据（人工/自动匹配说明）',
+  created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_item_violation (item_id, violation_id),
+  INDEX idx_item (item_id),
+  INDEX idx_project (project_id),
+  INDEX idx_violation (violation_id)
+) COMMENT '审计事项↔违规模型桥表（事项级规则接线）'""",
+        ),
+    ]
+    for table, ddl in tables:
+        if _table_exists(table):
+            print(f"[migrate] = 表 {table} 已存在，跳过")
+            continue
+        execute(ddl, database=DATABASE)
+        print(f"[migrate] + 表 {table}")
+
+
+def migrate_rule_executor_metadata():
+    """采购跨文档规则执行器元数据（旧规则默认仍走 expression）。"""
+    table = "audit_engine_rules"
+    if not _table_exists(table):
+        print(f"[migrate] ! 表 {table} 不存在，执行器元数据跳过")
+        return
+    columns = (
+        ("executor_type", "VARCHAR(40) NOT NULL DEFAULT 'expression' COMMENT 'expression/procurement_cross_doc'"),
+        ("executor_key", "VARCHAR(100) DEFAULT NULL COMMENT '注册表中的规则编码'"),
+        ("rule_version", "VARCHAR(30) NOT NULL DEFAULT '1.0' COMMENT '规则版本'"),
+        ("result_group_key", "VARCHAR(100) DEFAULT NULL COMMENT '跨事项疑点去重键'"),
+    )
+    for column, ddl in columns:
+        if _column_exists(table, column):
+            print(f"[migrate] = {table}.{column} 已存在，跳过")
+            continue
+        execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {column} {ddl}", database=DATABASE)
+        print(f"[migrate] + {table}.{column}")
+
+    if not _index_exists(table, "idx_executor_key"):
+        execute(
+            f"ALTER TABLE {DATABASE}.{table} ADD INDEX idx_executor_key (executor_type, executor_key)",
+            database=DATABASE,
+        )
+        print(f"[migrate] + {table}.idx_executor_key")
+
+
+def migrate_procurement_audit_columns():
+    """采购案例跨文档规则所需结构化列（qingyue-procurement-six-items-repair 阶段A）。
+
+    为 7 条 GP-* 确定性规则补齐字段落点。spike 验证 OntoSKU 已能抽出这些字段
+    （合同金额/签约日期/凭证号/发票号/送货日期…），只是原 data_* 表无对应标准列、
+    field_mapper 无别名，故落不进表——去险结论：非抽取问题，是映射缺口。逐列幂等。
+      - data_finance：invoice_no/invoice_amount（发票本身）、ref_invoice_no（凭证引用的
+        发票号，GP-FINANCE-001 跨文档匹配「发票被多凭证引用」）
+      - data_procurements：supplier_phone/supplier_email（GP-SUPPLIER-001 供应商关联）
+      - 四表通用 batch_no：批次编号，GP-* 跨文档按批次连接（enrich 已从文件名抽"批次编号"）
+    """
+    specs = [
+        ("data_finance", "invoice_no",
+         "VARCHAR(64) DEFAULT NULL COMMENT '发票号码（GP-FINANCE-001）'"),
+        ("data_finance", "invoice_amount",
+         "DECIMAL(20,2) DEFAULT NULL COMMENT '发票金额/价税合计(元)'"),
+        ("data_finance", "ref_invoice_no",
+         "VARCHAR(255) DEFAULT NULL COMMENT '凭证引用的原始发票号（GP-FINANCE-001）'"),
+        ("data_finance", "batch_no",
+         "VARCHAR(16) DEFAULT NULL COMMENT '批次编号(B01..)，跨文档连接键'"),
+        ("data_procurements", "supplier_phone",
+         "VARCHAR(64) DEFAULT NULL COMMENT '供应商电话（GP-SUPPLIER-001）'"),
+        ("data_procurements", "supplier_email",
+         "VARCHAR(128) DEFAULT NULL COMMENT '供应商邮箱（GP-SUPPLIER-001）'"),
+        ("data_procurements", "batch_no",
+         "VARCHAR(16) DEFAULT NULL COMMENT '批次编号(B01..)'"),
+        ("data_registers", "batch_no",
+         "VARCHAR(16) DEFAULT NULL COMMENT '批次编号(B01..)'"),
+        ("data_contracts", "batch_no",
+         "VARCHAR(16) DEFAULT NULL COMMENT '批次编号(B01..)，GP-PLAN-001聚合三批合同'"),
+    ]
+    for table, column, ddl in specs:
+        if not _table_exists(table):
+            print(f"[migrate] ! 表 {table} 不存在，{column} 跳过")
+            continue
+        if _column_exists(table, column):
+            print(f"[migrate] = {table}.{column} 已存在，跳过")
+            continue
+        execute(f"ALTER TABLE {DATABASE}.{table} ADD COLUMN {column} {ddl}", database=DATABASE)
+        print(f"[migrate] + {table}.{column}")
+
+
 def main():
     print(f"[migrate] 开始迁移，目标库: {DATABASE}")
     try:
@@ -760,6 +871,9 @@ def main():
         migrate_audit_projects_report_columns()
         migrate_audit_deliverables()
         migrate_audit_deliverables_columns()
+        migrate_audit_item_violation_refs()
+        migrate_rule_executor_metadata()
+        migrate_procurement_audit_columns()
     except Exception as e:
         print(f"[migrate] X 迁移失败: {e}")
         raise
